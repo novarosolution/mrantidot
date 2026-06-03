@@ -291,6 +291,34 @@ mrantidot/
 
 ---
 
+## Deploy API on Render
+
+Use the **server** folder only (avoids mobile yarn peer warnings and wrong start command).
+
+| Setting | Value |
+|---------|--------|
+| **Root Directory** | `server` |
+| **Build Command** | `npm install && npm run build` |
+| **Start Command** | `npm start` |
+| **Health Check Path** | `/api/health` |
+
+**Environment variables** (required):
+
+| Variable | Example |
+|----------|---------|
+| `NODE_ENV` | `production` |
+| `MONGO_URI` | `mongodb+srv://user:pass@cluster.mongodb.net/mrantidot-v2` — **no `.` in the database name** |
+| `JWT_SECRET` | long random string |
+| `CLIENT_URL` | `*` or your app origin |
+
+Optional: `ADMIN_PHONE`, `ADMIN_PASSWORD`, `ADMIN_EMAIL`, etc. (see `server/.env.example`).
+
+Or connect the repo to [`render.yaml`](render.yaml) (Blueprint) — it sets `rootDir: server` automatically.
+
+After deploy: `curl https://YOUR-SERVICE.onrender.com/api/health` → `"db":"connected"`.
+
+---
+
 ## Troubleshooting
 
 | Issue | Fix |
@@ -298,5 +326,5 @@ mrantidot/
 | App can’t reach API | Wrong `EXPO_PUBLIC_API_URL`; use LAN IP + same Wi‑Fi, or tunnel |
 | APK login fails | Rebuild with a **public** API URL; seed that server |
 | Port 4000 in use | `lsof -i :4000` → kill process or change `PORT` |
-| Mongo connection error | Start `mongod` or fix `MONGO_URI` |
-# mrantidot
+| Mongo connection error | Start `mongod` or fix `MONGO_URI`; names like `mrantidot-2.0` are invalid — use `mrantidot-v2` |
+| Render exits status 1 | Set **Root Directory** to `server`, run `npm run build` in build step, set `MONGO_URI` + `JWT_SECRET` |

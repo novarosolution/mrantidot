@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { env } from './env';
+import { assertValidMongoUri } from './validateEnv';
 
 function parseMongoTarget(uri: string): { host: string; dbName: string } {
   try {
@@ -13,6 +14,7 @@ function parseMongoTarget(uri: string): { host: string; dbName: string } {
 
 export async function connectDb(): Promise<void> {
   const uri = env.mongoUri;
+  assertValidMongoUri(uri);
   const { host, dbName } = parseMongoTarget(uri);
 
   mongoose.set('strictQuery', true);
@@ -23,9 +25,16 @@ export async function connectDb(): Promise<void> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[db] Connection failed — host=${host} db=${dbName}: ${message}`);
-    console.error(
-      '\nStart MongoDB locally:\n  brew services start mongodb-community\n  # or\n  mongod --dbpath ~/data/db\n',
-    );
+    if (process.env.NODE_ENV === 'production') {
+      console.error(
+        '\nProduction: set MONGO_URI to MongoDB Atlas (no "." in database name, e.g. mrantidot-v2).\n' +
+          'Render → Environment → MONGO_URI\n',
+      );
+    } else {
+      console.error(
+        '\nStart MongoDB locally:\n  brew services start mongodb-community\n  # or\n  mongod --dbpath ~/data/db\n',
+      );
+    }
     throw err;
   }
 }

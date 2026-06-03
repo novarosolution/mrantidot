@@ -1,4 +1,3 @@
-import './config/env';
 import './types/express';
 import cors from 'cors';
 import express from 'express';
@@ -6,11 +5,14 @@ import morgan from 'morgan';
 import path from 'path';
 import { connectDb, isDbConnected } from './config/db';
 import { env } from './config/env';
+import { assertDistBuilt, validateProductionEnv } from './config/validateEnv';
 import { errorHandler } from './middleware/error';
 import { apiRouter } from './routes';
 import { getAdminConfig, upsertAdminUser } from './utils/adminUser';
 
 async function main(): Promise<void> {
+  validateProductionEnv();
+  assertDistBuilt();
   await connectDb();
 
   if (env.ensureAdminOnStartup) {

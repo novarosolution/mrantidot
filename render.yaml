@@ -1,0 +1,20 @@
+# Render Blueprint — API only (server workspace). Mobile is built separately via EAS.
+services:
+  - type: web
+    name: mrantidot-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGO_URI
+        sync: false
+      - key: CLIENT_URL
+        value: '*'
+      - key: ENSURE_ADMIN_ON_STARTUP
+        value: 'true'
