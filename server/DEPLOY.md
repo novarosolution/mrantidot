@@ -1,15 +1,25 @@
 # Server deploy checklist (Render / Railway / Fly)
 
-## Render settings
+## Render settings (required)
 
 | Field | Value |
 |-------|--------|
 | Root Directory | `server` |
-| Build Command | `npm install --include=dev && npm run build` |
-| Start Command | `npm start` |
+| **Build Command** | `bash render-build.sh` |
+| **Start Command** | `bash render-start.sh` |
 | Health Check | `/api/health` |
 
-Or use the repo root [`render.yaml`](../render.yaml) Blueprint.
+Do **not** use `npm run dev` on Render — it will not compile TypeScript and will time out on the port scan.
+
+Or use the repo root [`render.yaml`](../render.yaml) Blueprint (same commands).
+
+### If deploy failed with JWT_SECRET or "No open ports"
+
+1. **Environment** → add `JWT_SECRET` (32+ random characters; not `supersecret_change_me`).
+2. **Environment** → add `MONGO_URI` (Atlas connection string).
+3. **Start Command** → `bash render-start.sh` (not `npm run dev`).
+4. **Build Command** → `bash render-build.sh` (not `npm install` only).
+5. Redeploy.
 
 ## Required environment variables
 

@@ -298,8 +298,8 @@ Use the **server** folder only (avoids mobile yarn peer warnings and wrong start
 | Setting | Value |
 |---------|--------|
 | **Root Directory** | `server` |
-| **Build Command** | `npm install --include=dev && npm run build` |
-| **Start Command** | `npm start` |
+| **Build Command** | `bash render-build.sh` |
+| **Start Command** | `bash render-start.sh` |
 | **Health Check Path** | `/api/health` |
 
 **Environment variables** (required):
