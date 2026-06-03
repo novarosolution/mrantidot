@@ -1,0 +1,72 @@
+{
+  "expo": {
+    "name": "Mr Antidot",
+    "slug": "mrantidot",
+    "version": "1.0.0",
+    "scheme": "mrantidot",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F766E"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mrantidot.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Mr Antidot uses your camera to capture job verification photos and booking problem images.",
+        "NSPhotoLibraryUsageDescription": "Mr Antidot lets you attach photos from your library when booking a service.",
+        "NSLocationWhenInUseUsageDescription": "Mr Antidot uses your location to autofill your service address and to tag job verification photos so customers can confirm on-site work."
+      }
+    },
+    "android": {
+      "package": "com.mrantidot.app",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "READ_MEDIA_IMAGES"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#0D9488",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Mr Antidot uses your camera to capture job verification photos and booking problem images."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Mr Antidot uses your location to autofill your service address and to tag job verification photos so customers can confirm on-site work."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Mr Antidot lets you attach photos from your library when booking a service.",
+          "cameraPermission": "Mr Antidot uses your camera to capture photos for bookings and job verification."
+        }
+      ],
+      "expo-splash-screen"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

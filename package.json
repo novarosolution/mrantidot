@@ -1,0 +1,20 @@
+{
+  "name": "mrantidot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mr Antidot — home-services booking platform",
+  "workspaces": [
+    "server",
+    "mobile"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --workspace=server",
+    "seed": "npm run seed --workspace=server",
+    "dev:mobile": "npm run start --workspace=mobile",
+    "build:server": "npm run build --workspace=server",
+    "build:apk": "npm run build:apk --workspace=mobile"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
