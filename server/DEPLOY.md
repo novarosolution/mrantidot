@@ -9,9 +9,9 @@
 | **Start Command** | `bash render-start.sh` |
 | Health Check | `/api/health` |
 
-Do **not** use `npm run dev` on Render — it will not compile TypeScript and will time out on the port scan.
+The repo auto-builds on Render when `RENDER` is set (even if Build = `npm install` and Start = `npm run dev`). **Recommended** commands below are faster and clearer.
 
-Or use the repo root [`render.yaml`](../render.yaml) Blueprint (same commands).
+Or use the repo root [`render.yaml`](../render.yaml) Blueprint.
 
 ### If deploy failed with JWT_SECRET or "No open ports"
 

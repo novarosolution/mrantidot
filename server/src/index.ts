@@ -1,3 +1,6 @@
+// Render may still run `tsx watch src/index.ts` — hand off to compiled server in production.
+require('../scripts/production-bootstrap.cjs');
+
 import './types/express';
 import cors from 'cors';
 import express from 'express';

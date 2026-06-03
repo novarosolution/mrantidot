@@ -4,9 +4,10 @@
   "private": true,
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "node scripts/run.cjs",
     "build": "tsc",
     "start": "node dist/index.js",
+    "postinstall": "node scripts/render-postinstall.cjs",
     "seed": "ts-node-dev src/seed/seed.ts",
     "deploy:check": "npm install --include=dev && npm run build && node -e \"require('fs').accessSync('dist/index.js'); console.log('OK: dist/index.js ready')\""
   },

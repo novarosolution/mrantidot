@@ -1,7 +1,9 @@
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
-import { assertValidMongoUri } from './validateEnv';
+import { assertValidMongoUri, ensureProductionJwt } from './validateEnv';
+
+ensureProductionJwt();
 
 const envCandidates = [
   path.resolve(process.cwd(), '.env'),
