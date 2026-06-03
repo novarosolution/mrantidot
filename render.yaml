@@ -4,7 +4,8 @@ services:
     name: mrantidot-api
     runtime: node
     rootDir: server
-    buildCommand: npm install && npm run build
+    # Install devDependencies too (TypeScript) — NODE_ENV=production skips them otherwise
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
