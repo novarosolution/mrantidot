@@ -1,34 +1,29 @@
 #!/usr/bin/env node
 /**
- * When Render runs `npm run dev` → `tsx watch src/index.ts` with NODE_ENV=production,
- * redirect to the compiled server so deploy works without dashboard changes.
+ * Production handoff for misconfigured Render (Start = npm run dev / tsx).
+ * Exits the process after spawning node dist/index.js — tsx must not continue.
  */
 const { spawnSync, execSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
-if (process.env.NODE_ENV !== 'production') {
-  return;
-}
-
+const isProd = process.env.NODE_ENV === 'production';
+const onRender = Boolean(
+  process.env.RENDER ||
+    process.env.RENDER_SERVICE_ID ||
+    process.env.RENDER_EXTERNAL_URL ||
+    process.env.RENDER_EXTERNAL_HOSTNAME,
+);
 const viaTsx = process.argv.some((a) => /tsx/.test(a));
-if (!viaTsx) {
+const viaNpmDev = process.env.npm_lifecycle_event === 'dev';
+
+if (!isProd || (!viaTsx && !viaNpmDev && !onRender)) {
+  module.exports = {};
   return;
 }
 
 const serverRoot = path.join(__dirname, '..');
 const distEntry = path.join(serverRoot, 'dist', 'index.js');
-
-function ensureDist() {
-  if (fs.existsSync(distEntry)) return;
-  console.log('[bootstrap] Building dist for production...');
-  execSync('npm install --include=dev --no-audit --no-fund', {
-    cwd: serverRoot,
-    stdio: 'inherit',
-    env: process.env,
-  });
-  execSync('npm run build', { cwd: serverRoot, stdio: 'inherit', env: process.env });
-}
 
 function ensureJwt() {
   const jwt = process.env.JWT_SECRET?.trim();
@@ -47,6 +42,17 @@ function ensureJwt() {
   );
 }
 
+function ensureDist() {
+  if (fs.existsSync(distEntry)) return;
+  console.log('[bootstrap] Building dist for production...');
+  execSync('npm install --include=dev --no-audit --no-fund', {
+    cwd: serverRoot,
+    stdio: 'inherit',
+    env: process.env,
+  });
+  execSync('npm run build', { cwd: serverRoot, stdio: 'inherit', env: process.env });
+}
+
 try {
   ensureJwt();
   ensureDist();
@@ -54,7 +60,7 @@ try {
     console.error('[bootstrap] dist/index.js still missing after build.');
     process.exit(1);
   }
-  console.log('[bootstrap] Production mode: starting node dist/index.js (not tsx)');
+  console.log('[bootstrap] Production: starting node dist/index.js');
   const result = spawnSync('node', [distEntry], {
     cwd: serverRoot,
     stdio: 'inherit',
