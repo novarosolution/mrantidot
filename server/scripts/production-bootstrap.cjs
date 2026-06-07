@@ -1,23 +1,18 @@
 #!/usr/bin/env node
 /**
- * Production handoff for misconfigured Render (Start = npm run dev / tsx).
- * Exits the process after spawning node dist/index.js — tsx must not continue.
+ * Only for misconfigured Render Start Command (`npm run dev` / tsx).
+ * Never runs when Start Command is `npm start` → node dist/index.js.
  */
 const { spawnSync, execSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
 const isProd = process.env.NODE_ENV === 'production';
-const onRender = Boolean(
-  process.env.RENDER ||
-    process.env.RENDER_SERVICE_ID ||
-    process.env.RENDER_EXTERNAL_URL ||
-    process.env.RENDER_EXTERNAL_HOSTNAME,
-);
 const viaTsx = process.argv.some((a) => /tsx/.test(a));
 const viaNpmDev = process.env.npm_lifecycle_event === 'dev';
+const runningDist = process.argv.some((a) => /dist[/\\]index\.js/.test(a));
 
-if (!isProd || (!viaTsx && !viaNpmDev && !onRender)) {
+if (!isProd || runningDist || (!viaTsx && !viaNpmDev)) {
   module.exports = {};
   return;
 }
@@ -48,7 +43,7 @@ function ensureDist() {
   execSync('bash render-build.sh', {
     cwd: serverRoot,
     stdio: 'inherit',
-    env: { ...process.env, NPM_CONFIG_WORKSPACES: 'false' },
+    env: process.env,
   });
 }
 
@@ -59,11 +54,11 @@ try {
     console.error('[bootstrap] dist/index.js still missing after build.');
     process.exit(1);
   }
-  console.log('[bootstrap] Production: starting node dist/index.js');
+  console.log('[bootstrap] Redirecting tsx/dev → node dist/index.js');
   const result = spawnSync('node', [distEntry], {
     cwd: serverRoot,
     stdio: 'inherit',
-    env: process.env,
+    env: { ...process.env, MRANTIDOT_SERVER_STARTED: '1' },
   });
   process.exit(result.status ?? 1);
 } catch (err) {
