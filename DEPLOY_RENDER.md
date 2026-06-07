@@ -2,7 +2,7 @@
 
 Follow these steps in order.
 
-## Why builds were ~8GB (free tier fails)
+## Why builds were ~8GB (fixed)
 
 This repo is a **monorepo** (server + mobile). If Render installs from the workspace root, npm pulls **Expo / React Native** deps (multi‑GB). Fixes in this repo:
 
@@ -10,6 +10,19 @@ This repo is a **monorepo** (server + mobile). If Render installs from the works
 - `.renderignore` excludes `mobile/` from the upload
 - `server/.npmrc` sets `workspaces=false` — **server-only** ~70MB install
 - `render-build.sh` prunes devDependencies after compile
+
+## 2GB RAM tuning (free tier)
+
+Runtime is **~25–80MB** after these optimizations:
+
+| Setting | Value |
+|---------|--------|
+| `NODE_OPTIONS` | `--max-old-space-size=512` |
+| `MONGO_MAX_POOL_SIZE` | `5` (optional) |
+| Build | `bash render-build.sh` |
+| Start | `npm start` |
+
+Full checklist: [`server/RENDER.md`](server/RENDER.md)
 
 ---
 
@@ -56,6 +69,8 @@ Click **Environment** → add:
 | `MONGO_URI` | Your Atlas connection string (from Step 1) |
 | `JWT_SECRET` | Run locally: `openssl rand -hex 32` and paste the result |
 | `CLIENT_URL` | `*` |
+| `NODE_OPTIONS` | `--max-old-space-size=512` |
+| `MONGO_MAX_POOL_SIZE` | `5` |
 | `ADMIN_PHONE` | Your admin phone (optional) |
 | `ADMIN_PASSWORD` | Your admin password (optional) |
 | `ADMIN_EMAIL` | Your admin email (optional) |

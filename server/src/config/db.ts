@@ -20,19 +20,27 @@ export async function connectDb(): Promise<void> {
   mongoose.set('strictQuery', true);
 
   try {
-    await mongoose.connect(uri);
-    console.log(`[db] Connected — host=${host} db=${dbName}`);
+    await mongoose.connect(uri, {
+      maxPoolSize: env.mongoMaxPoolSize,
+      minPoolSize: 1,
+      serverSelectionTimeoutMS: 15_000,
+      socketTimeoutMS: 45_000,
+      maxIdleTimeMS: 30_000,
+    });
+    console.log(
+      `[db] Connected — host=${host} db=${dbName} pool=${env.mongoMaxPoolSize}`,
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[db] Connection failed — host=${host} db=${dbName}: ${message}`);
-    if (process.env.NODE_ENV === 'production') {
+    if (env.isProduction) {
       console.error(
-        '\nProduction: set MONGO_URI to MongoDB Atlas (no "." in database name, e.g. mrantidot-v2).\n' +
+        '\nProduction: set MONGO_URI to MongoDB Atlas (no "." in database name).\n' +
           'Render → Environment → MONGO_URI\n',
       );
     } else {
       console.error(
-        '\nStart MongoDB locally:\n  brew services start mongodb-community\n  # or\n  mongod --dbpath ~/data/db\n',
+        '\nStart MongoDB locally:\n  brew services start mongodb-community\n',
       );
     }
     throw err;

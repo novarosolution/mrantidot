@@ -3,8 +3,6 @@ import fs from 'fs';
 import path from 'path';
 import { assertValidMongoUri, ensureProductionJwt } from './validateEnv';
 
-ensureProductionJwt();
-
 const envCandidates = [
   path.resolve(process.cwd(), '.env'),
   path.resolve(process.cwd(), 'server/.env'),
@@ -18,9 +16,12 @@ for (const envPath of envCandidates) {
   }
 }
 
-const mongoUri = process.env.MONGO_URI?.trim() ?? 'mongodb://127.0.0.1:27017/mrantidot';
+ensureProductionJwt();
 
-if (process.env.NODE_ENV !== 'production') {
+const mongoUri = process.env.MONGO_URI?.trim() ?? 'mongodb://127.0.0.1:27017/mrantidot';
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (!isProduction) {
   try {
     assertValidMongoUri(mongoUri);
   } catch (err) {
@@ -30,6 +31,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export const env = {
+  isProduction,
   port: parseInt(process.env.PORT ?? '4000', 10),
   mongoUri,
   jwtSecret: process.env.JWT_SECRET ?? 'supersecret_change_me',
@@ -39,7 +41,6 @@ export const env = {
     process.cwd(),
     process.env.UPLOAD_DIR ?? path.join(process.cwd(), 'uploads'),
   ),
-  /** Admin account written to MongoDB on startup and during seed. */
   admin: {
     phone: process.env.ADMIN_PHONE ?? '9000000001',
     password: process.env.ADMIN_PASSWORD ?? 'admin123',
@@ -49,4 +50,6 @@ export const env = {
   },
   ensureAdminOnStartup: process.env.ENSURE_ADMIN_ON_STARTUP !== 'false',
   workOtpTtlMinutes: parseInt(process.env.WORK_OTP_TTL_MINUTES ?? '30', 10),
+  /** Cap Mongo connection pool — keeps RAM low on Render free tier (2GB). */
+  mongoMaxPoolSize: parseInt(process.env.MONGO_MAX_POOL_SIZE ?? '5', 10),
 };
