@@ -5,7 +5,7 @@ services:
     runtime: node
     rootDir: server
     buildCommand: bash render-build.sh
-    startCommand: bash render-start.sh
+    startCommand: npm start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV

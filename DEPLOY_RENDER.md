@@ -44,6 +44,8 @@ git push origin main
 | **Build Command** | `bash render-build.sh` |
 | **Start Command** | `npm start` |
 
+Do **not** use `npm install` alone as Build Command — it will not compile TypeScript.
+
 ### Environment variables
 
 Click **Environment** → add:
