@@ -10,7 +10,8 @@ import { TechnicianDayCalendar } from '@/components/kit/TechnicianDayCalendar';
 import { UserAccountCard } from '@/components/kit/UserAccountCard';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { api, screenLoadConfig } from '@/lib/api';
+import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
+import { bookingVisitDate } from '@/lib/booking-helpers';
 import { localDateKey } from '@/lib/dates';
 import type { Booking, DayAttendanceStatus, TechnicianStats } from '@/types/api';
 import { colors, fonts, spacing, surfaces } from '@/constants/theme';
@@ -116,8 +117,8 @@ export function TechnicianProfilePanel({
           <Text style={styles.bannerTitle}>Mark yourself on duty</Text>
           <Text style={styles.bannerSub}>Check in when you start your work day.</Text>
           <View style={styles.bannerActions}>
-            <Button title="On duty today" onPress={onCheckIn} loading={checkingIn} style={styles.bannerBtn} />
-            <Button title="Off today" variant="secondary" onPress={onMarkAbsent} loading={checkingIn} style={styles.bannerBtn} />
+            <Button title="On duty today" variant="premium" fullWidth={false} onPress={onCheckIn} loading={checkingIn} style={styles.bannerBtn} />
+            <Button title="Off today" variant="secondary" fullWidth={false} onPress={onMarkAbsent} loading={checkingIn} style={styles.bannerBtn} />
           </View>
         </Card>
       ) : todayStatus === 'came' ? (
@@ -207,7 +208,8 @@ export async function loadTechnicianProfileData(month: string) {
 
   const cal: Record<string, number> = {};
   for (const b of bookingsRes.data.bookings) {
-    const d = b.schedule.date;
+    const d = bookingVisitDate(b);
+    if (!d) continue;
     cal[d] = (cal[d] ?? 0) + 1;
   }
 
@@ -221,13 +223,23 @@ export async function loadTechnicianProfileData(month: string) {
 }
 
 export async function checkInTechnician() {
-  await api.post('/attendance/check-in');
-  Toast.show({ type: 'success', text1: 'You are on duty today' });
+  try {
+    await api.post('/attendance/check-in');
+    Toast.show({ type: 'success', text1: 'You are on duty today' });
+  } catch (err) {
+    Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not check in') });
+    throw err;
+  }
 }
 
 export async function markTechnicianAbsent() {
-  await api.post('/attendance/mark-absent');
-  Toast.show({ type: 'success', text1: 'Marked off duty for today' });
+  try {
+    await api.post('/attendance/mark-absent');
+    Toast.show({ type: 'success', text1: 'Marked off duty for today' });
+  } catch (err) {
+    Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not update attendance') });
+    throw err;
+  }
 }
 
 const styles = StyleSheet.create({

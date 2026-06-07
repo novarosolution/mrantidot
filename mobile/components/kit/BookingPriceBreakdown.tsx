@@ -11,6 +11,7 @@ export function BookingPriceBreakdown({
 }) {
   return (
     <View style={[styles.wrap, compact && styles.compact]}>
+      <View style={styles.goldRule} />
       <Text style={styles.heading}>Price breakdown</Text>
       <Row label="Service charge" value={`₹${amount.base}`} />
       <Row label="GST (18%)" value={`₹${amount.gst}`} />
@@ -18,7 +19,10 @@ export function BookingPriceBreakdown({
         <Row label="Coupon discount" value={`-₹${amount.coupon}`} valueStyle={styles.discount} />
       ) : null}
       <View style={styles.divider} />
-      <Row label="You pay" value={`₹${amount.total}`} bold gold />
+      <View style={styles.totalRow}>
+        <Text style={styles.totalLabel}>You pay</Text>
+        <Text style={styles.totalValue}>₹{amount.total}</Text>
+      </View>
     </View>
   );
 }
@@ -26,41 +30,65 @@ export function BookingPriceBreakdown({
 function Row({
   label,
   value,
-  bold,
-  gold,
   valueStyle,
 }: {
   label: string;
   value: string;
-  bold?: boolean;
-  gold?: boolean;
   valueStyle?: object;
 }) {
   return (
     <View style={styles.row}>
-      <Text style={[styles.label, bold && styles.labelBold]}>{label}</Text>
-      <Text style={[styles.value, bold && styles.valueBold, gold && styles.valueGold, valueStyle]}>{value}</Text>
+      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.value, valueStyle]}>{value}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: colors.card,
-    borderRadius: 18,
+    backgroundColor: colors.white,
+    borderRadius: premium.radiusCard,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(20,83,45,0.06)',
+    overflow: 'hidden',
     ...shadows.card,
   },
+  goldRule: {
+    position: 'absolute',
+    top: 0,
+    left: spacing.md,
+    right: spacing.md,
+    height: 2,
+    backgroundColor: premium.accentGold,
+    opacity: 0.55,
+    borderRadius: 1,
+  },
   compact: { padding: spacing.sm },
-  heading: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.muted, marginBottom: spacing.sm, letterSpacing: 0.5 },
+  heading: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 11,
+    color: colors.muted,
+    marginBottom: spacing.sm,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
   row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   label: { fontFamily: fonts.body, fontSize: 13, color: colors.muted },
-  labelBold: { fontFamily: fonts.bodySemi, color: colors.ink, fontSize: 14 },
   value: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink },
-  valueBold: { fontFamily: fonts.displayExtra, fontSize: 20 },
-  valueGold: { color: premium.accentGold },
   discount: { color: colors.green },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    backgroundColor: colors.soft,
+    marginHorizontal: -spacing.sm,
+    marginBottom: -spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderRadius: 14,
+  },
+  totalLabel: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.ink },
+  totalValue: { fontFamily: fonts.displayExtra, fontSize: 22, color: premium.accentGold, letterSpacing: -0.3 },
 });

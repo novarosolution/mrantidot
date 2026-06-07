@@ -11,6 +11,7 @@ import {
 import { KeyRound, X } from 'lucide-react-native';
 import { Button } from '@/components/ui/Button';
 import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { textInputDefaults } from '@/components/ui/textInputDefaults';
 
 export function OtpEntrySheet({
   visible,
@@ -22,7 +23,7 @@ export function OtpEntrySheet({
 }: {
   visible: boolean;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   loading?: boolean;
   onClose: () => void;
   onSubmit: (otp: string) => void;
@@ -69,12 +70,13 @@ export function OtpEntrySheet({
             <KeyRound size={24} color={colors.white} />
           </View>
           <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
 
           <Animated.View style={{ transform: [{ translateX: shake }] }}>
             <TextInput
               ref={inputRef}
               style={styles.input}
+              {...textInputDefaults}
               value={code}
               onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
               keyboardType="number-pad"
@@ -149,8 +151,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   input: {
-    fontFamily: fonts.displayExtra,
     fontSize: 32,
+    fontWeight: '600',
     letterSpacing: 12,
     color: colors.forest,
     backgroundColor: colors.soft,

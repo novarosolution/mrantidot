@@ -2,21 +2,22 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { AdminListShell } from '@/components/kit/AdminListShell';
+import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { IconInput } from '@/components/kit/IconInput';
+import { ServiceIconPicker } from '@/components/kit/ServiceIconPicker';
+import { ServiceTypePicker } from '@/components/kit/ServiceTypePicker';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { Chip } from '@/components/ui/Chip';
+import { StickyActionBar } from '@/components/ui/StickyActionBar';
+import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { ServiceCategory, ServiceTypeKey } from '@/types/api';
-import { SERVICE_TYPE_KEYS, SERVICE_TYPE_LABELS } from '@/constants/serviceTypes';
 import { colors, fonts, spacing } from '@/constants/theme';
 
-const ICON_KEYS = ['spray', 'mosq', 'mouse', 'bed', 'termite', 'clean', 'bird'] as const;
 const CATEGORIES: { key: ServiceCategory; label: string }[] = [
   { key: 'residential', label: 'Residential' },
   { key: 'commercial', label: 'Commercial' },
@@ -35,7 +36,7 @@ export default function ServiceEditScreen() {
   const [steps, setSteps] = useState('Arrival,Before,After,Sign-off');
   const [rating, setRating] = useState('4.8');
   const [saving, setSaving] = useState(false);
-  const { loading, error, runLoad } = useScreenLoad(!id);
+  const { loading, error, runLoad, reload } = useScreenLoad(!!id);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -70,6 +71,10 @@ export default function ServiceEditScreen() {
   async function save() {
     if (!name.trim() || !shortDesc.trim()) {
       Toast.show({ type: 'error', text1: 'Name and description are required' });
+      return;
+    }
+    if (serviceTypes.length === 0) {
+      Toast.show({ type: 'error', text1: 'Select at least one pest type' });
       return;
     }
     const price = parseFloat(basePrice);
@@ -113,10 +118,16 @@ export default function ServiceEditScreen() {
       {
         text: 'Deactivate',
         style: 'destructive',
-        onPress: async () => {
-          await api.delete(`/services/${id}`);
-          Toast.show({ type: 'success', text1: 'Service deactivated' });
-          router.back();
+        onPress: () => {
+          void (async () => {
+            try {
+              await api.delete(`/services/${id}`);
+              Toast.show({ type: 'success', text1: 'Service deactivated' });
+              router.back();
+            } catch {
+              Toast.show({ type: 'error', text1: 'Could not deactivate service' });
+            }
+          })();
         },
       },
     ]);
@@ -127,68 +138,60 @@ export default function ServiceEditScreen() {
   if (id && error) {
     return (
       <AdminListShell title="Edit Service" subtitle="Error">
-        <ListEmptyRetry message={error} onRetry={() => void runLoad(load)} />
+        <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
       </AdminListShell>
     );
   }
 
   return (
-    <AdminListShell title={id ? 'Edit Service' : 'New Service'} subtitle="Catalog item">
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <AdminListShell
+      title={id ? 'Edit Service' : 'New Service'}
+      subtitle="Catalog item"
+      keyboardAvoid
+      stickyFooter={
+        <StickyActionBar>
+          <Button title="Save" variant="premium" onPress={save} loading={saving} />
+          {id ? <Button title="Deactivate" variant="danger" onPress={remove} style={{ marginTop: spacing.sm }} /> : null}
+        </StickyActionBar>
+      }
+    >
+      <ScrollView
+        contentContainerStyle={id ? adminListShellStyles.scrollWithFooterTall : adminListShellStyles.scrollWithFooter}
+        keyboardShouldPersistTaps="always"
+        showsVerticalScrollIndicator={false}
+      >
+        <PremiumSectionHeader title="Icon" style={styles.sectionHead} />
+        <Card variant="premium" style={styles.form}>
+          <ServiceIconPicker value={iconKey} onChange={setIconKey} />
+        </Card>
+
+        <PremiumSectionHeader title="Pest control types" style={styles.sectionHead} />
+        <Card variant="premium" style={styles.form}>
+          <ServiceTypePicker value={serviceTypes} onChange={setServiceTypes} />
+        </Card>
+
+        <PremiumSectionHeader title="Details" style={styles.sectionHead} />
         <Card variant="premium" style={styles.form}>
           <IconInput label="Name" value={name} onChangeText={setName} />
-          <Text style={styles.label}>Icon</Text>
-          <View style={styles.chipRow}>
-            {ICON_KEYS.map((key) => (
-              <Chip key={key} label={key} selected={iconKey === key} onPress={() => setIconKey(key)} />
-            ))}
-          </View>
           <Text style={styles.label}>Category</Text>
           <View style={styles.chipRow}>
             {CATEGORIES.map((c) => (
               <Chip key={c.key} label={c.label} selected={category === c.key} onPress={() => setCategory(c.key)} />
             ))}
           </View>
-          <Text style={styles.label}>Treatment types (select all that apply)</Text>
-          <View style={styles.chipRow}>
-            {SERVICE_TYPE_KEYS.map((key) => {
-              const on = serviceTypes.includes(key);
-              return (
-                <Chip
-                  key={key}
-                  label={SERVICE_TYPE_LABELS[key]}
-                  selected={on}
-                  onPress={() =>
-                    setServiceTypes((prev) =>
-                      on ? prev.filter((t) => t !== key) : [...prev, key],
-                    )
-                  }
-                />
-              );
-            })}
-          </View>
           <IconInput label="Base price" value={basePrice} onChangeText={setBasePrice} keyboardType="numeric" />
-          <IconInput
-            label="Display rating (0–5)"
-            value={rating}
-            onChangeText={setRating}
-            keyboardType="decimal-pad"
-          />
+          <IconInput label="Rating (0–5)" value={rating} onChangeText={setRating} keyboardType="decimal-pad" />
           <IconInput label="Short description" value={shortDesc} onChangeText={setShortDesc} />
           <IconInput label="Steps (comma-separated)" value={steps} onChangeText={setSteps} />
         </Card>
       </ScrollView>
-      <StickyActionBar>
-        <Button title="Save" variant="premium" onPress={save} loading={saving} />
-        {id ? <Button title="Deactivate" variant="danger" onPress={remove} style={{ marginTop: spacing.sm }} /> : null}
-      </StickyActionBar>
     </AdminListShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: spacing.md, paddingBottom: 120 },
-  form: { padding: spacing.md },
+  sectionHead: { marginTop: 0, paddingHorizontal: 0, marginBottom: spacing.xs },
+  form: { padding: spacing.md, marginBottom: spacing.md },
   label: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, marginTop: spacing.sm, marginBottom: 6 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.sm },
 });

@@ -1,9 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Plus } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, fonts, gradients, shadows, spacing } from '@/constants/theme';
+import { colors, fonts, premium, spacing } from '@/constants/theme';
 
-/** Shared cyan "+ Add" header action used across admin list screens. */
+/** Shared "+ Add" header action used across admin list screens. */
 export function AdminAddButton({ label = 'Add', onPress }: { label?: string; onPress: () => void }) {
   return (
     <Pressable
@@ -13,8 +13,13 @@ export function AdminAddButton({ label = 'Add', onPress }: { label?: string; onP
       accessibilityLabel={label}
       hitSlop={6}
     >
-      <LinearGradient colors={[...gradients.primary]} style={styles.gradient}>
-        <Plus size={15} color={colors.white} />
+      <LinearGradient
+        colors={['#33C76A', '#1E8E4E', '#14532D']}
+        style={styles.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <Plus size={16} color={colors.white} strokeWidth={2.5} />
         <Text style={styles.text}>{label}</Text>
       </LinearGradient>
     </Pressable>
@@ -22,14 +27,18 @@ export function AdminAddButton({ label = 'Add', onPress }: { label?: string; onP
 }
 
 const styles = StyleSheet.create({
-  btn: { borderRadius: 12, overflow: 'hidden', ...shadows.floating },
+  btn: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    ...premium.shadowSoft,
+  },
   gradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 6,
     paddingHorizontal: spacing.md,
-    paddingVertical: 9,
+    paddingVertical: 10,
   },
-  pressed: { opacity: 0.88 },
-  text: { fontFamily: fonts.display, fontSize: 12, color: colors.white },
+  pressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
+  text: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.white },
 });

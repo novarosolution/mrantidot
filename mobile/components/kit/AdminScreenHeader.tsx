@@ -3,8 +3,8 @@ import { router } from 'expo-router';
 import { Bell } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BugMark } from '@/components/BugMark';
-import { colors, fonts, gradients, headerTopPad, radius, shadows, spacing } from '@/constants/theme';
+import { BrandLogo } from '@/components/BrandLogo';
+import { colors, fonts, gradients, headerTopPad, premium, radius, spacing } from '@/constants/theme';
 
 export function AdminScreenHeader({
   title,
@@ -29,11 +29,14 @@ export function AdminScreenHeader({
     <LinearGradient
       colors={[...gradients.premiumHero]}
       style={[styles.wrap, { paddingTop: headerTopPad(insets.top) }]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
     >
-      <View style={styles.glow} />
+      <View style={styles.glowA} pointerEvents="none" />
+      <View style={styles.glowB} pointerEvents="none" />
       <View style={styles.row}>
         <View style={styles.logoBox}>
-          <BugMark size={22} />
+          <BrandLogo size={36} />
         </View>
         <View style={styles.textCol}>
           <Text style={styles.title} numberOfLines={1}>
@@ -44,7 +47,7 @@ export function AdminScreenHeader({
           </Text>
         </View>
         <Pressable
-          style={({ pressed }) => [styles.bellWrap, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
           onPress={onBellPress}
           accessibilityRole="button"
           accessibilityLabel="Notifications"
@@ -58,7 +61,7 @@ export function AdminScreenHeader({
           ) : null}
         </Pressable>
         <Pressable
-          style={({ pressed }) => [styles.avatar, pressed && styles.avatarPressed]}
+          style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
           onPress={onProfilePress}
           accessibilityRole="button"
           accessibilityLabel="Open profile"
@@ -67,6 +70,9 @@ export function AdminScreenHeader({
           <Text style={styles.avatarText}>{letter}</Text>
         </Pressable>
       </View>
+      <View style={styles.goldRule} pointerEvents="none">
+        <View style={styles.goldRuleAccent} />
+      </View>
     </LinearGradient>
   );
 }
@@ -74,57 +80,64 @@ export function AdminScreenHeader({
 const styles = StyleSheet.create({
   wrap: {
     paddingHorizontal: spacing.md,
-    paddingBottom: 22,
+    paddingBottom: spacing.md + 4,
     borderBottomLeftRadius: radius.xl,
     borderBottomRightRadius: radius.xl,
     overflow: 'hidden',
-    ...shadows.hero,
+    ...premium.shadowSoft,
   },
-  glow: {
+  glowA: {
     position: 'absolute',
-    top: -40,
-    right: -10,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(168,224,78,0.1)',
+    top: -36,
+    right: -8,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(168,224,78,0.12)',
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  glowB: {
+    position: 'absolute',
+    bottom: 8,
+    left: -24,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(182,132,28,0.1)',
+  },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logoBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.white,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   textCol: { flex: 1, minWidth: 0 },
-  title: { fontFamily: fonts.displayExtra, fontSize: 18, color: colors.white },
-  sub: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.lime, marginTop: 2 },
-  bellWrap: {
+  title: { fontFamily: fonts.displayExtra, fontSize: 20, color: colors.white, letterSpacing: -0.3 },
+  sub: { fontFamily: fonts.body, fontSize: 12, color: 'rgba(255,255,255,0.82)', marginTop: 2 },
+  iconBtn: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pressed: { opacity: 0.85 },
+  pressed: { opacity: 0.88, transform: [{ scale: 0.96 }] },
   badge: {
     position: 'absolute',
-    top: -4,
-    right: -4,
-    minWidth: 18,
-    height: 18,
+    top: -3,
+    right: -3,
+    minWidth: 17,
+    height: 17,
     borderRadius: 9,
     backgroundColor: colors.amber,
-    borderWidth: 2,
-    borderColor: colors.forest,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  badgeText: { fontFamily: fonts.displayExtra, fontSize: 9, color: colors.forest },
+  badgeText: { fontFamily: fonts.bodySemi, fontSize: 9, color: colors.forest },
   avatar: {
     width: 40,
     height: 40,
@@ -132,9 +145,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.35)',
   },
-  avatarPressed: { opacity: 0.9, transform: [{ scale: 0.96 }] },
-  avatarText: { fontFamily: fonts.displayExtra, fontSize: 15, color: colors.green },
+  avatarText: { fontFamily: fonts.displayExtra, fontSize: 15, color: colors.forest },
+  goldRule: {
+    marginTop: spacing.sm + 2,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    overflow: 'hidden',
+  },
+  goldRuleAccent: {
+    width: 72,
+    height: '100%',
+    backgroundColor: premium.accentGold,
+    borderRadius: 2,
+  },
 });

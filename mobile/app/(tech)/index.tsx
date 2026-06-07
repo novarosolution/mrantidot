@@ -14,10 +14,11 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
+import { CACHE_TTL } from '@/lib/apiCache';
 import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
 import { localDateKey } from '@/lib/dates';
 import { jobVisitHint } from '@/lib/job-visit-helpers';
-import { bookingServiceName } from '@/lib/booking-helpers';
+import { bookingServiceName, bookingVisitDate } from '@/lib/booking-helpers';
 import type { Booking, DayAttendanceStatus, TechnicianStats } from '@/types/api';
 import { colors, design, fonts, spacing, surfaces } from '@/constants/theme';
 
@@ -33,12 +34,17 @@ export default function TechDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { skipCache?: boolean }) => {
     setLoadError(null);
+    const cacheOpts = opts?.skipCache ? { skipCache: true as const } : { cacheTtlMs: CACHE_TTL.stats };
+    const listCache = opts?.skipCache ? { skipCache: true as const } : { cacheTtlMs: CACHE_TTL.bookingsList };
     const [statsRes, bookingsRes, attRes] = await Promise.all([
-      api.get<TechnicianStats>('/stats/technician', screenLoadConfig),
-      api.get<{ bookings: Booking[] }>('/bookings', screenLoadConfig),
-      api.get<{ todayStatus: DayAttendanceStatus }>('/attendance/me', screenLoadConfig).catch(() => ({
+      api.get<TechnicianStats>('/stats/technician', { ...screenLoadConfig, ...cacheOpts }),
+      api.get<{ bookings: Booking[] }>('/bookings', { ...screenLoadConfig, ...listCache }),
+      api.get<{ todayStatus: DayAttendanceStatus }>('/attendance/me', {
+        ...screenLoadConfig,
+        ...cacheOpts,
+      }).catch(() => ({
         data: { todayStatus: 'pending' as DayAttendanceStatus },
       })),
     ]);
@@ -52,7 +58,9 @@ export default function TechDashboard() {
     try {
       await api.post('/attendance/check-in');
       Toast.show({ type: 'success', text1: 'You are on duty today' });
-      await load();
+      await load({ skipCache: true });
+    } catch (err) {
+      Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not check in') });
     } finally {
       setCheckingIn(false);
     }
@@ -89,8 +97,11 @@ export default function TechDashboard() {
   const sections = useMemo((): Section[] => {
     const active = bookings.filter((b) => !['completed', 'cancelled'].includes(b.status));
     const past = bookings.filter((b) => ['completed', 'cancelled'].includes(b.status));
-    const todayJobs = active.filter((b) => b.schedule.date === today);
-    const upcoming = active.filter((b) => b.schedule.date > today);
+    const todayJobs = active.filter((b) => bookingVisitDate(b) === today);
+    const upcoming = active.filter((b) => {
+      const d = bookingVisitDate(b);
+      return d > today;
+    });
     const result: Section[] = [];
     if (todayJobs.length) {
       result.push({ key: 'today', title: `Today (${todayJobs.length})`, data: todayJobs, empty: 'No jobs scheduled for today' });
@@ -153,8 +164,13 @@ export default function TechDashboard() {
             refreshing={refreshing}
             onRefresh={async () => {
               setRefreshing(true);
-              await load();
-              setRefreshing(false);
+              try {
+                await load({ skipCache: true });
+              } catch (err) {
+                Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not refresh') });
+              } finally {
+                setRefreshing(false);
+              }
             }}
             tintColor={colors.green}
           />
@@ -207,8 +223,9 @@ export default function TechDashboard() {
             return <Text style={styles.section}>{item.section.title}</Text>;
           }
           const b = item.booking;
-          const done = b.steps.filter((s) => s.status === 'done').length;
-          const total = b.steps.length || 1;
+          const steps = b.steps ?? [];
+          const done = steps.filter((s) => s.status === 'done').length;
+          const total = steps.length || 1;
           return (
             <View>
               <BookingListCard

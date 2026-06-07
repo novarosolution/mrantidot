@@ -18,7 +18,27 @@ export type ServiceTypeKey =
   | 'termite'
   | 'bed_bug'
   | 'bird'
-  | 'general';
+  | 'flea'
+  | 'spider'
+  | 'lizard'
+  | 'bee'
+  | 'wood_borer'
+  | 'general'
+  | 'fumigation'
+  | 'deep_cleaning'
+  | 'silo';
+
+export type PropertyTypeKey =
+  | '1bhk'
+  | '2bhk'
+  | '3bhk'
+  | '4bhk'
+  | 'bungalow'
+  | 'office'
+  | 'cafe_restaurant'
+  | 'hotel'
+  | 'warehouse'
+  | 'factory';
 
 export interface User {
   id: string;
@@ -287,6 +307,8 @@ export interface Booking {
   scheduleRequest?: ScheduleRequest;
   schedule: BookingSchedule;
   scheduleConfirmedAt?: string;
+  propertyType?: PropertyTypeKey;
+  propertyTypeLabel?: string;
   address: string;
   amount: BookingAmount;
   paymentMethod: string;

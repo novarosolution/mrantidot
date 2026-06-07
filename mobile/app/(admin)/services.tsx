@@ -1,59 +1,63 @@
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { router } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { Edit } from 'lucide-react-native';
+import { ChevronLeft } from 'lucide-react-native';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
-import { Card } from '@/components/ui/Card';
+import { AdminServiceListCard } from '@/components/kit/AdminServiceListCard';
+import { AdminServiceTypeGrid } from '@/components/kit/AdminServiceTypeGrid';
 import { Chip } from '@/components/ui/Chip';
-import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
-import { ServiceIcon } from '@/components/ServiceIcon';
 import { api, screenLoadConfig } from '@/lib/api';
+import { CACHE_TTL } from '@/lib/apiCache';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
 import { useScreenLoad } from '@/lib/useScreenLoad';
-import { ServiceTypeBadges } from '@/components/kit/ServiceTypeBadges';
-import type { Service } from '@/types/api';
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
+import { SERVICE_TYPE_LABELS } from '@/constants/serviceTypes';
+import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
+import type { Service, ServiceTypeKey } from '@/types/api';
 import { colors, fonts, spacing } from '@/constants/theme';
 
 type ServiceFilter = 'all' | 'active' | 'inactive';
+type BrowseMode = 'types' | 'list';
 
 export default function AdminServicesScreen() {
   const [services, setServices] = useState<Service[]>([]);
+  const [browseMode, setBrowseMode] = useState<BrowseMode>('types');
+  const [selectedType, setSelectedType] = useState<ServiceTypeKey | 'all'>('all');
   const [listFilter, setListFilter] = useState<ServiceFilter>('all');
   const { loading, error, refreshing, runLoad, reload, refresh } = useScreenLoad();
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { skipCache?: boolean }) => {
     const { data } = await api.get<{ services: Service[] }>('/services', {
       ...screenLoadConfig,
-      params: { includeInactive: '1', includeStats: '1' },
+      params: { includeInactive: '1' },
+      cacheTtlMs: CACHE_TTL.services,
+      ...(opts?.skipCache ? { skipCache: true } : {}),
     });
     setServices(data.services);
   }, []);
 
-  const focusedOnce = useRef(false);
-  useFocusEffect(
-    useCallback(() => {
-      if (!focusedOnce.current) {
-        focusedOnce.current = true;
-        void runLoad(load, 'Could not load services');
-        return;
-      }
-      void refresh(load);
-    }, [load, runLoad, refresh]),
-  );
+  useEffect(() => {
+    void runLoad(() => load(), 'Could not load services');
+  }, [load, runLoad]);
+
+  useStaleFocusRefresh(() => refresh(() => load({ skipCache: true })), 45_000);
 
   const visibleServices = useMemo(() => {
-    if (listFilter === 'active') return services.filter((s) => s.active !== false);
-    if (listFilter === 'inactive') return services.filter((s) => s.active === false);
-    return services;
-  }, [services, listFilter]);
+    let list = services;
+    if (browseMode === 'list' && selectedType !== 'all') {
+      list = list.filter((s) => s.serviceTypes?.includes(selectedType));
+    }
+    if (listFilter === 'active') return list.filter((s) => s.active !== false);
+    if (listFilter === 'inactive') return list.filter((s) => s.active === false);
+    return list;
+  }, [services, browseMode, selectedType, listFilter]);
 
   const toggleActive = useCallback((s: Service) => {
     const next = s.active === false;
-    const action = next ? 'restore' : 'deactivate';
     Alert.alert(
       next ? 'Restore service?' : 'Deactivate service?',
       next ? 'Service will appear for customers again.' : 'Customers will no longer see this service.',
@@ -64,16 +68,12 @@ export default function AdminServicesScreen() {
           style: next ? 'default' : 'destructive',
           onPress: () => {
             void (async () => {
-              setServices((prev) =>
-                prev.map((x) => (x.id === s.id ? { ...x, active: next } : x)),
-              );
+              setServices((prev) => prev.map((x) => (x.id === s.id ? { ...x, active: next } : x)));
               try {
                 await api.patch(`/services/${s.id}`, { active: next });
               } catch {
-                setServices((prev) =>
-                  prev.map((x) => (x.id === s.id ? { ...x, active: s.active } : x)),
-                );
-                Alert.alert('Error', `Could not ${action} service`);
+                setServices((prev) => prev.map((x) => (x.id === s.id ? { ...x, active: s.active } : x)));
+                Alert.alert('Error', `Could not ${next ? 'restore' : 'deactivate'} service`);
               }
             })();
           },
@@ -82,81 +82,110 @@ export default function AdminServicesScreen() {
     );
   }, []);
 
+  function openType(type: ServiceTypeKey | 'all') {
+    setSelectedType(type);
+    setBrowseMode('list');
+    setListFilter('all');
+  }
+
+  function backToTypes() {
+    setBrowseMode('types');
+  }
+
+  function openEdit(id?: string) {
+    router.push(id ? { pathname: '/(admin)/service-edit', params: { id } } : '/(admin)/service-edit');
+  }
+
   if (loading) return <Spinner fullScreen />;
 
   if (error) {
     return (
       <AdminListShell title="Services" subtitle="Error">
-        <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
+        <ListEmptyRetry message={error} onRetry={() => void reload(() => load({ skipCache: true }), error)} />
       </AdminListShell>
     );
   }
 
   const activeCount = services.filter((s) => s.active !== false).length;
+  const listTitle =
+    selectedType === 'all'
+      ? 'All services'
+      : SERVICE_TYPE_META[selectedType].label;
+  const listSubtitle =
+    selectedType === 'all'
+      ? `${activeCount} active · ${services.length} total`
+      : `${visibleServices.length} service${visibleServices.length === 1 ? '' : 's'}`;
 
-  const addBtn = <AdminAddButton onPress={() => router.push('/(admin)/service-edit')} />;
+  if (browseMode === 'types') {
+    return (
+      <AdminListShell
+        title="Services"
+        subtitle={`${activeCount} active · ${services.length} total`}
+        showBack={false}
+        rightAction={<AdminAddButton onPress={() => openEdit()} />}
+      >
+        <AdminServiceTypeGrid
+          services={services}
+          onSelectType={openType}
+          onAddService={() => openEdit()}
+        />
+      </AdminListShell>
+    );
+  }
 
   return (
     <AdminListShell
-      title="Services"
-      subtitle={`${activeCount} active · ${services.length} total`}
-      rightAction={addBtn}
+      title={listTitle}
+      subtitle={listSubtitle}
+      rightAction={<AdminAddButton onPress={() => openEdit()} />}
+      headerExtra={
+        <View style={styles.headerExtra}>
+          <Pressable style={styles.backTypes} onPress={backToTypes}>
+            <ChevronLeft size={18} color={colors.forest} />
+            <Text style={styles.backTypesText}>Pest types</Text>
+          </Pressable>
+          <View style={styles.chips}>
+            {(['all', 'active', 'inactive'] as const).map((key) => (
+              <Chip
+                key={key}
+                label={key === 'all' ? 'All' : key === 'active' ? 'Active' : 'Inactive'}
+                selected={listFilter === key}
+                onPress={() => setListFilter(key)}
+              />
+            ))}
+          </View>
+        </View>
+      }
     >
-      <View style={styles.chips}>
-        {(['all', 'active', 'inactive'] as const).map((key) => (
-          <Chip
-            key={key}
-            label={key === 'all' ? 'All' : key === 'active' ? 'Active' : 'Inactive'}
-            selected={listFilter === key}
-            onPress={() => setListFilter(key)}
-          />
-        ))}
-      </View>
       <FlatList
         data={visibleServices}
         keyExtractor={(s) => s.id}
         {...ADMIN_LIST_PERF}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => void refresh(load)}
-            tintColor={colors.green}
+          <RefreshControl refreshing={refreshing} onRefresh={() => void refresh(() => load({ skipCache: true }))} tintColor={colors.green} />
+        }
+        contentContainerStyle={
+          visibleServices.length === 0 ? adminListShellStyles.empty : adminListShellStyles.list
+        }
+        ListEmptyComponent={
+          <EmptyState
+            title="No services"
+            message={
+              selectedType === 'all'
+                ? 'Add your first service to the catalog.'
+                : `No services tagged with ${SERVICE_TYPE_LABELS[selectedType]}.`
+            }
           />
         }
-        contentContainerStyle={visibleServices.length === 0 ? adminListShellStyles.empty : adminListShellStyles.list}
-        ListEmptyComponent={<EmptyState title="No services" />}
         renderItem={({ item, index }) => (
-          <Card variant="premium" style={{ ...styles.row, ...(item.active === false ? styles.rowInactive : {}) }}>
-            <Pressable style={styles.main} onPress={() => router.push({ pathname: '/(admin)/service-edit', params: { id: item.id } })}>
-              <View style={[styles.icon, index % 2 === 0 && styles.iconAlt]}>
-                <ServiceIcon iconKey={item.iconKey} size={23} color={index % 2 === 0 ? colors.lime : colors.green} />
-              </View>
-              <View style={styles.flex}>
-                <Text style={styles.name}>{item.name}</Text>
-                <Text style={styles.desc} numberOfLines={1}>{item.shortDesc}</Text>
-                <ServiceTypeBadges types={item.serviceTypes} max={3} />
-                <Text style={styles.price}>
-                  ₹{item.basePrice}{' '}
-                  <Text style={styles.rating}>· ★ {item.rating?.toFixed(1) ?? '4.8'}</Text>
-                  {item.active === false ? <Text style={styles.inactiveTag}> · Inactive</Text> : null}
-                </Text>
-                {item.stats ? (
-                  <Text style={styles.stats}>
-                    {item.stats.bookingCount} bookings · {item.stats.reviewCount} reviews
-                  </Text>
-                ) : null}
-              </View>
-            </Pressable>
-            <View style={styles.actions}>
-              <ToggleSwitch value={item.active !== false} onToggle={() => void toggleActive(item)} />
-              <Pressable
-                style={styles.edit}
-                onPress={() => router.push({ pathname: '/(admin)/service-edit', params: { id: item.id } })}
-              >
-                <Edit size={15} color={colors.green} />
-              </Pressable>
-            </View>
-          </Card>
+          <AdminServiceListCard
+            service={item}
+            index={index}
+            onPress={() => openEdit(item.id)}
+            onEdit={() => openEdit(item.id)}
+            onToggleActive={() => toggleActive(item)}
+          />
         )}
       />
     </AdminListShell>
@@ -164,33 +193,14 @@ export default function AdminServicesScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerExtra: { gap: spacing.sm },
+  backTypes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.md,
+  },
+  backTypesText: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, padding: 14 },
-  rowInactive: { opacity: 0.72 },
-  main: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  icon: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
-    backgroundColor: colors.forest,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconAlt: { backgroundColor: colors.soft },
-  flex: { flex: 1, minWidth: 0 },
-  name: { fontFamily: fonts.display, fontSize: 13.5 },
-  desc: { fontFamily: fonts.body, fontSize: 10.5, color: colors.muted, marginTop: 2 },
-  price: { fontFamily: fonts.displayExtra, fontSize: 14, color: colors.green, marginTop: 5 },
-  rating: { fontFamily: fonts.body, fontSize: 9, color: colors.muted, fontWeight: '500' },
-  stats: { fontFamily: fonts.body, fontSize: 10, color: colors.muted, marginTop: 3 },
-  inactiveTag: { fontFamily: fonts.bodySemi, fontSize: 9, color: colors.error },
-  actions: { alignItems: 'flex-end', gap: 9 },
-  edit: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
-    backgroundColor: colors.secondarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 });

@@ -14,7 +14,7 @@ export default function FaqScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <CustomerPageHeader title="FAQ" subtitle="Frequently asked questions" variant="premium" showBack />
+      <CustomerPageHeader title="FAQ" variant="premium" showBack />
       <ScrollView contentContainerStyle={styles.scroll}>
         {content.faq.length === 0 ? (
           <EmptyState title="No FAQs yet" message="Check back soon." />
@@ -22,7 +22,7 @@ export default function FaqScreen() {
           content.faq.map((item, i) => {
             const expanded = open === i;
             return (
-              <Card key={i} variant="premium" style={styles.card}>
+              <Card key={i} variant="classic" style={styles.card}>
                 <Pressable style={styles.head} onPress={() => setOpen(expanded ? null : i)}>
                   <Text style={styles.q}>{item.q}</Text>
                   {expanded ? (

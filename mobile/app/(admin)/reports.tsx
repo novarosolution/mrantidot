@@ -4,7 +4,7 @@ import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-nati
 import Toast from 'react-native-toast-message';
 import { Download, Clock, IndianRupee, Receipt } from 'lucide-react-native';
 import { StatusPipelineCard } from '@/components/kit/StatusPipelineCard';
-import { AdminListShell } from '@/components/kit/AdminListShell';
+import { AdminListShell, adminStyles } from '@/components/kit/AdminListShell';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { formatRupee } from '@/components/kit/format';
@@ -109,7 +109,7 @@ export default function AdminReportsScreen() {
       rightAction={exportBtn}
       headerExtra={headerExtra}
     >
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
         {loading ? (
           <View style={styles.loadingRow}>
             <Spinner />
@@ -212,7 +212,8 @@ export default function AdminReportsScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: spacing.md, paddingBottom: spacing.xl },
+  flex: { flex: 1 },
+  content: adminStyles.content,
   periods: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   dl: {
     width: 40,

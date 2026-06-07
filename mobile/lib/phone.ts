@@ -1,3 +1,5 @@
+import { normalizeLoginEmail } from '@/lib/email';
+
 /** Match server normalizePhone for login / OTP. */
 export function normalizePhone(input: string): string {
   const digits = input.replace(/\D/g, '');
@@ -12,5 +14,5 @@ export function normalizePhone(input: string): string {
 
 export function formatLoginIdentifier(input: string): string {
   const trimmed = input.trim();
-  return trimmed.includes('@') ? trimmed.toLowerCase() : normalizePhone(trimmed);
+  return trimmed.includes('@') ? normalizeLoginEmail(trimmed) : normalizePhone(trimmed);
 }

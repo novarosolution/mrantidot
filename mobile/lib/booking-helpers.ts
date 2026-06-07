@@ -119,7 +119,15 @@ export function bookingRequestedScheduleDisplay(booking: Booking): string | null
 }
 
 export function bookingStepsDone(booking: Booking): number {
-  return booking.steps.filter((s) => s.status === 'done').length;
+  return (booking.steps ?? []).filter((s) => s.status === 'done').length;
+}
+
+/** Visit date for lists/calendar (requested date while pending, else confirmed schedule). */
+export function bookingVisitDate(booking: Booking): string {
+  if (booking.status === 'pending' && booking.scheduleRequest?.date) {
+    return booking.scheduleRequest.date;
+  }
+  return booking.schedule?.date ?? '';
 }
 
 export function isVerificationPhase(status: BookingStatus): boolean {

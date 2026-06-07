@@ -1,7 +1,8 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, classic, spacing } from '@/constants/theme';
 
 export function BookingActionBar({
   primaryTitle,
@@ -10,9 +11,6 @@ export function BookingActionBar({
   primaryDisabled,
   secondaryTitle,
   onSecondary,
-  totalLabel,
-  totalAmount,
-  highlightTotal,
 }: {
   primaryTitle: string;
   onPrimary: () => void;
@@ -20,60 +18,78 @@ export function BookingActionBar({
   primaryDisabled?: boolean;
   secondaryTitle?: string;
   onSecondary?: () => void;
-  totalLabel?: string;
-  totalAmount?: string;
-  highlightTotal?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const slide = useRef(new Animated.Value(20)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(slide, { toValue: 0, friction: 10, tension: 65, useNativeDriver: true }),
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 320,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [opacity, slide]);
 
   return (
-    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
-      {totalAmount ? (
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>{totalLabel ?? 'Estimated total'}</Text>
-          <Text style={[styles.totalAmount, highlightTotal && styles.totalGold]}>{totalAmount}</Text>
-        </View>
-      ) : null}
+    <Animated.View
+      style={[
+        styles.bar,
+        {
+          paddingBottom: Math.max(insets.bottom, spacing.sm) + spacing.sm,
+          opacity,
+          transform: [{ translateY: slide }],
+        },
+      ]}
+    >
+      <View style={styles.goldAccent} />
       <View style={styles.buttons}>
         {secondaryTitle && onSecondary ? (
-          <Button title={secondaryTitle} variant="secondary" onPress={onSecondary} style={styles.secondary} />
+          <Button
+            title={secondaryTitle}
+            variant="secondary"
+            fullWidth={false}
+            onPress={onSecondary}
+            style={styles.secondary}
+          />
         ) : null}
         <Button
           title={primaryTitle}
           variant="premium"
+          fullWidth={false}
           onPress={onPrimary}
           loading={primaryLoading}
           disabled={primaryDisabled}
           style={secondaryTitle ? styles.primary : styles.primaryFull}
         />
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   bar: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingTop: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    backgroundColor: premium.surfaceElevated,
-    ...premium.shadowSoft,
+    backgroundColor: colors.white,
   },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+  goldAccent: {
+    position: 'absolute',
+    top: 0,
+    left: spacing.lg,
+    right: spacing.lg,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: classic.headerGoldLine,
   },
-  totalLabel: { fontFamily: fonts.body, fontSize: 13, color: colors.muted },
-  totalAmount: { fontFamily: fonts.displayExtra, fontSize: 22, color: colors.green },
-  totalGold: { color: premium.accentGold },
   buttons: { flexDirection: 'row', gap: spacing.sm },
-  secondary: { flex: 1, minHeight: 52 },
-  primary: { flex: 2, minHeight: 52 },
-  primaryFull: { flex: 1 },
+  secondary: { flex: 1, minHeight: 50 },
+  primary: { flex: 2, minHeight: 50 },
+  primaryFull: { flex: 1, minHeight: 50 },
 });

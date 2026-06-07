@@ -2,7 +2,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Copy, KeyRound } from 'lucide-react-native';
-import Toast from 'react-native-toast-message';
+import { appToast } from '@/lib/toast';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import type { WorkOtpView } from '@/types/api';
@@ -16,7 +16,7 @@ export function WorkOtpCard({
   regenerating,
 }: {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   otp: { code: string; expiresIn: number };
   onRegenerate?: () => void;
   regenerating?: boolean;
@@ -39,7 +39,7 @@ export function WorkOtpCard({
 
   async function copyCode() {
     await Clipboard.setStringAsync(otp.code);
-    Toast.show({ type: 'success', text1: 'Code copied' });
+    appToast.success('Code copied');
   }
 
   return (
@@ -50,7 +50,7 @@ export function WorkOtpCard({
         </View>
         <View style={styles.headText}>
           <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
       </View>
 

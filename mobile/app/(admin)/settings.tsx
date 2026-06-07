@@ -50,8 +50,8 @@ export default function AdminSettingsScreen() {
   }
 
   return (
-    <AdminListShell title="Profile" subtitle="Admin account">
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <AdminListShell title="Profile" subtitle="Admin account" keyboardAvoid>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="always">
         <UserAccountCard compact />
         <Card variant="premium" style={styles.card}>
           <Text style={styles.sectionTitle}>Edit profile</Text>
@@ -59,7 +59,7 @@ export default function AdminSettingsScreen() {
           <IconInput label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
           <IconInput label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" />
           <IconInput label="City" value={city} onChangeText={setCity} />
-          <IconInput label="New password (optional)" value={password} onChangeText={setPassword} secureTextEntry />
+          <IconInput label="New password (optional)" value={password} onChangeText={setPassword} secure />
           <Button title="Save changes" variant="premium" onPress={() => void saveProfile()} loading={saving} style={{ marginTop: spacing.sm }} />
           {user?.id ? (
             <Button

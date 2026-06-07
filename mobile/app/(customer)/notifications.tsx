@@ -79,7 +79,6 @@ export default function NotificationsScreen() {
   return (
     <CustomerListShell
       title="Notifications"
-      subtitle="Updates on your bookings"
       rightAction={
         hasUnread ? (
           <Pressable onPress={markAllRead} disabled={markingAll} style={styles.markAll}>

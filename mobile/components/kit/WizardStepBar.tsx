@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, gradients, premium, spacing } from '@/constants/theme';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { colors, classic, fonts, gradients, premium, spacing } from '@/constants/theme';
 
 const DEFAULT_LABELS = ['Schedule', 'Address', 'Payment', 'Confirm'];
 
@@ -14,16 +15,52 @@ export function WizardStepBar({
   labels?: string[];
 }) {
   const progress = ((step + 1) / labels.length) * 100;
+  const animProgress = useRef(new Animated.Value(progress)).current;
+  const dotScales = useRef(labels.map(() => new Animated.Value(1))).current;
+
+  useEffect(() => {
+    Animated.spring(animProgress, {
+      toValue: progress,
+      friction: 9,
+      tension: 55,
+      useNativeDriver: false,
+    }).start();
+
+    if (dotScales[step]) {
+      Animated.sequence([
+        Animated.timing(dotScales[step], {
+          toValue: 1.12,
+          duration: 160,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.spring(dotScales[step], {
+          toValue: 1,
+          friction: 6,
+          tension: 120,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [animProgress, dotScales, progress, step]);
+
+  const fillWidth = animProgress.interpolate({
+    inputRange: [0, 100],
+    outputRange: ['0%', '100%'],
+  });
 
   return (
     <View style={styles.wrap}>
+      <View style={styles.goldRule} />
       <View style={styles.track}>
-        <LinearGradient
-          colors={[gradients.primary[0], gradients.primary[1], colors.secondaryDark]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={[styles.fill, { width: `${progress}%` }]}
-        />
+        <Animated.View style={[styles.fillWrap, { width: fillWidth }]}>
+          <LinearGradient
+            colors={[gradients.primary[0], gradients.primary[1], colors.secondaryDark]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.fill}
+          />
+        </Animated.View>
       </View>
       <View style={styles.steps}>
         {labels.map((label, i) => {
@@ -32,11 +69,18 @@ export function WizardStepBar({
           const canJump = done && !!onStepPress;
           const content = (
             <>
-              <View style={[styles.dot, done && styles.dotDone, active && styles.dotActive]}>
+              <Animated.View
+                style={[
+                  styles.dot,
+                  done && styles.dotDone,
+                  active && styles.dotActive,
+                  { transform: [{ scale: dotScales[i] ?? 1 }] },
+                ]}
+              >
                 <Text style={[styles.dotText, (done || active) && styles.dotTextOn]}>
                   {done ? '✓' : String(i + 1)}
                 </Text>
-              </View>
+              </Animated.View>
               <Text style={[styles.label, active && styles.labelActive, done && styles.labelDone]} numberOfLines={1}>
                 {label}
               </Text>
@@ -74,6 +118,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  goldRule: {
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: classic.headerGoldLine,
+    marginBottom: spacing.sm,
+    opacity: 0.85,
+  },
   track: {
     height: 6,
     borderRadius: 3,
@@ -81,14 +132,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     overflow: 'hidden',
   },
-  fill: { height: '100%', borderRadius: 3 },
+  fillWrap: { height: '100%' },
+  fill: { flex: 1, borderRadius: 3 },
   steps: { flexDirection: 'row', justifyContent: 'space-between' },
   item: { flex: 1, alignItems: 'center', gap: 8 },
   itemPressed: { opacity: 0.6 },
   dot: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: colors.greyBg,
     alignItems: 'center',
     justifyContent: 'center',

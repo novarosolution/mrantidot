@@ -8,8 +8,9 @@ import {
   type ReactNode,
 } from 'react';
 import { api } from '@/lib/api';
+import { CACHE_TTL } from '@/lib/apiCache';
 import type { AppConfig } from '@/types/api';
-import { DEFAULT_BOOKING_COPY } from '@/lib/schedule-copy';
+import { DEFAULT_BOOKING_COPY } from '@/constants/bookingCopy';
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
   support: {
@@ -54,6 +55,7 @@ export function AppContentProvider({ children }: { children: ReactNode }) {
       const { data } = await api.get<{ app: AppConfig }>('/content/app', {
         skipErrorToast: true,
         silent401: true,
+        cacheTtlMs: CACHE_TTL.content,
       });
       if (data?.app) setContent(data.app);
     } catch {

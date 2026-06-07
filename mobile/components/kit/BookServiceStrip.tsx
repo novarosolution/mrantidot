@@ -1,10 +1,11 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronLeft, Clock } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import type { Service } from '@/types/api';
-import { colors, fonts, gradients, headerTopPad, premium, spacing } from '@/constants/theme';
+import { colors, fonts, gradients, headerTopPad, spacing } from '@/constants/theme';
 
 export function BookServiceStrip({
   service,
@@ -20,12 +21,61 @@ export function BookServiceStrip({
   subtitle?: string;
 }) {
   const insets = useSafeAreaInsets();
+  const hero = useRef(new Animated.Value(0)).current;
+  const shimmer = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(hero, {
+      toValue: 1,
+      duration: 620,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, {
+          toValue: 1,
+          duration: 2400,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(shimmer, {
+          toValue: 0,
+          duration: 2400,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+  }, [hero, shimmer]);
+
+  const heroStyle = {
+    opacity: hero,
+    transform: [
+      { translateY: hero.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) },
+      { scale: hero.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1] }) },
+    ],
+  };
 
   return (
     <LinearGradient
       colors={[...gradients.bookHero]}
       style={[styles.wrap, onBack ? { paddingTop: headerTopPad(insets.top) } : null]}
     >
+      <Animated.View
+        style={[
+          styles.glow,
+          {
+            opacity: shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.7] }),
+            transform: [
+              {
+                scale: shimmer.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] }),
+              },
+            ],
+          },
+        ]}
+      />
       {onBack ? (
         <View style={styles.navRow}>
           <Pressable
@@ -44,14 +94,14 @@ export function BookServiceStrip({
               </Text>
             ) : null}
             {subtitle ? (
-              <Text style={styles.navSub} numberOfLines={1}>
+              <Text style={styles.navSub} numberOfLines={2}>
                 {subtitle}
               </Text>
             ) : null}
           </View>
         </View>
       ) : null}
-      <View style={styles.row}>
+      <Animated.View style={[styles.row, heroStyle]}>
         <View style={styles.icon}>
           <ServiceIcon iconKey={service.iconKey} size={28} color={colors.lime} />
         </View>
@@ -69,7 +119,7 @@ export function BookServiceStrip({
             </View>
           </View>
         </View>
-      </View>
+      </Animated.View>
     </LinearGradient>
   );
 }
@@ -81,6 +131,16 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     marginBottom: 2,
+    overflow: 'hidden',
+  },
+  glow: {
+    position: 'absolute',
+    top: -40,
+    right: -30,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(168,224,78,0.14)',
   },
   navRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: spacing.md },
   backBtn: {
@@ -96,7 +156,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.8 },
   navText: { flex: 1, minWidth: 0 },
   navTitle: { fontFamily: fonts.displayExtra, fontSize: 18, color: colors.white },
-  navSub: { fontFamily: fonts.body, fontSize: 11.5, color: colors.lime, marginTop: 2 },
+  navSub: { fontFamily: fonts.body, fontSize: 11.5, color: colors.lime, marginTop: 2, lineHeight: 16 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   icon: {
     width: 64,

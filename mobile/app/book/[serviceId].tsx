@@ -1,43 +1,54 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  Building2,
   Calendar,
   Camera,
   CheckCircle2,
   ChevronLeft,
   CreditCard,
-  LocateFixed,
   MapPin,
-  Plus,
-  Sparkles,
   Tag,
-  X,
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { BookTimePicker } from '@/components/kit/BookTimePicker';
 import { ScheduleDayPicker } from '@/components/kit/ScheduleDayPicker';
 import { ScheduleModeToggle } from '@/components/kit/ScheduleModeToggle';
 import { ScheduleSelectionBanner } from '@/components/kit/ScheduleSelectionBanner';
+import { ScheduleSection, ScheduleStepPanel } from '@/components/kit/ScheduleStepPanel';
 import { ScheduleSlotPicker } from '@/components/kit/ScheduleSlotPicker';
 import { AddressCard } from '@/components/kit/AddressCard';
-import { BookSectionCard } from '@/components/kit/BookSectionCard';
+import { AddressConfirmBanner, AddressPhotoGrid } from '@/components/kit/AddressPhotoGrid';
+import { AddressLocateButton } from '@/components/kit/AddressLocateButton';
+import { LocationBanner } from '@/components/kit/LocationChip';
+import { AddressManualField } from '@/components/kit/AddressManualField';
+import { BookWizardSection, BookWizardStepPanel } from '@/components/kit/BookWizardStepPanel';
+import {
+  ConfirmDetailsList,
+  ConfirmPhotoStrip,
+  ConfirmTotalCard,
+} from '@/components/kit/ConfirmStepKit';
+import { PropertyTypePicker } from '@/components/kit/PropertyTypePicker';
 import { BookServiceStrip } from '@/components/kit/BookServiceStrip';
 import { BookingActionBar } from '@/components/kit/BookingActionBar';
 import { BookPaymentPicker } from '@/components/kit/BookPaymentPicker';
-import { BookingPriceBreakdown } from '@/components/kit/BookingPriceBreakdown';
+import {
+  PaymentCouponField,
+  PaymentOfferList,
+  PaymentPriceHero,
+} from '@/components/kit/PaymentStepKit';
+import { BookPriceRibbon } from '@/components/kit/BookPriceRibbon';
 import { WizardStepBar } from '@/components/kit/WizardStepBar';
-import { EmptyState } from '@/components/ui/EmptyState';
+import { FadeSlideHorizontal } from '@/components/ui/FadeSlideIn';
 import { Input } from '@/components/ui/Input';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
-import { bookingDetailPath } from '@/lib/routes';
-import { getCurrentAddress } from '@/lib/location';
-import { useAuth } from '@/context/AuthContext';
+import { CACHE_TTL } from '@/lib/apiCache';
+import { useLocation } from '@/context/LocationContext';
 import { useAppContent } from '@/context/AppContentContext';
 import { defaultPaymentType, resolvePaymentMethods } from '@/lib/bookingPayment';
 import { paymentMethodLabel } from '@/lib/booking-helpers';
@@ -49,23 +60,18 @@ import {
   formatScheduleLabel,
   nextBookableDays,
 } from '@/lib/dates';
-import type { Offer, PaymentMethodRecord, SavedAddress, ScheduleMode, Service } from '@/types/api';
+import type { Offer, PaymentMethodRecord, PropertyTypeKey, SavedAddress, ScheduleMode, Service } from '@/types/api';
+import { propertyTypeLabel } from '@/constants/propertyTypes';
 import { colors, design, fonts, gradients, headerTopPad, premium, radius, spacing } from '@/constants/theme';
 
 const DAY_OPTIONS = nextBookableDays(7);
-const BOOK_STEP_LABELS = ['Schedule', 'Address', 'Payment', 'Confirm'];
-const STEP_HINTS = [
-  'Pick a convenient date and time window',
-  'Where should our service expert visit?',
-  'Apply offers and choose how to pay',
-  'Double-check everything before confirming',
-];
+const BOOK_STEP_LABELS = ['Schedule', 'Property', 'Address', 'Payment', 'Confirm'];
 
 export default function BookWizardScreen() {
-  const { user } = useAuth();
   const { content } = useAppContent();
   const bookingCopy = useBookingCopy();
   const insets = useSafeAreaInsets();
+  const { location, locating, detectAddress, displayLabel } = useLocation();
   const scrollRef = useRef<ScrollView>(null);
   const { serviceId, coupon: couponParam } = useLocalSearchParams<{ serviceId: string; coupon?: string }>();
   const [service, setService] = useState<Service | null>(null);
@@ -82,21 +88,38 @@ export default function BookWizardScreen() {
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [address, setAddress] = useState('');
+  const [propertyType, setPropertyType] = useState<PropertyTypeKey | null>(null);
   const [coupon, setCoupon] = useState(couponParam ?? '');
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodRecord[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'upi_card' | 'pay_after' | null>(null);
   const [photoUris, setPhotoUris] = useState<PickedImage[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSavedPaymentMethods, setHasSavedPaymentMethods] = useState(false);
-  const [locating, setLocating] = useState(false);
 
-  const loadData = async () => {
+  const loadData = async (skipCache = false) => {
     setLoadError(null);
+    const cache = skipCache ? { skipCache: true as const } : {};
     const results = await Promise.allSettled([
-      api.get<{ service: Service }>(`/services/${serviceId}`, screenLoadConfig),
-      api.get<{ addresses: SavedAddress[] }>('/addresses', screenLoadConfig),
-      api.get<{ paymentMethods: PaymentMethodRecord[] }>('/payment-methods', screenLoadConfig),
-      api.get<{ offers: Offer[] }>('/offers', screenLoadConfig),
+      api.get<{ service: Service }>(`/services/${serviceId}`, {
+        ...screenLoadConfig,
+        cacheTtlMs: CACHE_TTL.services,
+        ...cache,
+      }),
+      api.get<{ addresses: SavedAddress[] }>('/addresses', {
+        ...screenLoadConfig,
+        cacheTtlMs: CACHE_TTL.addresses,
+        ...cache,
+      }),
+      api.get<{ paymentMethods: PaymentMethodRecord[] }>('/payment-methods', {
+        ...screenLoadConfig,
+        cacheTtlMs: CACHE_TTL.paymentMethods,
+        ...cache,
+      }),
+      api.get<{ offers: Offer[] }>('/offers', {
+        ...screenLoadConfig,
+        cacheTtlMs: CACHE_TTL.offers,
+        ...cache,
+      }),
     ]);
 
     const svc = results[0];
@@ -148,6 +171,13 @@ export default function BookWizardScreen() {
   }, [couponParam]);
 
   useEffect(() => {
+    if (selectedAddressId || address.trim()) return;
+    if (!location?.line1 && (!location?.city || location.city === 'your area')) return;
+    const composed = [location.line1, location.city, location.pincode].filter(Boolean).join(', ');
+    if (composed) setAddress(composed);
+  }, [address, location, selectedAddressId]);
+
+  useEffect(() => {
     const picked = DAY_OPTIONS[dayIdx];
     if (picked) setDate(picked.date);
   }, [dayIdx]);
@@ -175,6 +205,15 @@ export default function BookWizardScreen() {
       ? formatScheduleLabel({ date, slot }, 'standard')
       : formatScheduleLabel({ date, slot: 'custom', time: customTime }, 'custom');
 
+  const addressSummary = useMemo(() => {
+    if (address.trim()) return address.trim();
+    const saved = addresses.find((a) => a.id === selectedAddressId);
+    if (saved) {
+      return [saved.line1, saved.city, saved.pincode].filter(Boolean).join(', ');
+    }
+    return '—';
+  }, [address, selectedAddressId, addresses]);
+
   function validateStep(s: number): boolean {
     if (s === 0) {
       if (!date) {
@@ -188,13 +227,20 @@ export default function BookWizardScreen() {
       return true;
     }
     if (s === 1) {
+      if (!propertyType) {
+        Toast.show({ type: 'error', text1: 'Select property type' });
+        return false;
+      }
+      return true;
+    }
+    if (s === 2) {
       if (!address.trim() && !selectedAddressId) {
         Toast.show({ type: 'error', text1: 'Add or select a service address' });
         return false;
       }
       return true;
     }
-    if (s === 2) {
+    if (s === 3) {
       if (!paymentMethod) {
         Toast.show({ type: 'error', text1: 'Choose a payment method' });
         return false;
@@ -214,43 +260,22 @@ export default function BookWizardScreen() {
   }
 
   async function fillAddressFromLocation() {
-    setLocating(true);
-    try {
-      const addr = await getCurrentAddress();
-      if (addr) {
-        const composed = [addr.line1, addr.city, addr.pincode].filter(Boolean).join(', ');
-        if (composed) {
-          setAddress(composed);
-          setSelectedAddressId(null);
-        }
+    const loc = await detectAddress();
+    if (loc) {
+      const composed = [loc.line1, loc.city, loc.pincode].filter(Boolean).join(', ');
+      if (composed) {
+        setAddress(composed);
+        setSelectedAddressId(null);
       }
-    } finally {
-      setLocating(false);
     }
-  }
-
-  async function pickPhotos() {
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsMultipleSelection: true,
-      quality: 0.7,
-    });
-    if (!res.canceled) {
-      setPhotoUris((prev) =>
-        [
-          ...prev,
-          ...res.assets.map((a) => ({ uri: a.uri, mimeType: a.mimeType })),
-        ].slice(0, 6),
-      );
-    }
-  }
-
-  function removePhoto(uri: string) {
-    setPhotoUris((prev) => prev.filter((p) => p.uri !== uri));
   }
 
   async function confirm() {
-    if (!service || (!address.trim() && !selectedAddressId)) {
+    if (!service || !propertyType) {
+      Toast.show({ type: 'error', text1: 'Property type is required' });
+      return;
+    }
+    if (!address.trim() && !selectedAddressId) {
       Toast.show({ type: 'error', text1: 'Address is required' });
       return;
     }
@@ -273,14 +298,23 @@ export default function BookWizardScreen() {
         serviceId: service.id,
         scheduleMode,
         scheduleRequest,
+        propertyType,
         ...(selectedAddressId ? { addressId: selectedAddressId } : { address: address.trim() }),
         paymentMethod,
         couponCode: coupon.trim() || undefined,
         problemPhotos,
         assignmentMode: 'auto',
       });
-      Toast.show({ type: 'success', text1: bookingCopy.requestSubmittedToast });
-      router.replace(bookingDetailPath(user?.role, data.booking.id) as never);
+      router.replace({
+        pathname: '/book/success',
+        params: {
+          bookingId: data.booking.id,
+          serviceName: service.name,
+          schedule: scheduleSummary,
+          total: String(pricing?.total ?? 0),
+          payment: paymentMethod ? paymentMethodLabel(paymentMethod) : '',
+        },
+      } as never);
     } catch (err) {
       Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not confirm booking') });
     } finally {
@@ -300,7 +334,7 @@ export default function BookWizardScreen() {
           </Pressable>
           <Text style={styles.errorTitle}>Book service</Text>
         </LinearGradient>
-        <ListEmptyRetry message={loadError} onRetry={() => safeAsync(loadData)} />
+        <ListEmptyRetry message={loadError} onRetry={() => safeAsync(() => loadData(true))} />
       </SafeAreaView>
     );
   }
@@ -316,271 +350,235 @@ export default function BookWizardScreen() {
         durationLabel={durationLabel}
         onBack={() => (step > 0 ? setStep((s) => s - 1) : router.back())}
         title="Book service"
-        subtitle={`Step ${step + 1} of ${BOOK_STEP_LABELS.length} · ${STEP_HINTS[step]}`}
+        subtitle={`Step ${step + 1} of ${BOOK_STEP_LABELS.length}`}
       />
       <WizardStepBar step={step} labels={BOOK_STEP_LABELS} onStepPress={(i) => setStep(i)} />
+
+      {pricing ? (
+        <BookPriceRibbon total={pricing.total} savings={pricing.coupon > 0 ? pricing.coupon : undefined} />
+      ) : null}
 
       <ScrollView
         ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
         showsVerticalScrollIndicator={false}
       >
+        <FadeSlideHorizontal step={step}>
         {step === 0 && (
-          <BookSectionCard title={bookingCopy.scheduleStepTitle} subtitle={bookingCopy.scheduleStepSubtitle}>
-            <ScheduleModeToggle
-              mode={scheduleMode}
-              onChange={setScheduleMode}
-              standardLabel={bookingCopy.standardModeLabel}
-              customLabel={bookingCopy.customModeLabel}
-            />
+          <ScheduleStepPanel title={bookingCopy.scheduleStepTitle} animTrigger={step}>
+            <ScheduleSection step={1} title="Visit type">
+              <ScheduleModeToggle
+                mode={scheduleMode}
+                onChange={setScheduleMode}
+                standardLabel={bookingCopy.standardModeLabel}
+                customLabel={bookingCopy.customModeLabel}
+              />
+            </ScheduleSection>
 
-            <ScheduleDayPicker
-              selectedDate={date}
-              onSelect={(d, i) => {
-                setDate(d);
-                setDayIdx(i);
-              }}
-            />
+            <ScheduleSection step={2} title="Select date">
+              <ScheduleDayPicker
+                selectedDate={date}
+                onSelect={(d, i) => {
+                  setDate(d);
+                  setDayIdx(i);
+                }}
+              />
+            </ScheduleSection>
 
-            {scheduleMode === 'standard' ? (
-              <ScheduleSlotPicker selectedSlot={slot} onSelect={setSlot} />
-            ) : (
-              <>
-                <BookTimePicker
-                  hour={customHour}
-                  minute={customMinute}
-                  onChange={(h, m) => {
-                    setCustomHour(h);
-                    setCustomMinute(m);
-                  }}
-                />
-                <Input
-                  label="Notes (optional)"
-                  value={scheduleNotes}
-                  onChangeText={setScheduleNotes}
-                  placeholder={bookingCopy.customNotesPlaceholder}
-                />
-              </>
-            )}
+            <ScheduleSection
+              step={3}
+              title={scheduleMode === 'standard' ? 'Pick a time slot' : 'Set your time'}
+            >
+              {scheduleMode === 'standard' ? (
+                <ScheduleSlotPicker selectedSlot={slot} onSelect={setSlot} />
+              ) : (
+                <>
+                  <BookTimePicker
+                    hour={customHour}
+                    minute={customMinute}
+                    onChange={(h, m) => {
+                      setCustomHour(h);
+                      setCustomMinute(m);
+                    }}
+                  />
+                  <View style={styles.notesWrap}>
+                    <Input
+                      label="Notes"
+                      value={scheduleNotes}
+                      onChangeText={setScheduleNotes}
+                      placeholder={bookingCopy.customNotesPlaceholder}
+                    />
+                  </View>
+                </>
+              )}
+            </ScheduleSection>
 
             {(scheduleMode === 'standard' ? slot : customTime) ? (
               <ScheduleSelectionBanner label={scheduleSummary} />
             ) : null}
-          </BookSectionCard>
+          </ScheduleStepPanel>
         )}
 
         {step === 1 && (
-          <>
-            <BookSectionCard title="Service address" subtitle="Select a saved address or type one below">
-              <Pressable
-                style={({ pressed }) => [styles.locateBtn, pressed && styles.locatePressed]}
-                onPress={() => void fillAddressFromLocation()}
-                disabled={locating}
-              >
-                <LocateFixed size={17} color={colors.green} />
-                <Text style={styles.locateText}>
-                  {locating ? 'Getting your location…' : 'Use my current location'}
+          <FadeSlideHorizontal step={step}>
+            <BookWizardStepPanel icon={Building2} title="Property type" animTrigger={step}>
+              <BookWizardSection step={1} title="What type of premises?">
+                <Text style={styles.propertyHint}>
+                  Select your home or business type so we can tailor the treatment plan.
                 </Text>
-              </Pressable>
-              {addresses.length === 0 ? (
-                <EmptyState title="No saved addresses" message="Enter your full address for this visit" />
-              ) : (
-                addresses.map((a) => (
-                  <AddressCard
-                    key={a.id}
-                    address={a}
-                    selected={selectedAddressId === a.id}
-                    onPress={() => {
-                      setSelectedAddressId(a.id);
-                      setAddress(`${a.line1}, ${a.city}`);
-                    }}
-                  />
-                ))
-              )}
-              <View style={styles.manualAddress}>
-                <MapPin size={16} color={colors.muted} />
-                <View style={styles.manualFlex}>
-                  <Input
-                    label="Address for this visit"
-                    value={address}
-                    onChangeText={(t) => {
-                      setAddress(t);
-                      setSelectedAddressId(null);
-                    }}
-                    multiline
-                    placeholder="House no., street, area, city"
-                  />
-                </View>
-              </View>
-            </BookSectionCard>
-
-            <BookSectionCard
-              title="Problem photos"
-              subtitle="Optional — helps our team prepare (max 6)"
-            >
-              <View style={styles.photos}>
-                <Pressable style={styles.camBox} onPress={pickPhotos}>
-                  <Camera color={colors.white} size={24} />
-                  <Text style={styles.camLabel}>Add</Text>
-                </Pressable>
-                {photoUris.map((photo) => (
-                  <View key={photo.uri} style={styles.thumbWrap}>
-                    <Image source={{ uri: photo.uri }} style={styles.thumb} />
-                    <Pressable style={styles.removePhoto} onPress={() => removePhoto(photo.uri)}>
-                      <X size={12} color={colors.white} />
-                    </Pressable>
-                  </View>
-                ))}
-                {photoUris.length < 6 ? (
-                  <Pressable style={styles.addBox} onPress={pickPhotos}>
-                    <Plus color={colors.green} size={22} />
-                  </Pressable>
-                ) : null}
-              </View>
-            </BookSectionCard>
-          </>
+                <PropertyTypePicker value={propertyType} onChange={setPropertyType} />
+              </BookWizardSection>
+            </BookWizardStepPanel>
+          </FadeSlideHorizontal>
         )}
 
         {step === 2 && (
-          <BookSectionCard title="Payment & offers" subtitle="Review pricing and choose how to pay">
-            {activeOffers.length > 0 ? (
-              <View style={styles.offerBlock}>
-                <View style={styles.offerHead}>
-                  <Sparkles size={16} color={colors.green} />
-                  <Text style={styles.offerHeadText}>Available offers</Text>
-                </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.offerRow}>
-                  {activeOffers.map((o) => {
-                    const on = coupon.trim().toUpperCase() === o.code;
-                    return (
-                      <Pressable
-                        key={o.id}
-                        style={[styles.offerChip, on && styles.offerChipOn]}
-                        onPress={() => setCoupon(on ? '' : o.code)}
-                      >
-                        <Tag size={14} color={on ? colors.white : colors.green} />
-                        <Text style={[styles.offerCode, on && styles.offerCodeOn]}>{o.code}</Text>
-                        <Text style={[styles.offerOff, on && styles.offerCodeOn]}>₹{o.discount} off</Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            ) : null}
+          <FadeSlideHorizontal step={step}>
+            <BookWizardStepPanel icon={MapPin} title="Service address" animTrigger={step}>
+              {displayLabel ? (
+                <LocationBanner label={displayLabel} hint="Your detected service area" loading={locating} />
+              ) : null}
+              <BookWizardSection step={1} title="Quick fill">
+                <AddressLocateButton loading={locating} onPress={() => void fillAddressFromLocation()} />
+              </BookWizardSection>
 
-            <Input label="Coupon code" value={coupon} onChangeText={setCoupon} autoCapitalize="characters" />
-            {couponInvalid ? <Text style={styles.couponError}>This coupon is not valid</Text> : null}
-            {couponApplied ? (
-              <View style={styles.couponOk}>
-                <CheckCircle2 size={16} color={colors.green} />
-                <Text style={styles.couponOkText}>Coupon applied successfully</Text>
-              </View>
-            ) : null}
+              {addresses.length > 0 ? (
+                <BookWizardSection step={2} title="Saved addresses">
+                  {addresses.map((a) => (
+                    <AddressCard
+                      key={a.id}
+                      address={a}
+                      selected={selectedAddressId === a.id}
+                      onPress={() => {
+                        setSelectedAddressId(a.id);
+                        setAddress(`${a.line1}, ${a.city}`);
+                      }}
+                    />
+                  ))}
+                </BookWizardSection>
+              ) : null}
 
-            {pricing ? (
-              <View style={styles.pricingBox}>
-                <BookingPriceBreakdown amount={pricing} />
-              </View>
-            ) : null}
+              <BookWizardSection step={addresses.length > 0 ? 3 : 2} title="Enter address">
+                <AddressManualField
+                  value={address}
+                  onChangeText={(t) => {
+                    setAddress(t);
+                    setSelectedAddressId(null);
+                  }}
+                />
+              </BookWizardSection>
 
-            <BookPaymentPicker
-              methods={paymentMethods}
-              selected={paymentMethod}
-              onSelect={setPaymentMethod}
-              showManageLink={hasSavedPaymentMethods}
-            />
-          </BookSectionCard>
+              {address.trim() ? <AddressConfirmBanner address={address} /> : null}
+
+              <BookWizardSection step={addresses.length > 0 ? 4 : 3} title="Problem photos">
+                <AddressPhotoGrid photos={photoUris} onChange={setPhotoUris} max={6} />
+              </BookWizardSection>
+            </BookWizardStepPanel>
+          </FadeSlideHorizontal>
         )}
 
         {step === 3 && pricing && (
-          <BookSectionCard title="Review & confirm" subtitle="Submit your request — our team will confirm your visit time">
-            <View style={styles.reviewGrid}>
-              <ReviewBlock icon={Calendar} label="Requested schedule" value={scheduleSummary} />
-              <ReviewBlock icon={MapPin} label="Address" value={address} />
-              <ReviewBlock
-                icon={CreditCard}
-                label="Payment"
-                value={paymentMethod ? paymentMethodLabel(paymentMethod) : '—'}
-              />
-              {coupon.trim() ? (
-                <ReviewBlock icon={Tag} label="Coupon" value={coupon.trim().toUpperCase()} />
+          <FadeSlideHorizontal step={step}>
+            <BookWizardStepPanel icon={CreditCard} title="Payment & offers" animTrigger={step}>
+              <BookWizardSection step={1} title="Price summary">
+                <PaymentPriceHero amount={pricing} />
+              </BookWizardSection>
+
+              {activeOffers.length > 0 ? (
+                <BookWizardSection step={2} title="Available offers">
+                  <PaymentOfferList
+                    offers={activeOffers}
+                    selectedCode={coupon}
+                    onSelect={setCoupon}
+                  />
+                </BookWizardSection>
               ) : null}
-              <ReviewBlock icon={Camera} label="Photos" value={photoUris.length ? `${photoUris.length} attached` : 'None'} />
-            </View>
-            <View style={styles.pricingBox}>
-              <BookingPriceBreakdown amount={pricing} />
-            </View>
-            <View style={styles.guarantee}>
-              <CheckCircle2 size={18} color={colors.green} />
-              <Text style={styles.guaranteeText}>{bookingCopy.pendingReviewNote}</Text>
-            </View>
-          </BookSectionCard>
+
+              <BookWizardSection step={activeOffers.length > 0 ? 3 : 2} title="Coupon code">
+                <PaymentCouponField
+                  value={coupon}
+                  onChangeText={setCoupon}
+                  invalid={couponInvalid}
+                  applied={couponApplied}
+                />
+              </BookWizardSection>
+
+              <BookWizardSection step={activeOffers.length > 0 ? 4 : 3} title="Payment method">
+                <BookPaymentPicker
+                  methods={paymentMethods}
+                  selected={paymentMethod}
+                  onSelect={setPaymentMethod}
+                  showManageLink={hasSavedPaymentMethods}
+                />
+              </BookWizardSection>
+            </BookWizardStepPanel>
+          </FadeSlideHorizontal>
         )}
+
+        {step === 4 && pricing && (
+          <FadeSlideHorizontal step={step}>
+            <BookWizardStepPanel icon={CheckCircle2} title="Review & confirm" animTrigger={step}>
+              <BookWizardSection step={1} title="Your booking">
+                <ConfirmDetailsList
+                  items={[
+                    { icon: Calendar, label: 'Requested schedule', value: scheduleSummary },
+                    {
+                      icon: Building2,
+                      label: 'Property type',
+                      value: propertyType ? propertyTypeLabel(propertyType) : '—',
+                    },
+                    { icon: MapPin, label: 'Service address', value: addressSummary },
+                    {
+                      icon: CreditCard,
+                      label: 'Payment method',
+                      value: paymentMethod ? paymentMethodLabel(paymentMethod) : '—',
+                    },
+                    ...(coupon.trim()
+                      ? [{ icon: Tag, label: 'Coupon applied', value: coupon.trim().toUpperCase() }]
+                      : []),
+                    {
+                      icon: Camera,
+                      label: 'Photos',
+                      value: photoUris.length ? `${photoUris.length} attached` : 'None',
+                    },
+                  ]}
+                />
+              </BookWizardSection>
+
+              {photoUris.length > 0 ? (
+                <BookWizardSection step={2} title="Attached photos">
+                  <ConfirmPhotoStrip photos={photoUris} />
+                </BookWizardSection>
+              ) : null}
+
+              <BookWizardSection step={photoUris.length > 0 ? 3 : 2} title="Estimated total">
+                <ConfirmTotalCard
+                  amount={pricing}
+                  paymentLabel={paymentMethod ? paymentMethodLabel(paymentMethod) : '—'}
+                />
+              </BookWizardSection>
+            </BookWizardStepPanel>
+          </FadeSlideHorizontal>
+        )}
+        </FadeSlideHorizontal>
       </ScrollView>
 
       <BookingActionBar
-        primaryTitle={step === 3 ? 'Submit request' : 'Continue'}
-        onPrimary={step === 3 ? confirm : goNext}
+        primaryTitle={step === 4 ? 'Submit request' : 'Continue'}
+        onPrimary={step === 4 ? confirm : goNext}
         primaryLoading={loading}
-        primaryDisabled={(step === 2 && couponInvalid) || (step >= 2 && !paymentMethod)}
+        primaryDisabled={(step === 3 && couponInvalid) || (step >= 3 && !paymentMethod) || (step === 1 && !propertyType)}
         secondaryTitle={step > 0 ? 'Back' : undefined}
         onSecondary={step > 0 ? () => setStep((s) => s - 1) : undefined}
-        totalLabel="Total"
-        totalAmount={pricing ? `₹${pricing.total}` : undefined}
-        highlightTotal={step === 3}
       />
     </SafeAreaView>
   );
 }
 
-function ReviewBlock({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: ComponentType<{ size?: number; color?: string }>;
-  label: string;
-  value: string;
-}) {
-  return (
-    <View style={reviewStyles.block}>
-      <View style={reviewStyles.iconWrap}>
-        <Icon size={16} color={colors.green} />
-      </View>
-      <View style={reviewStyles.body}>
-        <Text style={reviewStyles.label}>{label}</Text>
-        <Text style={reviewStyles.value}>{value}</Text>
-      </View>
-    </View>
-  );
-}
-
-const reviewStyles = StyleSheet.create({
-  block: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: colors.soft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  body: { flex: 1, minWidth: 0 },
-  label: { fontFamily: fonts.body, fontSize: 11, color: colors.muted },
-  value: { fontFamily: fonts.bodySemi, fontSize: 13.5, color: colors.ink, marginTop: 3, lineHeight: 20 },
-});
-
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: design.screenBg },
-  scroll: { flex: 1 },
   errorHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -601,7 +599,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   errorTitle: { fontFamily: fonts.displayExtra, fontSize: 18, color: colors.white },
-  container: { padding: spacing.md, paddingBottom: spacing.xl + 24 },
+  scroll: { flex: 1 },
+  container: { padding: spacing.md, paddingBottom: 110 },
+  notesWrap: { marginTop: spacing.md },
+  propertyHint: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.muted,
+    lineHeight: 18,
+    marginBottom: spacing.md,
+  },
   modeRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md },
   techOption: {
     flexDirection: 'row',
@@ -685,90 +692,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.soft,
   },
   selectionText: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest, flex: 1 },
-  locateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: colors.green,
-    backgroundColor: colors.soft,
-    marginBottom: spacing.md,
-  },
-  locatePressed: { opacity: 0.7 },
-  locateText: { fontFamily: fonts.bodySemi, fontSize: 13.5, color: colors.green },
-  manualAddress: { flexDirection: 'row', gap: 8, marginTop: spacing.sm },
-  manualFlex: { flex: 1 },
-  photos: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  camBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 18,
-    backgroundColor: colors.skyDeep,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  camLabel: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.white },
-  thumbWrap: { position: 'relative' },
-  thumb: { width: 80, height: 80, borderRadius: 18 },
-  removePhoto: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: colors.green,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.soft,
-  },
-  offerBlock: { marginBottom: spacing.md },
-  offerHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.sm },
-  offerHeadText: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest },
-  offerRow: { gap: 10 },
-  offerChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: colors.soft,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    marginRight: 8,
-  },
-  offerChipOn: { backgroundColor: colors.forest, borderColor: colors.forest },
-  offerCode: { fontFamily: fonts.displayExtra, fontSize: 13, color: colors.forest },
-  offerOff: { fontFamily: fonts.body, fontSize: 11, color: colors.muted },
-  offerCodeOn: { color: colors.lime },
-  couponError: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.error, marginTop: 4, marginBottom: spacing.sm },
-  couponOk: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.sm },
-  couponOkText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.green },
-  pricingBox: { marginTop: spacing.md, marginBottom: spacing.sm },
-  reviewGrid: { marginBottom: spacing.sm },
-  guarantee: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: spacing.md,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: colors.soft,
-  },
-  guaranteeText: { fontFamily: fonts.body, fontSize: 12, color: colors.forest, flex: 1, lineHeight: 18 },
 });

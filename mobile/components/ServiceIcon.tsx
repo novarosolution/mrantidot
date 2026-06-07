@@ -1,17 +1,20 @@
-import { Bug, Bird, Droplets, Sparkles, SprayCan, Waves } from 'lucide-react-native';
+import { SERVICE_ICON_MAP } from '@/constants/serviceIcons';
+import { SprayCan } from 'lucide-react-native';
 import { colors } from '@/constants/theme';
 
-const MAP: Record<string, React.ComponentType<{ color?: string; size?: number }>> = {
-  spray: SprayCan,
-  mosq: Waves,
-  mouse: Bug,
-  bed: Sparkles,
-  termite: Droplets,
-  clean: Sparkles,
-  bird: Bird,
-};
-
-export function ServiceIcon({ iconKey, size = 24, color = colors.lime }: { iconKey: string; size?: number; color?: string }) {
-  const Icon = MAP[iconKey] ?? SprayCan;
-  return <Icon size={size} color={color} />;
+export function ServiceIcon({
+  iconKey,
+  size = 24,
+  color = colors.lime,
+  strokeWidth,
+}: {
+  iconKey: string;
+  size?: number;
+  color?: string;
+  strokeWidth?: number;
+}) {
+  const Icon = SERVICE_ICON_MAP[iconKey] ?? SprayCan;
+  return <Icon size={size} color={color} strokeWidth={strokeWidth} />;
 }
+
+export { SERVICE_ICON_KEYS, serviceIconLabel } from '@/constants/serviceIcons';

@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import { normalizePhone } from '../utils/phone';
 
 export type UserRole = 'customer' | 'technician' | 'admin';
 
@@ -48,6 +49,13 @@ const userSchema = new Schema<IUser>(
     },
   },
 );
+
+userSchema.pre('save', function normalizePhoneField(next) {
+  if (this.isModified('phone') && typeof this.phone === 'string') {
+    this.phone = normalizePhone(this.phone);
+  }
+  next();
+});
 
 export const User = mongoose.model<IUser>('User', userSchema);
 

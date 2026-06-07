@@ -70,8 +70,8 @@ export default function ReviewScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <CustomerPageHeader variant="premium" title="Rate & Review" subtitle="Help us improve our service" showBack />
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <CustomerPageHeader variant="premium" title="Rate & Review" showBack />
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="always">
         <BookingFactsCard
           booking={booking}
           audience="customer"

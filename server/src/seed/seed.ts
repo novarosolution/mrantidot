@@ -10,6 +10,7 @@ import { SavedAddress } from '../models/SavedAddress';
 import { PaymentMethod } from '../models/PaymentMethod';
 import { Notification } from '../models/Notification';
 import { TechnicianAttendance } from '../models/TechnicianAttendance';
+import { AppContent } from '../models/AppContent';
 import { computeAmount } from '../utils/booking';
 import {
   appendTracking,
@@ -18,6 +19,8 @@ import {
 import { getAdminConfig } from '../utils/adminUser';
 import type { ServiceCategory } from '../models/Service';
 import type { ServiceTypeKey } from '../constants/serviceTypes';
+import type { PropertyTypeKey } from '../constants/propertyTypes';
+import { PROPERTY_TYPE_KEYS } from '../constants/propertyTypes';
 
 const SEED_MARKER = 'mrantidot-stage-d';
 
@@ -126,100 +129,143 @@ const USERS = buildSeedUsers();
 
 const SERVICES: SeedService[] = [
   {
-    name: 'AC Service & Repair',
-    iconKey: 'snowflake',
-    basePrice: 599,
-    shortDesc: 'Split/window AC service, gas check, and minor repairs',
-    category: 'residential',
-    stepTemplate: [
-      'Arrival & safety check',
-      'Before unit condition',
-      'Service in progress',
-      'After service verification',
-      'Customer sign-off',
-    ],
-  },
-  {
-    name: 'Pest Control',
+    name: 'General Pest Control',
     iconKey: 'bug',
-    basePrice: 899,
-    shortDesc: 'Cockroach, ant, and general pest treatment for home',
+    basePrice: 699,
+    shortDesc: 'Comprehensive pest control for homes and businesses — ants, cockroaches, and common pests.',
     category: 'residential',
-    serviceTypes: ['ant', 'cockroach', 'general'],
+    serviceTypes: ['general'],
     stepTemplate: [
       'Site inspection',
       'Treatment application',
-      'Post-treatment photos',
+      'Post-treatment check',
       'Safety briefing',
     ],
   },
   {
-    name: 'Ant Control Treatment',
+    name: 'Cockroach Control Treatment',
     iconKey: 'spray',
-    basePrice: 649,
-    shortDesc: 'Targeted ant colony treatment for kitchen, bathroom, and entry points',
+    basePrice: 699,
+    shortDesc: 'Professional cockroach treatment using advanced gel and spray for long-lasting control.',
     category: 'residential',
-    serviceTypes: ['ant'],
+    serviceTypes: ['cockroach'],
     stepTemplate: [
-      'Nest & trail inspection',
-      'Gel / spray application',
-      'Barrier treatment',
+      'Infestation inspection',
+      'Gel & spray application',
+      'Crack & crevice treatment',
       'Follow-up checklist',
     ],
   },
   {
-    name: 'Plumbing',
-    iconKey: 'droplets',
-    basePrice: 449,
-    shortDesc: 'Leaks, taps, blockages, and fixture fixes',
-    category: 'commercial',
+    name: 'Mosquito Treatment',
+    iconKey: 'wind',
+    basePrice: 599,
+    shortDesc: 'Mosquito control treatment to reduce breeding sites and protect your family.',
+    category: 'residential',
+    serviceTypes: ['mosquito'],
     stepTemplate: [
-      'Arrival check-in',
-      'Before work',
-      'Work in progress',
-      'After completion',
-      'Sign-off',
+      'Breeding site survey',
+      'Fogging / spray treatment',
+      'Larval control',
+      'Prevention tips',
     ],
   },
   {
-    name: 'Electrical',
-    iconKey: 'zap',
-    basePrice: 499,
-    shortDesc: 'Wiring checks, switches, MCB, and light installs',
-    category: 'commercial',
+    name: 'Rodent Treatment',
+    iconKey: 'shield',
+    basePrice: 899,
+    shortDesc: 'Rodent control service to eliminate rats and mice and seal entry points.',
+    category: 'residential',
+    serviceTypes: ['rodent'],
     stepTemplate: [
-      'Arrival & isolation',
-      'Before panel/fixture',
-      'Work underway',
-      'Final safety test',
-      'Customer sign-off',
+      'Entry point inspection',
+      'Bait station placement',
+      'Trapping & removal',
+      'Proofing recommendations',
     ],
   },
   {
-    name: 'Deep Home Cleaning',
+    name: 'Bed Bug Treatment',
+    iconKey: 'bed',
+    basePrice: 999,
+    shortDesc: 'Complete bed bug elimination with heat and chemical treatment for mattresses and furniture.',
+    category: 'residential',
+    serviceTypes: ['bed_bug'],
+    stepTemplate: [
+      'Mattress & furniture inspection',
+      'Targeted heat / chemical treatment',
+      'Encasement check',
+      'Follow-up visit plan',
+    ],
+  },
+  {
+    name: 'Termite Treatment',
+    iconKey: 'tree',
+    basePrice: 2500,
+    shortDesc: 'Professional termite management with drilling, injection, and barrier protection.',
+    category: 'residential',
+    serviceTypes: ['termite'],
+    stepTemplate: [
+      'Moisture & wood inspection',
+      'Drill-fill-seal treatment',
+      'Barrier application',
+      'Warranty briefing',
+    ],
+  },
+  {
+    name: 'Fumigation Treatment',
+    iconKey: 'cloud',
+    basePrice: 3500,
+    shortDesc: 'Advanced fumigation for warehouses, factories, and large commercial spaces.',
+    category: 'commercial',
+    serviceTypes: ['fumigation'],
+    stepTemplate: [
+      'Area sealing & prep',
+      'Gas fumigation cycle',
+      'Aeration & clearance test',
+      'Safety certification',
+    ],
+  },
+  {
+    name: 'Bird Management',
+    iconKey: 'bird',
+    basePrice: 15,
+    shortDesc: 'Bird control with netting and spikes — priced from ₹15 per sq ft.',
+    category: 'commercial',
+    serviceTypes: ['bird'],
+    stepTemplate: [
+      'Roof & ledge survey',
+      'Net / spike installation',
+      'Dropping cleanup',
+      'Maintenance plan',
+    ],
+  },
+  {
+    name: 'Silo Treatment',
+    iconKey: 'warehouse',
+    basePrice: 15,
+    shortDesc: 'Specialized silo fumigation for grain storage and industrial silos.',
+    category: 'commercial',
+    serviceTypes: ['silo'],
+    stepTemplate: [
+      'Silo inspection',
+      'Sealing & preparation',
+      'Fumigation application',
+      'Ventilation & clearance',
+    ],
+  },
+  {
+    name: 'Deep Cleaning',
     iconKey: 'sparkles',
-    basePrice: 1299,
-    shortDesc: 'Full home deep clean — kitchen, baths, living areas',
+    basePrice: 999,
+    shortDesc: 'Thorough deep cleaning for kitchens, bathrooms, and living areas.',
     category: 'cleaning',
+    serviceTypes: ['deep_cleaning'],
     stepTemplate: [
-      'Arrival walkthrough',
+      'Walkthrough & checklist',
       'Before photos',
-      'Cleaning in progress',
+      'Deep clean in progress',
       'Final inspection',
-    ],
-  },
-  {
-    name: 'Appliance Repair',
-    iconKey: 'wrench',
-    basePrice: 399,
-    shortDesc: 'Washing machine, fridge, microwave diagnostics & repair',
-    category: 'general',
-    stepTemplate: [
-      'Arrival',
-      'Diagnosis',
-      'Repair/replace part',
-      'Test run',
-      'Sign-off',
     ],
   },
 ];
@@ -341,6 +387,20 @@ async function seed(): Promise<void> {
   await Service.deleteMany({ name: { $nin: seedServiceNames } });
   const services = await Promise.all(SERVICES.map(upsertService));
 
+  const featured = services.find((s) => s.name === 'General Pest Control');
+  if (featured) {
+    await AppContent.findOneAndUpdate(
+      { key: 'home' },
+      {
+        $set: {
+          'homePromo.serviceId': featured._id,
+          'homeConfig.featuredServiceId': featured._id,
+        },
+      },
+      { upsert: true },
+    );
+  }
+
   const byPhone = (phone: string) => users.find((u) => u.phone === phone)!;
   const techs = ['9000000010', '9000000011', '9000000012', '9000000013'].map(byPhone);
   const customers = ['9000000020', '9000000021', '9000000022'].map(byPhone);
@@ -362,6 +422,7 @@ async function seed(): Promise<void> {
     customerIdx: number;
     techIdx: number;
     dayOffset: number;
+    propertyType?: PropertyTypeKey;
     couponCode?: string;
     paymentMethod?: 'upi_card' | 'pay_after';
     scheduleMode?: 'standard' | 'custom';
@@ -377,55 +438,82 @@ async function seed(): Promise<void> {
   const bookingPlan: BookingSeed[] = [
     {
       status: 'pending',
-      serviceName: 'Plumbing',
+      serviceName: 'Cockroach Control Treatment',
       customerIdx: 0,
       techIdx: 0,
       dayOffset: 5,
+      propertyType: '2bhk',
       scheduleMode: 'standard',
     },
     {
       status: 'pending',
-      serviceName: 'Electrical',
+      serviceName: 'Termite Treatment',
       customerIdx: 1,
       techIdx: 1,
       dayOffset: 3,
+      propertyType: 'office',
       scheduleMode: 'custom',
       customTime: '15:30',
     },
-    { status: 'confirmed', serviceName: 'Electrical', customerIdx: 1, techIdx: 1, dayOffset: -7 },
-    { status: 'in_progress', serviceName: 'AC Service & Repair', customerIdx: 2, techIdx: 2, dayOffset: 0 },
+    {
+      status: 'confirmed',
+      serviceName: 'Mosquito Treatment',
+      customerIdx: 1,
+      techIdx: 1,
+      dayOffset: -7,
+      propertyType: '3bhk',
+    },
+    {
+      status: 'in_progress',
+      serviceName: 'General Pest Control',
+      customerIdx: 2,
+      techIdx: 2,
+      dayOffset: 0,
+      propertyType: '1bhk',
+    },
     {
       status: 'awaiting_verification',
-      serviceName: 'Pest Control',
+      serviceName: 'Rodent Treatment',
       customerIdx: 0,
       techIdx: 3,
       dayOffset: -1,
+      propertyType: 'warehouse',
       couponCode: 'FIRST50',
     },
     {
       status: 'completed',
-      serviceName: 'Deep Home Cleaning',
+      serviceName: 'Deep Cleaning',
       customerIdx: 1,
       techIdx: 0,
       dayOffset: -3,
+      propertyType: 'bungalow',
       couponCode: 'ANTIDOT100',
     },
     {
       status: 'completed',
-      serviceName: 'Appliance Repair',
+      serviceName: 'Fumigation Treatment',
       customerIdx: 2,
       techIdx: 1,
       dayOffset: -5,
+      propertyType: 'factory',
     },
     {
       status: 'completed',
-      serviceName: 'Plumbing',
+      serviceName: 'Bed Bug Treatment',
       customerIdx: 0,
       techIdx: 2,
       dayOffset: -10,
+      propertyType: 'hotel',
       paymentMethod: 'pay_after',
     },
-    { status: 'cancelled', serviceName: 'Electrical', customerIdx: 2, techIdx: 3, dayOffset: 2 },
+    {
+      status: 'cancelled',
+      serviceName: 'Bird Management',
+      customerIdx: 2,
+      techIdx: 3,
+      dayOffset: 2,
+      propertyType: 'cafe_restaurant',
+    },
   ];
 
   const createdBookings = [];
@@ -452,6 +540,8 @@ async function seed(): Promise<void> {
     const amount = await computeAmount(service.basePrice, plan.couponCode);
     const steps = buildStepsForStatus(service.stepTemplate, plan.status, address);
 
+    const propertyType = plan.propertyType ?? PROPERTY_TYPE_KEYS[i % PROPERTY_TYPE_KEYS.length]!;
+
     const booking = await Booking.create({
       customerId: customer._id,
       serviceId: service._id,
@@ -461,6 +551,7 @@ async function seed(): Promise<void> {
       scheduleRequest,
       schedule,
       scheduleConfirmedAt: plan.status !== 'pending' ? new Date() : undefined,
+      propertyType,
       address,
       amount,
       paymentMethod: plan.paymentMethod ?? 'upi_card',

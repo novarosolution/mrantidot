@@ -7,7 +7,7 @@ export const colors = {
   green: '#1E8E4E',
   forest: '#14532D',
   lime: '#A8E04E',
-  bg: '#F2F6F9',
+  bg: '#F7F4EF',
   ink: '#13211A',
   muted: '#6E8075',
   border: '#E7EDE5',
@@ -147,6 +147,8 @@ export const premium = {
   accentGold: '#B6841C',
   accentGoldBg: '#FFF8E8',
   radiusCard: 22,
+  radiusButton: 18,
+  radiusInput: 18,
   shadowSoft: {
     shadowColor: '#0E3A20',
     shadowOffset: { width: 0, height: 6 },
@@ -154,11 +156,52 @@ export const premium = {
     shadowRadius: 14,
     elevation: 5,
   } as ViewStyle,
+  shadowFocus: {
+    shadowColor: '#1E8E4E',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 2,
+  } as ViewStyle,
+};
+
+/** Shared form control sizing — used by Input, IconInput, Button. */
+export const formField = {
+  height: 56,
+  minHeight: 56,
+  radius: 18,
+  borderWidth: 1.5,
+  borderColor: 'rgba(20,83,45,0.12)',
+  borderFocus: colors.forest,
+  bg: colors.white,
+  bgMuted: colors.card,
+  labelSize: 12,
+  inputSize: 15,
+};
+
+/** Button sizing & shape — used by Button component app-wide. */
+export const buttonTokens = {
+  radius: 16,
+  radiusSm: 14,
+  heightLg: 54,
+  heightMd: 48,
+  heightSm: 42,
+  borderWidth: 1.5,
+};
+
+/** Classic ivory + forest + gold palette */
+export const classic = {
+  screenBg: '#F7F4EF',
+  screenBgAlt: '#F3EFE8',
+  cardBorder: 'rgba(20,83,45,0.08)',
+  cardBorderGold: 'rgba(182,132,28,0.22)',
+  headerGoldLine: 'rgba(182,132,28,0.45)',
+  subtlePattern: 'rgba(20,83,45,0.03)',
 };
 
 /** App-wide premium design system */
 export const design = {
-  screenBg: colors.bg,
+  screenBg: classic.screenBg,
   surface: premium.surfaceElevated,
   radiusLg: premium.radiusCard,
   radiusXl: 24,
@@ -188,13 +231,12 @@ export const design = {
   linkColor: colors.secondaryDark,
   tabBarActive: colors.secondaryDark,
   tabBar: {
-    backgroundColor: surfaces.glass,
-    borderTopColor: 'rgba(20,83,45,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderTopColor: 'transparent',
     height: 82,
     paddingBottom: 12,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderTopWidth: 1,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
     ...premium.shadowSoft,
   } as ViewStyle,
   listRow: {
@@ -209,7 +251,9 @@ export const design = {
     borderRadius: premium.radiusCard,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: classic.cardBorder,
+    borderTopWidth: 3,
+    borderTopColor: premium.accentGold,
     ...premium.shadowSoft,
   } as ViewStyle,
 };
@@ -229,20 +273,3 @@ export const headerStyle = {
   headerTitleStyle: { fontFamily: fonts.display, fontWeight: '600' as const },
 };
 
-/** Lucide icon key mapping for services */
-export const SERVICE_ICON_KEYS: Record<string, string> = {
-  spray: 'spray',
-  bug: 'spray',
-  mosq: 'mosq',
-  mouse: 'mouse',
-  bed: 'bed',
-  termite: 'termite',
-  clean: 'clean',
-  bird: 'bird',
-  wrench: 'spray',
-  snowflake: 'clean',
-  droplets: 'clean',
-  zap: 'spray',
-  sparkles: 'clean',
-  pipe: 'spray',
-};

@@ -1,4 +1,6 @@
 import mongoose, { Document, Schema, Types } from 'mongoose';
+import type { PropertyTypeKey } from '../constants/propertyTypes';
+import { PROPERTY_TYPE_KEYS } from '../constants/propertyTypes';
 
 export type BookingStatus =
   | 'pending'
@@ -88,6 +90,7 @@ export interface IBooking extends Document {
   scheduleRequest: IScheduleRequest;
   schedule: IBookingSchedule;
   scheduleConfirmedAt?: Date;
+  propertyType?: PropertyTypeKey;
   address: string;
   amount: {
     base: number;
@@ -215,6 +218,7 @@ const bookingSchema = new Schema<IBooking>(
     scheduleRequest: { type: scheduleRequestSchema, required: true },
     schedule: { type: scheduleSchema, required: true },
     scheduleConfirmedAt: { type: Date },
+    propertyType: { type: String, enum: PROPERTY_TYPE_KEYS },
     address: { type: String, required: true },
     amount: { type: amountSchema, required: true },
     paymentMethod: {

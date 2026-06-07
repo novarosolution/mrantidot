@@ -1,14 +1,51 @@
-import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
-import Toast from 'react-native-toast-message';
+import axios, { AxiosError, type AxiosRequestConfig, type AxiosResponse } from 'axios';
+import { appToast } from '@/lib/toast';
+import {
+  apiCacheKey,
+  clearApiCache,
+  invalidateAfterMutation,
+  readApiCache,
+  writeApiCache,
+} from '@/lib/apiCache';
 import { config } from './config';
 import { clearSession, getToken } from './storage';
 import type { ApiErrorBody } from '@/types/axios';
 
 export const api = axios.create({
   baseURL: `${config.apiUrl}/api`,
-  timeout: 30000,
+  timeout: 20000,
   headers: { 'Content-Type': 'application/json' },
 });
+
+const nativeGet = api.get.bind(api);
+
+const getWithCache = async function getWithCache<T = unknown>(
+  url: string,
+  config?: AxiosRequestConfig,
+): Promise<AxiosResponse<T>> {
+  const ttl = config?.cacheTtlMs;
+  if (ttl && !config?.skipCache) {
+    const key = apiCacheKey('GET', url, config?.params);
+    const cached = readApiCache<T>(key, ttl);
+    if (cached !== null) {
+      return {
+        data: cached,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: config ?? {},
+      } as AxiosResponse<T>;
+    }
+  }
+
+  const response = await nativeGet<T>(url, config);
+  if (ttl && !config?.skipCache) {
+    writeApiCache(apiCacheKey('GET', url, config?.params), response.data);
+  }
+  return response;
+};
+
+api.get = getWithCache as typeof api.get;
 
 /** Pass on GETs inside useScreenLoad to avoid duplicate toast + inline retry. */
 export const screenLoadConfig: AxiosRequestConfig = { skipErrorToast: true };
@@ -84,7 +121,13 @@ api.interceptors.request.use(async (req) => {
 });
 
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    const method = res.config.method?.toUpperCase();
+    if (method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      invalidateAfterMutation(res.config.url ?? '');
+    }
+    return res;
+  },
   async (error: AxiosError<ApiErrorBody>) => {
     const message = getApiErrorMessage(error);
     const silent401 = error.config?.silent401 === true;
@@ -93,9 +136,13 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const showToast = shouldShowToast(error, silent401, skipToast);
 
+    if (status === 404 && error.config?.method?.toUpperCase() === 'GET' && url.includes('/services')) {
+      clearApiCache('/services');
+    }
+
     if (status === 401) {
       if (isAuthAttempt(url)) {
-        if (showToast) Toast.show({ type: 'error', text1: message });
+        if (showToast) appToast.error(message);
         return Promise.reject(error);
       }
 
@@ -107,7 +154,7 @@ api.interceptors.response.use(
 
       await clearSession();
       if (showToast) {
-        Toast.show({ type: 'error', text1: 'Session expired', text2: 'Please sign in again' });
+        appToast.error('Session expired', 'Please sign in again');
       }
       if (onUnauthorized && !handlingUnauthorized) {
         handlingUnauthorized = true;
@@ -119,13 +166,9 @@ api.interceptors.response.use(
       }
     } else if (showToast) {
       if (status) {
-        Toast.show({ type: 'error', text1: message });
+        appToast.error(message);
       } else {
-        Toast.show({
-          type: 'error',
-          text1: 'Cannot reach server',
-          text2: `Check API at ${config.apiUrl}`,
-        });
+        appToast.offline('Cannot reach server', `Check API at ${config.apiUrl}`);
       }
     }
 
@@ -151,4 +194,5 @@ export function safeAsync(
     .finally(() => onFinally?.());
 }
 
+export { clearApiCache } from '@/lib/apiCache';
 export { mediaUrl } from './images';

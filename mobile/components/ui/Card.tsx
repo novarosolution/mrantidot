@@ -1,15 +1,21 @@
 import { Pressable, StyleSheet, View, type PressableProps, type ViewStyle } from 'react-native';
-import { colors, premium, radius, shadows, spacing, surfaces } from '@/constants/theme';
+import { classic, colors, premium, radius, shadows, spacing, surfaces } from '@/constants/theme';
 
 interface CardProps extends PressableProps {
   children: React.ReactNode;
   style?: ViewStyle;
-  variant?: 'default' | 'premium' | 'glass';
+  variant?: 'default' | 'premium' | 'glass' | 'classic';
 }
 
 export function Card({ children, style, variant = 'default', onPress, ...props }: CardProps) {
   const variantStyle =
-    variant === 'premium' ? styles.premium : variant === 'glass' ? styles.glass : styles.card;
+    variant === 'premium'
+      ? styles.premium
+      : variant === 'classic'
+        ? styles.classic
+        : variant === 'glass'
+          ? styles.glass
+          : styles.card;
   const baseStyle = [variantStyle, style];
   if (onPress) {
     return (
@@ -23,18 +29,24 @@ export function Card({ children, style, variant = 'default', onPress, ...props }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.white,
     borderRadius: radius.lg,
     padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.floating,
+    ...premium.shadowSoft,
   },
   premium: {
-    backgroundColor: premium.surfaceElevated,
+    backgroundColor: colors.white,
     borderRadius: premium.radiusCard,
     padding: spacing.md,
-    ...shadows.floating,
+    ...premium.shadowSoft,
+  },
+  classic: {
+    backgroundColor: colors.white,
+    borderRadius: premium.radiusCard,
+    padding: spacing.md,
+    borderTopWidth: 3,
+    borderTopColor: premium.accentGold,
+    ...premium.shadowSoft,
   },
   glass: {
     backgroundColor: surfaces.glass,

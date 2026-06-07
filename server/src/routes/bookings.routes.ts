@@ -34,6 +34,7 @@ import {
   validateConfirmedSchedule,
   validateScheduleRequest,
 } from '../utils/schedule';
+import { isPropertyTypeKey } from '../constants/propertyTypes';
 
 export const bookingsRouter = Router();
 
@@ -107,6 +108,7 @@ bookingsRouter.post(
   body('scheduleRequest.notes').optional().trim(),
   body('address').optional().trim(),
   body('addressId').optional().isMongoId(),
+  body('propertyType').trim().notEmpty(),
   body('paymentMethod').optional().isIn(['upi_card', 'pay_after']),
   body('couponCode').optional().trim(),
   body('problemPhotos').optional().isArray(),
@@ -129,6 +131,10 @@ bookingsRouter.post(
     validateScheduleRequest(scheduleMode, scheduleRequest);
     const schedule = provisionalScheduleFromRequest(scheduleMode, scheduleRequest);
 
+    if (!isPropertyTypeKey(req.body.propertyType)) {
+      throw new AppError(400, 'Invalid property type');
+    }
+
     const address = await resolveAddressString(
       req.user!.id,
       req.body.addressId,
@@ -147,6 +153,7 @@ bookingsRouter.post(
       scheduleMode,
       scheduleRequest,
       schedule,
+      propertyType: req.body.propertyType,
       address,
       amount,
       paymentMethod: req.body.paymentMethod ?? 'upi_card',

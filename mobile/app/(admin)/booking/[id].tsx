@@ -259,9 +259,38 @@ export default function AdminBookingDetailScreen() {
     : booking.status.replace(/_/g, ' ');
 
   return (
-    <AdminListShell title={title} subtitle={subtitle}>
+    <AdminListShell
+      title={title}
+      subtitle={subtitle}
+      stickyFooter={
+        !terminal ? (
+          <StickyActionBar>
+            {isSchedulePending(booking) ? (
+              <Button
+                title="Confirm schedule"
+                variant="premium"
+                onPress={openConfirmSchedule}
+                loading={busy === 'confirm'}
+                style={styles.footerBtn}
+              />
+            ) : (
+              <Button
+                title="Cancel booking"
+                variant="secondary"
+                onPress={() => setCancelOpen(true)}
+                style={styles.footerBtn}
+              />
+            )}
+          </StickyActionBar>
+        ) : undefined
+      }
+    >
       <ScrollView
-        contentContainerStyle={[adminListShellStyles.list, styles.scrollPad]}
+        contentContainerStyle={[
+          adminListShellStyles.list,
+          !terminal ? adminListShellStyles.scrollWithFooter : undefined,
+        ]}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={async () => {
             setRefreshing(true);
@@ -396,27 +425,6 @@ export default function AdminBookingDetailScreen() {
         )}
       </ScrollView>
 
-      {!terminal && (
-        <StickyActionBar>
-          {isSchedulePending(booking) ? (
-            <Button
-              title="Confirm schedule"
-              variant="premium"
-              onPress={openConfirmSchedule}
-              loading={busy === 'confirm'}
-              style={styles.footerBtn}
-            />
-          ) : (
-            <Button
-              title="Cancel booking"
-              variant="secondary"
-              onPress={() => setCancelOpen(true)}
-              style={styles.footerBtn}
-            />
-          )}
-        </StickyActionBar>
-      )}
-
       <AdminActionSheet
         visible={assignOpen}
         title="Assign technician"
@@ -499,7 +507,6 @@ export default function AdminBookingDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  scrollPad: { paddingBottom: 80 },
   section: { fontFamily: fonts.display, fontSize: 14, marginBottom: spacing.sm, color: colors.ink },
   timelineCard: { marginTop: spacing.sm, padding: spacing.md },
   priceCard: { marginTop: spacing.md, padding: spacing.md },

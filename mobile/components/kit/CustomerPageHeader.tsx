@@ -4,7 +4,7 @@ import { ChevronLeft } from 'lucide-react-native';
 import { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fonts, gradients, headerTopPad, radius, shadows, spacing, surfaces } from '@/constants/theme';
+import { colors, classic, fonts, gradients, headerTopPad, premium, radius, shadows, spacing, surfaces } from '@/constants/theme';
 
 type Variant = 'gradient' | 'light' | 'premium';
 
@@ -57,6 +57,7 @@ export function CustomerPageHeader({
         {variant === 'premium' ? <View style={styles.heroGlow} /> : null}
         {content}
         {children}
+        {variant === 'premium' ? <View style={styles.classicRule}><View style={styles.classicRuleGold} /><View style={styles.classicRuleLine} /></View> : null}
       </LinearGradient>
     );
   }
@@ -121,4 +122,22 @@ const styles = StyleSheet.create({
   titleOnGradient: { color: colors.white },
   sub: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, marginTop: 2 },
   subOnGradient: { color: colors.lime },
+  classicRule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+    paddingHorizontal: 2,
+  },
+  classicRuleGold: {
+    width: 28,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: premium.accentGold,
+  },
+  classicRuleLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: classic.headerGoldLine,
+  },
 });

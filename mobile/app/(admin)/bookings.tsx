@@ -1,4 +1,4 @@
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import Toast from 'react-native-toast-message';
@@ -11,11 +11,13 @@ import { Input } from '@/components/ui/Input';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
+import { CACHE_TTL } from '@/lib/apiCache';
 import { bookingServiceName } from '@/lib/booking-helpers';
 import { assignableTechnicians } from '@/lib/user-helpers';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useScreenLoad } from '@/lib/useScreenLoad';
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import type { Booking, BookingStatusCounts, User } from '@/types/api';
 import { colors, design, spacing } from '@/constants/theme';
 
@@ -46,7 +48,7 @@ export default function AdminBookingsScreen() {
   const techsLoaded = useRef(false);
   const countsLoaded = useRef(false);
   const [assignTarget, setAssignTarget] = useState<Booking | null>(null);
-  const { loading, error, refreshing, runLoad, refresh } = useScreenLoad();
+  const { loading, error, refreshing, runLoad, reload, refresh } = useScreenLoad();
 
   useEffect(() => {
     if (statusParam && FILTERS.some((f) => f.key === statusParam)) {
@@ -54,26 +56,36 @@ export default function AdminBookingsScreen() {
     }
   }, [statusParam]);
 
-  const loadCounts = useCallback(async () => {
-    const { data } = await api.get<BookingStatusCounts>('/bookings/status-counts', screenLoadConfig);
+  const loadCounts = useCallback(async (skipCache = false) => {
+    const { data } = await api.get<BookingStatusCounts>('/bookings/status-counts', {
+      ...screenLoadConfig,
+      cacheTtlMs: CACHE_TTL.stats,
+      ...(skipCache ? { skipCache: true } : {}),
+    });
     setStatusCounts(data);
     countsLoaded.current = true;
   }, []);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (skipCache = false) => {
     const params: Record<string, string> = {};
     if (filter !== 'all') params.status = filter;
     if (debouncedSearch.trim()) params.q = debouncedSearch.trim();
     if (serviceIdParam) params.serviceId = serviceIdParam;
 
+    const cache = skipCache ? { skipCache: true as const } : { cacheTtlMs: CACHE_TTL.bookingsList };
     const listReq = api.get<{ bookings: Booking[] }>('/bookings', {
       ...screenLoadConfig,
       params,
+      ...cache,
     });
     const techsReq = techsLoaded.current
       ? Promise.resolve(null)
-      : api.get<{ technicians: User[] }>('/admin/technicians', { ...screenLoadConfig, params: { available: 'true' } }).catch(() => null);
-    const countsReq = countsLoaded.current ? Promise.resolve(null) : loadCounts().catch(() => null);
+      : api.get<{ technicians: User[] }>('/admin/technicians', {
+          ...screenLoadConfig,
+          params: { available: 'true' },
+          cacheTtlMs: CACHE_TTL.profile,
+        }).catch(() => null);
+    const countsReq = countsLoaded.current ? Promise.resolve(null) : loadCounts(skipCache).catch(() => null);
 
     const [listRes, techsRes] = await Promise.all([listReq, techsReq, countsReq]);
     setBookings(listRes.data.bookings);
@@ -84,19 +96,10 @@ export default function AdminBookingsScreen() {
   }, [filter, debouncedSearch, loadCounts, serviceIdParam]);
 
   useEffect(() => {
-    void runLoad(load);
+    void runLoad(() => load());
   }, [load, runLoad]);
 
-  const focusedOnce = useRef(false);
-  useFocusEffect(
-    useCallback(() => {
-      if (!focusedOnce.current) {
-        focusedOnce.current = true;
-        return;
-      }
-      void refresh(load);
-    }, [load, refresh]),
-  );
+  useStaleFocusRefresh(() => refresh(() => load(true)), 45_000);
 
   const assign = useCallback(
     (booking: Booking) => {
@@ -171,7 +174,7 @@ export default function AdminBookingsScreen() {
   if (error) {
     return (
       <AdminListShell title="Bookings" showBack={false}>
-        <ListEmptyRetry message={error} onRetry={() => void runLoad(load)} />
+        <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
       </AdminListShell>
     );
   }
@@ -187,12 +190,13 @@ export default function AdminBookingsScreen() {
         data={bookings}
         keyExtractor={(b) => b.id}
         {...ADMIN_LIST_PERF}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() =>
               void refresh(async () => {
-                await Promise.all([load(), loadCounts()]);
+                await Promise.all([load(true), loadCounts(true)]);
               })
             }
             tintColor={colors.green}

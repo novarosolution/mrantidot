@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, fonts, shadows, spacing } from '@/constants/theme';
+import { colors, fonts, premium, spacing } from '@/constants/theme';
 
 export function Chip({
   label,
@@ -13,8 +13,13 @@ export function Chip({
 }) {
   if (selected) {
     return (
-      <Pressable onPress={onPress} style={styles.chipWrap}>
-        <LinearGradient colors={[colors.secondarySoft, colors.white]} style={styles.chipSelected}>
+      <Pressable onPress={onPress} style={({ pressed }) => [styles.chip, pressed && styles.pressed]}>
+        <LinearGradient
+          colors={['#33C76A', '#1E8E4E', '#14532D']}
+          style={styles.selectedGrad}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
           <Text style={styles.textSelected}>{label}</Text>
         </LinearGradient>
       </Pressable>
@@ -22,34 +27,43 @@ export function Chip({
   }
 
   return (
-    <Pressable onPress={onPress} style={[styles.chip, styles.default]}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.chip, styles.default, pressed && styles.pressed]}
+    >
       <Text style={styles.textDefault}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  chipWrap: { marginRight: spacing.sm },
   chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 999,
     marginRight: spacing.sm,
-  },
-  chipSelected: {
-    paddingHorizontal: 16,
-    paddingVertical: 9,
     borderRadius: 999,
-    borderWidth: 2,
-    borderColor: colors.secondaryDark,
-    ...shadows.card,
+    overflow: 'hidden',
+  },
+  selectedGrad: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    ...premium.shadowSoft,
   },
   default: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.card,
+    borderRadius: 999,
+    ...premium.shadowSoft,
   },
-  textSelected: { fontSize: 12, fontFamily: fonts.bodySemi, color: colors.secondaryInk },
-  textDefault: { fontSize: 12, fontFamily: fonts.bodySemi, color: colors.ink },
+  pressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
+  textSelected: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 13,
+    color: colors.white,
+  },
+  textDefault: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 13,
+    color: colors.forest,
+  },
 });

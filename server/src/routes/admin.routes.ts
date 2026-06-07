@@ -95,7 +95,7 @@ adminRouter.post(
     if (existing) {
       throw new AppError(400, 'Phone or email already in use');
     }
-    const passwordHash = await bcrypt.hash(req.body.password, 12);
+    const passwordHash = await bcrypt.hash(String(req.body.password).trim(), 12);
     const user = await User.create({
       role: req.body.role,
       name: req.body.name.trim(),

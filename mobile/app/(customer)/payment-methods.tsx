@@ -100,7 +100,6 @@ export default function PaymentMethodsScreen() {
   return (
     <CustomerListShell
       title="Payment Methods"
-      subtitle="How you pay for services"
       accountStrip
       rightAction={
         <Pressable style={styles.fab} onPress={openAdd}>

@@ -63,15 +63,20 @@ export default function AdminTechniciansScreen() {
     <AdminAddButton onPress={() => router.push({ pathname: '/(admin)/user-edit', params: { role: 'technician' } })} />
   );
 
+  const listHeader = (
+    <View style={styles.searchWrap}>
+      <Input label="Search" value={search} onChangeText={setSearch} placeholder="Name, phone, city" />
+    </View>
+  );
+
   return (
     <AdminListShell title="Technicians" subtitle={`${techs.length} on the team`} rightAction={addBtn}>
-      <View style={styles.searchWrap}>
-        <Input label="Search" value={search} onChangeText={setSearch} placeholder="Name, phone, city" />
-      </View>
       <FlatList
         data={visibleTechnicians}
         keyExtractor={(t) => t.id}
         {...ADMIN_LIST_PERF}
+        ListHeaderComponent={listHeader}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />
         }
@@ -141,7 +146,7 @@ export default function AdminTechniciansScreen() {
 }
 
 const styles = StyleSheet.create({
-  searchWrap: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
+  searchWrap: { marginBottom: spacing.sm },
   card: { marginBottom: 12, padding: 15 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: {

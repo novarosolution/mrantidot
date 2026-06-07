@@ -11,6 +11,7 @@ import {
   IBookingCopyConfig,
   IHomeConfig,
 } from '../models/AppContent';
+import { Service } from '../models/Service';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { asyncHandler } from '../middleware/error';
 
@@ -116,12 +117,55 @@ function mergeHomeConfig(
   return next;
 }
 
+async function resolveActiveServiceId(id?: string): Promise<string | undefined> {
+  if (!id) return undefined;
+  const service = await Service.findOne({ _id: id, active: true }).select('_id');
+  return service ? String(service._id) : undefined;
+}
+
+async function formatHomePromoResolved(doc: Awaited<ReturnType<typeof getOrCreateHomeDoc>>) {
+  const p = doc.homePromo ?? DEFAULT_HOME_PROMO;
+  const serviceId = await resolveActiveServiceId(p.serviceId ? String(p.serviceId) : undefined);
+  return {
+    badge: p.badge,
+    title: p.title,
+    ctaLabel: p.ctaLabel,
+    serviceId,
+    active: p.active !== false,
+  };
+}
+
+async function formatHomeConfigResolved(doc: Awaited<ReturnType<typeof getOrCreateHomeDoc>>) {
+  const c = doc.homeConfig ?? DEFAULT_HOME_CONFIG;
+  const titles = c.sectionTitles ?? DEFAULT_HOME_CONFIG.sectionTitles;
+  const featuredServiceId = await resolveActiveServiceId(
+    c.featuredServiceId ? String(c.featuredServiceId) : undefined,
+  );
+  return {
+    featuredServiceId,
+    sectionTitles: {
+      services: titles.services ?? DEFAULT_HOME_CONFIG.sectionTitles.services,
+      popular: titles.popular ?? DEFAULT_HOME_CONFIG.sectionTitles.popular,
+    },
+    searchPlaceholder: c.searchPlaceholder ?? DEFAULT_HOME_CONFIG.searchPlaceholder,
+    servicesActionLabel: c.servicesActionLabel ?? DEFAULT_HOME_CONFIG.servicesActionLabel,
+    popularActionLabel: c.popularActionLabel ?? DEFAULT_HOME_CONFIG.popularActionLabel,
+    categoryChips:
+      c.categoryChips?.length > 0
+        ? c.categoryChips.map((ch) => ({
+            label: ch.label,
+            category: ch.category || undefined,
+          }))
+        : DEFAULT_HOME_CONFIG.categoryChips,
+  };
+}
+
 contentRouter.get(
   '/home',
   asyncHandler(async (_req, res) => {
     const doc = await getOrCreateHomeDoc();
-    const promo = formatHomePromo(doc);
-    const homeConfig = formatHomeConfig(doc);
+    const promo = await formatHomePromoResolved(doc);
+    const homeConfig = await formatHomeConfigResolved(doc);
     if (!promo.active) {
       res.json({
         promo: { ...DEFAULT_HOME_PROMO, active: false },
@@ -139,7 +183,10 @@ contentRouter.get(
   requireRole('admin'),
   asyncHandler(async (_req, res) => {
     const doc = await getOrCreateHomeDoc();
-    res.json({ promo: formatHomePromo(doc), homeConfig: formatHomeConfig(doc) });
+    res.json({
+      promo: await formatHomePromoResolved(doc),
+      homeConfig: await formatHomeConfigResolved(doc),
+    });
   }),
 );
 
@@ -179,7 +226,10 @@ contentRouter.patch(
     doc.homePromo = nextPromo;
     doc.homeConfig = nextConfig;
     await doc.save();
-    res.json({ promo: formatHomePromo(doc), homeConfig: formatHomeConfig(doc) });
+    res.json({
+      promo: await formatHomePromoResolved(doc),
+      homeConfig: await formatHomeConfigResolved(doc),
+    });
   }),
 );
 

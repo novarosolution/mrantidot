@@ -4,7 +4,7 @@ import { Service } from '../models/Service';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { AppError } from '../utils/AppError';
 import { asyncHandler } from '../middleware/error';
-import { isServiceTypeKey, normalizeServiceTypes } from '../constants/serviceTypes';
+import { isServiceTypeKey, normalizeServiceTypes, SERVICE_TYPE_KEYS } from '../constants/serviceTypes';
 import { formatService } from '../utils/format';
 import { getServiceStats, getStatsForServiceIds } from '../utils/service-stats';
 import { Review } from '../models/Review';
@@ -155,7 +155,7 @@ servicesRouter.post(
   body('stepTemplate').optional().isArray(),
   body('category').optional().isIn(['residential', 'commercial', 'cleaning', 'general']),
   body('serviceTypes').optional().isArray(),
-  body('serviceTypes.*').optional().isIn(['ant', 'cockroach', 'rodent', 'mosquito', 'termite', 'bed_bug', 'bird', 'general']),
+  body('serviceTypes.*').optional().isIn([...SERVICE_TYPE_KEYS]),
   body('rating').optional().isFloat({ min: 0, max: 5 }),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
@@ -180,7 +180,7 @@ servicesRouter.patch(
   body('stepTemplate').optional().isArray(),
   body('category').optional().isIn(['residential', 'commercial', 'cleaning', 'general']),
   body('serviceTypes').optional().isArray(),
-  body('serviceTypes.*').optional().isIn(['ant', 'cockroach', 'rodent', 'mosquito', 'termite', 'bed_bug', 'bird', 'general']),
+  body('serviceTypes.*').optional().isIn([...SERVICE_TYPE_KEYS]),
   body('active').optional().isBoolean(),
   body('rating').optional().isFloat({ min: 0, max: 5 }),
   (req, res, next) => runValidation(req, res, next),

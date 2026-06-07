@@ -6,7 +6,8 @@ import { User, sanitizeUser } from '../models/User';
 import { AppError } from '../utils/AppError';
 import { signToken } from '../utils/token';
 import { ensureDefaultPaymentMethods } from '../utils/ensurePaymentMethods';
-import { normalizePhone } from '../utils/phone';
+import { normalizePhone, phoneLookupVariants } from '../utils/phone';
+import { normalizeLoginEmail } from '../utils/email';
 import { requireAuth } from '../middleware/auth';
 import { asyncHandler } from '../middleware/error';
 
@@ -31,7 +32,7 @@ authRouter.post(
   '/register',
   body('name').trim().notEmpty().withMessage('Name is required'),
   body('phone').trim().notEmpty().withMessage('Phone is required'),
-  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+  body('email').isEmail().withMessage('Valid email is required'),
   body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
   body('city').optional().trim(),
   (req, res, next) => runValidation(req, res, next),
@@ -45,17 +46,22 @@ authRouter.post(
     };
 
     const normalizedPhone = normalizePhone(phone);
+    const normalizedEmail = normalizeLoginEmail(email);
     const existingPhone = await User.findOne({ phone: normalizedPhone });
     if (existingPhone) {
       throw new AppError(400, 'Phone already registered');
     }
+    const existingEmail = await User.findOne({ email: normalizedEmail });
+    if (existingEmail) {
+      throw new AppError(400, 'Email already registered');
+    }
 
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await bcrypt.hash(password.trim(), 12);
     const user = await User.create({
       role: 'customer',
       name,
       phone: normalizedPhone,
-      email,
+      email: normalizedEmail,
       passwordHash,
       city,
     });
@@ -75,17 +81,22 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     const { identifier, password } = req.body as { identifier: string; password: string };
     const trimmed = identifier.trim();
+    const pass = password.trim();
     const isEmail = trimmed.includes('@');
 
-    const user = await User.findOne(
-      isEmail ? { email: trimmed.toLowerCase() } : { phone: normalizePhone(trimmed) },
-    ).select('+passwordHash');
+    const primary = isEmail
+      ? await User.findOne({ email: normalizeLoginEmail(trimmed) }).select('+passwordHash')
+      : await User.findOne({ phone: { $in: phoneLookupVariants(trimmed) } }).select('+passwordHash');
+
+    const user =
+      primary ??
+      (isEmail ? await User.findOne({ email: trimmed.toLowerCase() }).select('+passwordHash') : null);
 
     if (!user) {
       throw new AppError(401, 'Invalid credentials');
     }
 
-    const valid = await bcrypt.compare(password, user.passwordHash);
+    const valid = await bcrypt.compare(pass, user.passwordHash);
     if (!valid) {
       throw new AppError(401, 'Invalid credentials');
     }

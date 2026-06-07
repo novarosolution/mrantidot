@@ -1,14 +1,16 @@
 import { Redirect } from 'expo-router';
-import { Spinner } from '@/components/ui/Spinner';
+import { View } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
+import { useAppContent } from '@/context/AppContentContext';
 
+/** All sessions start at the location splash, then route to home or auth. */
 export default function Index() {
-  const { user, isLoading } = useAuth();
+  const { isLoading: authLoading } = useAuth();
+  const { loaded: contentLoaded } = useAppContent();
 
-  if (isLoading) return <Spinner fullScreen />;
+  if (authLoading || !contentLoaded) {
+    return <View style={{ flex: 1, backgroundColor: '#E4EBE6' }} />;
+  }
 
-  if (!user) return <Redirect href="/(auth)/splash" />;
-  if (user.role === 'admin') return <Redirect href="/(admin)" />;
-  if (user.role === 'technician') return <Redirect href="/(tech)" />;
-  return <Redirect href="/(customer)" />;
+  return <Redirect href="/(auth)/splash" />;
 }

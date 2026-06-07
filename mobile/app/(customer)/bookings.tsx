@@ -1,10 +1,13 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Plus } from 'lucide-react-native';
 import { BookingListCard } from '@/components/kit/BookingListCard';
+import { BookingsEmpty } from '@/components/kit/BookingsEmpty';
+import { BookingsNextHighlight } from '@/components/kit/BookingsNextHighlight';
+import { BookingsSummaryBar } from '@/components/kit/BookingsSummaryBar';
 import { CustomerListShell, listShellStyles } from '@/components/kit/CustomerListShell';
 import { Chip } from '@/components/ui/Chip';
-import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
@@ -38,6 +41,15 @@ export default function MyBookingsScreen() {
     }, () => setLoading(false));
   }, [load]);
 
+  const counts = useMemo(
+    () => ({
+      active: bookings.filter((b) => !['completed', 'cancelled'].includes(b.status)).length,
+      completed: bookings.filter((b) => b.status === 'completed').length,
+      cancelled: bookings.filter((b) => b.status === 'cancelled').length,
+    }),
+    [bookings],
+  );
+
   const filtered = useMemo(() => {
     return bookings.filter((b) => {
       if (filter === 'completed') return b.status === 'completed';
@@ -46,21 +58,42 @@ export default function MyBookingsScreen() {
     });
   }, [bookings, filter]);
 
+  const nextActive = useMemo(() => {
+    const active = bookings.filter((b) => !['completed', 'cancelled'].includes(b.status));
+    if (active.length === 0) return null;
+    return [...active].sort((a, b) => {
+      const da = a.schedule?.date ?? '';
+      const db = b.schedule?.date ?? '';
+      return da.localeCompare(db);
+    })[0]!;
+  }, [bookings]);
+
+  const bookFab = (
+    <Pressable style={styles.fab} onPress={() => router.push('/(customer)/services')} hitSlop={8}>
+      <Plus size={18} color={colors.white} strokeWidth={2.5} />
+    </Pressable>
+  );
+
   const filterChips = (
-    <View style={styles.chips}>
-      <Chip label="Active" selected={filter === 'active'} onPress={() => setFilter('active')} />
-      <Chip label="Completed" selected={filter === 'completed'} onPress={() => setFilter('completed')} />
-      <Chip label="Cancelled" selected={filter === 'cancelled'} onPress={() => setFilter('cancelled')} />
-    </View>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+      <Chip label={`Active (${counts.active})`} selected={filter === 'active'} onPress={() => setFilter('active')} />
+      <Chip label={`Done (${counts.completed})`} selected={filter === 'completed'} onPress={() => setFilter('completed')} />
+      <Chip label={`Cancelled (${counts.cancelled})`} selected={filter === 'cancelled'} onPress={() => setFilter('cancelled')} />
+    </ScrollView>
   );
 
   return (
-    <CustomerListShell
-      title="My Bookings"
-      subtitle="Track and manage your services"
-      showBack={false}
-      headerExtra={filterChips}
-    >
+    <CustomerListShell title="My Bookings" showBack={false} rightAction={bookFab} headerExtra={filterChips}>
+      {!loading && bookings.length > 0 ? (
+        <BookingsSummaryBar
+          active={counts.active}
+          completed={counts.completed}
+          cancelled={counts.cancelled}
+          selected={filter}
+          onSelect={setFilter}
+        />
+      ) : null}
+
       {loading ? (
         <Spinner />
       ) : loadError && bookings.length === 0 ? (
@@ -84,16 +117,15 @@ export default function MyBookingsScreen() {
             />
           }
           contentContainerStyle={filtered.length === 0 ? listShellStyles.empty : listShellStyles.list}
-          ListEmptyComponent={
-            <EmptyState
-              title="No bookings yet"
-              message={
-                filter === 'active'
-                  ? 'Book a service from the Home tab'
-                  : `No ${filter} bookings`
-              }
-            />
+          ListHeaderComponent={
+            filter === 'active' && nextActive ? (
+              <BookingsNextHighlight
+                booking={nextActive}
+                onPress={() => router.push(bookingDetailPath(user?.role, nextActive.id) as never)}
+              />
+            ) : null
           }
+          ListEmptyComponent={<BookingsEmpty filter={filter} />}
           {...CUSTOMER_LIST_PERF}
           renderItem={({ item }) => (
             <BookingListCard
@@ -108,5 +140,13 @@ export default function MyBookingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  chips: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  chips: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm, paddingRight: spacing.md },
+  fab: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: colors.forest,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

@@ -293,6 +293,7 @@ export default function AdminTechnicianDetailScreen() {
       <>
         <AdminListShell title={technician.name} subtitle="Technician profile" headerExtra={summary}>
           <ScrollView
+            style={styles.flexList}
             contentContainerStyle={styles.scrollBody}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />
@@ -318,6 +319,7 @@ export default function AdminTechnicianDetailScreen() {
       <>
         <AdminListShell title={technician.name} subtitle="Technician profile" headerExtra={summary}>
           <ScrollView
+            style={styles.flexList}
             contentContainerStyle={styles.scrollBody}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />
@@ -350,18 +352,22 @@ export default function AdminTechnicianDetailScreen() {
   return (
     <>
       <AdminListShell title={technician.name} subtitle="Technician profile" headerExtra={summary}>
-        {listStatusFilter ? (
-          <View style={styles.filterBar}>
-            <Text style={styles.filterText}>Filtered by status</Text>
-            <Pressable onPress={() => setListStatusFilter(null)}>
-              <Text style={styles.link}>Clear</Text>
-            </Pressable>
-          </View>
-        ) : null}
         <SectionList
+          style={styles.flexList}
           sections={sections}
           keyExtractor={(b) => b.id}
           {...ADMIN_LIST_PERF}
+          keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={
+            listStatusFilter ? (
+              <View style={styles.filterBar}>
+                <Text style={styles.filterText}>Filtered by status</Text>
+                <Pressable onPress={() => setListStatusFilter(null)}>
+                  <Text style={styles.link}>Clear</Text>
+                </Pressable>
+              </View>
+            ) : null
+          }
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />
           }
@@ -414,6 +420,7 @@ function ReviewRow({ review }: { review: Review }) {
 }
 
 const styles = StyleSheet.create({
+  flexList: { flex: 1 },
   summary: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   disabledHint: { fontFamily: fonts.body, fontSize: 11, color: surfaces.tintDangerInk },

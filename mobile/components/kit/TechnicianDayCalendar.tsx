@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { Card } from '@/components/ui/Card';
 import { JobVisitCard } from '@/components/kit/JobVisitCard';
+import { bookingVisitDate } from '@/lib/booking-helpers';
 import type { Booking, DayAttendanceStatus } from '@/types/api';
 import { colors, fonts, premium, shadows, spacing, surfaces } from '@/constants/theme';
 
@@ -95,7 +96,7 @@ export function TechnicianDayCalendar({
   const grid = useMemo(() => buildMonthGrid(year, month), [year, month]);
 
   const dayJobs = useMemo(
-    () => bookings.filter((b) => b.schedule.date === selectedDate),
+    () => bookings.filter((b) => bookingVisitDate(b) === selectedDate),
     [bookings, selectedDate],
   );
 

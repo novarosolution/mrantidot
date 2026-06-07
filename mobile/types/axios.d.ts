@@ -6,6 +6,10 @@ declare module 'axios' {
     silent401?: boolean;
     /** Suppress global error toast; screen shows ListEmptyRetry instead. */
     skipErrorToast?: boolean;
+    /** Cache GET response in memory for this many ms. */
+    cacheTtlMs?: number;
+    /** Skip reading/writing GET cache for this request. */
+    skipCache?: boolean;
   }
 
   export interface AxiosResponse<T = unknown> {

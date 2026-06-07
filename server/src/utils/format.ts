@@ -3,6 +3,7 @@ import { IUser } from '../models/User';
 import { IService } from '../models/Service';
 import { IBooking } from '../models/Booking';
 import { IReview } from '../models/Review';
+import { PROPERTY_TYPE_LABELS } from '../constants/propertyTypes';
 import {
   getCustomerOtpCode,
   getOtpExpiresIn,
@@ -116,6 +117,8 @@ function formatBookingForTechnician(
     service: base.service,
     schedule: base.schedule,
     scheduleMode: base.scheduleMode,
+    scheduleRequest: base.scheduleRequest,
+    scheduleConfirmedAt: base.scheduleConfirmedAt,
     address: base.address,
     status: base.status,
     assignmentMode: base.assignmentMode,
@@ -200,6 +203,10 @@ export function formatBooking(booking: IBooking & { populate?: unknown }) {
     scheduleMode: doc.scheduleMode ?? 'standard',
     scheduleRequest: doc.scheduleRequest,
     scheduleConfirmedAt: isoDate(doc.scheduleConfirmedAt),
+    propertyType: doc.propertyType,
+    propertyTypeLabel: doc.propertyType
+      ? PROPERTY_TYPE_LABELS[doc.propertyType as keyof typeof PROPERTY_TYPE_LABELS]
+      : undefined,
     address: doc.address,
     amount: doc.amount,
     paymentMethod: doc.paymentMethod,

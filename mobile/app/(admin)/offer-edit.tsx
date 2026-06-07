@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { paramString } from '@/lib/routeParams';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { AdminListShell } from '@/components/kit/AdminListShell';
+import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { IconInput } from '@/components/kit/IconInput';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -34,7 +34,7 @@ export default function OfferEditScreen() {
   const [maxUses, setMaxUses] = useState('');
   const [minOrderAmount, setMinOrderAmount] = useState('');
   const [saving, setSaving] = useState(false);
-  const { loading, error, runLoad } = useScreenLoad(!id);
+  const { loading, error, runLoad, reload } = useScreenLoad(!!id);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -119,10 +119,16 @@ export default function OfferEditScreen() {
       {
         text: 'Deactivate',
         style: 'destructive',
-        onPress: async () => {
-          await api.delete(`/admin/offers/${id}`);
-          Toast.show({ type: 'success', text1: 'Offer deactivated' });
-          router.back();
+        onPress: () => {
+          void (async () => {
+            try {
+              await api.delete(`/admin/offers/${id}`);
+              Toast.show({ type: 'success', text1: 'Offer deactivated' });
+              router.back();
+            } catch (err) {
+              Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not deactivate offer') });
+            }
+          })();
         },
       },
     ]);
@@ -133,14 +139,28 @@ export default function OfferEditScreen() {
   if (id && error) {
     return (
       <AdminListShell title="Offer" subtitle="Error">
-        <ListEmptyRetry message={error} onRetry={() => void runLoad(load)} />
+        <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
       </AdminListShell>
     );
   }
 
   return (
-    <AdminListShell title={id ? 'Edit Offer' : 'New Offer'} subtitle="Coupon rules">
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <AdminListShell
+      title={id ? 'Edit Offer' : 'New Offer'}
+      subtitle="Coupon rules"
+      keyboardAvoid
+      stickyFooter={
+        <StickyActionBar>
+          <Button title="Save" variant="premium" onPress={save} loading={saving} />
+          {id ? <Button title="Deactivate" variant="danger" onPress={deactivate} style={{ marginTop: spacing.sm }} /> : null}
+        </StickyActionBar>
+      }
+    >
+      <ScrollView
+        contentContainerStyle={id ? adminListShellStyles.scrollWithFooterTall : adminListShellStyles.scrollWithFooter}
+        keyboardShouldPersistTaps="always"
+        showsVerticalScrollIndicator={false}
+      >
         <Card variant="premium" style={styles.form}>
           <IconInput label="Code" value={code} onChangeText={setCode} autoCapitalize="characters" />
           <Text style={styles.label}>Discount type</Text>
@@ -182,16 +202,11 @@ export default function OfferEditScreen() {
           />
         </Card>
       </ScrollView>
-      <StickyActionBar>
-        <Button title="Save" variant="premium" onPress={save} loading={saving} />
-        {id ? <Button title="Deactivate" variant="danger" onPress={deactivate} style={{ marginTop: spacing.sm }} /> : null}
-      </StickyActionBar>
     </AdminListShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: spacing.md, paddingBottom: 120 },
   form: { padding: spacing.md },
   label: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, marginBottom: 8 },
   chips: { flexDirection: 'row', gap: 8, marginBottom: spacing.sm },

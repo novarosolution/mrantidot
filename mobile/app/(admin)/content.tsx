@@ -1,9 +1,21 @@
-import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Plus, Trash2, X } from 'lucide-react-native';
+import {
+  BookOpen,
+  Building2,
+  CalendarClock,
+  Gift,
+  HelpCircle,
+  LayoutGrid,
+  Plus,
+  Shield,
+  Trash2,
+  X,
+} from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
-import { AdminListShell } from '@/components/kit/AdminListShell';
+import { AdminListShell, AdminSectionTitle, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { AdminSectionTabs, type AdminSectionTab } from '@/components/kit/AdminSectionTabs';
+import { PendingScheduleCard } from '@/components/kit/PendingScheduleCard';
 import { IconInput } from '@/components/kit/IconInput';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { Button } from '@/components/ui/Button';
@@ -15,8 +27,17 @@ import { PromoBanner } from '@/components/ui/PromoBanner';
 import { api, screenLoadConfig } from '@/lib/api';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { AppConfig, BookingCopyConfig, HomeConfig, HomePromo, Service } from '@/types/api';
-import { DEFAULT_BOOKING_COPY } from '@/lib/schedule-copy';
-import { colors, design, fonts, spacing } from '@/constants/theme';
+import { DEFAULT_BOOKING_COPY } from '@/constants/bookingCopy';
+import { colors, fonts, spacing } from '@/constants/theme';
+
+const CONTENT_TABS: AdminSectionTab[] = [
+  { key: 'promo', label: 'Promo', icon: Gift },
+  { key: 'home', label: 'Home', icon: LayoutGrid },
+  { key: 'brand', label: 'Brand', icon: Building2 },
+  { key: 'booking', label: 'Booking', icon: CalendarClock },
+  { key: 'onboard', label: 'Onboard', icon: BookOpen },
+  { key: 'legal', label: 'Legal', icon: HelpCircle },
+];
 
 const DEFAULT_CONFIG: HomeConfig = {
   sectionTitles: { services: 'Our Services', popular: 'Popular Now' },
@@ -49,6 +70,7 @@ export default function AdminContentScreen() {
   const [appConfig, setAppConfig] = useState<AppConfig>(DEFAULT_APP);
   const [services, setServices] = useState<Service[]>([]);
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState(CONTENT_TABS[0].key);
 
   const load = useCallback(async () => {
     const [homeRes, appRes, svcRes] = await Promise.all([
@@ -118,354 +140,435 @@ export default function AdminContentScreen() {
   }
 
   return (
-    <AdminListShell title="App content" subtitle="Manage everything customers see">
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        {/* Promo banner */}
-        <Text style={styles.section}>Promo banner</Text>
-        <PromoBanner
-          promo={promo}
-          onPress={() => {
-            if (promo.serviceId) router.push(`/service/${promo.serviceId}`);
-          }}
-        />
-        <Card variant="premium" style={styles.form}>
-          <View style={styles.toggleRow}>
-            <View style={styles.flex}>
-              <Text style={styles.toggleLabel}>Show on customer home</Text>
-            </View>
-            <ToggleSwitch value={promo.active} onToggle={() => setPromo({ ...promo, active: !promo.active })} />
-          </View>
-          <IconInput label="Badge text" value={promo.badge} onChangeText={(badge) => setPromo({ ...promo, badge })} />
-          <IconInput label="Headline" value={promo.title} onChangeText={(title) => setPromo({ ...promo, title })} />
-          <IconInput
-            label="Button label"
-            value={promo.ctaLabel}
-            onChangeText={(ctaLabel) => setPromo({ ...promo, ctaLabel })}
-          />
-          <Text style={styles.label}>Banner links to service</Text>
-          <ServiceChips
-            services={services}
-            selectedId={promo.serviceId}
-            onSelect={(serviceId) => setPromo({ ...promo, serviceId })}
-          />
-        </Card>
-
-        {/* Home sections */}
-        <Text style={styles.section}>Home screen</Text>
-        <Card variant="premium" style={styles.form}>
-          <IconInput
-            label="Search placeholder"
-            value={homeConfig.searchPlaceholder}
-            onChangeText={(searchPlaceholder) => patchHome({ searchPlaceholder })}
-          />
-          <IconInput
-            label="Services section title"
-            value={homeConfig.sectionTitles.services}
-            onChangeText={(services) =>
-              patchHome({ sectionTitles: { ...homeConfig.sectionTitles, services } })
-            }
-          />
-          <IconInput
-            label="Services action label"
-            value={homeConfig.servicesActionLabel}
-            onChangeText={(servicesActionLabel) => patchHome({ servicesActionLabel })}
-          />
-          <IconInput
-            label="Popular section title"
-            value={homeConfig.sectionTitles.popular}
-            onChangeText={(popular) =>
-              patchHome({ sectionTitles: { ...homeConfig.sectionTitles, popular } })
-            }
-          />
-          <IconInput
-            label="Popular action label"
-            value={homeConfig.popularActionLabel}
-            onChangeText={(popularActionLabel) => patchHome({ popularActionLabel })}
-          />
-          <Text style={styles.label}>Featured “Popular” service</Text>
-          <ServiceChips
-            services={services}
-            selectedId={homeConfig.featuredServiceId}
-            onSelect={(featuredServiceId) => patchHome({ featuredServiceId })}
-          />
-        </Card>
-
-        {/* Category chips */}
-        <Card variant="premium" style={styles.form}>
-          <View style={styles.blockHead}>
-            <Text style={styles.blockTitle}>Category filters</Text>
-            <Pressable style={styles.addPill} onPress={addChip}>
-              <Plus size={14} color={colors.green} />
-              <Text style={styles.addPillText}>Add</Text>
-            </Pressable>
-          </View>
-          {homeConfig.categoryChips.map((chip, i) => (
-            <View key={i} style={styles.chipRow}>
-              <View style={styles.flex}>
-                <IconInput label="Label" value={chip.label} onChangeText={(label) => setChip(i, { label })} />
-                <IconInput
-                  label="Category slug (blank = All)"
-                  value={chip.category ?? ''}
-                  autoCapitalize="none"
-                  onChangeText={(category) => setChip(i, { category })}
-                />
+    <AdminListShell
+      title="App content"
+      subtitle="Manage what customers see"
+      keyboardAvoid
+      stickyFooter={
+        <StickyActionBar>
+          <Button title="Save all content" variant="premium" onPress={save} loading={saving} />
+        </StickyActionBar>
+      }
+    >
+      <AdminSectionTabs tabs={CONTENT_TABS} active={activeTab} onChange={setActiveTab} />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={adminListShellStyles.scrollWithFooter}
+        keyboardShouldPersistTaps="always"
+        showsVerticalScrollIndicator={false}
+      >
+        {activeTab === 'promo' ? (
+          <>
+            <AdminSectionTitle title="Promo banner" hint="Hero offer on customer home" />
+        <PromoBanner promo={promo} />
+            <Card variant="premium" style={styles.form}>
+              <View style={styles.toggleRow}>
+                <View style={styles.flex}>
+                  <Text style={styles.toggleLabel}>Show on customer home</Text>
+                </View>
+                <ToggleSwitch value={promo.active} onToggle={() => setPromo({ ...promo, active: !promo.active })} />
               </View>
-              <Pressable style={styles.removeBtn} onPress={() => removeChip(i)}>
-                <Trash2 size={16} color={colors.error} />
-              </Pressable>
-            </View>
-          ))}
-        </Card>
+              <IconInput label="Badge text" value={promo.badge} onChangeText={(badge) => setPromo({ ...promo, badge })} />
+              <IconInput label="Headline" value={promo.title} onChangeText={(title) => setPromo({ ...promo, title })} />
+              <IconInput
+                label="Button label"
+                value={promo.ctaLabel}
+                onChangeText={(ctaLabel) => setPromo({ ...promo, ctaLabel })}
+              />
+              <Text style={styles.label}>Banner links to service</Text>
+              <ServiceChips
+                services={services}
+                selectedId={promo.serviceId}
+                onSelect={(serviceId) => setPromo({ ...promo, serviceId })}
+              />
+            </Card>
+          </>
+        ) : null}
 
-        {/* Branding */}
-        <Text style={styles.section}>Branding</Text>
-        <Card variant="premium" style={styles.form}>
-          <IconInput
-            label="App name"
-            value={appConfig.branding.name}
-            onChangeText={(name) => setAppConfig((a) => ({ ...a, branding: { ...a.branding, name } }))}
-          />
-          <IconInput
-            label="Tagline"
-            value={appConfig.branding.tagline}
-            onChangeText={(tagline) => setAppConfig((a) => ({ ...a, branding: { ...a.branding, tagline } }))}
-          />
-        </Card>
-
-        {/* Support */}
-        <Text style={styles.section}>Support contact</Text>
-        <Card variant="premium" style={styles.form}>
-          <IconInput
-            label="Phone"
-            keyboardType="phone-pad"
-            value={appConfig.support.phone}
-            onChangeText={(phone) => setAppConfig((a) => ({ ...a, support: { ...a.support, phone } }))}
-          />
-          <IconInput
-            label="Email"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={appConfig.support.email}
-            onChangeText={(email) => setAppConfig((a) => ({ ...a, support: { ...a.support, email } }))}
-          />
-          <IconInput
-            label="WhatsApp (optional)"
-            keyboardType="phone-pad"
-            value={appConfig.support.whatsapp ?? ''}
-            onChangeText={(whatsapp) => setAppConfig((a) => ({ ...a, support: { ...a.support, whatsapp } }))}
-          />
-          <IconInput
-            label="Hours"
-            value={appConfig.support.hours ?? ''}
-            onChangeText={(hours) => setAppConfig((a) => ({ ...a, support: { ...a.support, hours } }))}
-          />
-        </Card>
-
-        {/* Trust */}
-        <Text style={styles.section}>Trust & guarantee</Text>
-        <Card variant="premium" style={styles.form}>
-          <IconInput
-            label="Guarantee text"
-            multiline
-            value={appConfig.trust.guaranteeText}
-            onChangeText={(guaranteeText) => setAppConfig((a) => ({ ...a, trust: { ...a.trust, guaranteeText } }))}
-          />
-          <StringListEditor
-            title="Trust badges"
-            items={appConfig.trust.badges}
-            onChange={(badges) => setAppConfig((a) => ({ ...a, trust: { ...a.trust, badges } }))}
-          />
-        </Card>
-
-        {/* Booking schedule copy */}
-        <Text style={styles.section}>Booking & schedule</Text>
-        <Card variant="premium" style={styles.form}>
-          <Text style={styles.blockHint}>
-            Customer and admin messages for schedule requests, pending bookings, and confirmation.
-          </Text>
-          {(
-            [
-              ['scheduleStepTitle', 'Book wizard — step title'],
-              ['scheduleStepSubtitle', 'Book wizard — step subtitle'],
-              ['standardModeLabel', 'Standard mode label'],
-              ['customModeLabel', 'Custom mode label'],
-              ['customNotesPlaceholder', 'Custom notes placeholder'],
-              ['pendingCustomerTitle', 'Customer pending card title'],
-              ['pendingCustomerHint', 'Customer pending card hint'],
-              ['pendingFactsSubtitle', 'Booking facts pending subtitle'],
-              ['pendingReviewNote', 'Review step pending note'],
-              ['requestSubmittedToast', 'Success toast after submit'],
-              ['adminRequestTitle', 'Admin request card title'],
-              ['adminConfirmTitle', 'Admin confirm modal title'],
-              ['adminConfirmHint', 'Admin confirm modal hint'],
-              ['adminConfirmButton', 'Admin confirm button label'],
-            ] as const
-          ).map(([key, label]) => (
-            <IconInput
-              key={key}
-              label={label}
-              multiline={key.includes('Hint') || key.includes('Note') || key.includes('Subtitle')}
-              value={appConfig.booking?.[key] ?? DEFAULT_BOOKING_COPY[key]}
-              onChangeText={(value) =>
-                setAppConfig((a) => ({
-                  ...a,
-                  booking: {
-                    ...(a.booking ?? DEFAULT_BOOKING_COPY),
-                    [key]: value,
-                  } as BookingCopyConfig,
-                }))
-              }
-            />
-          ))}
-        </Card>
-
-        {/* Onboarding */}
-        <Text style={styles.section}>Onboarding</Text>
-        <Card variant="premium" style={styles.form}>
-          <View style={styles.blockHead}>
-            <Text style={styles.blockTitle}>Slides</Text>
-            <Pressable
-              style={styles.addPill}
-              onPress={() =>
-                setAppConfig((a) => ({
-                  ...a,
-                  onboarding: {
-                    ...a.onboarding,
-                    slides: [...a.onboarding.slides, { title: 'New slide', subtitle: '' }],
-                  },
-                }))
-              }
-            >
-              <Plus size={14} color={colors.green} />
-              <Text style={styles.addPillText}>Add</Text>
-            </Pressable>
-          </View>
-          {appConfig.onboarding.slides.map((slide, i) => (
-            <View key={i} style={styles.chipRow}>
-              <View style={styles.flex}>
-                <IconInput
-                  label={`Slide ${i + 1} title`}
-                  value={slide.title}
-                  onChangeText={(title) =>
-                    setAppConfig((a) => {
-                      const slides = [...a.onboarding.slides];
-                      slides[i] = { ...slides[i], title };
-                      return { ...a, onboarding: { ...a.onboarding, slides } };
-                    })
-                  }
-                />
-                <IconInput
-                  label="Subtitle"
-                  multiline
-                  value={slide.subtitle}
-                  onChangeText={(subtitle) =>
-                    setAppConfig((a) => {
-                      const slides = [...a.onboarding.slides];
-                      slides[i] = { ...slides[i], subtitle };
-                      return { ...a, onboarding: { ...a.onboarding, slides } };
-                    })
-                  }
-                />
-              </View>
-              <Pressable
-                style={styles.removeBtn}
-                onPress={() =>
-                  setAppConfig((a) => ({
-                    ...a,
-                    onboarding: {
-                      ...a.onboarding,
-                      slides: a.onboarding.slides.filter((_, idx) => idx !== i),
-                    },
-                  }))
+        {activeTab === 'home' ? (
+          <>
+            <AdminSectionTitle title="Home screen" hint="Search, sections, and filters" />
+            <Card variant="premium" style={styles.form}>
+              <IconInput
+                label="Search placeholder"
+                value={homeConfig.searchPlaceholder}
+                onChangeText={(searchPlaceholder) => patchHome({ searchPlaceholder })}
+              />
+              <IconInput
+                label="Services section title"
+                value={homeConfig.sectionTitles.services}
+                onChangeText={(services) =>
+                  patchHome({ sectionTitles: { ...homeConfig.sectionTitles, services } })
                 }
-              >
-                <Trash2 size={16} color={colors.error} />
-              </Pressable>
-            </View>
-          ))}
-          <StringListEditor
-            title="Trust chips"
-            items={appConfig.onboarding.trustChips}
-            onChange={(trustChips) =>
-              setAppConfig((a) => ({ ...a, onboarding: { ...a.onboarding, trustChips } }))
-            }
-          />
-        </Card>
+              />
+              <IconInput
+                label="Services action label"
+                value={homeConfig.servicesActionLabel}
+                onChangeText={(servicesActionLabel) => patchHome({ servicesActionLabel })}
+              />
+              <IconInput
+                label="Popular section title"
+                value={homeConfig.sectionTitles.popular}
+                onChangeText={(popular) =>
+                  patchHome({ sectionTitles: { ...homeConfig.sectionTitles, popular } })
+                }
+              />
+              <IconInput
+                label="Popular action label"
+                value={homeConfig.popularActionLabel}
+                onChangeText={(popularActionLabel) => patchHome({ popularActionLabel })}
+              />
+              <Text style={styles.label}>Featured “Popular” service</Text>
+              <ServiceChips
+                services={services}
+                selectedId={homeConfig.featuredServiceId}
+                onSelect={(featuredServiceId) => patchHome({ featuredServiceId })}
+              />
+            </Card>
 
-        {/* Legal & Help */}
-        <Text style={styles.section}>Legal & help</Text>
-        <Card variant="premium" style={styles.form}>
-          <IconInput
-            label="About (markdown)"
-            multiline
-            value={appConfig.aboutMarkdown}
-            onChangeText={(aboutMarkdown) => setAppConfig((a) => ({ ...a, aboutMarkdown }))}
-          />
-          <IconInput
-            label="Terms of Service (markdown)"
-            multiline
-            value={appConfig.legal.termsMarkdown}
-            onChangeText={(termsMarkdown) => setAppConfig((a) => ({ ...a, legal: { ...a.legal, termsMarkdown } }))}
-          />
-          <IconInput
-            label="Privacy Policy (markdown)"
-            multiline
-            value={appConfig.legal.privacyMarkdown}
-            onChangeText={(privacyMarkdown) =>
-              setAppConfig((a) => ({ ...a, legal: { ...a.legal, privacyMarkdown } }))
-            }
-          />
-          <View style={styles.blockHead}>
-            <Text style={styles.blockTitle}>FAQ</Text>
-            <Pressable
-              style={styles.addPill}
-              onPress={() => setAppConfig((a) => ({ ...a, faq: [...a.faq, { q: '', a: '' }] }))}
-            >
-              <Plus size={14} color={colors.green} />
-              <Text style={styles.addPillText}>Add</Text>
-            </Pressable>
-          </View>
-          {appConfig.faq.map((item, i) => (
-            <View key={i} style={styles.chipRow}>
-              <View style={styles.flex}>
-                <IconInput
-                  label={`Question ${i + 1}`}
-                  value={item.q}
-                  onChangeText={(q) =>
-                    setAppConfig((a) => {
-                      const faq = [...a.faq];
-                      faq[i] = { ...faq[i], q };
-                      return { ...a, faq };
-                    })
-                  }
-                />
-                <IconInput
-                  label="Answer"
-                  multiline
-                  value={item.a}
-                  onChangeText={(ans) =>
-                    setAppConfig((a) => {
-                      const faq = [...a.faq];
-                      faq[i] = { ...faq[i], a: ans };
-                      return { ...a, faq };
-                    })
-                  }
-                />
+            <Card variant="premium" style={styles.form}>
+              <View style={styles.blockHead}>
+                <Text style={styles.blockTitle}>Category filters</Text>
+                <Pressable style={styles.addPill} onPress={addChip}>
+                  <Plus size={14} color={colors.green} />
+                  <Text style={styles.addPillText}>Add</Text>
+                </Pressable>
               </View>
-              <Pressable
-                style={styles.removeBtn}
-                onPress={() => setAppConfig((a) => ({ ...a, faq: a.faq.filter((_, idx) => idx !== i) }))}
-              >
-                <Trash2 size={16} color={colors.error} />
-              </Pressable>
-            </View>
-          ))}
-        </Card>
-      </ScrollView>
+              {homeConfig.categoryChips.map((chip, i) => (
+                <View key={i} style={styles.chipRow}>
+                  <View style={styles.flex}>
+                    <IconInput label="Label" value={chip.label} onChangeText={(label) => setChip(i, { label })} />
+                    <IconInput
+                      label="Category slug (blank = All)"
+                      value={chip.category ?? ''}
+                      autoCapitalize="none"
+                      onChangeText={(category) => setChip(i, { category })}
+                    />
+                  </View>
+                  <Pressable style={styles.removeBtn} onPress={() => removeChip(i)}>
+                    <Trash2 size={16} color={colors.error} />
+                  </Pressable>
+                </View>
+              ))}
+            </Card>
+          </>
+        ) : null}
 
-      <StickyActionBar>
-        <Button title="Save all content" variant="premium" onPress={save} loading={saving} />
-      </StickyActionBar>
+        {activeTab === 'brand' ? (
+          <>
+            <AdminSectionTitle title="Branding" hint="App name and tagline" />
+            <Card variant="premium" style={styles.form}>
+              <IconInput
+                label="App name"
+                value={appConfig.branding.name}
+                onChangeText={(name) => setAppConfig((a) => ({ ...a, branding: { ...a.branding, name } }))}
+              />
+              <IconInput
+                label="Tagline"
+                value={appConfig.branding.tagline}
+                onChangeText={(tagline) => setAppConfig((a) => ({ ...a, branding: { ...a.branding, tagline } }))}
+              />
+            </Card>
+
+            <AdminSectionTitle title="Support contact" />
+            <Card variant="premium" style={styles.form}>
+              <IconInput
+                label="Phone"
+                keyboardType="phone-pad"
+                value={appConfig.support.phone}
+                onChangeText={(phone) => setAppConfig((a) => ({ ...a, support: { ...a.support, phone } }))}
+              />
+              <IconInput
+                label="Email"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={appConfig.support.email}
+                onChangeText={(email) => setAppConfig((a) => ({ ...a, support: { ...a.support, email } }))}
+              />
+              <IconInput
+                label="WhatsApp (optional)"
+                keyboardType="phone-pad"
+                value={appConfig.support.whatsapp ?? ''}
+                onChangeText={(whatsapp) => setAppConfig((a) => ({ ...a, support: { ...a.support, whatsapp } }))}
+              />
+              <IconInput
+                label="Hours"
+                value={appConfig.support.hours ?? ''}
+                onChangeText={(hours) => setAppConfig((a) => ({ ...a, support: { ...a.support, hours } }))}
+              />
+            </Card>
+
+            <AdminSectionTitle title="Trust & guarantee" />
+            <Card variant="premium" style={styles.form}>
+              <IconInput
+                label="Guarantee text"
+                multiline
+                value={appConfig.trust.guaranteeText}
+                onChangeText={(guaranteeText) => setAppConfig((a) => ({ ...a, trust: { ...a.trust, guaranteeText } }))}
+              />
+              <StringListEditor
+                title="Trust badges"
+                items={appConfig.trust.badges}
+                onChange={(badges) => setAppConfig((a) => ({ ...a, trust: { ...a.trust, badges } }))}
+              />
+            </Card>
+          </>
+        ) : null}
+
+        {activeTab === 'booking' ? (
+          <>
+            <AdminSectionTitle title="Booking & schedule" hint="Wizard steps and pending messages" />
+            <Card variant="premium" style={styles.previewCard}>
+              <Text style={styles.previewLabel}>Customer preview</Text>
+              <PendingScheduleCard
+                variant="customer"
+                title={appConfig.booking?.pendingCustomerTitle ?? DEFAULT_BOOKING_COPY.pendingCustomerTitle}
+                scheduleLabel="Sat, 7 Jun · 10:00 AM – 12:00 PM"
+                hint={appConfig.booking?.pendingCustomerHint ?? DEFAULT_BOOKING_COPY.pendingCustomerHint}
+                modeLabel={appConfig.booking?.standardModeLabel ?? DEFAULT_BOOKING_COPY.standardModeLabel}
+              />
+            </Card>
+
+            <Card variant="premium" style={styles.form}>
+              <Text style={styles.blockTitle}>Book wizard</Text>
+              {(
+                [
+                  ['scheduleStepTitle', 'Step title'],
+                  ['scheduleStepSubtitle', 'Step subtitle'],
+                  ['standardModeLabel', 'Standard mode label'],
+                  ['customModeLabel', 'Custom mode label'],
+                  ['customNotesPlaceholder', 'Custom notes placeholder'],
+                  ['pendingReviewNote', 'Review step pending note'],
+                  ['requestSubmittedToast', 'Success toast after submit'],
+                ] as const
+              ).map(([key, label]) => (
+                <IconInput
+                  key={key}
+                  label={label}
+                  multiline={key.includes('Subtitle') || key.includes('Note') || key.includes('Toast')}
+                  value={appConfig.booking?.[key] ?? DEFAULT_BOOKING_COPY[key]}
+                  onChangeText={(value) =>
+                    setAppConfig((a) => ({
+                      ...a,
+                      booking: {
+                        ...(a.booking ?? DEFAULT_BOOKING_COPY),
+                        [key]: value,
+                      } as BookingCopyConfig,
+                    }))
+                  }
+                />
+              ))}
+            </Card>
+
+            <Card variant="premium" style={styles.form}>
+              <Text style={styles.blockTitle}>Customer pending booking</Text>
+              {(
+                [
+                  ['pendingCustomerTitle', 'Pending card title'],
+                  ['pendingCustomerHint', 'Pending card hint'],
+                  ['pendingFactsSubtitle', 'Booking facts pending subtitle'],
+                ] as const
+              ).map(([key, label]) => (
+                <IconInput
+                  key={key}
+                  label={label}
+                  multiline
+                  value={appConfig.booking?.[key] ?? DEFAULT_BOOKING_COPY[key]}
+                  onChangeText={(value) =>
+                    setAppConfig((a) => ({
+                      ...a,
+                      booking: {
+                        ...(a.booking ?? DEFAULT_BOOKING_COPY),
+                        [key]: value,
+                      } as BookingCopyConfig,
+                    }))
+                  }
+                />
+              ))}
+            </Card>
+
+            <Card variant="premium" style={styles.form}>
+              <View style={styles.adminBlockHead}>
+                <Shield size={16} color={colors.forest} />
+                <Text style={styles.blockTitle}>Admin schedule actions</Text>
+              </View>
+              {(
+                [
+                  ['adminRequestTitle', 'Request card title'],
+                  ['adminConfirmTitle', 'Confirm modal title'],
+                  ['adminConfirmHint', 'Confirm modal hint'],
+                  ['adminConfirmButton', 'Confirm button label'],
+                ] as const
+              ).map(([key, label]) => (
+                <IconInput
+                  key={key}
+                  label={label}
+                  multiline={key.includes('Hint')}
+                  value={appConfig.booking?.[key] ?? DEFAULT_BOOKING_COPY[key]}
+                  onChangeText={(value) =>
+                    setAppConfig((a) => ({
+                      ...a,
+                      booking: {
+                        ...(a.booking ?? DEFAULT_BOOKING_COPY),
+                        [key]: value,
+                      } as BookingCopyConfig,
+                    }))
+                  }
+                />
+              ))}
+            </Card>
+          </>
+        ) : null}
+
+        {activeTab === 'onboard' ? (
+          <>
+            <AdminSectionTitle title="Onboarding" hint="First-launch slides and trust chips" />
+            <Card variant="premium" style={styles.form}>
+              <View style={styles.blockHead}>
+                <Text style={styles.blockTitle}>Slides</Text>
+                <Pressable
+                  style={styles.addPill}
+                  onPress={() =>
+                    setAppConfig((a) => ({
+                      ...a,
+                      onboarding: {
+                        ...a.onboarding,
+                        slides: [...a.onboarding.slides, { title: 'New slide', subtitle: '' }],
+                      },
+                    }))
+                  }
+                >
+                  <Plus size={14} color={colors.green} />
+                  <Text style={styles.addPillText}>Add</Text>
+                </Pressable>
+              </View>
+              {appConfig.onboarding.slides.map((slide, i) => (
+                <View key={i} style={styles.chipRow}>
+                  <View style={styles.flex}>
+                    <IconInput
+                      label={`Slide ${i + 1} title`}
+                      value={slide.title}
+                      onChangeText={(title) =>
+                        setAppConfig((a) => {
+                          const slides = [...a.onboarding.slides];
+                          slides[i] = { ...slides[i], title };
+                          return { ...a, onboarding: { ...a.onboarding, slides } };
+                        })
+                      }
+                    />
+                    <IconInput
+                      label="Subtitle"
+                      multiline
+                      value={slide.subtitle}
+                      onChangeText={(subtitle) =>
+                        setAppConfig((a) => {
+                          const slides = [...a.onboarding.slides];
+                          slides[i] = { ...slides[i], subtitle };
+                          return { ...a, onboarding: { ...a.onboarding, slides } };
+                        })
+                      }
+                    />
+                  </View>
+                  <Pressable
+                    style={styles.removeBtn}
+                    onPress={() =>
+                      setAppConfig((a) => ({
+                        ...a,
+                        onboarding: {
+                          ...a.onboarding,
+                          slides: a.onboarding.slides.filter((_, idx) => idx !== i),
+                        },
+                      }))
+                    }
+                  >
+                    <Trash2 size={16} color={colors.error} />
+                  </Pressable>
+                </View>
+              ))}
+              <StringListEditor
+                title="Trust chips"
+                items={appConfig.onboarding.trustChips}
+                onChange={(trustChips) =>
+                  setAppConfig((a) => ({ ...a, onboarding: { ...a.onboarding, trustChips } }))
+                }
+              />
+            </Card>
+          </>
+        ) : null}
+
+        {activeTab === 'legal' ? (
+          <>
+            <AdminSectionTitle title="Legal & help" hint="About, policies, and FAQ" />
+            <Card variant="premium" style={styles.form}>
+              <IconInput
+                label="About (markdown)"
+                multiline
+                value={appConfig.aboutMarkdown}
+                onChangeText={(aboutMarkdown) => setAppConfig((a) => ({ ...a, aboutMarkdown }))}
+              />
+              <IconInput
+                label="Terms of Service (markdown)"
+                multiline
+                value={appConfig.legal.termsMarkdown}
+                onChangeText={(termsMarkdown) => setAppConfig((a) => ({ ...a, legal: { ...a.legal, termsMarkdown } }))}
+              />
+              <IconInput
+                label="Privacy Policy (markdown)"
+                multiline
+                value={appConfig.legal.privacyMarkdown}
+                onChangeText={(privacyMarkdown) =>
+                  setAppConfig((a) => ({ ...a, legal: { ...a.legal, privacyMarkdown } }))
+                }
+              />
+              <View style={styles.blockHead}>
+                <Text style={styles.blockTitle}>FAQ</Text>
+                <Pressable
+                  style={styles.addPill}
+                  onPress={() => setAppConfig((a) => ({ ...a, faq: [...a.faq, { q: '', a: '' }] }))}
+                >
+                  <Plus size={14} color={colors.green} />
+                  <Text style={styles.addPillText}>Add</Text>
+                </Pressable>
+              </View>
+              {appConfig.faq.map((item, i) => (
+                <View key={i} style={styles.chipRow}>
+                  <View style={styles.flex}>
+                    <IconInput
+                      label={`Question ${i + 1}`}
+                      value={item.q}
+                      onChangeText={(q) =>
+                        setAppConfig((a) => {
+                          const faq = [...a.faq];
+                          faq[i] = { ...faq[i], q };
+                          return { ...a, faq };
+                        })
+                      }
+                    />
+                    <IconInput
+                      label="Answer"
+                      multiline
+                      value={item.a}
+                      onChangeText={(ans) =>
+                        setAppConfig((a) => {
+                          const faq = [...a.faq];
+                          faq[i] = { ...faq[i], a: ans };
+                          return { ...a, faq };
+                        })
+                      }
+                    />
+                  </View>
+                  <Pressable
+                    style={styles.removeBtn}
+                    onPress={() => setAppConfig((a) => ({ ...a, faq: a.faq.filter((_, idx) => idx !== i) }))}
+                  >
+                    <Trash2 size={16} color={colors.error} />
+                  </Pressable>
+                </View>
+              ))}
+            </Card>
+          </>
+        ) : null}
+      </ScrollView>
     </AdminListShell>
   );
 }
@@ -534,14 +637,21 @@ function ServiceChips({
     </ScrollView>
   );
 }
-
 const styles = StyleSheet.create({
-  scroll: { padding: spacing.md, paddingBottom: 120 },
-  section: { ...design.sectionTitle, marginTop: spacing.md, marginBottom: spacing.sm },
-  form: { padding: spacing.md, marginTop: spacing.sm },
+  scroll: { flex: 1 },
+  previewCard: { padding: spacing.md, marginTop: spacing.sm, marginHorizontal: spacing.md },
+  previewLabel: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 11,
+    color: colors.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.sm,
+  },
+  form: { padding: spacing.md, marginTop: spacing.sm, marginHorizontal: spacing.md },
   blockHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
+  adminBlockHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.sm },
   blockTitle: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
-  blockHint: { fontFamily: fonts.body, fontSize: 12.5, color: colors.muted, lineHeight: 18, marginBottom: spacing.sm },
   toggleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md, gap: 12 },
   flex: { flex: 1 },
   toggleLabel: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.ink },
@@ -596,3 +706,4 @@ const styles = StyleSheet.create({
     marginTop: 26,
   },
 });
+

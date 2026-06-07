@@ -1,12 +1,12 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
+import { BookingDetailHero } from '@/components/kit/BookingDetailHero';
 import { BookingFactsCard } from '@/components/kit/BookingFactsCard';
 import { PendingScheduleCard } from '@/components/kit/PendingScheduleCard';
 import { BookingPriceBreakdown } from '@/components/kit/BookingPriceBreakdown';
-import { BookingStatusBanner } from '@/components/kit/BookingStatusBanner';
 import { BookingTrackingTimeline } from '@/components/kit/BookingTrackingTimeline';
 import { JobProgressCard } from '@/components/kit/JobProgressCard';
 import { OtpEntrySheet } from '@/components/kit/OtpEntrySheet';
@@ -15,15 +15,16 @@ import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
+import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
-import { StatusPill } from '@/components/ui/StatusPill';
 import { StepTimeline } from '@/components/ui/StepTimeline';
 import { Spinner } from '@/components/ui/Spinner';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
+import { CACHE_TTL } from '@/lib/apiCache';
 import {
   bookingRequestedScheduleDisplay,
-  bookingScheduleDisplay,
   canCancelBooking,
   isSchedulePending,
   isTerminalBookingStatus,
@@ -67,13 +68,18 @@ export default function CustomerBookingDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [regenerating, setRegenerating] = useState<'start' | 'end' | null>(null);
   const [endOtpOpen, setEndOtpOpen] = useState(false);
+  const focusedRef = useRef(false);
+  const lastRefresh = useRef(0);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { skipCache?: boolean }) => {
     if (!id) return;
     setLoadError(null);
+    const cacheOpts = opts?.skipCache
+      ? { skipCache: true as const }
+      : { cacheTtlMs: CACHE_TTL.bookingDetail };
     const [bookingRes, reviewRes] = await Promise.allSettled([
-      api.get<{ booking: Booking }>(`/bookings/${id}`, screenLoadConfig),
-      api.get(`/reviews/booking/${id}`, screenLoadConfig),
+      api.get<{ booking: Booking }>(`/bookings/${id}`, { ...screenLoadConfig, ...cacheOpts }),
+      api.get(`/reviews/booking/${id}`, { ...screenLoadConfig, ...cacheOpts }),
     ]);
     if (bookingRes.status !== 'fulfilled') throw bookingRes.reason;
     setBooking(bookingRes.value.data.booking);
@@ -90,20 +96,27 @@ export default function CustomerBookingDetailScreen() {
     });
   }, [load]);
 
-  const refresh = useCallback(() => {
-    safeAsync(async () => {
-      try {
-        await load();
-      } catch {
-        // keep showing the last successful data on a silent refresh
-      }
-    });
-  }, [load]);
+  const refresh = useCallback(
+    (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastRefresh.current < CACHE_TTL.bookingDetail) return;
+      lastRefresh.current = now;
+      safeAsync(async () => {
+        try {
+          await load();
+        } catch {
+          // keep showing the last successful data on a silent refresh
+        }
+      });
+    },
+    [load],
+  );
 
   const onPullRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await load();
+      lastRefresh.current = 0;
+      await load({ skipCache: true });
     } catch {
       // keep last successful data
     } finally {
@@ -113,14 +126,20 @@ export default function CustomerBookingDetailScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      focusedRef.current = true;
       refresh();
+      return () => {
+        focusedRef.current = false;
+      };
     }, [refresh]),
   );
 
   const liveStatus = booking ? !isTerminalBookingStatus(booking.status) : false;
   useEffect(() => {
     if (!liveStatus) return;
-    const timer = setInterval(refresh, 20000);
+    const timer = setInterval(() => {
+      if (focusedRef.current) refresh();
+    }, 45000);
     return () => clearInterval(timer);
   }, [liveStatus, refresh]);
 
@@ -130,7 +149,7 @@ export default function CustomerBookingDetailScreen() {
       await api.post(`/bookings/${id}/complete-work`, { otp });
       Toast.show({ type: 'success', text1: 'Job completed!' });
       setEndOtpOpen(false);
-      await load();
+      await load({ skipCache: true });
     } finally {
       setVerifying(false);
     }
@@ -141,7 +160,7 @@ export default function CustomerBookingDetailScreen() {
     try {
       await api.post(`/bookings/${id}/regenerate-otp`, { type });
       Toast.show({ type: 'success', text1: 'New code generated' });
-      await load();
+      await load({ skipCache: true });
     } finally {
       setRegenerating(null);
     }
@@ -235,43 +254,46 @@ export default function CustomerBookingDetailScreen() {
 
   const headerRight = isLive ? (
     <StatusBadge label="● Live" tone="success" />
-  ) : (
-    <StatusPill status={booking.status} />
-  );
+  ) : null;
 
   const svcId =
     booking.service && typeof booking.service === 'object' ? booking.service.id : undefined;
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <CustomerPageHeader
-        variant="premium"
-        title="Your booking"
-        subtitle={bookingScheduleDisplay(booking)}
-        showBack
-        rightAction={headerRight}
-      />
+      <CustomerPageHeader variant="premium" title="Your booking" showBack rightAction={headerRight} />
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={colors.green} />
         }
       >
-        <BookingStatusBanner status={booking.status} />
-        {isSchedulePending(booking) ? (
-          <PendingScheduleCard
-            variant="customer"
-            title={bookingCopy.pendingCustomerTitle}
-            scheduleLabel={bookingRequestedScheduleDisplay(booking)}
-            hint={bookingCopy.pendingCustomerHint}
-            modeLabel={
-              booking.scheduleMode === 'custom'
-                ? bookingCopy.customModeLabel
-                : bookingCopy.standardModeLabel
-            }
-            notes={booking.scheduleRequest?.notes}
-          />
+        <BookingDetailHero booking={booking} live={isLive} />
+
+        {showLiveProgress && steps.length > 0 ? (
+          <FadeSlideIn delay={60} style={styles.sectionWrap}>
+            <JobProgressCard done={doneCount} total={steps.length} live={isLive} label="Live progress" />
+          </FadeSlideIn>
         ) : null}
+
+        {isSchedulePending(booking) ? (
+          <FadeSlideIn delay={80} style={styles.sectionWrap}>
+            <PendingScheduleCard
+              variant="customer"
+              title={bookingCopy.pendingCustomerTitle}
+              scheduleLabel={bookingRequestedScheduleDisplay(booking)}
+              modeLabel={
+                booking.scheduleMode === 'custom'
+                  ? bookingCopy.customModeLabel
+                  : bookingCopy.standardModeLabel
+              }
+              notes={booking.scheduleRequest?.notes}
+            />
+          </FadeSlideIn>
+        ) : null}
+        <FadeSlideIn delay={100}>
+        <PremiumSectionHeader title="Booking details" />
+        <View style={styles.factsWrap}>
         <BookingFactsCard
           booking={booking}
           audience="customer"
@@ -279,51 +301,57 @@ export default function CustomerBookingDetailScreen() {
           showPayment
           showPhotos={false}
         />
+        </View>
         <View style={styles.priceCard}>
           <BookingPriceBreakdown amount={booking.amount} />
         </View>
+        </FadeSlideIn>
 
         {startOtp && booking.status === 'confirmed' ? (
-          <WorkOtpCard
-            title="Start code"
-            subtitle="Share this code when our service expert arrives to begin work."
-            otp={startOtp}
-            onRegenerate={() => void regenerateOtp('start')}
-            regenerating={regenerating === 'start'}
-          />
+          <FadeSlideIn delay={120} style={styles.sectionWrap}>
+            <WorkOtpCard
+              title="Start code"
+              otp={startOtp}
+              onRegenerate={() => void regenerateOtp('start')}
+              regenerating={regenerating === 'start'}
+            />
+          </FadeSlideIn>
         ) : null}
 
         {endOtp && isVerificationPhase(booking.status) ? (
-          <WorkOtpCard
-            title="Completion code"
-            subtitle="Share this code to confirm the job is finished."
-            otp={endOtp}
-            onRegenerate={() => void regenerateOtp('end')}
-            regenerating={regenerating === 'end'}
-          />
+          <FadeSlideIn delay={140} style={styles.sectionWrap}>
+            <WorkOtpCard
+              title="Completion code"
+              otp={endOtp}
+              onRegenerate={() => void regenerateOtp('end')}
+              regenerating={regenerating === 'end'}
+            />
+          </FadeSlideIn>
         ) : null}
 
         {(booking.tracking?.length ?? 0) > 0 ? (
+          <FadeSlideIn delay={160}>
           <>
-            <Text style={styles.section}>Activity</Text>
-            <BookingTrackingTimeline events={booking.tracking ?? []} />
+            <PremiumSectionHeader title="Activity" />
+            <View style={styles.sectionWrap}>
+              <BookingTrackingTimeline events={booking.tracking ?? []} />
+            </View>
           </>
+          </FadeSlideIn>
         ) : null}
 
         {showStageTimeline ? (
+          <FadeSlideIn delay={180}>
           <Card variant="premium" style={styles.track}>
-            <Text style={styles.section}>Tracking</Text>
+            <PremiumSectionHeader title="Tracking" style={styles.sectionInline} />
             <StepTimeline steps={timeline} />
           </Card>
-        ) : null}
-
-        {showLiveProgress && steps.length > 0 ? (
-          <JobProgressCard done={doneCount} total={steps.length} live={isLive} label="Live progress" />
+          </FadeSlideIn>
         ) : null}
 
         {problemPhotos.length > 0 ? (
           <>
-            <Text style={styles.section}>Problem photos</Text>
+            <PremiumSectionHeader title="Problem photos" />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoRow}>
               {problemPhotos.map((url) => (
                 <Image key={url} source={{ uri: mediaUrl(url) }} style={styles.problemPhoto} />
@@ -334,7 +362,7 @@ export default function CustomerBookingDetailScreen() {
 
         {showLiveProgress || showStepHistory ? (
           <>
-            <Text style={styles.section}>Treatment steps</Text>
+            <PremiumSectionHeader title="Treatment steps" />
             {steps.map((step, index) => renderStepCard(step, index))}
           </>
         ) : null}
@@ -374,7 +402,6 @@ export default function CustomerBookingDetailScreen() {
       <OtpEntrySheet
         visible={endOtpOpen}
         title="Confirm completion"
-        subtitle="Enter your completion code to finish this booking."
         loading={verifying}
         onClose={() => setEndOtpOpen(false)}
         onSubmit={(otp) => void completeWithOtp(otp)}
@@ -385,10 +412,12 @@ export default function CustomerBookingDetailScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: design.screenBg },
-  container: { padding: spacing.md, paddingBottom: 120 },
-  section: { ...design.sectionTitle, marginTop: spacing.lg, marginBottom: spacing.sm },
-  priceCard: { marginTop: spacing.md },
-  track: { marginTop: spacing.sm, backgroundColor: colors.soft },
+  container: { paddingBottom: 120 },
+  sectionWrap: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
+  sectionInline: { marginTop: 0, paddingHorizontal: 0 },
+  factsWrap: { marginHorizontal: spacing.md },
+  priceCard: { marginHorizontal: spacing.md, marginTop: spacing.sm },
+  track: { marginHorizontal: spacing.md, marginTop: spacing.sm, backgroundColor: colors.soft },
   progressHead: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -412,9 +441,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   progressFill: { height: '100%', backgroundColor: colors.green, borderRadius: 5 },
-  photoRow: { marginBottom: spacing.sm },
-  problemPhoto: { width: 120, height: 90, borderRadius: 12, marginRight: spacing.sm },
-  step: { marginBottom: spacing.sm },
+  photoRow: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
+  problemPhoto: { width: 128, height: 96, borderRadius: 14, marginRight: spacing.sm },
+  step: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
   stepActive: { borderWidth: 1.6, borderColor: colors.green },
   stepHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
   stepTitle: { fontFamily: fonts.bodySemi, fontSize: 14, flex: 1 },

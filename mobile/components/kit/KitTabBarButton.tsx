@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Pressable, type PressableProps, StyleSheet, View } from 'react-native';
-import { colors, design, shadows } from '@/constants/theme';
+import { colors, design, premium, shadows } from '@/constants/theme';
 
 type KitTabBarButtonProps = PressableProps & {
   children?: ReactNode;
@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 4,
-    backgroundColor: design.tabBarActive,
+    backgroundColor: premium.accentGold,
   },
   inner: { alignItems: 'center', paddingTop: 10 },
 });

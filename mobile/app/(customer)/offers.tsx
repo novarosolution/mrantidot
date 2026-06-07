@@ -1,15 +1,19 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Sparkles } from 'lucide-react-native';
 import { CustomerListShell } from '@/components/kit/CustomerListShell';
 import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/AdminActionSheet';
 import { OfferCouponCard } from '@/components/kit/OfferCouponCard';
-import { EmptyState } from '@/components/ui/EmptyState';
+import { OffersEmpty } from '@/components/kit/OffersEmpty';
+import { OffersPromoHero } from '@/components/kit/OffersPromoHero';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
+import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
 import { Spinner } from '@/components/ui/Spinner';
+import { Pressable } from 'react-native';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import type { Offer, Service } from '@/types/api';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, spacing } from '@/constants/theme';
 
 export default function OffersScreen() {
   const [offers, setOffers] = useState<Offer[]>([]);
@@ -80,11 +84,15 @@ export default function OffersScreen() {
       }))
     : [];
 
+  const browseFab = (
+    <Pressable style={styles.fab} onPress={() => router.push('/(customer)/services')} hitSlop={8}>
+      <Sparkles size={17} color={colors.white} strokeWidth={2.2} />
+    </Pressable>
+  );
+
   return (
-    <CustomerListShell
-      title="Offers & Coupons"
-      subtitle="Pick a service when applying a coupon"
-      showBack={false}
+    <CustomerListShell title="Offers" showBack={false}
+      rightAction={browseFab}
     >
       {loading ? (
         <Spinner />
@@ -93,21 +101,22 @@ export default function OffersScreen() {
       ) : (
         <ScrollView
           contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />}
         >
+          <OffersPromoHero offerCount={offers.length} />
+
           {offers.length === 0 ? (
-            <View style={styles.emptyWrap}>
-              <EmptyState title="No offers right now" message="Check back later for discounts" />
-            </View>
+            <OffersEmpty />
           ) : (
-            offers.map((o) => (
-              <View key={o.id}>
-                <OfferCouponCard offer={o} disabled={services.length === 0} onPress={() => applyOffer(o)} />
-                {services.length > 0 ? (
-                  <Text style={styles.hint}>Applies to any active service · {services.length} available</Text>
-                ) : null}
-              </View>
-            ))
+            <>
+              <PremiumSectionHeader title="Available coupons" style={styles.section} />
+              {offers.map((o) => (
+                <View key={o.id} style={styles.offerWrap}>
+                  <OfferCouponCard offer={o} disabled={services.length === 0} onPress={() => applyOffer(o)} />
+                </View>
+              ))}
+            </>
           )}
         </ScrollView>
       )}
@@ -123,14 +132,15 @@ export default function OffersScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: spacing.md, paddingBottom: spacing.xl },
-  emptyWrap: { paddingTop: spacing.xl },
-  hint: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    color: colors.muted,
-    marginTop: -8,
-    marginBottom: spacing.md,
-    marginLeft: spacing.xs,
+  content: { paddingBottom: spacing.xxl },
+  section: { marginBottom: spacing.xs },
+  offerWrap: { paddingHorizontal: spacing.md },
+  fab: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: colors.forest,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

@@ -100,6 +100,7 @@ export default function AdminOffersScreen() {
         data={visibleOffers}
         keyExtractor={(o) => o.id}
         {...ADMIN_LIST_PERF}
+        keyboardShouldPersistTaps="handled"
         ListHeaderComponent={header}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />
@@ -126,5 +127,5 @@ export default function AdminOffersScreen() {
 
 const styles = StyleSheet.create({
   header: { paddingBottom: spacing.sm },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: spacing.md },
 });

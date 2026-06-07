@@ -1,7 +1,7 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Image,
   Modal,
@@ -28,6 +28,7 @@ import { Input } from '@/components/ui/Input';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
+import { CACHE_TTL } from '@/lib/apiCache';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import {
@@ -52,10 +53,18 @@ export default function TechJobScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [cameraStep, setCameraStep] = useState<{ index: number; step: BookingStep } | null>(null);
   const [otpSheet, setOtpSheet] = useState<'start' | 'end' | null>(null);
+  const focusedRef = useRef(true);
+  const lastPoll = useRef(0);
   const { loading, error, runLoad } = useScreenLoad();
 
-  const load = useCallback(async () => {
-    const { data } = await api.get<{ booking: Booking }>(`/bookings/${id}`, screenLoadConfig);
+  const load = useCallback(async (opts?: { skipCache?: boolean }) => {
+    const cacheOpts = opts?.skipCache
+      ? { skipCache: true as const }
+      : { cacheTtlMs: CACHE_TTL.bookingDetail };
+    const { data } = await api.get<{ booking: Booking }>(`/bookings/${id}`, {
+      ...screenLoadConfig,
+      ...cacheOpts,
+    });
     setBooking(data.booking);
   }, [id]);
 
@@ -63,18 +72,31 @@ export default function TechJobScreen() {
     void runLoad(load);
   }, [load, runLoad]);
 
+  useFocusEffect(
+    useCallback(() => {
+      focusedRef.current = true;
+      return () => {
+        focusedRef.current = false;
+      };
+    }, []),
+  );
+
   useEffect(() => {
     if (!booking || isTerminalBookingStatus(booking.status)) return;
     const timer = setInterval(() => {
+      if (!focusedRef.current) return;
+      const now = Date.now();
+      if (now - lastPoll.current < CACHE_TTL.bookingDetail) return;
+      lastPoll.current = now;
       void load().catch(() => undefined);
-    }, 20000);
+    }, 45000);
     return () => clearInterval(timer);
   }, [booking?.status, booking?.id, load]);
 
   async function onPullRefresh() {
     setRefreshing(true);
     try {
-      await load();
+      await load({ skipCache: true });
     } finally {
       setRefreshing(false);
     }
@@ -91,7 +113,7 @@ export default function TechJobScreen() {
         text1: otpSheet === 'start' ? 'Work started' : 'Job completed',
       });
       setOtpSheet(null);
-      await load();
+      await load({ skipCache: true });
     } catch {
       // interceptor toast
     } finally {
@@ -100,6 +122,7 @@ export default function TechJobScreen() {
   }
 
   async function captureStep(index: number, step: BookingStep) {
+    if (!booking) return;
     setBusy(`step-${index}`);
     try {
       const { status: cam } = await ImagePicker.requestCameraPermissionsAsync();
@@ -133,8 +156,10 @@ export default function TechJobScreen() {
         geo = { lat: pos.coords.latitude, lng: pos.coords.longitude, address };
       } else if (note.trim()) {
         geo = { lat: 0, lng: 0, address: note.trim() };
+      } else if (booking.address?.trim()) {
+        geo = { lat: 0, lng: 0, address: booking.address.trim() };
       } else {
-        Toast.show({ type: 'info', text1: 'No GPS — add a location note below' });
+        Toast.show({ type: 'info', text1: 'Add a location note or enable GPS' });
         return;
       }
 
@@ -145,7 +170,7 @@ export default function TechJobScreen() {
         photoUrl,
         geo,
       });
-      await load();
+      await load({ skipCache: true });
       setCameraStep(null);
       Toast.show({ type: 'success', text1: `${step.title} completed` });
     } finally {
@@ -164,10 +189,10 @@ export default function TechJobScreen() {
     );
   }
 
+  const steps = booking.steps ?? [];
   const doneCount = bookingStepsDone(booking);
-  const progress = booking.steps.length ? doneCount / booking.steps.length : 0;
-  const activeIndex = booking.steps.findIndex((s) => s.status !== 'done');
-  const allDone = booking.steps.every((s) => s.status === 'done');
+  const activeIndex = steps.findIndex((s) => s.status !== 'done');
+  const allDone = steps.length > 0 && steps.every((s) => s.status === 'done');
   const readOnly = isTerminalBookingStatus(booking.status);
   const canWork = !readOnly && ['confirmed', 'in_progress', 'awaiting_verification'].includes(booking.status);
   const today = localDateKey();
@@ -249,8 +274,16 @@ export default function TechJobScreen() {
           </View>
         ) : null}
 
-        {booking.status === 'in_progress' ? (
-          <JobProgressCard done={doneCount} total={booking.steps.length} live label="Job progress" />
+        {booking.status === 'in_progress' && steps.length > 0 ? (
+          <JobProgressCard done={doneCount} total={steps.length} live label="Job progress" />
+        ) : null}
+
+        {steps.length === 0 && canWork ? (
+          <Card variant="premium" style={styles.emptySteps}>
+            <Text style={styles.emptyStepsText}>
+              No treatment steps configured for this service. Contact operations if you need step photos.
+            </Text>
+          </Card>
         ) : null}
 
         {booking.status === 'confirmed' && canWork && (
@@ -267,7 +300,7 @@ export default function TechJobScreen() {
           <Input label="Location note (if GPS denied)" value={note} onChangeText={setNote} placeholder="e.g. Satellite Rd" />
         ) : null}
 
-        {booking.steps.map((step, index) => {
+        {steps.map((step, index) => {
           const isActive = index === activeIndex && step.status !== 'done';
           const isDone = step.status === 'done';
           return (
@@ -348,7 +381,7 @@ export default function TechJobScreen() {
             </Pressable>
             <View style={styles.camCenter}>
               <Text style={styles.camTitle}>
-                Step {(cameraStep?.index ?? 0) + 1} of {booking.steps.length}
+                Step {(cameraStep?.index ?? 0) + 1} of {steps.length}
               </Text>
               <Text style={styles.camSub}>{cameraStep?.step.title}</Text>
             </View>
@@ -477,6 +510,8 @@ const styles = StyleSheet.create({
   successBody: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 6, lineHeight: 18 },
   readOnlyCard: { marginTop: spacing.lg, padding: spacing.md, backgroundColor: colors.greyBg },
   readOnlyText: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, textAlign: 'center' },
+  emptySteps: { marginBottom: spacing.md, padding: spacing.md, backgroundColor: colors.soft },
+  emptyStepsText: { fontFamily: fonts.body, fontSize: 13, color: colors.forest, lineHeight: 19 },
   camRoot: { flex: 1 },
   camTop: { flexDirection: 'row', alignItems: 'center', paddingTop: 54, paddingHorizontal: 20 },
   camBtn: {

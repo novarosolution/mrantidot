@@ -1,5 +1,6 @@
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Card } from '@/components/ui/Card';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
 import { SimpleMarkdown } from '@/components/ui/SimpleMarkdown';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -10,10 +11,12 @@ export default function AboutScreen() {
   const { content } = useAppContent();
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <CustomerPageHeader title="About us" subtitle={content.branding.name} variant="premium" showBack />
+      <CustomerPageHeader title="About us" variant="premium" showBack />
       <ScrollView contentContainerStyle={styles.scroll}>
         {content.aboutMarkdown ? (
-          <SimpleMarkdown text={content.aboutMarkdown} />
+          <Card variant="classic" style={styles.card}>
+            <SimpleMarkdown text={content.aboutMarkdown} />
+          </Card>
         ) : (
           <EmptyState title="Nothing here yet" message="Check back soon." />
         )}
@@ -25,4 +28,5 @@ export default function AboutScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: design.screenBg },
   scroll: { padding: spacing.md, paddingBottom: spacing.xxl },
+  card: { padding: spacing.md },
 });

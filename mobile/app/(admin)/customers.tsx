@@ -63,7 +63,7 @@ export default function AdminCustomersScreen() {
     );
   }, [customers, debouncedSearch, listFilter]);
 
-  const summaryHeader = (
+  const listHeader = (
     <View>
       <View style={styles.summary}>
         <Card variant="premium" style={styles.sumCard}>
@@ -105,11 +105,13 @@ export default function AdminCustomersScreen() {
   );
 
   return (
-    <AdminListShell title="Customers" subtitle={`${summary.total} registered`} rightAction={addBtn} headerExtra={summaryHeader}>
+    <AdminListShell title="Customers" subtitle={`${summary.total} registered`} rightAction={addBtn}>
       <FlatList
         data={visibleCustomers}
         keyExtractor={(c) => c.id}
         {...ADMIN_LIST_PERF}
+        ListHeaderComponent={listHeader}
+        keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />}
         contentContainerStyle={visibleCustomers.length === 0 ? adminListShellStyles.empty : adminListShellStyles.list}
         ListEmptyComponent={<EmptyState title="No customers" message="Try another filter or add a customer" />}
@@ -118,7 +120,9 @@ export default function AdminCustomersScreen() {
             <Card variant="premium" style={{ ...styles.card, ...(isAccountDisabled(item) ? styles.cardDisabled : {}) }}>
               <View style={styles.avatar}>
                 <Text style={styles.initial}>
-                  {item.name.split(' ').map((w) => w[0]).join('').slice(0, 2)}
+                  {item.name.trim()
+                    ? item.name.split(' ').map((w) => w[0]).join('').slice(0, 2)
+                    : '?'}
                 </Text>
               </View>
               <View style={styles.flex}>
@@ -143,12 +147,12 @@ export default function AdminCustomersScreen() {
 }
 
 const styles = StyleSheet.create({
-  summary: { flexDirection: 'row', gap: 10, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
+  summary: { flexDirection: 'row', gap: 10, marginBottom: spacing.sm },
   sumCard: { flex: 1, alignItems: 'center', paddingVertical: 12 },
   sumVal: { fontFamily: fonts.displayExtra, fontSize: 18, color: colors.green },
   sumLabel: { fontFamily: fonts.body, fontSize: 10, color: colors.muted, marginTop: 2 },
-  searchWrap: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
+  searchWrap: { paddingBottom: spacing.sm },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: spacing.sm },
   card: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: spacing.sm, padding: 13 },
   cardDisabled: { opacity: 0.65 },
   avatar: {

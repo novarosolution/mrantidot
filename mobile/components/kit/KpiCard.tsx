@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Card } from '@/components/ui/Card';
 import { formatDelta, isMeaningfulDelta } from '@/lib/display';
-import { colors, fonts } from '@/constants/theme';
+import { colors, fonts, premium, spacing } from '@/constants/theme';
 
 export function KpiCard({
   icon: Icon,
@@ -21,7 +21,7 @@ export function KpiCard({
   onPress?: () => void;
 }) {
   return (
-    <Card variant="premium" style={styles.card} onPress={onPress}>
+    <Card variant="classic" style={styles.card} onPress={onPress}>
       <View style={[styles.icon, { backgroundColor: iconBg }]}>
         <Icon size={18} color={iconColor} />
       </View>
@@ -37,17 +37,22 @@ export function KpiCard({
 }
 
 const styles = StyleSheet.create({
-  card: { width: '47%', padding: 14 },
+  card: { width: '47%', padding: spacing.md, paddingTop: spacing.md + 2 },
   icon: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
   },
-  value: { fontFamily: fonts.displayExtra, fontSize: 20, color: colors.forest, letterSpacing: -0.3 },
-  label: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 1 },
-  delta: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.green, marginTop: 7 },
+  value: {
+    fontFamily: fonts.displayExtra,
+    fontSize: 22,
+    color: colors.forest,
+    letterSpacing: -0.4,
+  },
+  label: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 2 },
+  delta: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.green, marginTop: 6 },
   deltaDown: { color: colors.error },
 });

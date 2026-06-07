@@ -105,6 +105,7 @@ export default function AdminUsersScreen() {
         data={visible}
         keyExtractor={(u) => u.id}
         {...ADMIN_LIST_PERF}
+        keyboardShouldPersistTaps="handled"
         ListHeaderComponent={header}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />
@@ -138,7 +139,7 @@ export default function AdminUsersScreen() {
 
 const styles = StyleSheet.create({
   header: { paddingBottom: spacing.sm },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.sm },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.sm, paddingHorizontal: spacing.md },
   card: { padding: spacing.md, marginBottom: spacing.sm },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   flex: { flex: 1, minWidth: 0 },

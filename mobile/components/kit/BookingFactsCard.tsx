@@ -15,6 +15,7 @@ import {
 } from '@/lib/booking-helpers';
 import { useBookingCopy } from '@/lib/schedule-copy';
 import { mediaUrl } from '@/lib/images';
+import { propertyTypeLabel } from '@/constants/propertyTypes';
 import type { Booking, User } from '@/types/api';
 import { colors, fonts, premium, spacing, typography } from '@/constants/theme';
 
@@ -92,8 +93,18 @@ export function BookingFactsCard({
       <FactRow
         label="When"
         value={bookingScheduleDisplay(booking)}
-        subtitle={isSchedulePending(booking) ? bookingCopy.pendingFactsSubtitle : undefined}
+        subtitle={
+          audience !== 'customer' && isSchedulePending(booking)
+            ? bookingCopy.pendingFactsSubtitle
+            : undefined
+        }
       />
+      {booking.propertyType || booking.propertyTypeLabel ? (
+        <FactRow
+          label="Property"
+          value={booking.propertyTypeLabel ?? propertyTypeLabel(booking.propertyType ?? '')}
+        />
+      ) : null}
       <FactRow label="Where" value={booking.address} />
       {forTechnician && jobDetails ? <FactRow label="Job" value={jobDetails} /> : null}
 

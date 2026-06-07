@@ -13,6 +13,7 @@ import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import { ServiceTypeBadges } from '@/components/kit/ServiceTypeBadges';
 import { api, screenLoadConfig } from '@/lib/api';
+import { CACHE_TTL } from '@/lib/apiCache';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { formatSocialProof } from '@/lib/display';
 import { useAppContent } from '@/context/AppContentContext';
@@ -27,21 +28,25 @@ export default function ServiceDetailScreen() {
   const [reviews, setReviews] = useState<ServiceReview[]>([]);
   const { loading, error, runLoad } = useScreenLoad();
 
-  const load = useCallback(async () => {
-    if (!id) return;
-    const [svc, st, rev] = await Promise.all([
-      api.get<{ service: Service }>(`/services/${id}`, screenLoadConfig),
-      api.get<{ stats: ServiceStats }>(`/services/${id}/stats`, screenLoadConfig),
-      api.get<{ reviews: ServiceReview[] }>(`/services/${id}/reviews`, screenLoadConfig),
-    ]);
-    setService(svc.data.service);
-    setStats(st.data.stats);
-    setReviews(rev.data.reviews);
-  }, [id]);
+  const load = useCallback(
+    async (skipCache = false) => {
+      if (!id) return;
+      const cache = skipCache ? { skipCache: true as const } : { cacheTtlMs: CACHE_TTL.services };
+      const [svc, st, rev] = await Promise.all([
+        api.get<{ service: Service }>(`/services/${id}`, { ...screenLoadConfig, ...cache }),
+        api.get<{ stats: ServiceStats }>(`/services/${id}/stats`, { ...screenLoadConfig, ...cache }),
+        api.get<{ reviews: ServiceReview[] }>(`/services/${id}/reviews`, { ...screenLoadConfig, ...cache }),
+      ]);
+      setService(svc.data.service);
+      setStats(st.data.stats);
+      setReviews(rev.data.reviews);
+    },
+    [id],
+  );
 
   useEffect(() => {
     if (!id) return;
-    void runLoad(load);
+    void runLoad(() => load());
   }, [id, load, runLoad]);
 
   if (loading) return <Spinner fullScreen />;
@@ -52,8 +57,8 @@ export default function ServiceDetailScreen() {
         <CustomerPageHeader variant="premium" title="Service" showBack />
         <ListEmptyRetry
           title="Service unavailable"
-          message={error ?? 'Service not found'}
-          onRetry={() => void runLoad(load)}
+          message={error ?? 'This service is no longer available. Pull to refresh the catalog.'}
+          onRetry={() => void runLoad(() => load(true))}
         />
       </View>
     );

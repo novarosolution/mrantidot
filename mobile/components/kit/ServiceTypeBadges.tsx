@@ -11,7 +11,15 @@ const TYPE_TONES: Record<ServiceTypeKey, BadgeTone> = {
   termite: 'success',
   bed_bug: 'neutral',
   bird: 'info',
+  flea: 'gold',
+  spider: 'neutral',
+  lizard: 'success',
+  bee: 'warning',
+  wood_borer: 'gold',
   general: 'neutral',
+  fumigation: 'neutral',
+  deep_cleaning: 'sky',
+  silo: 'warning',
 };
 
 export function ServiceTypeBadges({

@@ -20,6 +20,7 @@ import { ServiceTypeBadges } from '@/components/kit/ServiceTypeBadges';
 import { SERVICE_TYPE_KEYS, SERVICE_TYPE_LABELS } from '@/constants/serviceTypes';
 import type { Service, ServiceCategory, ServiceStats, ServiceTypeKey } from '@/types/api';
 import { colors, design, fonts, gradients, premium, radius, spacing } from '@/constants/theme';
+import { textInputDefaults } from '@/components/ui/textInputDefaults';
 
 type CategoryFilter = 'all' | ServiceCategory;
 type TypeFilter = 'all' | ServiceTypeKey;
@@ -141,6 +142,7 @@ export default function ServicesListScreen() {
         <Search size={17} color={colors.muted} />
         <TextInput
           style={styles.search}
+          {...textInputDefaults}
           placeholder="Search services…"
           placeholderTextColor={colors.muted}
           value={q}
@@ -160,7 +162,7 @@ export default function ServicesListScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.catRow}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
         >
           <CategoryChip label="All" active={category === 'all'} onPress={() => setCategory('all')} />
           {availableCategories.map((c) => (
@@ -179,7 +181,7 @@ export default function ServicesListScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.typeRow}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
         >
           <CategoryChip label="All types" active={serviceType === 'all'} onPress={() => setServiceType('all')} />
           {availableTypes.map((t) => (
@@ -187,7 +189,7 @@ export default function ServicesListScreen() {
               key={t}
               label={SERVICE_TYPE_LABELS[t]}
               active={serviceType === t}
-              onPress={() => setServiceType(t)}
+              onPress={() => router.push(`/browse/${t}`)}
             />
           ))}
         </ScrollView>
@@ -219,12 +221,7 @@ export default function ServicesListScreen() {
   );
 
   return (
-    <CustomerListShell
-      title="Our Services"
-      subtitle="Browse and book pest control"
-      showBack={false}
-      headerExtra={searchHeader}
-    >
+    <CustomerListShell title="Our Services" showBack={false} headerExtra={searchHeader}>
       {loading ? (
         <Spinner />
       ) : loadError && services.length === 0 ? (
@@ -359,7 +356,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     ...premium.shadowSoft,
   },
-  search: { flex: 1, fontFamily: fonts.body, fontSize: 14, color: colors.ink },
+  search: { flex: 1, fontSize: 14, color: colors.ink },
   catRow: { gap: spacing.sm, paddingTop: spacing.sm, paddingRight: spacing.md },
   typeRow: { gap: spacing.sm, paddingTop: spacing.xs, paddingRight: spacing.md },
   catChip: {

@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 const DEFAULT_PORT = 4000;
 
@@ -17,14 +18,15 @@ function devHostApiUrl(): string | undefined {
     (Constants as { manifest?: { debuggerHost?: string } }).manifest?.debuggerHost;
 
   if (!hostUri) return undefined;
-  const host = String(hostUri).split(':')[0]?.trim();
+  let host = String(hostUri).split(':')[0]?.trim();
   if (!host) return undefined;
-  return `http://${host}:${DEFAULT_PORT}`;
-}
 
-/** A private/loopback LAN address that can go stale when the network changes. */
-function isLanIp(url: string): boolean {
-  return /\/\/(10\.|127\.|192\.0\.0\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(url);
+  // Android emulator: localhost is the emulator itself, not the dev machine.
+  if (Platform.OS === 'android' && (host === 'localhost' || host === '127.0.0.1')) {
+    host = '10.0.2.2';
+  }
+
+  return `http://${host}:${DEFAULT_PORT}`;
 }
 
 const fromExtra =
@@ -38,12 +40,11 @@ const auto = __DEV__ ? devHostApiUrl() : undefined;
 
 /**
  * Precedence:
- * - In dev, prefer the live Expo host whenever the explicit value is missing or is
- *   itself a LAN IP (the kind that goes stale). A real deployed URL still wins.
- * - In production builds (no Metro host), use the explicit EXPO_PUBLIC_API_URL.
+ * - In dev, always prefer the live Expo/Metro host so the app talks to your local API.
+ * - In production builds, use deploy.config / EXPO_PUBLIC_API_URL.
  */
 const resolvedApiUrl =
-  auto && (!explicit || isLanIp(explicit))
+  __DEV__ && auto
     ? auto
     : explicit ?? auto ?? `http://127.0.0.1:${DEFAULT_PORT}`;
 

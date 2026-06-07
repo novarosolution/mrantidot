@@ -1,7 +1,8 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { Activity } from 'lucide-react-native';
-import { Card } from '@/components/ui/Card';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 export function JobProgressCard({
   done,
@@ -15,9 +16,34 @@ export function JobProgressCard({
   label?: string;
 }) {
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const animPct = useRef(new Animated.Value(0)).current;
+  const enter = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(enter, {
+      toValue: 1,
+      duration: 400,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [enter]);
+
+  useEffect(() => {
+    Animated.spring(animPct, {
+      toValue: pct,
+      friction: 9,
+      tension: 50,
+      useNativeDriver: false,
+    }).start();
+  }, [animPct, pct]);
+
+  const fillWidth = animPct.interpolate({
+    inputRange: [0, 100],
+    outputRange: ['0%', '100%'],
+  });
 
   return (
-    <Card variant="premium" style={styles.card}>
+    <Animated.View style={[styles.card, { opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }]}>
       <View style={styles.head}>
         <Text style={styles.title}>{label}</Text>
         {live ? (
@@ -29,19 +55,41 @@ export function JobProgressCard({
       </View>
 
       <View style={styles.track}>
-        <View style={[styles.fill, { width: `${pct}%` }]} />
+        <Animated.View style={[styles.fillWrap, { width: fillWidth }]}>
+          <LinearGradient
+            colors={['#2BB563', '#1E8E4E', '#14532D']}
+            style={styles.fill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          />
+        </Animated.View>
       </View>
 
-      <Text style={styles.meta}>
-        {done} of {total} steps completed · {pct}%
-      </Text>
-    </Card>
+      <View style={styles.metaRow}>
+        <Text style={styles.meta}>
+          {done} of {total} steps
+        </Text>
+        <Text style={styles.pct}>{pct}%</Text>
+      </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { marginBottom: spacing.md },
-  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
+  card: {
+    backgroundColor: colors.white,
+    borderRadius: premium.radiusCard,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(20,83,45,0.06)',
+    ...shadows.card,
+  },
+  head: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
   title: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
   liveBadge: {
     flexDirection: 'row',
@@ -54,12 +102,18 @@ const styles = StyleSheet.create({
   },
   liveText: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.green },
   track: {
-    height: 8,
-    borderRadius: 4,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: colors.border,
     overflow: 'hidden',
-    marginBottom: spacing.sm,
   },
-  fill: { height: '100%', backgroundColor: colors.green, borderRadius: 4 },
+  fillWrap: { height: '100%' },
+  fill: { flex: 1, borderRadius: 5 },
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+  },
   meta: { fontFamily: fonts.body, fontSize: 12, color: colors.muted },
+  pct: { fontFamily: fonts.displayExtra, fontSize: 14, color: colors.forest },
 });

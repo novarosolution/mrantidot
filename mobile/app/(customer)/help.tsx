@@ -12,6 +12,7 @@ import {
   Phone,
   Shield,
 } from 'lucide-react-native';
+import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
 import { Card } from '@/components/ui/Card';
 import { useAppContent } from '@/context/AppContentContext';
@@ -25,10 +26,10 @@ export default function HelpScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <CustomerPageHeader title="Help & support" subtitle="We're here for you" variant="premium" showBack />
+      <CustomerPageHeader title="Help & support" variant="premium" showBack />
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.section}>Contact us</Text>
-        <Card variant="premium" style={styles.card}>
+        <PremiumSectionHeader title="Contact us" style={styles.section} />
+        <Card variant="classic" style={styles.card}>
           {support.phone ? (
             <ContactRow
               icon={<Phone size={18} color={colors.green} />}
@@ -58,8 +59,8 @@ export default function HelpScreen() {
           ) : null}
         </Card>
 
-        <Text style={styles.section}>Resources</Text>
-        <Card variant="premium" style={styles.card}>
+        <PremiumSectionHeader title="Resources" style={styles.section} />
+        <Card variant="classic" style={styles.card}>
           <LinkRow icon={<HelpCircle size={18} color={colors.green} />} label="FAQ" onPress={() => router.push('/(customer)/faq')} />
           <LinkRow icon={<Info size={18} color={colors.green} />} label="About us" onPress={() => router.push('/(customer)/about')} />
           <LinkRow icon={<FileText size={18} color={colors.green} />} label="Terms of Service" onPress={() => router.push('/(customer)/terms')} />
@@ -115,9 +116,9 @@ function LinkRow({
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: design.screenBg },
-  scroll: { padding: spacing.md, paddingBottom: spacing.xxl },
-  section: { ...design.sectionTitle, marginTop: spacing.md, marginBottom: spacing.sm },
-  card: { paddingVertical: spacing.xs },
+  scroll: { paddingBottom: spacing.xxl },
+  section: { marginTop: spacing.md, marginBottom: spacing.xs },
+  card: { padding: spacing.md, marginHorizontal: spacing.md, marginBottom: spacing.sm },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -13,6 +13,7 @@ export interface StoredUser {
   rating?: number;
   jobsDone?: number;
   available?: boolean;
+  createdAt?: string;
 }
 
 export async function getToken(): Promise<string | null> {

@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { AdminListShell } from '@/components/kit/AdminListShell';
+import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { IconInput } from '@/components/kit/IconInput';
 import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
 import { Button } from '@/components/ui/Button';
@@ -45,7 +45,7 @@ export default function UserEditScreen() {
   const [active, setActive] = useState(true);
   const [protectedAccount, setProtectedAccount] = useState(false);
   const [saving, setSaving] = useState(false);
-  const { loading, error, runLoad } = useScreenLoad(!!id);
+  const { loading, error, runLoad, reload } = useScreenLoad(!!id);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -147,14 +147,30 @@ export default function UserEditScreen() {
   if (id && error) {
     return (
       <AdminListShell title="User" subtitle="Error">
-        <ListEmptyRetry message={error} onRetry={() => void runLoad(load, error)} />
+        <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
       </AdminListShell>
     );
   }
 
   return (
-    <AdminListShell title={title} subtitle={subtitle}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <AdminListShell
+      title={title}
+      subtitle={subtitle}
+      keyboardAvoid
+      stickyFooter={
+        <StickyActionBar>
+          <Button title="Save" variant="premium" onPress={() => void save()} loading={saving} />
+          {id && active && !roleLocked ? (
+            <Button title="Disable account" variant="danger" onPress={disableAccount} style={{ marginTop: spacing.sm }} />
+          ) : null}
+        </StickyActionBar>
+      }
+    >
+      <ScrollView
+        contentContainerStyle={id && active && !roleLocked ? adminListShellStyles.scrollWithFooterTall : adminListShellStyles.scrollWithFooter}
+        keyboardShouldPersistTaps="always"
+        showsVerticalScrollIndicator={false}
+      >
         <Card variant="premium" style={styles.form}>
           <Text style={styles.label}>Role</Text>
           <View style={styles.chips}>
@@ -183,7 +199,7 @@ export default function UserEditScreen() {
             label={id ? 'New password (optional)' : 'Password'}
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
+            secure
           />
 
           {id && role === 'technician' ? (
@@ -207,18 +223,11 @@ export default function UserEditScreen() {
           ) : null}
         </Card>
       </ScrollView>
-      <StickyActionBar>
-        <Button title="Save" variant="premium" onPress={() => void save()} loading={saving} />
-        {id && active && !roleLocked ? (
-          <Button title="Disable account" variant="danger" onPress={disableAccount} style={{ marginTop: spacing.sm }} />
-        ) : null}
-      </StickyActionBar>
     </AdminListShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: spacing.md, paddingBottom: 120 },
   form: { padding: spacing.md },
   label: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, marginBottom: 8 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.sm },

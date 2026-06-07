@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -6,6 +7,7 @@ import { Calendar, Clock, FileText, Gift, LayoutGrid, Truck, UserPlus, Users, Wr
 import { AdminBookingRow } from '@/components/kit/AdminBookingRow';
 import { PendingAnalyticsRow } from '@/components/kit/PendingAnalyticsRow';
 import { AdminScreenHeader } from '@/components/kit/AdminScreenHeader';
+import { AdminSectionTitle } from '@/components/kit/AdminListShell';
 import { UserAccountCard } from '@/components/kit/UserAccountCard';
 import { KpiCard } from '@/components/kit/KpiCard';
 import { Chip } from '@/components/ui/Chip';
@@ -23,7 +25,7 @@ import { colors, design, fonts, premium, spacing } from '@/constants/theme';
 
 const QUICK_ACTIONS = [
   { icon: LayoutGrid, label: 'Bookings', href: '/(admin)/bookings' as const },
-  { icon: Wrench, label: 'Add service', href: '/(admin)/service-edit' as const },
+  { icon: Wrench, label: 'Services', href: '/(admin)/services' as const },
   { icon: UserPlus, label: 'Add tech', href: { pathname: '/(admin)/user-edit' as const, params: { role: 'technician' } } },
   { icon: Gift, label: 'Offers', href: '/(admin)/offers' as const },
   { icon: FileText, label: 'Content', href: '/(admin)/content' as const },
@@ -90,7 +92,9 @@ export default function AdminDashboard() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickScroll} contentContainerStyle={styles.quickRow}>
           {QUICK_ACTIONS.map((q) => (
             <Pressable key={q.label} style={styles.quick} onPress={() => router.push(q.href)}>
-              <q.icon size={15} color={colors.green} />
+              <LinearGradient colors={['#14532D', '#1A6B3C']} style={styles.quickIcon} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <q.icon size={14} color={colors.lime} />
+              </LinearGradient>
               <Text style={styles.quickText}>{q.label}</Text>
             </Pressable>
           ))}
@@ -153,12 +157,11 @@ export default function AdminDashboard() {
 
         {(stats.pendingBookings?.length ?? 0) > 0 ? (
           <>
-            <View style={styles.sectionRow}>
-              <Text style={styles.section}>Pending schedule queue</Text>
-              <Pressable onPress={() => router.push('/(admin)/bookings?status=pending')}>
-                <Text style={styles.link}>View all</Text>
-              </Pressable>
-            </View>
+            <AdminSectionTitle
+              title="Pending schedule queue"
+              actionLabel="View all"
+              onAction={() => router.push('/(admin)/bookings?status=pending')}
+            />
             <View style={styles.bookingWrap}>
               {stats.pendingBookings!.slice(0, 5).map((b) => (
                 <PendingAnalyticsRow
@@ -171,12 +174,11 @@ export default function AdminDashboard() {
           </>
         ) : null}
 
-        <View style={styles.sectionRow}>
-          <Text style={styles.section}>Recent Bookings</Text>
-          <Pressable onPress={() => router.push('/(admin)/bookings')}>
-            <Text style={styles.link}>View all</Text>
-          </Pressable>
-        </View>
+        <AdminSectionTitle
+          title="Recent bookings"
+          actionLabel="View all"
+          onAction={() => router.push('/(admin)/bookings')}
+        />
 
         {stats.recentBookings.length === 0 ? (
           <View style={styles.bookingWrap}>
@@ -197,20 +199,27 @@ export default function AdminDashboard() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: design.screenBg },
   root: { flex: 1 },
-  content: { paddingBottom: spacing.xl },
+  content: { paddingBottom: spacing.xxl },
   quickScroll: { marginTop: spacing.sm },
   quickRow: { paddingHorizontal: spacing.md, gap: 8 },
   quick: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     backgroundColor: colors.white,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: premium.radiusCard,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(20,83,45,0.08)',
     ...premium.shadowSoft,
+  },
+  quickIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   quickText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
   grid: {
@@ -221,15 +230,5 @@ const styles = StyleSheet.create({
     marginTop: -4,
   },
   statusStrip: { paddingHorizontal: spacing.md, gap: 8, paddingBottom: spacing.sm },
-  kpiWrap: { width: '47%' },
-  sectionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    marginTop: 4,
-  },
-  section: { ...design.sectionTitle },
-  link: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: colors.secondaryDark },
   bookingWrap: { paddingHorizontal: spacing.md },
 });

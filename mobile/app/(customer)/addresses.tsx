@@ -9,9 +9,11 @@ import {
   Text,
   View,
 } from 'react-native';
-import { LocateFixed, Plus } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { AddressCard } from '@/components/kit/AddressCard';
+import { AddressLocateButton } from '@/components/kit/AddressLocateButton';
+import { LocationBanner } from '@/components/kit/LocationChip';
 import { CustomerListShell, listShellStyles } from '@/components/kit/CustomerListShell';
 import { IconInput } from '@/components/kit/IconInput';
 import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
@@ -20,14 +22,15 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
-import { getCurrentAddress } from '@/lib/location';
 import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
+import { useLocation } from '@/context/LocationContext';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { SavedAddress } from '@/types/api';
 import { colors, design, fonts, premium, radius, spacing } from '@/constants/theme';
 
 export default function AddressesScreen() {
   const { loading, error, refreshing, runLoad, reload, refresh } = useScreenLoad();
+  const { displayLabel, locating, detectAddress } = useLocation();
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [label, setLabel] = useState('Home');
@@ -36,7 +39,6 @@ export default function AddressesScreen() {
   const [pincode, setPincode] = useState('');
   const [isDefault, setIsDefault] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [locating, setLocating] = useState(false);
 
   const fetchAddresses = useCallback(async () => {
     const { data } = await api.get<{ addresses: SavedAddress[] }>('/addresses', screenLoadConfig);
@@ -61,19 +63,24 @@ export default function AddressesScreen() {
   }
 
   async function useCurrentLocation() {
-    setLocating(true);
-    try {
-      const addr = await getCurrentAddress();
-      if (addr) {
-        if (addr.line1) setLine1(addr.line1);
-        if (addr.city) setCity(addr.city);
-        if (addr.pincode) setPincode(addr.pincode);
-        Toast.show({ type: 'success', text1: 'Location added', text2: 'Review and edit the details if needed' });
-      }
-    } finally {
-      setLocating(false);
+    const loc = await detectAddress();
+    if (loc) {
+      if (loc.line1) setLine1(loc.line1);
+      if (loc.city && loc.city !== 'your area') setCity(loc.city);
+      if (loc.pincode) setPincode(loc.pincode);
+      Toast.show({ type: 'success', text1: 'Location added', text2: 'Review and edit the details if needed' });
     }
   }
+
+  const listHeader =
+    displayLabel ? (
+      <LocationBanner
+        label={displayLabel}
+        hint="Used across bookings and your home screen"
+        loading={locating}
+        onRefresh={() => void detectAddress()}
+      />
+    ) : null;
 
   async function saveAddress() {
     if (!label.trim() || !line1.trim() || !city.trim()) {
@@ -134,12 +141,7 @@ export default function AddressesScreen() {
   );
 
   return (
-    <CustomerListShell
-      title="Saved Addresses"
-      subtitle="Delivery locations for bookings"
-      accountStrip
-      rightAction={addFab}
-    >
+    <CustomerListShell title="Saved Addresses" accountStrip rightAction={addFab}>
       {loading ? (
         <Spinner />
       ) : error ? (
@@ -149,6 +151,8 @@ export default function AddressesScreen() {
           data={addresses}
           keyExtractor={(a) => a.id}
           {...CUSTOMER_LIST_PERF}
+          ListHeaderComponent={listHeader}
+          keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -183,16 +187,7 @@ export default function AddressesScreen() {
           <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
             <View style={styles.handle} />
             <Text style={styles.modalTitle}>Add address</Text>
-            <Pressable
-              style={({ pressed }) => [styles.locateBtn, pressed && styles.locatePressed]}
-              onPress={() => void useCurrentLocation()}
-              disabled={locating}
-            >
-              <LocateFixed size={17} color={colors.green} />
-              <Text style={styles.locateText}>
-                {locating ? 'Getting your location…' : 'Use my current location'}
-              </Text>
-            </Pressable>
+            <AddressLocateButton loading={locating} onPress={() => void useCurrentLocation()} />
             <IconInput label="Label" value={label} onChangeText={setLabel} placeholder="Home, Office…" />
             <IconInput label="Address line" value={line1} onChangeText={setLine1} />
             <IconInput label="City" value={city} onChangeText={setCity} />
@@ -242,20 +237,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   modalTitle: { fontFamily: fonts.display, fontSize: 18, marginBottom: spacing.md, color: colors.ink },
-  locateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: 12,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: colors.green,
-    backgroundColor: colors.soft,
-    marginBottom: spacing.md,
-  },
-  locatePressed: { opacity: 0.7 },
-  locateText: { fontFamily: fonts.bodySemi, fontSize: 13.5, color: colors.green },
   defaultRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

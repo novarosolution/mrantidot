@@ -24,6 +24,10 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     alignItems: 'center',
     maxWidth: 320,
+    borderWidth: 1,
+    borderColor: 'rgba(182,132,28,0.15)',
+    borderTopWidth: 3,
+    borderTopColor: premium.accentGold,
     ...shadows.floating,
   },
   iconCircle: {
@@ -34,6 +38,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(182,132,28,0.2)',
   },
   title: { ...design.sectionTitle, textAlign: 'center' },
   message: {

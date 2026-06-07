@@ -14,7 +14,7 @@ export function PendingScheduleCard({
 }: {
   title: string;
   scheduleLabel: string | null;
-  hint: string;
+  hint?: string;
   modeLabel?: string;
   notes?: string;
   customerName?: string;
@@ -39,7 +39,7 @@ export function PendingScheduleCard({
       <Text style={styles.schedule}>{scheduleLabel}</Text>
       {notes ? <Text style={styles.notes}>“{notes}”</Text> : null}
       {customerName ? <Text style={styles.customer}>Customer: {customerName}</Text> : null}
-      <Text style={styles.hint}>{hint}</Text>
+      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
     </Card>
   );
 }

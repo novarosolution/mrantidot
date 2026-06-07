@@ -1,6 +1,12 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { CloudSun, Sun } from 'lucide-react-native';
 import { BOOKING_SLOT_GROUPS, formatSlotLabel } from '@/lib/dates';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, fonts, spacing } from '@/constants/theme';
+
+const GROUP_ICONS: Record<string, typeof Sun> = {
+  Morning: Sun,
+  Afternoon: CloudSun,
+};
 
 export function ScheduleSlotPicker({
   selectedSlot,
@@ -10,43 +16,87 @@ export function ScheduleSlotPicker({
   onSelect: (slot: string) => void;
 }) {
   return (
-    <>
-      {BOOKING_SLOT_GROUPS.map((group) => (
-        <View key={group.title} style={styles.group}>
-          <Text style={styles.groupTitle}>{group.title}</Text>
-          <View style={styles.grid}>
-            {group.slots.map((s) => {
-              const on = selectedSlot === s;
-              return (
-                <Pressable key={s} style={[styles.slot, on && styles.slotOn]} onPress={() => onSelect(s)}>
-                  <Text style={[styles.slotText, on && styles.slotTextOn]}>{formatSlotLabel(s)}</Text>
-                </Pressable>
-              );
-            })}
+    <View style={styles.wrap}>
+      {BOOKING_SLOT_GROUPS.map((group, gi) => {
+        const Icon = GROUP_ICONS[group.title] ?? Sun;
+        return (
+          <View key={group.title} style={[styles.group, gi > 0 && styles.groupGap]}>
+            <View style={styles.groupHead}>
+              <View style={styles.groupIcon}>
+                <Icon size={15} color={colors.forest} strokeWidth={2.2} />
+              </View>
+              <Text style={styles.groupTitle}>{group.title}</Text>
+            </View>
+            <View style={styles.row}>
+              {group.slots.map((s) => {
+                const on = selectedSlot === s;
+                return (
+                  <Pressable
+                    key={s}
+                    style={({ pressed }) => [styles.chip, on && styles.chipOn, pressed && styles.pressed]}
+                    onPress={() => onSelect(s)}
+                  >
+                    <Text style={[styles.chipText, on && styles.chipTextOn]}>{formatSlotLabel(s)}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
-        </View>
-      ))}
-    </>
+        );
+      })}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  group: { marginTop: spacing.md },
-  groupTitle: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, marginBottom: spacing.sm },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  slot: {
-    flexGrow: 1,
-    minWidth: '46%',
-    paddingVertical: 15,
-    paddingHorizontal: 12,
+  wrap: { gap: 0 },
+  group: {},
+  groupGap: { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
+  groupHead: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
-    backgroundColor: colors.white,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    ...premium.shadowSoft,
+    gap: 8,
+    marginBottom: spacing.sm,
   },
-  slotOn: { backgroundColor: colors.secondarySoft, borderColor: colors.secondaryDark, borderWidth: 2 },
-  slotText: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: colors.ink },
-  slotTextOn: { color: colors.secondaryInk },
+  groupIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: colors.soft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  groupTitle: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 13,
+    color: colors.ink,
+  },
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    flex: 1,
+    minWidth: '47%',
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  chipOn: {
+    backgroundColor: colors.soft,
+    borderColor: colors.forest,
+  },
+  pressed: { opacity: 0.88 },
+  chipText: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 13,
+    color: colors.ink,
+    textAlign: 'center',
+  },
+  chipTextOn: { color: colors.forest },
 });
