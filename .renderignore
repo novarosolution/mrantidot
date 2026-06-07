@@ -1,0 +1,20 @@
+# Keep Render free-tier builds small — exclude mobile app and local caches.
+# https://render.com/docs/monorepo-support#using-a-renderignore-file
+
+mobile/
+node_modules/
+**/node_modules/
+.expo/
+.expo-shared/
+.git/
+.gitignore
+*.apk
+*.aab
+docs/
+mobile/assets/
+**/.DS_Store
+coverage/
+.turbo/
+*.log
+.vscode/
+.cursor/

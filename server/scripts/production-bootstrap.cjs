@@ -45,12 +45,11 @@ function ensureJwt() {
 function ensureDist() {
   if (fs.existsSync(distEntry)) return;
   console.log('[bootstrap] Building dist for production...');
-  execSync('npm install --include=dev --no-audit --no-fund', {
+  execSync('bash render-build.sh', {
     cwd: serverRoot,
     stdio: 'inherit',
-    env: process.env,
+    env: { ...process.env, NPM_CONFIG_WORKSPACES: 'false' },
   });
-  execSync('npm run build', { cwd: serverRoot, stdio: 'inherit', env: process.env });
 }
 
 try {

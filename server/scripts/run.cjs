@@ -19,8 +19,11 @@ if (onRender) {
 
   if (!fs.existsSync(distEntry)) {
     console.log('[render] dist/index.js missing — building...');
-    execSync('npm install --include=dev --no-audit --no-fund', { stdio: 'inherit' });
-    execSync('npm run build', { stdio: 'inherit' });
+    execSync('bash render-build.sh', {
+      cwd: serverRoot,
+      stdio: 'inherit',
+      env: { ...process.env, NPM_CONFIG_WORKSPACES: 'false' },
+    });
   }
 
   console.log('[render] Starting API (production)...');

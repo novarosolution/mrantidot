@@ -2,6 +2,17 @@
 
 Follow these steps in order.
 
+## Why builds were ~8GB (free tier fails)
+
+This repo is a **monorepo** (server + mobile). If Render installs from the workspace root, npm pulls **Expo / React Native** deps (multi‑GB). Fixes in this repo:
+
+- **Root Directory** must be `server`
+- `.renderignore` excludes `mobile/` from the upload
+- `server/.npmrc` sets `workspaces=false` — **server-only** ~70MB install
+- `render-build.sh` prunes devDependencies after compile
+
+---
+
 ## Step 1 — MongoDB Atlas
 
 1. Open [MongoDB Atlas](https://cloud.mongodb.com) → your cluster.
@@ -32,12 +43,6 @@ git push origin main
 | **Runtime** | Node |
 | **Build Command** | `bash render-build.sh` |
 | **Start Command** | `npm start` |
-| **Health Check Path** | `/api/health` |
-
-If you prefer minimal commands (repo also supports this after latest push):
-
-| Build Command | `npm install` |
-| Start Command | `npm run dev` |
 
 ### Environment variables
 
@@ -103,8 +108,8 @@ Rebuild the app or restart Expo with that URL.
 |---------|-----|
 | JWT_SECRET error | Add `JWT_SECRET` in Render Environment (or redeploy latest code for auto-JWT) |
 | MONGO_URI error | Add Atlas URI in Render Environment |
-| Port timeout / no open ports | Start Command must be `npm start` or `bash render-start.sh`, not raw `tsx watch` without bootstrap |
-| Build ok but old behavior | Confirm **Root Directory** = `server` and latest commit is deployed |
+| Port timeout / no open ports | Start Command must be `npm start` or `bash render-start.sh` |
+| **8GB / disk / build failed** | Root Directory = `server`, Build = `bash render-build.sh`, not repo root `npm install` |
 | Works locally, not on Render | Atlas **Network Access** must allow Render (0.0.0.0/0) |
 
 Support files: [`server/DEPLOY.md`](server/DEPLOY.md), [`render.yaml`](render.yaml)
