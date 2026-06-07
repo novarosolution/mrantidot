@@ -9,7 +9,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "build:apk": "eas build -p android --profile preview",
-    "build:production": "eas build -p android --profile production"
+    "build:production": "node ../scripts/check-deploy-config.cjs && eas build -p android --profile production"
   },
   "dependencies": {
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",

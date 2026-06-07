@@ -1,0 +1,4 @@
+{
+  "API_URL": "https://YOUR-SERVICE.onrender.com",
+  "comment": "After Render deploy: replace API_URL with your live URL (no trailing slash). Used by mobile EAS builds and server docs."
+}

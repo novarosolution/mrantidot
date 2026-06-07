@@ -14,7 +14,9 @@
     "build": "npm run build --workspace=server",
     "build:server": "npm run build --workspace=server",
     "start": "npm run start --workspace=server",
-    "build:apk": "npm run build:apk --workspace=mobile"
+    "build:apk": "npm run build:apk --workspace=mobile",
+    "deploy:check": "node scripts/check-deploy-config.cjs",
+    "deploy:config": "node scripts/check-deploy-config.cjs"
   },
   "engines": {
     "node": ">=18"

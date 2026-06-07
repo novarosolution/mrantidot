@@ -27,7 +27,13 @@ function isLanIp(url: string): boolean {
   return /\/\/(10\.|127\.|192\.0\.0\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(url);
 }
 
-const explicit = process.env.EXPO_PUBLIC_API_URL?.trim() || undefined;
+const fromExtra =
+  typeof Constants.expoConfig?.extra?.apiUrl === 'string'
+    ? Constants.expoConfig.extra.apiUrl.trim()
+    : undefined;
+
+const explicit =
+  process.env.EXPO_PUBLIC_API_URL?.trim() || fromExtra || undefined;
 const auto = __DEV__ ? devHostApiUrl() : undefined;
 
 /**
@@ -43,8 +49,8 @@ const resolvedApiUrl =
 
 if (!explicit && !auto) {
   console.warn(
-    '[config] EXPO_PUBLIC_API_URL is not set and no Expo dev host was found. ' +
-      'Copy mobile/.env.example to mobile/.env or run via Expo. Falling back to localhost.',
+    '[config] Set deploy.config.json API_URL (repo root) or EXPO_PUBLIC_API_URL for production builds. ' +
+      'Falling back to localhost.',
   );
 }
 

@@ -15,9 +15,6 @@
       },
       "ios": {
         "simulator": false
-      },
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://REPLACE_WITH_YOUR_PUBLIC_API_URL"
       }
     },
     "production": {
@@ -27,9 +24,6 @@
       },
       "ios": {
         "resourceClass": "m-medium"
-      },
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://REPLACE_WITH_YOUR_PUBLIC_API_URL"
       }
     }
   },

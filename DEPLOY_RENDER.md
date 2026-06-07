@@ -108,14 +108,29 @@ MONGO_URI="your-atlas-uri-here" npm run seed
 
 ## Step 6 — Mobile app / APK
 
-Set the public API URL:
+1. Edit **`deploy.config.json`** at the repo root (copy from `deploy.config.example.json`):
 
-```bash
-# mobile/.env or EAS build
-EXPO_PUBLIC_API_URL=https://YOUR-SERVICE-NAME.onrender.com
+```json
+{
+  "API_URL": "https://YOUR-SERVICE-NAME.onrender.com"
+}
 ```
 
-Rebuild the app or restart Expo with that URL.
+2. Verify:
+
+```bash
+npm run deploy:check
+curl https://YOUR-SERVICE-NAME.onrender.com/api/health
+```
+
+3. Build APK (URL is baked in at build time via `mobile/app.config.ts`):
+
+```bash
+cd mobile
+eas build -p android --profile production
+```
+
+No need to duplicate the URL in `eas.json` — `deploy.config.json` is the single source.
 
 ---
 
