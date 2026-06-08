@@ -755,7 +755,8 @@ async function seed(): Promise<void> {
   console.log('  Customer    9000000020   cust123');
   console.log('  Customer    9000000021   cust123');
   console.log('  Customer    9000000022   cust123');
-  console.log('\nEmails: admin@mrantidot.com, *@mrantidot.com / *@demo.com');
+  console.log(`\nAdmin login: phone ${adminCfg.phone} or email ${adminCfg.email}`);
+  console.log(`Legacy alias admin@mrantidot.com also works → same admin account.\n`);
   console.log('========================================\n');
 
   await disconnectDb();

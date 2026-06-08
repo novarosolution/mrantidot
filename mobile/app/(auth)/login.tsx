@@ -79,6 +79,10 @@ export default function LoginScreen() {
         onSubmitEditing={() => passwordRef.current?.focus()}
       />
 
+      <Text style={styles.loginHint}>
+        Admin login uses ADMIN_PHONE or ADMIN_EMAIL from server/.env — not the old default admin@mrantidot.com unless synced.
+      </Text>
+
       <AuthField
         label="Password"
         value={password}
@@ -129,5 +133,14 @@ const styles = StyleSheet.create({
   },
   altBtn: {
     marginTop: spacing.md,
+  },
+  loginHint: {
+    fontFamily: fonts.body,
+    fontSize: 11.5,
+    color: colors.muted,
+    lineHeight: 16,
+    marginTop: -6,
+    marginBottom: spacing.md,
+    paddingHorizontal: 2,
   },
 });

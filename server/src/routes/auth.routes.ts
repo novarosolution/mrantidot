@@ -8,12 +8,45 @@ import { signToken } from '../utils/token';
 import { ensureDefaultPaymentMethods } from '../utils/ensurePaymentMethods';
 import { normalizePhone, phoneLookupVariants } from '../utils/phone';
 import { normalizeLoginEmail } from '../utils/email';
+import { findEnvAdminForLogin, isLegacyAdminIdentifier } from '../utils/adminUser';
 import { requireAuth } from '../middleware/auth';
 import { asyncHandler } from '../middleware/error';
 
 export const authRouter = Router();
 
 const MOCK_OTP = '4700';
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function findUserForLogin(identifier: string) {
+  const trimmed = identifier.trim();
+  const isEmail = trimmed.includes('@');
+
+  if (!isEmail) {
+    return User.findOne({ phone: { $in: phoneLookupVariants(trimmed) } }).select('+passwordHash');
+  }
+
+  if (isLegacyAdminIdentifier(trimmed)) {
+    const envAdmin = await findEnvAdminForLogin();
+    if (envAdmin) return envAdmin;
+  }
+
+  const normalized = normalizeLoginEmail(trimmed);
+  const primary = await User.findOne({ email: normalized }).select('+passwordHash');
+  if (primary) return primary;
+
+  const lower = trimmed.toLowerCase();
+  if (lower !== normalized) {
+    const alt = await User.findOne({ email: lower }).select('+passwordHash');
+    if (alt) return alt;
+  }
+
+  return User.findOne({
+    email: { $regex: new RegExp(`^${escapeRegex(lower)}$`, 'i') },
+  }).select('+passwordHash');
+}
 
 function runValidation(
   req: Parameters<typeof validationResult>[0],
@@ -76,21 +109,15 @@ authRouter.post(
 authRouter.post(
   '/login',
   body('identifier').trim().notEmpty().withMessage('Identifier is required'),
-  body('password').notEmpty().withMessage('Password is required'),
+  body('password')
+    .custom((value) => typeof value === 'string' && value.trim().length > 0)
+    .withMessage('Password is required'),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
     const { identifier, password } = req.body as { identifier: string; password: string };
-    const trimmed = identifier.trim();
     const pass = password.trim();
-    const isEmail = trimmed.includes('@');
 
-    const primary = isEmail
-      ? await User.findOne({ email: normalizeLoginEmail(trimmed) }).select('+passwordHash')
-      : await User.findOne({ phone: { $in: phoneLookupVariants(trimmed) } }).select('+passwordHash');
-
-    const user =
-      primary ??
-      (isEmail ? await User.findOne({ email: trimmed.toLowerCase() }).select('+passwordHash') : null);
+    const user = await findUserForLogin(identifier);
 
     if (!user) {
       throw new AppError(401, 'Invalid credentials');
