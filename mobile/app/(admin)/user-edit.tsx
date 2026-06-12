@@ -1,18 +1,19 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
+import { safeGoBack } from '@/lib/routes';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
+import { AdminFormCard, AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { IconInput } from '@/components/kit/IconInput';
 import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Chip } from '@/components/ui/Chip';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { useAuth } from '@/context/AuthContext';
 import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
+import { technicianRealRating } from '@/lib/ratings';
 import { paramString } from '@/lib/routeParams';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { User, UserRole } from '@/types/api';
@@ -43,6 +44,8 @@ export default function UserEditScreen() {
   const [password, setPassword] = useState('');
   const [available, setAvailable] = useState(true);
   const [active, setActive] = useState(true);
+  const [displayRating, setDisplayRating] = useState('');
+  const [realTechRating, setRealTechRating] = useState<number | null>(null);
   const [protectedAccount, setProtectedAccount] = useState(false);
   const [saving, setSaving] = useState(false);
   const { loading, error, runLoad, reload } = useScreenLoad(!!id);
@@ -58,6 +61,8 @@ export default function UserEditScreen() {
     setCity(u.city ?? '');
     setAvailable(u.available !== false);
     setActive(u.disabled !== true);
+    setDisplayRating(u.displayRating != null && u.displayRating > 0 ? String(u.displayRating) : '');
+    setRealTechRating(u.role === 'technician' ? technicianRealRating(u) : null);
     setProtectedAccount(u.protected === true);
   }, [id]);
 
@@ -83,7 +88,7 @@ export default function UserEditScreen() {
     setSaving(true);
     try {
       if (id) {
-        const body: Record<string, string | boolean> = {
+        const body: Record<string, string | boolean | number | null> = {
           name: name.trim(),
           phone: phone.trim(),
           email: email.trim(),
@@ -91,7 +96,20 @@ export default function UserEditScreen() {
           disabled: !active,
         };
         if (!roleLocked) body.role = role;
-        if (role === 'technician') body.available = available;
+        if (role === 'technician') {
+          body.available = available;
+          if (displayRating.trim()) {
+            const dr = parseFloat(displayRating);
+            if (Number.isNaN(dr) || dr < 0 || dr > 5) {
+              Toast.show({ type: 'error', text1: 'Public rating must be between 0 and 5' });
+              setSaving(false);
+              return;
+            }
+            body.displayRating = dr;
+          } else {
+            body.displayRating = null;
+          }
+        }
         else if (active) body.available = true;
         await api.patch(`/admin/users/${id}`, body);
         if (password.length >= 8) {
@@ -109,7 +127,7 @@ export default function UserEditScreen() {
         });
       }
       Toast.show({ type: 'success', text1: 'Saved' });
-      router.back();
+      safeGoBack('/(admin)/users');
     } catch (err) {
       Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not save user') });
     } finally {
@@ -129,7 +147,7 @@ export default function UserEditScreen() {
             try {
               await api.delete(`/admin/users/${id}`);
               Toast.show({ type: 'success', text1: 'Account disabled' });
-              router.back();
+              safeGoBack('/(admin)/users');
             } catch (err) {
               Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not disable account') });
             }
@@ -171,25 +189,15 @@ export default function UserEditScreen() {
         keyboardShouldPersistTaps="always"
         showsVerticalScrollIndicator={false}
       >
-        <Card variant="premium" style={styles.form}>
+        <AdminFormCard>
           <Text style={styles.label}>Role</Text>
-          <View style={styles.chips}>
-            {ROLES.map((r) => (
-              <Chip
-                key={r.key}
-                label={r.label}
-                selected={role === r.key}
-                onPress={() => {
-                  if (!roleLocked) setRole(r.key);
-                }}
-              />
-            ))}
-          </View>
-          {roleLocked ? (
-            <Text style={styles.hint}>Primary admin role cannot be changed here.</Text>
-          ) : id ? (
-            <Text style={styles.hint}>Changing role updates what app they use at next login.</Text>
-          ) : null}
+          <AdminFilterChips
+            chips={ROLES.map((r) => ({ key: r.key, label: r.label }))}
+            selected={role}
+            onSelect={(key) => {
+              if (!roleLocked) setRole(key as UserRole);
+            }}
+          />
 
           <IconInput label="Name" value={name} onChangeText={setName} />
           <IconInput label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
@@ -203,34 +211,42 @@ export default function UserEditScreen() {
           />
 
           {id && role === 'technician' ? (
-            <View style={styles.toggleRow}>
-              <View style={styles.flex}>
-                <Text style={styles.toggleLabel}>On duty</Text>
-                <Text style={styles.toggleHint}>Off-duty techs are hidden from assignment</Text>
+            <>
+              <IconInput
+                label="Public rating"
+                value={displayRating}
+                onChangeText={setDisplayRating}
+                keyboardType="decimal-pad"
+                placeholder="Empty = real average"
+              />
+              {realTechRating != null ? (
+                <Text style={styles.hint}>Real avg: ★ {realTechRating.toFixed(1)}</Text>
+              ) : null}
+              <View style={styles.toggleRow}>
+                <View style={styles.flex}>
+                  <Text style={styles.toggleLabel}>On duty</Text>
+                </View>
+                <ToggleSwitch value={available} onToggle={() => setAvailable((v) => !v)} />
               </View>
-              <ToggleSwitch value={available} onToggle={() => setAvailable((v) => !v)} />
-            </View>
+            </>
           ) : null}
 
           {id ? (
             <View style={styles.toggleRow}>
               <View style={styles.flex}>
                 <Text style={styles.toggleLabel}>Account active</Text>
-                <Text style={styles.toggleHint}>Disabled accounts cannot sign in</Text>
               </View>
               <ToggleSwitch value={active} onToggle={() => !roleLocked && setActive((v) => !v)} />
             </View>
           ) : null}
-        </Card>
+        </AdminFormCard>
       </ScrollView>
     </AdminListShell>
   );
 }
 
 const styles = StyleSheet.create({
-  form: { padding: spacing.md },
   label: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, marginBottom: 8 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.sm },
   hint: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginBottom: spacing.md },
   toggleRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md, gap: 12 },
   flex: { flex: 1 },

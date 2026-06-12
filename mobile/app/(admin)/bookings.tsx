@@ -1,11 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AdminBookingListCard } from '@/components/kit/AdminBookingListCard';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/AdminActionSheet';
-import { Chip } from '@/components/ui/Chip';
+import { AdminFilterChips, AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
@@ -144,29 +144,26 @@ export default function AdminBookingsScreen() {
   const headerExtra = useMemo(
     () => (
       <View style={styles.headerExtra}>
+        {statusCounts ? (
+          <AdminStatStrip
+            items={[
+              { label: 'Total', value: statusCounts.total },
+              { label: 'Pending', value: statusCounts.byStatus.pending ?? 0, color: colors.amberInk },
+              { label: 'Active', value: (statusCounts.byStatus.in_progress ?? 0) + (statusCounts.byStatus.confirmed ?? 0) },
+            ]}
+          />
+        ) : null}
         <View style={styles.searchWrap}>
           <Input label="Search" value={search} onChangeText={setSearch} placeholder="Ref, customer, or service" />
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chips}
-        >
-          {FILTERS.map((f) => {
-            const n = count(f.key);
-            return (
-              <Chip
-                key={f.key}
-                label={`${f.label} (${n})`}
-                selected={filter === f.key}
-                onPress={() => setFilter(f.key)}
-              />
-            );
-          })}
-        </ScrollView>
+        <AdminFilterChips
+          chips={FILTERS.map((f) => ({ key: f.key, label: `${f.label} (${count(f.key)})` }))}
+          selected={filter}
+          onSelect={setFilter}
+        />
       </View>
     ),
-    [count, filter, search],
+    [count, filter, search, statusCounts],
   );
 
   if (loading) return <Spinner fullScreen />;

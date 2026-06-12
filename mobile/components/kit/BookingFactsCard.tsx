@@ -25,6 +25,8 @@ export function BookingFactsCard({
   showTechnician,
   showPayment,
   showPhotos,
+  hideHead,
+  embedded,
   audience = 'staff',
   onCallPhone,
 }: {
@@ -33,6 +35,10 @@ export function BookingFactsCard({
   showTechnician?: boolean;
   showPayment?: boolean;
   showPhotos?: boolean;
+  /** Hide service icon, name, ref & price — use when hero already shows them. */
+  hideHead?: boolean;
+  /** Render without outer Card — for use inside BookingDetailSection. */
+  embedded?: boolean;
   audience?: 'customer' | 'staff' | 'technician';
   onCallPhone?: (phone: string) => void;
 }) {
@@ -42,8 +48,7 @@ export function BookingFactsCard({
   const showCustomerRow =
     (showCustomer && !forCustomer && !forTechnician) ||
     (forTechnician && booking.customer && typeof booking.customer === 'object');
-  const showTechnicianRow =
-    showTechnician && !forCustomer && bookingHasTechnician(booking);
+  const showTechnicianRow = showTechnician && bookingHasTechnician(booking);
   const iconKey = bookingServiceIconKey(booking);
   const jobDetails =
     booking.service && typeof booking.service === 'object' && 'shortDesc' in booking.service
@@ -63,9 +68,7 @@ export function BookingFactsCard({
       ? 'Customer contact'
       : 'Customer'
     : showTechnicianRow
-      ? forCustomer
-        ? 'Your technician'
-        : 'Technician'
+      ? bookingCopy.factLabelTechnician
       : null;
   const personName = showCustomerRow
     ? bookingCustomerName(booking)
@@ -73,25 +76,28 @@ export function BookingFactsCard({
       ? bookingTechnicianName(booking)
       : null;
 
-  return (
-    <Card variant="premium" style={styles.card}>
-      <View style={styles.head}>
-        <View style={styles.icon}>
-          <ServiceIcon iconKey={iconKey} size={22} color={colors.lime} />
-        </View>
-        <View style={styles.flex}>
-          <Text style={styles.service}>{bookingServiceName(booking)}</Text>
-          <Text style={styles.ref}>{bookingRef(booking.id)}</Text>
-        </View>
-        {booking.amount?.total ? (
-          <Text style={styles.price}>₹{booking.amount.total}</Text>
-        ) : null}
-      </View>
-
-      <View style={styles.divider} />
+  const body = (
+    <>
+      {!hideHead ? (
+        <>
+          <View style={styles.head}>
+            <View style={styles.icon}>
+              <ServiceIcon iconKey={iconKey} size={22} color={colors.lime} />
+            </View>
+            <View style={styles.flex}>
+              <Text style={styles.service}>{bookingServiceName(booking)}</Text>
+              <Text style={styles.ref}>{bookingRef(booking.id)}</Text>
+            </View>
+            {booking.amount?.total ? (
+              <Text style={styles.price}>₹{booking.amount.total}</Text>
+            ) : null}
+          </View>
+          <View style={styles.divider} />
+        </>
+      ) : null}
 
       <FactRow
-        label="When"
+        label={bookingCopy.factLabelWhen}
         value={bookingScheduleDisplay(booking)}
         subtitle={
           audience !== 'customer' && isSchedulePending(booking)
@@ -101,11 +107,11 @@ export function BookingFactsCard({
       />
       {booking.propertyType || booking.propertyTypeLabel ? (
         <FactRow
-          label="Property"
+          label={bookingCopy.factLabelProperty}
           value={booking.propertyTypeLabel ?? propertyTypeLabel(booking.propertyType ?? '')}
         />
       ) : null}
-      <FactRow label="Where" value={booking.address} />
+      <FactRow label={bookingCopy.factLabelWhere} value={booking.address} />
       {forTechnician && jobDetails ? <FactRow label="Job" value={jobDetails} /> : null}
 
       {person && personName && personLabel ? (
@@ -128,11 +134,18 @@ export function BookingFactsCard({
         </View>
       ) : null}
 
-      {showPayment ? (
+      {showPayment && !embedded ? (
         <>
           <View style={styles.divider} />
-          <FactRow label="Payment" value={paymentMethodLabel(booking.paymentMethod)} />
-          {booking.couponCode ? <FactRow label="Coupon" value={booking.couponCode} /> : null}
+          <FactRow label={bookingCopy.factLabelPayment} value={paymentMethodLabel(booking.paymentMethod)} />
+          {booking.couponCode ? <FactRow label={bookingCopy.factLabelCoupon} value={booking.couponCode} /> : null}
+        </>
+      ) : null}
+
+      {showPayment && embedded ? (
+        <>
+          <FactRow label={bookingCopy.factLabelPayment} value={paymentMethodLabel(booking.paymentMethod)} />
+          {booking.couponCode ? <FactRow label={bookingCopy.factLabelCoupon} value={booking.couponCode} /> : null}
         </>
       ) : null}
 
@@ -146,6 +159,16 @@ export function BookingFactsCard({
           </ScrollView>
         </View>
       ) : null}
+    </>
+  );
+
+  if (embedded) {
+    return <View style={[styles.embedded, hideHead && styles.cardCompact]}>{body}</View>;
+  }
+
+  return (
+    <Card variant="premium" style={hideHead ? { ...styles.card, ...styles.cardCompact } : styles.card}>
+      {body}
     </Card>
   );
 }
@@ -162,6 +185,8 @@ function FactRow({ label, value, subtitle }: { label: string; value: string; sub
 
 const styles = StyleSheet.create({
   card: { marginBottom: spacing.sm, padding: spacing.md },
+  cardCompact: { marginBottom: 0, paddingVertical: spacing.sm },
+  embedded: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
   head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   icon: {
     width: 48,

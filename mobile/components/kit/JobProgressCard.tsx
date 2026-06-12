@@ -44,6 +44,7 @@ export function JobProgressCard({
 
   return (
     <Animated.View style={[styles.card, { opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }]}>
+      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <View style={styles.head}>
         <Text style={styles.title}>{label}</Text>
         {live ? (
@@ -80,10 +81,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: premium.radiusCard,
     padding: spacing.md,
+    paddingTop: spacing.sm,
     borderWidth: 1,
     borderColor: 'rgba(20,83,45,0.06)',
+    overflow: 'hidden',
     ...shadows.card,
   },
+  goldBar: { height: 3, marginHorizontal: -spacing.md, marginTop: -spacing.sm, marginBottom: spacing.sm },
   head: {
     flexDirection: 'row',
     alignItems: 'center',

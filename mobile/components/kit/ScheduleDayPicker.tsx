@@ -18,6 +18,7 @@ export function ScheduleDayPicker({
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.row}
+      nestedScrollEnabled
     >
       {days.map((d, i) => {
         const on = selectedDate === d.date;

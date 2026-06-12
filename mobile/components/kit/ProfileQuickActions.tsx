@@ -1,14 +1,14 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { CalendarCheck, Gift, Headphones, Sparkles } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { AppIcons } from '@/constants/appIcons';
 import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 const ACTIONS = [
-  { key: 'book', label: 'Book', icon: Sparkles, route: '/(customer)/services' as const, tint: colors.forest },
-  { key: 'bookings', label: 'Bookings', icon: CalendarCheck, route: '/(customer)/bookings' as const, tint: colors.secondaryDark },
-  { key: 'offers', label: 'Offers', icon: Gift, route: '/(customer)/offers' as const, tint: colors.amberInk },
-  { key: 'help', label: 'Support', icon: Headphones, route: '/(customer)/help' as const, tint: colors.blue },
+  { key: 'book', label: 'Book', icon: AppIcons.quick.book, route: '/(customer)/services' as const, tint: colors.forest },
+  { key: 'bookings', label: 'Bookings', icon: AppIcons.quick.bookings, route: '/(customer)/bookings' as const, tint: colors.secondaryDark },
+  { key: 'offers', label: 'Offers', icon: AppIcons.quick.offers, route: '/(customer)/offers' as const, tint: colors.amberInk },
+  { key: 'help', label: 'Support', icon: AppIcons.quick.support, route: '/(customer)/help' as const, tint: colors.blue },
 ];
 
 export function ProfileQuickActions() {

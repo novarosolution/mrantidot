@@ -48,6 +48,8 @@ export interface User {
   role: UserRole;
   city?: string;
   rating?: number;
+  /** Admin-set public rating override for technicians. */
+  displayRating?: number | null;
   jobsDone?: number;
   available?: boolean;
   disabled?: boolean;
@@ -86,6 +88,8 @@ export interface HomeCategoryChip {
 export interface HomeConfig {
   featuredServiceId?: string;
   sectionTitles: { services: string; popular: string };
+  /** Subtitle on the Our Services tab (falls back to branding tagline). */
+  servicesSubtitle?: string;
   searchPlaceholder: string;
   servicesActionLabel: string;
   popularActionLabel: string;
@@ -145,6 +149,109 @@ export interface BookingCopyConfig {
   adminConfirmTitle: string;
   adminConfirmHint: string;
   adminConfirmButton: string;
+  wizardScreenTitle: string;
+  wizardStepSchedule: string;
+  wizardStepProperty: string;
+  wizardStepAddress: string;
+  wizardStepPayment: string;
+  wizardStepConfirm: string;
+  wizardReviewSectionTitle: string;
+  wizardContinueButton: string;
+  wizardSubmitButton: string;
+  wizardBackButton: string;
+  listScreenTitle: string;
+  listFilterActive: string;
+  listFilterCompleted: string;
+  listFilterCancelled: string;
+  listNextVisitLabel: string;
+  listEmptyActive: string;
+  listEmptyCompleted: string;
+  listEmptyCancelled: string;
+  listBookServiceButton: string;
+  successSummaryTitle: string;
+  successLabelReference: string;
+  successLabelService: string;
+  successLabelVisit: string;
+  successLabelPayment: string;
+  successLabelTotal: string;
+  successViewBookingButton: string;
+  successHomeButton: string;
+  detailScreenTitle: string;
+  detailDetailsTitle: string;
+  detailDetailsSubtitle: string;
+  trackingSectionTitle: string;
+  trackingSectionSubtitle: string;
+  trackingStepReceived: string;
+  trackingStepConfirmed: string;
+  trackingStepAssignExpert: string;
+  trackingStepShareStartCode: string;
+  trackingStepInProgress: string;
+  trackingStepShareCompletionCode: string;
+  trackingStepCompleted: string;
+  activitySectionTitle: string;
+  activitySectionSubtitle: string;
+  treatmentStepsTitle: string;
+  treatmentStepsLiveSubtitle: string;
+  treatmentStepsDoneSubtitle: string;
+  detailLiveProgressLabel: string;
+  detailLiveBadge: string;
+  otpStartTitle: string;
+  otpStartSubtitle: string;
+  otpEndTitle: string;
+  otpEndSubtitle: string;
+  detailActionEnterCode: string;
+  detailActionReview: string;
+  detailActionCancel: string;
+  detailActionBookAgain: string;
+  factLabelWhen: string;
+  factLabelWhere: string;
+  factLabelProperty: string;
+  factLabelPayment: string;
+  factLabelCoupon: string;
+  factLabelTechnician: string;
+  priceBreakdownTitle: string;
+  priceLabelService: string;
+  priceLabelGst: string;
+  priceLabelCoupon: string;
+  priceLabelTotal: string;
+  cancelConfirmTitle: string;
+  cancelConfirmMessage: string;
+  cancelConfirmKeep: string;
+  cancelConfirmAction: string;
+  statusGuidancePending: string;
+  statusGuidanceConfirmed: string;
+  statusGuidanceInProgress: string;
+  statusGuidanceAwaitingVerification: string;
+  statusGuidanceCompleted: string;
+  statusGuidanceCancelled: string;
+  techJobsTitle: string;
+  techProfileTitle: string;
+  techCheckInTitle: string;
+  techCheckInSubtitle: string;
+  techOnDutyButton: string;
+  techOffDutyButton: string;
+  techOnDutyBadge: string;
+  techOffDutyBadge: string;
+  techOffDutyHint: string;
+  techBackOnDutyButton: string;
+  techPerformanceTitle: string;
+  techScheduleTitle: string;
+  techJobVisitsTitle: string;
+  techEmptyJobsTitle: string;
+  techEmptyJobsMessage: string;
+  techJobValueLabel: string;
+  techVisitTimesTitle: string;
+  techJobDetailsTitle: string;
+  techTreatmentStepsTitle: string;
+  techActivityTitle: string;
+  techEnterStartCode: string;
+  techEnterCompletionCode: string;
+  techCompleteStepsFirst: string;
+  techStartOtpTitle: string;
+  techEndOtpTitle: string;
+  techLocationNoteLabel: string;
+  techLocationNotePlaceholder: string;
+  techNoStepsHint: string;
 }
 
 export interface AppConfig {
@@ -165,8 +272,11 @@ export interface BookingStatusCounts {
 
 export interface ServiceStats {
   bookingCount: number;
-  avgRating: number | null;
   reviewCount: number;
+  /** Real average from reviews — admin API only. */
+  realAvgRating?: number | null;
+  /** @deprecated use realAvgRating */
+  avgRating?: number | null;
 }
 
 export interface ServiceReview {
@@ -361,6 +471,22 @@ export interface StatusBreakdownItem {
   periodCount: number;
 }
 
+export interface AdminExtendedAnalytics {
+  reviews: { total: number; averageRating: number; periodCount: number };
+  offers: { total: number; active: number; totalRedemptions: number };
+  catalog: { totalServices: number; activeServices: number };
+  performance: {
+    completionRate: number;
+    cancellationRate: number;
+    avgOrderValue: number;
+    couponBookings: number;
+  };
+  paymentSplit: { upi_card: number; pay_after: number };
+  topTechnicians: { id: string; name: string; jobs: number; revenue: number }[];
+  topCustomers: { id: string; name: string; bookings: number; spend: number }[];
+  bookingsTrend: { label: string; count: number }[];
+}
+
 export interface AdminStats {
   totalBookings: number;
   byStatus: Record<string, number>;
@@ -383,6 +509,7 @@ export interface AdminStats {
     pending?: string;
   };
   period?: string;
+  analytics?: AdminExtendedAnalytics;
 }
 
 export interface AdminCustomer extends User {

@@ -1,7 +1,55 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
 
+export type ProfileStatItem = {
+  value: string;
+  label: string;
+  accent: string;
+  softBg: string;
+  onPress?: () => void;
+};
+
+/** Unified premium stats row — single elevated surface with four tappable cells. */
+export function ProfileStatsStrip({ items }: { items: ProfileStatItem[] }) {
+  return (
+    <View style={styles.wrap}>
+      <LinearGradient
+        colors={['#FFFFFF', '#F6FAF7']}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+      <LinearGradient
+        colors={['#D4A017', '#B6841C']}
+        style={styles.goldBar}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      />
+      <View style={styles.row}>
+        {items.map((item, index) => (
+          <Pressable
+            key={item.label}
+            style={({ pressed }) => [
+              styles.cell,
+              index < items.length - 1 && styles.cellBorder,
+              pressed && styles.pressed,
+            ]}
+            onPress={item.onPress}
+            disabled={!item.onPress}
+          >
+            <View style={[styles.valueRing, { backgroundColor: item.softBg }]}>
+              <Text style={[styles.value, { color: item.accent }]}>{item.value}</Text>
+            </View>
+            <Text style={styles.label}>{item.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/** @deprecated Use ProfileStatsStrip for profile screen layout. */
 export function ProfileStatTile({
   value,
   label,
@@ -13,64 +61,63 @@ export function ProfileStatTile({
   onPress?: () => void;
   accent?: string;
 }) {
-  const inner = (
-    <>
-      <LinearGradient
-        colors={[`${accent}18`, '#FFFFFF']}
-        style={styles.bg}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
-      <View style={[styles.accentDot, { backgroundColor: accent }]} />
-      <Text style={[styles.value, { color: accent }]}>{value}</Text>
-      <Text style={styles.label}>{label}</Text>
-    </>
+  return (
+    <ProfileStatsStrip
+      items={[{ value, label, accent, softBg: `${accent}14`, onPress }]}
+    />
   );
-
-  if (onPress) {
-    return (
-      <Pressable style={({ pressed }) => [styles.tile, pressed && styles.pressed]} onPress={onPress}>
-        {inner}
-      </Pressable>
-    );
-  }
-
-  return <View style={styles.tile}>{inner}</View>;
 }
 
 const styles = StyleSheet.create({
-  tile: {
-    flex: 1,
+  wrap: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
     borderRadius: premium.radiusCard,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    alignItems: 'center',
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.06)',
+    borderColor: 'rgba(20,83,45,0.07)',
     ...shadows.card,
   },
-  pressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
-  bg: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  accentDot: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  goldBar: {
+    height: 3,
+    width: '100%',
+  },
+  row: {
+    flexDirection: 'row',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xs,
+  },
+  cell: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: 2,
+  },
+  cellBorder: {
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: 'rgba(20,83,45,0.1)',
+  },
+  pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
+  valueRing: {
+    minWidth: 46,
+    height: 46,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+    marginBottom: 6,
   },
   value: {
     fontFamily: fonts.displayExtra,
-    fontSize: 22,
-    letterSpacing: -0.3,
+    fontSize: 20,
+    letterSpacing: -0.4,
+    lineHeight: 24,
   },
   label: {
-    fontFamily: fonts.body,
-    fontSize: 10,
+    fontFamily: fonts.bodySemi,
+    fontSize: 9,
     color: colors.muted,
-    marginTop: 4,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
 });

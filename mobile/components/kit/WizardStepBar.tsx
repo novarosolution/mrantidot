@@ -1,4 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { type LucideIcon } from 'lucide-react-native';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, classic, fonts, gradients, premium, spacing } from '@/constants/theme';
@@ -9,10 +10,14 @@ export function WizardStepBar({
   step,
   onStepPress,
   labels = DEFAULT_LABELS,
+  icons,
+  compact,
 }: {
   step: number;
   onStepPress?: (index: number) => void;
   labels?: string[];
+  icons?: LucideIcon[];
+  compact?: boolean;
 }) {
   const progress = ((step + 1) / labels.length) * 100;
   const animProgress = useRef(new Animated.Value(progress)).current;
@@ -50,9 +55,17 @@ export function WizardStepBar({
   });
 
   return (
-    <View style={styles.wrap}>
-      <View style={styles.goldRule} />
-      <View style={styles.track}>
+    <View style={[styles.wrap, compact && styles.wrapCompact]}>
+      {!compact ? <View style={styles.goldRule} /> : null}
+      <View style={styles.progressMeta}>
+        <Text style={styles.progressLabel}>
+          Step {step + 1} of {labels.length}
+        </Text>
+        <Text style={styles.progressStep} numberOfLines={1}>
+          {labels[step]}
+        </Text>
+      </View>
+      <View style={[styles.track, compact && styles.trackCompact]}>
         <Animated.View style={[styles.fillWrap, { width: fillWidth }]}>
           <LinearGradient
             colors={[gradients.primary[0], gradients.primary[1], colors.secondaryDark]}
@@ -67,6 +80,7 @@ export function WizardStepBar({
           const done = i < step;
           const active = i === step;
           const canJump = done && !!onStepPress;
+          const StepIcon = icons?.[i];
           const content = (
             <>
               <Animated.View
@@ -77,13 +91,19 @@ export function WizardStepBar({
                   { transform: [{ scale: dotScales[i] ?? 1 }] },
                 ]}
               >
-                <Text style={[styles.dotText, (done || active) && styles.dotTextOn]}>
-                  {done ? '✓' : String(i + 1)}
-                </Text>
+                {done ? (
+                  <Text style={[styles.dotText, styles.dotTextOn]}>✓</Text>
+                ) : active && StepIcon ? (
+                  <StepIcon size={15} color={colors.white} strokeWidth={2.4} />
+                ) : (
+                  <Text style={[styles.dotText, active && styles.dotTextOn]}>{String(i + 1)}</Text>
+                )}
               </Animated.View>
-              <Text style={[styles.label, active && styles.labelActive, done && styles.labelDone]} numberOfLines={1}>
-                {label}
-              </Text>
+              {!compact ? (
+                <Text style={[styles.label, active && styles.labelActive, done && styles.labelDone]} numberOfLines={1}>
+                  {label}
+                </Text>
+              ) : null}
             </>
           );
           if (canJump) {
@@ -112,11 +132,15 @@ export function WizardStepBar({
 const styles = StyleSheet.create({
   wrap: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.md,
     backgroundColor: premium.surfaceElevated,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
+  },
+  wrapCompact: {
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
   },
   goldRule: {
     height: 2,
@@ -125,34 +149,59 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     opacity: 0.85,
   },
+  progressMeta: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: spacing.sm,
+  },
+  progressLabel: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 11,
+    color: colors.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  progressStep: {
+    flex: 1,
+    fontFamily: fonts.display,
+    fontSize: 14,
+    color: colors.forest,
+    textAlign: 'right',
+  },
   track: {
-    height: 6,
+    height: 5,
     borderRadius: 3,
     backgroundColor: colors.border,
     marginBottom: spacing.md,
     overflow: 'hidden',
   },
+  trackCompact: { marginBottom: spacing.sm },
   fillWrap: { height: '100%' },
   fill: { flex: 1, borderRadius: 3 },
   steps: { flexDirection: 'row', justifyContent: 'space-between' },
-  item: { flex: 1, alignItems: 'center', gap: 8 },
+  item: { flex: 1, alignItems: 'center', gap: 6 },
   itemPressed: { opacity: 0.6 },
   dot: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.greyBg,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(20,83,45,0.06)',
   },
-  dotDone: { backgroundColor: colors.green },
+  dotDone: { backgroundColor: colors.forest, borderColor: colors.forest },
   dotActive: {
     backgroundColor: colors.secondaryDark,
+    borderColor: colors.secondaryDark,
     ...premium.shadowSoft,
   },
   dotText: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.muted },
   dotTextOn: { color: colors.white },
-  label: { fontFamily: fonts.body, fontSize: 10, color: colors.muted, textAlign: 'center' },
-  labelActive: { fontFamily: fonts.bodySemi, color: colors.secondaryInk, fontSize: 11 },
-  labelDone: { color: colors.green },
+  label: { fontFamily: fonts.body, fontSize: 9.5, color: colors.muted, textAlign: 'center' },
+  labelActive: { fontFamily: fonts.bodySemi, color: colors.forest, fontSize: 10 },
+  labelDone: { color: colors.forest },
 });

@@ -1,25 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import {
-  BookOpen,
-  Building2,
-  CalendarClock,
-  Gift,
-  HelpCircle,
-  LayoutGrid,
   Plus,
-  Shield,
   Trash2,
   X,
 } from 'lucide-react-native';
+import { AppIcons } from '@/constants/appIcons';
 import Toast from 'react-native-toast-message';
+import { AdminCollapsibleCard, AdminFormCard, AdminTabHint } from '@/components/kit/AdminPageKit';
 import { AdminListShell, AdminSectionTitle, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminSectionTabs, type AdminSectionTab } from '@/components/kit/AdminSectionTabs';
 import { PendingScheduleCard } from '@/components/kit/PendingScheduleCard';
 import { IconInput } from '@/components/kit/IconInput';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
@@ -27,21 +22,64 @@ import { PromoBanner } from '@/components/ui/PromoBanner';
 import { api, screenLoadConfig } from '@/lib/api';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { AppConfig, BookingCopyConfig, HomeConfig, HomePromo, Service } from '@/types/api';
-import { DEFAULT_BOOKING_COPY } from '@/constants/bookingCopy';
+import { DEFAULT_BOOKING_COPY, BOOKING_COPY_ADMIN_GROUPS, getBookingCopy, type BookingCopyFieldKey } from '@/constants/bookingCopy';
 import { colors, fonts, spacing } from '@/constants/theme';
 
 const CONTENT_TABS: AdminSectionTab[] = [
-  { key: 'promo', label: 'Promo', icon: Gift },
-  { key: 'home', label: 'Home', icon: LayoutGrid },
-  { key: 'brand', label: 'Brand', icon: Building2 },
-  { key: 'booking', label: 'Booking', icon: CalendarClock },
-  { key: 'onboard', label: 'Onboard', icon: BookOpen },
-  { key: 'legal', label: 'Legal', icon: HelpCircle },
+  { key: 'promo', label: 'Promo', icon: AppIcons.contentTab.promo },
+  { key: 'home', label: 'Home', icon: AppIcons.contentTab.home },
+  { key: 'brand', label: 'Brand', icon: AppIcons.contentTab.brand },
+  { key: 'booking', label: 'Booking', icon: AppIcons.contentTab.booking },
+  { key: 'onboard', label: 'Onboard', icon: AppIcons.contentTab.onboard },
+  { key: 'legal', label: 'Legal', icon: AppIcons.contentTab.legal },
 ];
+
+const CONTENT_TAB_HINTS: Record<string, { title: string; body: string }> = {
+  promo: {
+    title: 'Home promo banner',
+    body: 'Toggle visibility, headline, CTA label, and which service the banner links to.',
+  },
+  home: {
+    title: 'Home screen copy',
+    body: 'Search placeholder, section titles, featured service, and category filter chips.',
+  },
+  brand: {
+    title: 'Brand & support',
+    body: 'App name, tagline, contact details, guarantee text, and trust badges.',
+  },
+  booking: {
+    title: 'Booking experience',
+    body: 'Expand each section to edit wizard steps, technician app copy, detail screen text, and status messages.',
+  },
+  onboard: {
+    title: 'Onboarding slides',
+    body: 'First-launch carousel titles, subtitles, and trust chips shown to new customers.',
+  },
+  legal: {
+    title: 'Legal & help',
+    body: 'Terms, privacy policy, FAQ entries, and about page markdown.',
+  },
+};
+
+const BOOKING_GROUP_META: Record<
+  keyof typeof BOOKING_COPY_ADMIN_GROUPS,
+  { subtitle: string; defaultOpen?: boolean }
+> = {
+  wizard: { subtitle: 'Book flow steps, schedule panel & submit actions', defaultOpen: true },
+  list: { subtitle: 'My bookings filters, empty states & CTAs' },
+  success: { subtitle: 'Confirmation screen labels & buttons' },
+  pending: { subtitle: 'Awaiting admin schedule approval' },
+  detail: { subtitle: 'Single booking view sections & actions' },
+  trackingSteps: { subtitle: 'Live job timeline step labels' },
+  statusGuidance: { subtitle: 'Status-specific customer guidance messages' },
+  admin: { subtitle: 'Admin schedule confirm / reject copy' },
+  tech: { subtitle: 'Technician jobs, profile, check-in & job screen copy' },
+};
 
 const DEFAULT_CONFIG: HomeConfig = {
   sectionTitles: { services: 'Our Services', popular: 'Popular Now' },
   searchPlaceholder: 'Search services…',
+  servicesSubtitle: 'Trusted pest control & home services',
   servicesActionLabel: 'View all',
   popularActionLabel: 'See more',
   categoryChips: [
@@ -64,6 +102,7 @@ const DEFAULT_APP: AppConfig = {
 };
 
 export default function AdminContentScreen() {
+  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
   const { loading, error, runLoad, reload } = useScreenLoad();
   const [promo, setPromo] = useState<HomePromo | null>(null);
   const [homeConfig, setHomeConfig] = useState<HomeConfig>(DEFAULT_CONFIG);
@@ -83,13 +122,22 @@ export default function AdminContentScreen() {
     ]);
     setPromo(homeRes.data.promo);
     setHomeConfig(homeRes.data.homeConfig ?? DEFAULT_CONFIG);
-    setAppConfig(appRes.data.app ?? DEFAULT_APP);
+    setAppConfig({
+      ...(appRes.data.app ?? DEFAULT_APP),
+      booking: getBookingCopy(appRes.data.app?.booking),
+    });
     setServices(svcRes.data.services);
   }, []);
 
   useEffect(() => {
     void runLoad(load, 'Could not load content');
   }, [load, runLoad]);
+
+  useEffect(() => {
+    if (tabParam && CONTENT_TABS.some((t) => t.key === tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
 
   async function save() {
     if (!promo) return;
@@ -104,7 +152,10 @@ export default function AdminContentScreen() {
       ]);
       setPromo(homeRes.data.promo);
       setHomeConfig(homeRes.data.homeConfig);
-      setAppConfig(appRes.data.app);
+      setAppConfig({
+        ...appRes.data.app,
+        booking: getBookingCopy(appRes.data.app?.booking),
+      });
       Toast.show({ type: 'success', text1: 'Content saved' });
     } catch {
       // interceptor handles toast
@@ -115,6 +166,41 @@ export default function AdminContentScreen() {
 
   function patchHome(partial: Partial<HomeConfig>) {
     setHomeConfig((c) => ({ ...c, ...partial }));
+  }
+
+  function patchBookingField(key: BookingCopyFieldKey, value: string) {
+    setAppConfig((a) => ({
+      ...a,
+      booking: { ...(a.booking ?? DEFAULT_BOOKING_COPY), [key]: value } as BookingCopyConfig,
+    }));
+  }
+
+  function renderBookingFields(
+    groupKey: keyof typeof BOOKING_COPY_ADMIN_GROUPS,
+    title: string,
+    fields: ReadonlyArray<readonly [BookingCopyFieldKey, string]>,
+  ) {
+    const meta = BOOKING_GROUP_META[groupKey];
+    return (
+      <AdminCollapsibleCard title={title} subtitle={meta.subtitle} defaultOpen={meta.defaultOpen}>
+        {fields.map(([key, label]) => (
+          <IconInput
+            key={key}
+            label={label}
+            multiline={
+              key.includes('Subtitle') ||
+              key.includes('Hint') ||
+              key.includes('Note') ||
+              key.includes('Message') ||
+              key.includes('Guidance') ||
+              key.includes('Toast')
+            }
+            value={appConfig.booking?.[key] ?? DEFAULT_BOOKING_COPY[key]}
+            onChangeText={(value) => patchBookingField(key, value)}
+          />
+        ))}
+      </AdminCollapsibleCard>
+    );
   }
 
   function setChip(index: number, partial: { label?: string; category?: string }) {
@@ -142,15 +228,18 @@ export default function AdminContentScreen() {
   return (
     <AdminListShell
       title="App content"
-      subtitle="Manage what customers see"
+      subtitle="Home, booking, legal & more"
       keyboardAvoid
       stickyFooter={
         <StickyActionBar>
-          <Button title="Save all content" variant="premium" onPress={save} loading={saving} />
+          <Button title="Save" variant="premium" onPress={save} loading={saving} />
         </StickyActionBar>
       }
     >
       <AdminSectionTabs tabs={CONTENT_TABS} active={activeTab} onChange={setActiveTab} />
+      {CONTENT_TAB_HINTS[activeTab] ? (
+        <AdminTabHint title={CONTENT_TAB_HINTS[activeTab].title} body={CONTENT_TAB_HINTS[activeTab].body} />
+      ) : null}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={adminListShellStyles.scrollWithFooter}
@@ -159,12 +248,12 @@ export default function AdminContentScreen() {
       >
         {activeTab === 'promo' ? (
           <>
-            <AdminSectionTitle title="Promo banner" hint="Hero offer on customer home" />
+            <AdminSectionTitle title="Promo banner" hint="Live preview below — save to publish" />
         <PromoBanner promo={promo} />
-            <Card variant="premium" style={styles.form}>
+            <AdminFormCard>
               <View style={styles.toggleRow}>
                 <View style={styles.flex}>
-                  <Text style={styles.toggleLabel}>Show on customer home</Text>
+                  <Text style={styles.toggleLabel}>Show on home</Text>
                 </View>
                 <ToggleSwitch value={promo.active} onToggle={() => setPromo({ ...promo, active: !promo.active })} />
               </View>
@@ -175,46 +264,52 @@ export default function AdminContentScreen() {
                 value={promo.ctaLabel}
                 onChangeText={(ctaLabel) => setPromo({ ...promo, ctaLabel })}
               />
-              <Text style={styles.label}>Banner links to service</Text>
+              <Text style={styles.label}>Link to service</Text>
               <ServiceChips
                 services={services}
                 selectedId={promo.serviceId}
                 onSelect={(serviceId) => setPromo({ ...promo, serviceId })}
               />
-            </Card>
+            </AdminFormCard>
           </>
         ) : null}
 
         {activeTab === 'home' ? (
           <>
-            <AdminSectionTitle title="Home screen" hint="Search, sections, and filters" />
-            <Card variant="premium" style={styles.form}>
+            <AdminSectionTitle title="Home screen" hint="Titles, search & category filters" />
+            <AdminFormCard>
               <IconInput
                 label="Search placeholder"
                 value={homeConfig.searchPlaceholder}
                 onChangeText={(searchPlaceholder) => patchHome({ searchPlaceholder })}
               />
               <IconInput
-                label="Services section title"
+                label="Services title"
                 value={homeConfig.sectionTitles.services}
                 onChangeText={(services) =>
                   patchHome({ sectionTitles: { ...homeConfig.sectionTitles, services } })
                 }
               />
               <IconInput
-                label="Services action label"
+                label="Services subtitle"
+                value={homeConfig.servicesSubtitle ?? ''}
+                onChangeText={(servicesSubtitle) => patchHome({ servicesSubtitle })}
+                placeholder="Trusted pest control & home services"
+              />
+              <IconInput
+                label="Services action"
                 value={homeConfig.servicesActionLabel}
                 onChangeText={(servicesActionLabel) => patchHome({ servicesActionLabel })}
               />
               <IconInput
-                label="Popular section title"
+                label="Popular title"
                 value={homeConfig.sectionTitles.popular}
                 onChangeText={(popular) =>
                   patchHome({ sectionTitles: { ...homeConfig.sectionTitles, popular } })
                 }
               />
               <IconInput
-                label="Popular action label"
+                label="Popular action"
                 value={homeConfig.popularActionLabel}
                 onChangeText={(popularActionLabel) => patchHome({ popularActionLabel })}
               />
@@ -224,9 +319,9 @@ export default function AdminContentScreen() {
                 selectedId={homeConfig.featuredServiceId}
                 onSelect={(featuredServiceId) => patchHome({ featuredServiceId })}
               />
-            </Card>
+            </AdminFormCard>
 
-            <Card variant="premium" style={styles.form}>
+            <AdminFormCard>
               <View style={styles.blockHead}>
                 <Text style={styles.blockTitle}>Category filters</Text>
                 <Pressable style={styles.addPill} onPress={addChip}>
@@ -239,7 +334,7 @@ export default function AdminContentScreen() {
                   <View style={styles.flex}>
                     <IconInput label="Label" value={chip.label} onChangeText={(label) => setChip(i, { label })} />
                     <IconInput
-                      label="Category slug (blank = All)"
+                      label="Category slug"
                       value={chip.category ?? ''}
                       autoCapitalize="none"
                       onChangeText={(category) => setChip(i, { category })}
@@ -250,14 +345,14 @@ export default function AdminContentScreen() {
                   </Pressable>
                 </View>
               ))}
-            </Card>
+            </AdminFormCard>
           </>
         ) : null}
 
         {activeTab === 'brand' ? (
           <>
-            <AdminSectionTitle title="Branding" hint="App name and tagline" />
-            <Card variant="premium" style={styles.form}>
+            <AdminSectionTitle title="Branding" hint="Name and tagline shown across the app" />
+            <AdminFormCard>
               <IconInput
                 label="App name"
                 value={appConfig.branding.name}
@@ -268,10 +363,10 @@ export default function AdminContentScreen() {
                 value={appConfig.branding.tagline}
                 onChangeText={(tagline) => setAppConfig((a) => ({ ...a, branding: { ...a.branding, tagline } }))}
               />
-            </Card>
+            </AdminFormCard>
 
             <AdminSectionTitle title="Support contact" />
-            <Card variant="premium" style={styles.form}>
+            <AdminFormCard>
               <IconInput
                 label="Phone"
                 keyboardType="phone-pad"
@@ -296,10 +391,10 @@ export default function AdminContentScreen() {
                 value={appConfig.support.hours ?? ''}
                 onChangeText={(hours) => setAppConfig((a) => ({ ...a, support: { ...a.support, hours } }))}
               />
-            </Card>
+            </AdminFormCard>
 
             <AdminSectionTitle title="Trust & guarantee" />
-            <Card variant="premium" style={styles.form}>
+            <AdminFormCard>
               <IconInput
                 label="Guarantee text"
                 multiline
@@ -311,14 +406,14 @@ export default function AdminContentScreen() {
                 items={appConfig.trust.badges}
                 onChange={(badges) => setAppConfig((a) => ({ ...a, trust: { ...a.trust, badges } }))}
               />
-            </Card>
+            </AdminFormCard>
           </>
         ) : null}
 
         {activeTab === 'booking' ? (
           <>
-            <AdminSectionTitle title="Booking & schedule" hint="Wizard steps and pending messages" />
-            <Card variant="premium" style={styles.previewCard}>
+            <AdminSectionTitle title="Booking & schedule" hint="Tap a section to expand and edit fields" />
+            <AdminFormCard>
               <Text style={styles.previewLabel}>Customer preview</Text>
               <PendingScheduleCard
                 variant="customer"
@@ -327,103 +422,24 @@ export default function AdminContentScreen() {
                 hint={appConfig.booking?.pendingCustomerHint ?? DEFAULT_BOOKING_COPY.pendingCustomerHint}
                 modeLabel={appConfig.booking?.standardModeLabel ?? DEFAULT_BOOKING_COPY.standardModeLabel}
               />
-            </Card>
+            </AdminFormCard>
 
-            <Card variant="premium" style={styles.form}>
-              <Text style={styles.blockTitle}>Book wizard</Text>
-              {(
-                [
-                  ['scheduleStepTitle', 'Step title'],
-                  ['scheduleStepSubtitle', 'Step subtitle'],
-                  ['standardModeLabel', 'Standard mode label'],
-                  ['customModeLabel', 'Custom mode label'],
-                  ['customNotesPlaceholder', 'Custom notes placeholder'],
-                  ['pendingReviewNote', 'Review step pending note'],
-                  ['requestSubmittedToast', 'Success toast after submit'],
-                ] as const
-              ).map(([key, label]) => (
-                <IconInput
-                  key={key}
-                  label={label}
-                  multiline={key.includes('Subtitle') || key.includes('Note') || key.includes('Toast')}
-                  value={appConfig.booking?.[key] ?? DEFAULT_BOOKING_COPY[key]}
-                  onChangeText={(value) =>
-                    setAppConfig((a) => ({
-                      ...a,
-                      booking: {
-                        ...(a.booking ?? DEFAULT_BOOKING_COPY),
-                        [key]: value,
-                      } as BookingCopyConfig,
-                    }))
-                  }
-                />
-              ))}
-            </Card>
-
-            <Card variant="premium" style={styles.form}>
-              <Text style={styles.blockTitle}>Customer pending booking</Text>
-              {(
-                [
-                  ['pendingCustomerTitle', 'Pending card title'],
-                  ['pendingCustomerHint', 'Pending card hint'],
-                  ['pendingFactsSubtitle', 'Booking facts pending subtitle'],
-                ] as const
-              ).map(([key, label]) => (
-                <IconInput
-                  key={key}
-                  label={label}
-                  multiline
-                  value={appConfig.booking?.[key] ?? DEFAULT_BOOKING_COPY[key]}
-                  onChangeText={(value) =>
-                    setAppConfig((a) => ({
-                      ...a,
-                      booking: {
-                        ...(a.booking ?? DEFAULT_BOOKING_COPY),
-                        [key]: value,
-                      } as BookingCopyConfig,
-                    }))
-                  }
-                />
-              ))}
-            </Card>
-
-            <Card variant="premium" style={styles.form}>
-              <View style={styles.adminBlockHead}>
-                <Shield size={16} color={colors.forest} />
-                <Text style={styles.blockTitle}>Admin schedule actions</Text>
-              </View>
-              {(
-                [
-                  ['adminRequestTitle', 'Request card title'],
-                  ['adminConfirmTitle', 'Confirm modal title'],
-                  ['adminConfirmHint', 'Confirm modal hint'],
-                  ['adminConfirmButton', 'Confirm button label'],
-                ] as const
-              ).map(([key, label]) => (
-                <IconInput
-                  key={key}
-                  label={label}
-                  multiline={key.includes('Hint')}
-                  value={appConfig.booking?.[key] ?? DEFAULT_BOOKING_COPY[key]}
-                  onChangeText={(value) =>
-                    setAppConfig((a) => ({
-                      ...a,
-                      booking: {
-                        ...(a.booking ?? DEFAULT_BOOKING_COPY),
-                        [key]: value,
-                      } as BookingCopyConfig,
-                    }))
-                  }
-                />
-              ))}
-            </Card>
+            {renderBookingFields('wizard', 'Book wizard', BOOKING_COPY_ADMIN_GROUPS.wizard)}
+            {renderBookingFields('list', 'My bookings list', BOOKING_COPY_ADMIN_GROUPS.list)}
+            {renderBookingFields('success', 'Booking success screen', BOOKING_COPY_ADMIN_GROUPS.success)}
+            {renderBookingFields('pending', 'Customer pending booking', BOOKING_COPY_ADMIN_GROUPS.pending)}
+            {renderBookingFields('detail', 'Booking detail screen', BOOKING_COPY_ADMIN_GROUPS.detail)}
+            {renderBookingFields('trackingSteps', 'Tracking timeline steps', BOOKING_COPY_ADMIN_GROUPS.trackingSteps)}
+            {renderBookingFields('statusGuidance', 'Status messages (customer)', BOOKING_COPY_ADMIN_GROUPS.statusGuidance)}
+            {renderBookingFields('admin', 'Admin schedule actions', BOOKING_COPY_ADMIN_GROUPS.admin)}
+            {renderBookingFields('tech', 'Technician app', BOOKING_COPY_ADMIN_GROUPS.tech)}
           </>
         ) : null}
 
         {activeTab === 'onboard' ? (
           <>
-            <AdminSectionTitle title="Onboarding" hint="First-launch slides and trust chips" />
-            <Card variant="premium" style={styles.form}>
+            <AdminSectionTitle title="Onboarding" />
+            <AdminFormCard>
               <View style={styles.blockHead}>
                 <Text style={styles.blockTitle}>Slides</Text>
                 <Pressable
@@ -492,14 +508,14 @@ export default function AdminContentScreen() {
                   setAppConfig((a) => ({ ...a, onboarding: { ...a.onboarding, trustChips } }))
                 }
               />
-            </Card>
+            </AdminFormCard>
           </>
         ) : null}
 
         {activeTab === 'legal' ? (
           <>
-            <AdminSectionTitle title="Legal & help" hint="About, policies, and FAQ" />
-            <Card variant="premium" style={styles.form}>
+            <AdminSectionTitle title="Legal & help" />
+            <AdminFormCard>
               <IconInput
                 label="About (markdown)"
                 multiline
@@ -565,7 +581,7 @@ export default function AdminContentScreen() {
                   </Pressable>
                 </View>
               ))}
-            </Card>
+            </AdminFormCard>
           </>
         ) : null}
       </ScrollView>
@@ -639,7 +655,6 @@ function ServiceChips({
 }
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
-  previewCard: { padding: spacing.md, marginTop: spacing.sm, marginHorizontal: spacing.md },
   previewLabel: {
     fontFamily: fonts.bodySemi,
     fontSize: 11,
@@ -648,7 +663,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: spacing.sm,
   },
-  form: { padding: spacing.md, marginTop: spacing.sm, marginHorizontal: spacing.md },
   blockHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
   adminBlockHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.sm },
   blockTitle: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },

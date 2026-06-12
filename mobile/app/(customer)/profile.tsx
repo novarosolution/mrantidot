@@ -1,28 +1,14 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import {
-  Bell,
-  Calendar,
-  CircleHelp,
-  CreditCard,
-  FileText,
-  Gift,
-  HelpCircle,
-  Info,
-  LogOut,
-  MapPin,
-  Settings,
-  Shield,
-} from 'lucide-react-native';
+import { CreditCard, FileText, Info, LogOut, Settings } from 'lucide-react-native';
+import { AppIcons } from '@/constants/appIcons';
 import { ProfileHeroCard } from '@/components/kit/ProfileHeroCard';
+import { ProfileHighlights } from '@/components/kit/ProfileHighlights';
 import { ProfileMenuRow } from '@/components/kit/ProfileMenuRow';
 import { ProfileMenuSection } from '@/components/kit/ProfileMenuSection';
 import { ProfileQuickActions } from '@/components/kit/ProfileQuickActions';
-import { ProfileReferralCard } from '@/components/kit/ProfileReferralCard';
-import { ProfileStatTile } from '@/components/kit/ProfileStatTile';
 import { ProfileSupportCard } from '@/components/kit/ProfileSupportCard';
-import { ProfileTrustBanner } from '@/components/kit/ProfileTrustBanner';
 import { ProfileUpcomingCard } from '@/components/kit/ProfileUpcomingCard';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { PremiumScreen } from '@/components/ui/PremiumScreen';
@@ -33,22 +19,21 @@ import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
 import { useLocation } from '@/context/LocationContext';
+import { displayUserEmail, displayUserName } from '@/lib/profile-display';
 import type { Booking } from '@/types/api';
 import { colors, fonts, premium, spacing } from '@/constants/theme';
 
 const ACCOUNT_MENU = [
   {
-    icon: Calendar,
+    icon: AppIcons.profile.bookings,
     label: 'My Bookings',
-    description: 'Track upcoming & past visits',
     href: '/(customer)/bookings' as const,
     tint: colors.forest,
     iconBg: '#E8F5EC',
   },
   {
-    icon: MapPin,
+    icon: AppIcons.profile.addresses,
     label: 'Saved Addresses',
-    description: 'Home, office & more',
     href: '/(customer)/addresses' as const,
     tint: colors.secondaryDark,
     iconBg: colors.secondarySoft,
@@ -56,23 +41,20 @@ const ACCOUNT_MENU = [
   {
     icon: CreditCard,
     label: 'Payment Methods',
-    description: 'Cards & UPI',
     href: '/(customer)/payment-methods' as const,
     tint: colors.blue,
     iconBg: colors.blueBg,
   },
   {
-    icon: Gift,
+    icon: AppIcons.profile.offers,
     label: 'Offers & Referrals',
-    description: 'Deals and invite friends',
     href: '/(customer)/offers' as const,
     tint: colors.amberInk,
     iconBg: colors.amberBg,
   },
   {
-    icon: Bell,
+    icon: AppIcons.profile.notifications,
     label: 'Notifications',
-    description: 'Alerts & reminders',
     href: '/(customer)/notifications' as const,
     tint: colors.forest,
     iconBg: '#E8F5EC',
@@ -81,7 +63,6 @@ const ACCOUNT_MENU = [
   {
     icon: Settings,
     label: 'Settings',
-    description: 'Account & preferences',
     href: '/(customer)/settings' as const,
     tint: colors.ink,
     iconBg: colors.greyBg,
@@ -89,11 +70,11 @@ const ACCOUNT_MENU = [
 ];
 
 const SUPPORT_MENU = [
-  { icon: HelpCircle, label: 'Help & Support', description: 'Contact our team', href: '/(customer)/help' as const, tint: colors.secondaryDark, iconBg: colors.secondarySoft },
-  { icon: CircleHelp, label: 'FAQs', description: 'Common questions', href: '/(customer)/faq' as const, tint: colors.forest, iconBg: '#E8F5EC' },
+  { icon: AppIcons.profile.help, label: 'Help & Support', href: '/(customer)/help' as const, tint: colors.secondaryDark, iconBg: colors.secondarySoft },
+  { icon: AppIcons.profile.faq, label: 'FAQs', href: '/(customer)/faq' as const, tint: colors.forest, iconBg: '#E8F5EC' },
   { icon: Info, label: 'About', href: '/(customer)/about' as const, tint: colors.forest, iconBg: '#E8F5EC' },
   { icon: FileText, label: 'Terms of Service', href: '/(customer)/terms' as const, tint: colors.muted, iconBg: colors.greyBg },
-  { icon: Shield, label: 'Privacy Policy', href: '/(customer)/privacy' as const, tint: colors.muted, iconBg: colors.greyBg },
+  { icon: AppIcons.profile.privacy, label: 'Privacy Policy', href: '/(customer)/privacy' as const, tint: colors.muted, iconBg: colors.greyBg },
 ];
 
 function formatMemberSince(iso?: string): string | undefined {
@@ -142,12 +123,52 @@ export default function ProfileScreen() {
     void runLoad(load, 'Could not load profile');
   }, [load, runLoad]);
 
+  useFocusEffect(
+    useCallback(() => {
+      void refreshMe({ silent: true });
+    }, [refreshMe]),
+  );
+
   const upcoming = useMemo(() => pickUpcoming(bookings), [bookings]);
   const activeCount = useMemo(
     () => bookings.filter((b) => !['completed', 'cancelled'].includes(b.status)).length,
     [bookings],
   );
   const completedCount = useMemo(() => bookings.filter((b) => b.status === 'completed').length, [bookings]);
+
+  const statItems = useMemo(
+    () => [
+      {
+        value: String(activeCount),
+        label: 'Active',
+        accent: colors.forest,
+        softBg: '#E8F5EC',
+        onPress: () => router.push('/(customer)/bookings'),
+      },
+      {
+        value: String(completedCount),
+        label: 'Done',
+        accent: colors.secondaryDark,
+        softBg: colors.secondarySoft,
+        onPress: () => router.push('/(customer)/bookings'),
+      },
+      {
+        value: String(savedCount),
+        label: 'Saved',
+        accent: colors.blue,
+        softBg: colors.blueBg,
+        onPress: () => router.push('/(customer)/addresses'),
+      },
+      {
+        value: String(paymentCount),
+        label: 'Payments',
+        accent: colors.amberInk,
+        softBg: colors.amberBg,
+        onPress: () => router.push('/(customer)/payment-methods'),
+      },
+    ],
+    [activeCount, completedCount, savedCount, paymentCount],
+  );
 
   async function onRefresh() {
     setRefreshing(true);
@@ -163,7 +184,9 @@ export default function ProfileScreen() {
     await Share.share({ message: msg, title: `Invite to ${content.branding.name}` });
   }
 
-  const displayName = user?.name?.trim() || 'Your account';
+  const displayName = displayUserName(user);
+  const displayEmail = displayUserEmail(user?.email);
+  const displayPhone = user?.phone?.trim() || undefined;
 
   return (
     <PremiumScreen edges={['left', 'right']}>
@@ -175,14 +198,26 @@ export default function ProfileScreen() {
       >
         <ProfileHeroCard
           name={displayName}
-          phone={user?.phone}
-          email={user?.email}
+          phone={displayPhone}
+          email={displayEmail}
           city={displayLabel ?? user?.city}
           memberSince={formatMemberSince(user?.createdAt)}
           unread={unread}
         />
 
         {error ? <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} /> : null}
+
+        {loading ? (
+          <View style={styles.statsLoading}>
+            <Spinner />
+          </View>
+        ) : (
+          <ProfileHighlights
+            stats={statItems}
+            brandName={content.branding.name}
+            onShare={() => void shareInvite()}
+          />
+        )}
 
         <ProfileQuickActions />
 
@@ -193,52 +228,12 @@ export default function ProfileScreen() {
           />
         ) : null}
 
-        <View style={styles.stats}>
-          {loading ? (
-            <View style={styles.statsLoading}>
-              <Spinner />
-            </View>
-          ) : (
-            <>
-              <ProfileStatTile
-                value={String(activeCount)}
-                label="Active"
-                accent={colors.forest}
-                onPress={() => router.push('/(customer)/bookings')}
-              />
-              <ProfileStatTile
-                value={String(completedCount)}
-                label="Done"
-                accent={colors.secondaryDark}
-                onPress={() => router.push('/(customer)/bookings')}
-              />
-              <ProfileStatTile
-                value={String(savedCount)}
-                label="Saved"
-                accent={colors.blue}
-                onPress={() => router.push('/(customer)/addresses')}
-              />
-              <ProfileStatTile
-                value={String(paymentCount)}
-                label="Payments"
-                accent={colors.amberInk}
-                onPress={() => router.push('/(customer)/payment-methods')}
-              />
-            </>
-          )}
-        </View>
-
-        <ProfileTrustBanner guaranteeText={content.trust.guaranteeText} badges={content.trust.badges} />
-
-        <ProfileReferralCard brandName={content.branding.name} onShare={() => void shareInvite()} />
-
         <ProfileMenuSection title="Account">
           {ACCOUNT_MENU.map((m, i) => (
             <ProfileMenuRow
               key={m.label}
               icon={m.icon}
               label={m.label}
-              description={m.description}
               tint={m.tint}
               iconBg={m.iconBg}
               badge={'badgeKey' in m && m.badgeKey === 'unread' ? unread : undefined}
@@ -260,7 +255,6 @@ export default function ProfileScreen() {
               key={m.label}
               icon={m.icon}
               label={m.label}
-              description={'description' in m ? m.description : undefined}
               tint={m.tint}
               iconBg={m.iconBg}
               showBorder={i < SUPPORT_MENU.length - 1}
@@ -281,7 +275,6 @@ export default function ProfileScreen() {
         </Pressable>
 
         <Text style={styles.footer}>{content.branding.name}</Text>
-        <Text style={styles.footerSub}>{content.branding.tagline}</Text>
       </ScrollView>
     </PremiumScreen>
   );
@@ -290,18 +283,12 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingBottom: spacing.xxl },
-  stats: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
-  },
   statsLoading: {
-    flex: 1,
-    height: 80,
+    marginHorizontal: spacing.md,
+    height: 88,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: spacing.sm,
   },
   logout: {
     marginHorizontal: spacing.md,
@@ -323,13 +310,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.display,
     fontSize: 13,
     color: colors.forest,
-  },
-  footerSub: {
-    textAlign: 'center',
-    marginTop: 4,
-    fontFamily: fonts.body,
-    fontSize: 11,
-    color: colors.muted,
-    paddingHorizontal: spacing.xl,
   },
 });

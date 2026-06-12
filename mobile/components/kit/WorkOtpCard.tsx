@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -44,6 +45,7 @@ export function WorkOtpCard({
 
   return (
     <Card variant="premium" style={styles.card}>
+      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <View style={styles.head}>
         <View style={styles.iconWrap}>
           <KeyRound size={20} color={colors.white} />
@@ -95,7 +97,8 @@ export function getActiveCustomerOtp(
 }
 
 const styles = StyleSheet.create({
-  card: { marginBottom: spacing.md },
+  card: { marginBottom: spacing.md, overflow: 'hidden', paddingTop: spacing.sm },
+  goldBar: { height: 3, marginHorizontal: -spacing.md, marginTop: -spacing.sm, marginBottom: spacing.sm },
   head: { flexDirection: 'row', gap: 12, marginBottom: spacing.md },
   iconWrap: {
     width: 44,

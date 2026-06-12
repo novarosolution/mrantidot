@@ -82,7 +82,7 @@ export async function notifyWorkOtpEvent(
       },
       tech: {
         title: 'Ask for end code',
-        body: 'Treatment steps are done. Ask the customer for their end code.',
+        body: 'Ask the customer for their completion code to finish the job.',
       },
       admin: { title: 'End OTP issued', body: 'Customer received a completion code for this booking.' },
     },

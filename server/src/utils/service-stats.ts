@@ -4,13 +4,14 @@ import { Review } from '../models/Review';
 
 export type ServiceStatsResult = {
   bookingCount: number;
-  avgRating: number | null;
+  /** Average star rating from verified customer reviews (admin only). */
+  realAvgRating: number | null;
   reviewCount: number;
 };
 
 const EMPTY_STATS: ServiceStatsResult = {
   bookingCount: 0,
-  avgRating: null,
+  realAvgRating: null,
   reviewCount: 0,
 };
 
@@ -58,7 +59,7 @@ export async function getStatsForServiceIds(
   for (const row of reviewRows) {
     const id = String(row._id);
     if (out[id]) {
-      out[id].avgRating = Math.round(row.avg * 10) / 10;
+      out[id].realAvgRating = Math.round(row.avg * 10) / 10;
       out[id].reviewCount = row.count;
     }
   }

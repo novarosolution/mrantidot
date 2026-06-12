@@ -17,16 +17,18 @@ export function StatusPipelineCard({
   items,
   onStatusPress,
   periodLabel,
+  hideTitle,
 }: {
   items: StatusBreakdownItem[];
   onStatusPress: (status: string) => void;
   periodLabel?: string;
+  hideTitle?: boolean;
 }) {
   const maxCount = Math.max(1, ...items.map((i) => i.count));
 
   return (
     <Card variant="premium" style={styles.card}>
-      <Text style={styles.title}>Booking pipeline</Text>
+      {!hideTitle ? <Text style={styles.title}>Booking pipeline</Text> : null}
       {periodLabel ? <Text style={styles.sub}>{periodLabel}</Text> : null}
       {items.map((item) => {
         const label = bookingStatusLabel(item.status as BookingStatus);

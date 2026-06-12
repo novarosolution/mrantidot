@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, getApiErrorMessage } from './api';
 
 const IMAGE_EXT = /\.(jpe?g|png|gif|webp|heic|heif|bmp|avif|tiff?|svg)$/i;
 
@@ -46,6 +46,7 @@ export async function uploadImage(
 
   const { data } = await api.post<{ urls: string[] }>('/upload', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    skipErrorToast: true,
   });
 
   const url = data.urls[0];

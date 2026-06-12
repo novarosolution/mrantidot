@@ -1,7 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Building2,
@@ -32,6 +39,7 @@ import {
   ConfirmTotalCard,
 } from '@/components/kit/ConfirmStepKit';
 import { PropertyTypePicker } from '@/components/kit/PropertyTypePicker';
+import { BookServiceSpecs } from '@/components/kit/BookServiceSpecs';
 import { BookServiceStrip } from '@/components/kit/BookServiceStrip';
 import { BookingActionBar } from '@/components/kit/BookingActionBar';
 import { BookPaymentPicker } from '@/components/kit/BookPaymentPicker';
@@ -49,11 +57,11 @@ import { Spinner } from '@/components/ui/Spinner';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { useLocation } from '@/context/LocationContext';
-import { useAppContent } from '@/context/AppContentContext';
 import { defaultPaymentType, resolvePaymentMethods } from '@/lib/bookingPayment';
 import { paymentMethodLabel } from '@/lib/booking-helpers';
 import { computePricing, isValidCoupon } from '@/lib/pricing';
-import { useBookingCopy } from '@/lib/schedule-copy';
+import { useBookingCopy, getWizardStepLabels } from '@/lib/schedule-copy';
+import { safeGoBack } from '@/lib/routes';
 import { uploadImages, type PickedImage } from '@/lib/upload';
 import {
   BOOKING_SLOTS,
@@ -65,11 +73,11 @@ import { propertyTypeLabel } from '@/constants/propertyTypes';
 import { colors, design, fonts, gradients, headerTopPad, premium, radius, spacing } from '@/constants/theme';
 
 const DAY_OPTIONS = nextBookableDays(7);
-const BOOK_STEP_LABELS = ['Schedule', 'Property', 'Address', 'Payment', 'Confirm'];
+const BOOK_STEP_ICONS = [Calendar, Building2, MapPin, CreditCard, CheckCircle2] as const;
 
 export default function BookWizardScreen() {
-  const { content } = useAppContent();
   const bookingCopy = useBookingCopy();
+  const bookStepLabels = useMemo(() => getWizardStepLabels(bookingCopy), [bookingCopy]);
   const insets = useSafeAreaInsets();
   const { location, locating, detectAddress, displayLabel } = useLocation();
   const scrollRef = useRef<ScrollView>(null);
@@ -95,6 +103,10 @@ export default function BookWizardScreen() {
   const [photoUris, setPhotoUris] = useState<PickedImage[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSavedPaymentMethods, setHasSavedPaymentMethods] = useState(false);
+
+  const goToStep = useCallback((target: number) => {
+    if (target < step) setStep(target);
+  }, [step]);
 
   const loadData = async (skipCache = false) => {
     setLoadError(null);
@@ -183,7 +195,7 @@ export default function BookWizardScreen() {
   }, [dayIdx]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, [step]);
 
   const pricing = useMemo(
@@ -329,10 +341,10 @@ export default function BookWizardScreen() {
           colors={[...gradients.bookHero]}
           style={[styles.errorHeader, { paddingTop: headerTopPad(insets.top) }]}
         >
-          <Pressable style={styles.errorBack} onPress={() => router.back()} hitSlop={8}>
+          <Pressable style={styles.errorBack} onPress={() => safeGoBack('/(customer)/services')} hitSlop={8}>
             <ChevronLeft size={22} color={colors.white} />
           </Pressable>
-          <Text style={styles.errorTitle}>Book service</Text>
+          <Text style={styles.errorTitle}>{bookingCopy.wizardScreenTitle}</Text>
         </LinearGradient>
         <ListEmptyRetry message={loadError} onRetry={() => safeAsync(() => loadData(true))} />
       </SafeAreaView>
@@ -345,232 +357,247 @@ export default function BookWizardScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <BookServiceStrip
-        service={service}
-        durationLabel={durationLabel}
-        onBack={() => (step > 0 ? setStep((s) => s - 1) : router.back())}
-        title="Book service"
-        subtitle={`Step ${step + 1} of ${BOOK_STEP_LABELS.length}`}
-      />
-      <WizardStepBar step={step} labels={BOOK_STEP_LABELS} onStepPress={(i) => setStep(i)} />
+      <View style={styles.stickyHeader}>
+        <BookServiceStrip
+          service={service}
+          durationLabel={durationLabel}
+          onBack={() => (step > 0 ? setStep((s) => s - 1) : safeGoBack('/(customer)/services'))}
+          title={step > 0 ? bookStepLabels[step]! : bookingCopy.wizardScreenTitle}
+          compact={step > 0}
+        />
+        <WizardStepBar
+          step={step}
+          labels={bookStepLabels}
+          icons={[...BOOK_STEP_ICONS]}
+          onStepPress={goToStep}
+          compact={step > 0}
+        />
 
-      {pricing ? (
-        <BookPriceRibbon total={pricing.total} savings={pricing.coupon > 0 ? pricing.coupon : undefined} />
-      ) : null}
+        {pricing ? (
+          <BookPriceRibbon
+            total={pricing.total}
+            savings={pricing.coupon > 0 ? pricing.coupon : undefined}
+            stepHint={bookStepLabels[step]}
+            compact={step > 0}
+          />
+        ) : null}
+      </View>
 
       <ScrollView
         ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="always"
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       >
-        <FadeSlideHorizontal step={step}>
-        {step === 0 && (
-          <ScheduleStepPanel title={bookingCopy.scheduleStepTitle} animTrigger={step}>
-            <ScheduleSection step={1} title="Visit type">
-              <ScheduleModeToggle
-                mode={scheduleMode}
-                onChange={setScheduleMode}
-                standardLabel={bookingCopy.standardModeLabel}
-                customLabel={bookingCopy.customModeLabel}
-              />
-            </ScheduleSection>
+          <FadeSlideHorizontal step={step}>
+            {step === 0 ? <BookServiceSpecs service={service} durationLabel={durationLabel} /> : null}
 
-            <ScheduleSection step={2} title="Select date">
-              <ScheduleDayPicker
-                selectedDate={date}
-                onSelect={(d, i) => {
-                  setDate(d);
-                  setDayIdx(i);
-                }}
-              />
-            </ScheduleSection>
+            {step === 0 && (
+              <ScheduleStepPanel
+                title={bookingCopy.scheduleStepTitle}
+                subtitle={bookingCopy.scheduleStepSubtitle}
+                animTrigger={step}
+              >
+                <ScheduleSection step={1} title="Visit type">
+                  <ScheduleModeToggle
+                    mode={scheduleMode}
+                    onChange={setScheduleMode}
+                    standardLabel={bookingCopy.standardModeLabel}
+                    customLabel={bookingCopy.customModeLabel}
+                  />
+                </ScheduleSection>
 
-            <ScheduleSection
-              step={3}
-              title={scheduleMode === 'standard' ? 'Pick a time slot' : 'Set your time'}
-            >
-              {scheduleMode === 'standard' ? (
-                <ScheduleSlotPicker selectedSlot={slot} onSelect={setSlot} />
-              ) : (
-                <>
-                  <BookTimePicker
-                    hour={customHour}
-                    minute={customMinute}
-                    onChange={(h, m) => {
-                      setCustomHour(h);
-                      setCustomMinute(m);
+                <ScheduleSection step={2} title="Select date">
+                  <ScheduleDayPicker
+                    selectedDate={date}
+                    onSelect={(d, i) => {
+                      setDate(d);
+                      setDayIdx(i);
                     }}
                   />
-                  <View style={styles.notesWrap}>
-                    <Input
-                      label="Notes"
-                      value={scheduleNotes}
-                      onChangeText={setScheduleNotes}
-                      placeholder={bookingCopy.customNotesPlaceholder}
-                    />
-                  </View>
-                </>
-              )}
-            </ScheduleSection>
+                </ScheduleSection>
 
-            {(scheduleMode === 'standard' ? slot : customTime) ? (
-              <ScheduleSelectionBanner label={scheduleSummary} />
-            ) : null}
-          </ScheduleStepPanel>
-        )}
+                <ScheduleSection
+                  step={3}
+                  title={scheduleMode === 'standard' ? 'Pick a time slot' : 'Set your time'}
+                >
+                  {scheduleMode === 'standard' ? (
+                    <ScheduleSlotPicker selectedSlot={slot} onSelect={setSlot} />
+                  ) : (
+                    <>
+                      <BookTimePicker
+                        hour={customHour}
+                        minute={customMinute}
+                        onChange={(h, m) => {
+                          setCustomHour(h);
+                          setCustomMinute(m);
+                        }}
+                      />
+                      <View style={styles.notesWrap}>
+                        <Input
+                          label="Notes"
+                          value={scheduleNotes}
+                          onChangeText={setScheduleNotes}
+                          placeholder={bookingCopy.customNotesPlaceholder}
+                        />
+                      </View>
+                    </>
+                  )}
+                </ScheduleSection>
 
-        {step === 1 && (
-          <FadeSlideHorizontal step={step}>
-            <BookWizardStepPanel icon={Building2} title="Property type" animTrigger={step}>
-              <BookWizardSection step={1} title="What type of premises?">
-                <Text style={styles.propertyHint}>
-                  Select your home or business type so we can tailor the treatment plan.
-                </Text>
-                <PropertyTypePicker value={propertyType} onChange={setPropertyType} />
-              </BookWizardSection>
-            </BookWizardStepPanel>
-          </FadeSlideHorizontal>
-        )}
+                {(scheduleMode === 'standard' ? slot : customTime) ? (
+                  <ScheduleSelectionBanner label={scheduleSummary} />
+                ) : null}
+              </ScheduleStepPanel>
+            )}
 
-        {step === 2 && (
-          <FadeSlideHorizontal step={step}>
-            <BookWizardStepPanel icon={MapPin} title="Service address" animTrigger={step}>
-              {displayLabel ? (
-                <LocationBanner label={displayLabel} hint="Your detected service area" loading={locating} />
-              ) : null}
-              <BookWizardSection step={1} title="Quick fill">
-                <AddressLocateButton loading={locating} onPress={() => void fillAddressFromLocation()} />
-              </BookWizardSection>
-
-              {addresses.length > 0 ? (
-                <BookWizardSection step={2} title="Saved addresses">
-                  {addresses.map((a) => (
-                    <AddressCard
-                      key={a.id}
-                      address={a}
-                      selected={selectedAddressId === a.id}
-                      onPress={() => {
-                        setSelectedAddressId(a.id);
-                        setAddress(`${a.line1}, ${a.city}`);
-                      }}
-                    />
-                  ))}
+            {step === 1 && (
+              <BookWizardStepPanel icon={Building2} title="Property type" animTrigger={step}>
+                <BookWizardSection step={1} title="What type of premises?">
+                  <PropertyTypePicker value={propertyType} onChange={setPropertyType} />
                 </BookWizardSection>
-              ) : null}
+              </BookWizardStepPanel>
+            )}
 
-              <BookWizardSection step={addresses.length > 0 ? 3 : 2} title="Enter address">
-                <AddressManualField
-                  value={address}
-                  onChangeText={(t) => {
-                    setAddress(t);
-                    setSelectedAddressId(null);
-                  }}
-                />
-              </BookWizardSection>
+            {step === 2 && (
+              <BookWizardStepPanel icon={MapPin} title="Service address" animTrigger={step}>
+                {displayLabel ? (
+                  <LocationBanner label={displayLabel} loading={locating} />
+                ) : null}
+                <BookWizardSection step={1} title="Quick fill">
+                  <AddressLocateButton loading={locating} onPress={() => void fillAddressFromLocation()} />
+                </BookWizardSection>
 
-              {address.trim() ? <AddressConfirmBanner address={address} /> : null}
+                {addresses.length > 0 ? (
+                  <BookWizardSection step={2} title="Saved addresses">
+                    {addresses.map((a) => (
+                      <AddressCard
+                        key={a.id}
+                        address={a}
+                        selected={selectedAddressId === a.id}
+                        onPress={() => {
+                          setSelectedAddressId(a.id);
+                          setAddress(`${a.line1}, ${a.city}`);
+                        }}
+                      />
+                    ))}
+                  </BookWizardSection>
+                ) : null}
 
-              <BookWizardSection step={addresses.length > 0 ? 4 : 3} title="Problem photos">
-                <AddressPhotoGrid photos={photoUris} onChange={setPhotoUris} max={6} />
-              </BookWizardSection>
-            </BookWizardStepPanel>
-          </FadeSlideHorizontal>
-        )}
-
-        {step === 3 && pricing && (
-          <FadeSlideHorizontal step={step}>
-            <BookWizardStepPanel icon={CreditCard} title="Payment & offers" animTrigger={step}>
-              <BookWizardSection step={1} title="Price summary">
-                <PaymentPriceHero amount={pricing} />
-              </BookWizardSection>
-
-              {activeOffers.length > 0 ? (
-                <BookWizardSection step={2} title="Available offers">
-                  <PaymentOfferList
-                    offers={activeOffers}
-                    selectedCode={coupon}
-                    onSelect={setCoupon}
+                <BookWizardSection step={addresses.length > 0 ? 3 : 2} title="Enter address">
+                  <AddressManualField
+                    value={address}
+                    onChangeText={(t) => {
+                      setAddress(t);
+                      setSelectedAddressId(null);
+                    }}
                   />
                 </BookWizardSection>
-              ) : null}
 
-              <BookWizardSection step={activeOffers.length > 0 ? 3 : 2} title="Coupon code">
-                <PaymentCouponField
-                  value={coupon}
-                  onChangeText={setCoupon}
-                  invalid={couponInvalid}
-                  applied={couponApplied}
-                />
-              </BookWizardSection>
+                {address.trim() ? <AddressConfirmBanner address={address} /> : null}
 
-              <BookWizardSection step={activeOffers.length > 0 ? 4 : 3} title="Payment method">
-                <BookPaymentPicker
-                  methods={paymentMethods}
-                  selected={paymentMethod}
-                  onSelect={setPaymentMethod}
-                  showManageLink={hasSavedPaymentMethods}
-                />
-              </BookWizardSection>
-            </BookWizardStepPanel>
-          </FadeSlideHorizontal>
-        )}
-
-        {step === 4 && pricing && (
-          <FadeSlideHorizontal step={step}>
-            <BookWizardStepPanel icon={CheckCircle2} title="Review & confirm" animTrigger={step}>
-              <BookWizardSection step={1} title="Your booking">
-                <ConfirmDetailsList
-                  items={[
-                    { icon: Calendar, label: 'Requested schedule', value: scheduleSummary },
-                    {
-                      icon: Building2,
-                      label: 'Property type',
-                      value: propertyType ? propertyTypeLabel(propertyType) : '—',
-                    },
-                    { icon: MapPin, label: 'Service address', value: addressSummary },
-                    {
-                      icon: CreditCard,
-                      label: 'Payment method',
-                      value: paymentMethod ? paymentMethodLabel(paymentMethod) : '—',
-                    },
-                    ...(coupon.trim()
-                      ? [{ icon: Tag, label: 'Coupon applied', value: coupon.trim().toUpperCase() }]
-                      : []),
-                    {
-                      icon: Camera,
-                      label: 'Photos',
-                      value: photoUris.length ? `${photoUris.length} attached` : 'None',
-                    },
-                  ]}
-                />
-              </BookWizardSection>
-
-              {photoUris.length > 0 ? (
-                <BookWizardSection step={2} title="Attached photos">
-                  <ConfirmPhotoStrip photos={photoUris} />
+                <BookWizardSection step={addresses.length > 0 ? 4 : 3} title="Problem photos">
+                  <AddressPhotoGrid photos={photoUris} onChange={setPhotoUris} max={6} />
                 </BookWizardSection>
-              ) : null}
+              </BookWizardStepPanel>
+            )}
 
-              <BookWizardSection step={photoUris.length > 0 ? 3 : 2} title="Estimated total">
-                <ConfirmTotalCard
-                  amount={pricing}
-                  paymentLabel={paymentMethod ? paymentMethodLabel(paymentMethod) : '—'}
-                />
-              </BookWizardSection>
-            </BookWizardStepPanel>
+            {step === 3 && pricing && (
+              <BookWizardStepPanel icon={CreditCard} title="Payment & offers" animTrigger={step}>
+                <BookWizardSection step={1} title="Price summary">
+                  <PaymentPriceHero amount={pricing} />
+                </BookWizardSection>
+
+                {activeOffers.length > 0 ? (
+                  <BookWizardSection step={2} title="Available offers">
+                    <PaymentOfferList
+                      offers={activeOffers}
+                      selectedCode={coupon}
+                      onSelect={setCoupon}
+                    />
+                  </BookWizardSection>
+                ) : null}
+
+                <BookWizardSection step={activeOffers.length > 0 ? 3 : 2} title="Coupon code">
+                  <PaymentCouponField
+                    value={coupon}
+                    onChangeText={setCoupon}
+                    invalid={couponInvalid}
+                    applied={couponApplied}
+                  />
+                </BookWizardSection>
+
+                <BookWizardSection step={activeOffers.length > 0 ? 4 : 3} title="Payment method">
+                  <BookPaymentPicker
+                    methods={paymentMethods}
+                    selected={paymentMethod}
+                    onSelect={setPaymentMethod}
+                    showManageLink={hasSavedPaymentMethods}
+                  />
+                </BookWizardSection>
+              </BookWizardStepPanel>
+            )}
+
+            {step === 4 && pricing && (
+              <BookWizardStepPanel
+                icon={CheckCircle2}
+                title={bookingCopy.wizardReviewSectionTitle}
+                subtitle={bookingCopy.pendingReviewNote}
+                animTrigger={step}
+              >
+                <BookWizardSection step={1} title="Your booking">
+                  <ConfirmDetailsList
+                    items={[
+                      { icon: Calendar, label: 'Requested schedule', value: scheduleSummary },
+                      {
+                        icon: Building2,
+                        label: 'Property type',
+                        value: propertyType ? propertyTypeLabel(propertyType) : '—',
+                      },
+                      { icon: MapPin, label: 'Service address', value: addressSummary },
+                      {
+                        icon: CreditCard,
+                        label: 'Payment method',
+                        value: paymentMethod ? paymentMethodLabel(paymentMethod) : '—',
+                      },
+                      ...(coupon.trim()
+                        ? [{ icon: Tag, label: 'Coupon applied', value: coupon.trim().toUpperCase() }]
+                        : []),
+                      {
+                        icon: Camera,
+                        label: 'Photos',
+                        value: photoUris.length ? `${photoUris.length} attached` : 'None',
+                      },
+                    ]}
+                  />
+                </BookWizardSection>
+
+                {photoUris.length > 0 ? (
+                  <BookWizardSection step={2} title="Attached photos">
+                    <ConfirmPhotoStrip photos={photoUris} />
+                  </BookWizardSection>
+                ) : null}
+
+                <BookWizardSection step={photoUris.length > 0 ? 3 : 2} title="Estimated total">
+                  <ConfirmTotalCard
+                    amount={pricing}
+                    paymentLabel={paymentMethod ? paymentMethodLabel(paymentMethod) : '—'}
+                  />
+                </BookWizardSection>
+              </BookWizardStepPanel>
+            )}
           </FadeSlideHorizontal>
-        )}
-        </FadeSlideHorizontal>
       </ScrollView>
 
       <BookingActionBar
-        primaryTitle={step === 4 ? 'Submit request' : 'Continue'}
+        primaryTitle={step === 4 ? bookingCopy.wizardSubmitButton : bookingCopy.wizardContinueButton}
         onPrimary={step === 4 ? confirm : goNext}
         primaryLoading={loading}
         primaryDisabled={(step === 3 && couponInvalid) || (step >= 3 && !paymentMethod) || (step === 1 && !propertyType)}
-        secondaryTitle={step > 0 ? 'Back' : undefined}
+        secondaryTitle={step > 0 ? bookingCopy.wizardBackButton : undefined}
         onSecondary={step > 0 ? () => setStep((s) => s - 1) : undefined}
       />
     </SafeAreaView>
@@ -579,6 +606,14 @@ export default function BookWizardScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: design.screenBg },
+  stickyHeader: {
+    zIndex: 10,
+    backgroundColor: design.screenBg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    elevation: 4,
+    ...premium.shadowSoft,
+  },
   errorHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -600,15 +635,8 @@ const styles = StyleSheet.create({
   },
   errorTitle: { fontFamily: fonts.displayExtra, fontSize: 18, color: colors.white },
   scroll: { flex: 1 },
-  container: { padding: spacing.md, paddingBottom: 110 },
+  container: { padding: spacing.md, paddingTop: spacing.sm, paddingBottom: 110 },
   notesWrap: { marginTop: spacing.md },
-  propertyHint: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.muted,
-    lineHeight: 18,
-    marginBottom: spacing.md,
-  },
   modeRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md },
   techOption: {
     flexDirection: 'row',

@@ -1,15 +1,14 @@
 import { memo } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Calendar, ChevronRight, MapPin } from 'lucide-react-native';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import { StatusPill } from '@/components/ui/StatusPill';
 import {
-  bookingCustomerName,
   bookingRef,
   bookingScheduleDisplay,
   bookingServiceIconKey,
   bookingServiceName,
+  bookingCustomerName,
   isSchedulePending,
 } from '@/lib/booking-helpers';
 import type { Booking } from '@/types/api';
@@ -27,12 +26,14 @@ export const BookingListCard = memo(function BookingListCard({
   showCustomer,
   hideAmount,
   hint,
+  compact,
 }: {
   booking: Booking;
   onPress?: () => void;
   showCustomer?: boolean;
   hideAmount?: boolean;
   hint?: string;
+  compact?: boolean;
 }) {
   const iconKey = bookingServiceIconKey(booking);
   const name = bookingServiceName(booking);
@@ -46,60 +47,51 @@ export const BookingListCard = memo(function BookingListCard({
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}>
       <View style={styles.card}>
-        <View style={[styles.accent, { backgroundColor: accent }]} />
-
-        <LinearGradient colors={['#E8F5EC', '#FFFFFF']} style={styles.iconWrap} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-          <View style={[styles.icon, { backgroundColor: accent }]}>
-            <ServiceIcon iconKey={iconKey} size={22} color={colors.lime} />
-          </View>
-          {isLive ? <View style={styles.pulse} /> : null}
-        </LinearGradient>
+        <View style={[styles.icon, { backgroundColor: accentBg }]}>
+          <ServiceIcon iconKey={iconKey} size={22} color={accent} />
+          {isLive ? <View style={[styles.liveDot, { backgroundColor: accent }]} /> : null}
+        </View>
 
         <View style={styles.body}>
-          <View style={styles.titleBlock}>
-            <View style={styles.titleRow}>
-              <Text style={styles.name} numberOfLines={2}>
-                {name}
-              </Text>
-              <StatusPill status={booking.status} />
-            </View>
-            {customer ? <Text style={styles.customer}>{customer}</Text> : null}
+          <View style={styles.titleRow}>
+            <Text style={styles.name} numberOfLines={compact ? 1 : 2}>
+              {name}
+            </Text>
+            <StatusPill status={booking.status} />
           </View>
+
+          {customer ? <Text style={styles.customer}>{customer}</Text> : null}
 
           <View style={styles.metaRow}>
             <Calendar size={12} color={colors.forest} />
-            <Text style={styles.meta}>{bookingScheduleDisplay(booking)}</Text>
-          </View>
-
-          <View style={styles.metaRow}>
-            <MapPin size={12} color={colors.muted} />
-            <Text style={styles.addr} numberOfLines={1}>
-              {booking.address}
+            <Text style={styles.meta} numberOfLines={1}>
+              {bookingScheduleDisplay(booking)}
             </Text>
           </View>
 
+          {!compact ? (
+            <View style={styles.metaRow}>
+              <MapPin size={12} color={colors.muted} />
+              <Text style={styles.addr} numberOfLines={1}>
+                {booking.address}
+              </Text>
+            </View>
+          ) : null}
+
           {progress !== null && isLive ? (
-            <View style={styles.progressWrap}>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%`, backgroundColor: accent }]} />
-              </View>
-              <Text style={styles.progressLabel}>{Math.round(progress * 100)}% complete</Text>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%`, backgroundColor: accent }]} />
             </View>
           ) : null}
 
           {schedulePending ? (
             <View style={[styles.callout, { backgroundColor: accentBg }]}>
-              <Text style={[styles.hint, { color: accent }]}>Awaiting schedule confirmation</Text>
+              <Text style={[styles.calloutText, { color: accent }]}>Pending schedule</Text>
             </View>
           ) : null}
           {hint ? (
             <View style={[styles.callout, { backgroundColor: accentBg }]}>
-              <Text style={[styles.hint, { color: accent }]}>{hint}</Text>
-            </View>
-          ) : null}
-          {booking.status === 'awaiting_verification' && !hint ? (
-            <View style={[styles.callout, { backgroundColor: accentBg }]}>
-              <Text style={[styles.hint, { color: accent }]}>Tap to enter completion code</Text>
+              <Text style={[styles.calloutText, { color: accent }]}>{hint}</Text>
             </View>
           ) : null}
 
@@ -111,9 +103,7 @@ export const BookingListCard = memo(function BookingListCard({
           </View>
         </View>
 
-        <View style={styles.chevron}>
-          <ChevronRight size={18} color={colors.forest} strokeWidth={2.5} />
-        </View>
+        <ChevronRight size={18} color={colors.muted} strokeWidth={2} />
       </View>
     </Pressable>
   );
@@ -121,58 +111,36 @@ export const BookingListCard = memo(function BookingListCard({
 
 const styles = StyleSheet.create({
   wrap: { marginBottom: spacing.sm },
-  pressed: { opacity: 0.96, transform: [{ scale: 0.995 }] },
+  pressed: { opacity: 0.92, transform: [{ scale: 0.995 }] },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.white,
     borderRadius: premium.radiusCard,
-    padding: spacing.sm + 2,
-    paddingLeft: spacing.sm + 6,
+    padding: spacing.md,
     gap: 12,
     borderWidth: 1,
     borderColor: 'rgba(20,83,45,0.06)',
-    overflow: 'hidden',
-    ...shadows.floating,
-  },
-  accent: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 4,
-    borderTopLeftRadius: premium.radiusCard,
-    borderBottomLeftRadius: premium.radiusCard,
-  },
-  iconWrap: {
-    width: 58,
-    height: 58,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(30,142,78,0.08)',
+    ...shadows.card,
   },
   icon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pulse: {
+  liveDot: {
     position: 'absolute',
     top: 4,
     right: 4,
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.lime,
     borderWidth: 2,
     borderColor: colors.white,
   },
   body: { flex: 1, minWidth: 0 },
-  titleBlock: { marginBottom: 2 },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -195,20 +163,14 @@ const styles = StyleSheet.create({
   },
   meta: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest, flex: 1 },
   addr: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, flex: 1 },
-  progressWrap: { marginTop: 8 },
   progressTrack: {
-    height: 4,
+    height: 3,
     borderRadius: 2,
     backgroundColor: colors.border,
     overflow: 'hidden',
+    marginTop: 8,
   },
   progressFill: { height: '100%', borderRadius: 2 },
-  progressLabel: {
-    fontFamily: fonts.body,
-    fontSize: 10,
-    color: colors.muted,
-    marginTop: 4,
-  },
   callout: {
     marginTop: 6,
     paddingHorizontal: 8,
@@ -216,24 +178,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignSelf: 'flex-start',
   },
-  hint: { fontFamily: fonts.bodySemi, fontSize: 11 },
+  calloutText: { fontFamily: fonts.bodySemi, fontSize: 10 },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
   ref: { fontFamily: fonts.body, fontSize: 10, color: colors.muted, letterSpacing: 0.3 },
-  total: { ...typography.price, fontSize: 17 },
-  chevron: {
-    width: 32,
-    height: 32,
-    borderRadius: 999,
-    backgroundColor: colors.soft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  total: { ...typography.price, fontSize: 16 },
 });

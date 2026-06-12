@@ -12,31 +12,29 @@ import {
   View,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { AdminListShell, AdminSectionTitle, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { JobVisitCard } from '@/components/kit/JobVisitCard';
 import { MetricDetailSheet } from '@/components/kit/MetricDetailSheet';
 import { TechnicianAnalyticsTab } from '@/components/kit/TechnicianAnalyticsTab';
 import { TechnicianDayCalendar } from '@/components/kit/TechnicianDayCalendar';
-import { Chip } from '@/components/ui/Chip';
+import {
+  TechnicianProfileHeader,
+  TechnicianReviewCard,
+  type TechnicianViewMode,
+} from '@/components/kit/TechnicianProfileKit';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { RatingStars } from '@/components/ui/RatingStars';
 import { Spinner } from '@/components/ui/Spinner';
-import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
+import { type BadgeTone } from '@/components/ui/StatusBadge';
 import { api, screenLoadConfig } from '@/lib/api';
 import { localDateKey } from '@/lib/dates';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
 import { paramString } from '@/lib/routeParams';
-import {
-  buildMetricDetailRows,
-  metricSheetMeta,
-} from '@/lib/technician-metrics';
+import { buildMetricDetailRows, metricSheetMeta } from '@/lib/technician-metrics';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { isAccountDisabled } from '@/lib/user-helpers';
-import type { Booking, Review, TechnicianDetailResponse, TechnicianMetricKey, User } from '@/types/api';
-import { colors, fonts, spacing, surfaces } from '@/constants/theme';
-
-type ViewMode = 'calendar' | 'list' | 'analytics';
+import type { Booking, TechnicianDetailResponse, TechnicianMetricKey, User } from '@/types/api';
+import { colors, fonts, spacing } from '@/constants/theme';
 
 type MetricSheetState = {
   visible: boolean;
@@ -90,7 +88,7 @@ export default function AdminTechnicianDetailScreen() {
   const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
   const { loading, error, refreshing, runLoad, reload, refresh } = useScreenLoad();
   const [detail, setDetail] = useState<TechnicianDetailResponse | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('calendar');
+  const [viewMode, setViewMode] = useState<TechnicianViewMode>('calendar');
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [listStatusFilter, setListStatusFilter] = useState<string | null>(null);
   const [metricSheet, setMetricSheet] = useState<MetricSheetState>({
@@ -168,6 +166,11 @@ export default function AdminTechnicianDetailScreen() {
     ]);
   }
 
+  function handleViewModeChange(mode: TechnicianViewMode) {
+    if (mode === 'list') setListStatusFilter(null);
+    setViewMode(mode);
+  }
+
   if (loading && !detail) return <Spinner fullScreen />;
 
   if (error || !detail) {
@@ -192,80 +195,27 @@ export default function AdminTechnicianDetailScreen() {
     openBooking,
   );
 
-  const summary = (
-    <View style={styles.summary}>
-      <View style={styles.statusRow}>
-        <StatusBadge label={st.label} tone={st.tone} />
-        {isDisabled ? <Text style={styles.disabledHint}>Account disabled</Text> : null}
-      </View>
-      <Text style={styles.meta}>{technician.email}</Text>
-      {technician.phone ? <Text style={styles.meta}>{technician.phone}</Text> : null}
-      {technician.city ? <Text style={styles.meta}>{technician.city}</Text> : null}
-      <View style={styles.statsGrid}>
-        <Pressable style={styles.statBox} onPress={() => setViewMode('list')}>
-          <Text style={styles.statVal}>
-            {technician.rating && technician.rating > 0 ? `★ ${technician.rating.toFixed(1)}` : '—'}
-          </Text>
-          <Text style={styles.statLabel}>Rating</Text>
-        </Pressable>
-        <Pressable style={styles.statBox} onPress={() => openMetric('active')}>
-          <Text style={styles.statVal}>{stats.activeJobs}</Text>
-          <Text style={styles.statLabel}>Active</Text>
-        </Pressable>
-        <Pressable style={styles.statBox} onPress={() => openMetric('in_progress')}>
-          <Text style={styles.statVal}>{inProgress}</Text>
-          <Text style={styles.statLabel}>In progress</Text>
-        </Pressable>
-        <Pressable style={styles.statBox} onPress={() => openMetric('verify')}>
-          <Text style={styles.statVal}>{awaitingVerify}</Text>
-          <Text style={styles.statLabel}>Verify</Text>
-        </Pressable>
-        <Pressable style={styles.statBox} onPress={() => openMetric('completed')}>
-          <Text style={styles.statVal}>{stats.completedJobs}</Text>
-          <Text style={styles.statLabel}>Completed</Text>
-        </Pressable>
-        <Pressable style={styles.statBox} onPress={() => openMetric('earnings')}>
-          <Text style={styles.statVal}>₹{stats.earnings}</Text>
-          <Text style={styles.statLabel}>Earnings</Text>
-        </Pressable>
-      </View>
-      <Text style={styles.metaLine}>
-        {stats.totalJobs} total jobs
-        {stats.lastJobDate ? ` · Last job ${stats.lastJobDate}` : ''}
-        {stats.reviewCount > 0 ? ` · ${stats.reviewCount} reviews` : ''}
-      </Text>
-      <View style={styles.actions}>
-        {technician.phone ? (
-          <Pressable onPress={() => void Linking.openURL(`tel:${technician.phone}`)}>
-            <Text style={styles.link}>Call</Text>
-          </Pressable>
-        ) : null}
-        <Pressable
-          onPress={() => router.push({ pathname: '/(admin)/user-edit', params: { id: technician.id } })}
-        >
-          <Text style={styles.link}>Edit account</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push('/(admin)/bookings?status=pending')}>
-          <Text style={styles.link}>Pending bookings</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push('/(admin)/bookings')}>
-          <Text style={styles.link}>Assign from bookings</Text>
-        </Pressable>
-      </View>
-      <View style={styles.modeRow}>
-        <Chip label="Calendar" selected={viewMode === 'calendar'} onPress={() => setViewMode('calendar')} />
-        <Chip
-          label="List"
-          selected={viewMode === 'list'}
-          onPress={() => {
-            setListStatusFilter(null);
-            setViewMode('list');
-          }}
-        />
-        <Chip label="Analytics" selected={viewMode === 'analytics'} onPress={() => setViewMode('analytics')} />
-      </View>
-    </View>
+  const profileHeader = (
+    <TechnicianProfileHeader
+      technician={technician}
+      stats={stats}
+      inProgress={inProgress}
+      awaitingVerify={awaitingVerify}
+      statusLabel={st.label}
+      statusTone={st.tone}
+      isDisabled={isDisabled}
+      viewMode={viewMode}
+      onViewModeChange={handleViewModeChange}
+      onMetricPress={openMetric}
+      compact={viewMode === 'analytics'}
+      onCall={technician.phone ? () => void Linking.openURL(`tel:${technician.phone}`) : undefined}
+      onEdit={() => router.push({ pathname: '/(admin)/user-edit', params: { id: technician.id } })}
+      onPending={() => router.push('/(admin)/bookings?status=pending')}
+      onAssign={() => router.push('/(admin)/bookings')}
+    />
   );
+
+  const scrollContentStyle = styles.scrollBody;
 
   const metricSheetEl = (
     <MetricDetailSheet
@@ -288,17 +238,30 @@ export default function AdminTechnicianDetailScreen() {
     />
   );
 
+  const reviewsBlock =
+    reviews.length > 0 ? (
+      <View style={styles.reviewsBlock}>
+        <AdminSectionTitle title="Recent reviews" hint="Customer feedback for this technician" />
+        {reviews.map((r) => (
+          <TechnicianReviewCard key={r.id} stars={r.stars} comment={r.comment} tags={r.tags} />
+        ))}
+      </View>
+    ) : null;
+
   if (viewMode === 'analytics') {
     return (
       <>
-        <AdminListShell title={technician.name} subtitle="Technician profile" headerExtra={summary}>
+        <AdminListShell title={technician.name} subtitle="Technician profile">
           <ScrollView
             style={styles.flexList}
-            contentContainerStyle={styles.scrollBody}
+            contentContainerStyle={scrollContentStyle}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />
             }
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
+            <View style={styles.profileWrap}>{profileHeader}</View>
             <TechnicianAnalyticsTab
               detail={detail}
               month={month}
@@ -317,31 +280,30 @@ export default function AdminTechnicianDetailScreen() {
   if (viewMode === 'calendar') {
     return (
       <>
-        <AdminListShell title={technician.name} subtitle="Technician profile" headerExtra={summary}>
+        <AdminListShell title={technician.name} subtitle="Technician profile">
           <ScrollView
             style={styles.flexList}
-            contentContainerStyle={styles.scrollBody}
+            contentContainerStyle={scrollContentStyle}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />
             }
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
-            <TechnicianDayCalendar
-              calendar={calendar}
-              attendance={attendance}
-              bookings={bookings}
-              onPressBooking={openBooking}
-              onPressDay={overrideAttendance}
-              monthKey={month}
-              onMonthChange={setMonth}
-            />
-            {reviews.length > 0 ? (
-              <View style={styles.reviewsBlock}>
-                <Text style={styles.sectionTitle}>Recent reviews</Text>
-                {reviews.map((r) => (
-                  <ReviewRow key={r.id} review={r} />
-                ))}
-              </View>
-            ) : null}
+            <View style={styles.profileWrap}>{profileHeader}</View>
+            <AdminSectionTitle title="Schedule" hint="Tap a day to view jobs or update attendance" />
+            <View style={styles.calendarWrap}>
+              <TechnicianDayCalendar
+                calendar={calendar}
+                attendance={attendance}
+                bookings={bookings}
+                onPressBooking={openBooking}
+                onPressDay={overrideAttendance}
+                monthKey={month}
+                onMonthChange={setMonth}
+              />
+            </View>
+            {reviewsBlock}
           </ScrollView>
         </AdminListShell>
         {metricSheetEl}
@@ -351,7 +313,7 @@ export default function AdminTechnicianDetailScreen() {
 
   return (
     <>
-      <AdminListShell title={technician.name} subtitle="Technician profile" headerExtra={summary}>
+      <AdminListShell title={technician.name} subtitle="Technician profile">
         <SectionList
           style={styles.flexList}
           sections={sections}
@@ -359,20 +321,25 @@ export default function AdminTechnicianDetailScreen() {
           {...ADMIN_LIST_PERF}
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={
-            listStatusFilter ? (
-              <View style={styles.filterBar}>
-                <Text style={styles.filterText}>Filtered by status</Text>
-                <Pressable onPress={() => setListStatusFilter(null)}>
-                  <Text style={styles.link}>Clear</Text>
-                </Pressable>
-              </View>
-            ) : null
+            <>
+              <View style={styles.profileWrap}>{profileHeader}</View>
+              {listStatusFilter ? (
+                <View style={styles.filterBar}>
+                  <Text style={styles.filterText}>Filtered by status</Text>
+                  <Pressable onPress={() => setListStatusFilter(null)}>
+                    <Text style={styles.filterClear}>Clear</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+            </>
           }
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />
           }
           contentContainerStyle={
-            sections.length === 0 ? adminListShellStyles.empty : adminListShellStyles.list
+            sections.length === 0
+              ? [adminListShellStyles.empty, { paddingBottom: TAB_BAR_PAD }]
+              : [adminListShellStyles.list, { paddingBottom: TAB_BAR_PAD }]
           }
           ListEmptyComponent={
             <EmptyState
@@ -390,16 +357,7 @@ export default function AdminTechnicianDetailScreen() {
           renderItem={({ item }) => (
             <JobVisitCard booking={item} today={today} onPress={() => openBooking(item.id)} />
           )}
-          ListFooterComponent={
-            reviews.length > 0 ? (
-              <View style={styles.reviewsBlock}>
-                <Text style={styles.sectionTitle}>Recent reviews</Text>
-                {reviews.map((r) => (
-                  <ReviewRow key={r.id} review={r} />
-                ))}
-              </View>
-            ) : null
-          }
+          ListFooterComponent={reviewsBlock}
         />
       </AdminListShell>
       {metricSheetEl}
@@ -407,57 +365,26 @@ export default function AdminTechnicianDetailScreen() {
   );
 }
 
-function ReviewRow({ review }: { review: Review }) {
-  return (
-    <View style={styles.reviewCard}>
-      <RatingStars value={review.stars} size={16} />
-      {review.comment ? <Text style={styles.reviewComment}>{review.comment}</Text> : null}
-      {review.tags.length > 0 ? (
-        <Text style={styles.reviewTags}>{review.tags.join(' · ')}</Text>
-      ) : null}
-    </View>
-  );
-}
+const TAB_BAR_PAD = 96;
 
 const styles = StyleSheet.create({
   flexList: { flex: 1 },
-  summary: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  disabledHint: { fontFamily: fonts.body, fontSize: 11, color: surfaces.tintDangerInk },
-  meta: { fontFamily: fonts.body, fontSize: 12, color: colors.muted },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  statBox: {
-    flex: 1,
-    minWidth: '28%',
-    backgroundColor: colors.soft,
-    borderRadius: 10,
-    padding: 8,
-    alignItems: 'center',
-  },
-  statVal: { fontFamily: fonts.displayExtra, fontSize: 13, color: colors.green },
-  statLabel: { fontFamily: fonts.body, fontSize: 9, color: colors.muted, marginTop: 2 },
-  metaLine: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 8 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginTop: 10 },
-  link: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.secondaryDark },
-  modeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 12,
-    backgroundColor: colors.card,
-    padding: 4,
-    borderRadius: 14,
-  },
+  scrollBody: { paddingBottom: TAB_BAR_PAD },
+  profileWrap: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.sm },
+  calendarWrap: { paddingHorizontal: spacing.md },
   filterBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+    borderRadius: 12,
     backgroundColor: colors.secondarySoft,
+    marginHorizontal: spacing.md,
   },
   filterText: { fontFamily: fonts.body, fontSize: 12, color: colors.secondaryInk },
-  scrollBody: { padding: spacing.md, paddingBottom: spacing.xl },
+  filterClear: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
   sectionHeader: {
     fontFamily: fonts.display,
     fontSize: 13,
@@ -466,22 +393,5 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingHorizontal: spacing.md,
   },
-  sectionTitle: {
-    fontFamily: fonts.display,
-    fontSize: 14,
-    color: colors.ink,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  reviewsBlock: { paddingHorizontal: spacing.md, paddingBottom: spacing.lg },
-  reviewCard: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  reviewComment: { fontFamily: fonts.body, fontSize: 13, color: colors.ink, marginTop: 6 },
-  reviewTags: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 4 },
+  reviewsBlock: { paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.lg },
 });

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Card } from '@/components/ui/Card';
 import { JobVisitCard } from '@/components/kit/JobVisitCard';
 import { bookingVisitDate } from '@/lib/booking-helpers';
@@ -117,6 +118,7 @@ export function TechnicianDayCalendar({
   return (
     <View style={styles.wrap}>
       <Card variant="premium" style={styles.calendarCard}>
+        <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
         <View style={styles.monthHead}>
           <Pressable onPress={() => shiftMonth(-1)} style={styles.navBtn} hitSlop={8}>
             <ChevronLeft size={20} color={colors.forest} />
@@ -219,7 +221,8 @@ export const AdminJobCalendar = TechnicianDayCalendar;
 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.sm },
-  calendarCard: { padding: spacing.md },
+  calendarCard: { padding: spacing.md, paddingTop: spacing.sm + 4, overflow: 'hidden' },
+  goldBar: { height: 3, marginHorizontal: -spacing.md, marginTop: -spacing.sm - 4, marginBottom: spacing.sm },
   monthHead: {
     flexDirection: 'row',
     alignItems: 'center',

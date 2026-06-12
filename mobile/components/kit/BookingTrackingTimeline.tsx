@@ -1,11 +1,12 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
 import {
   Check,
   Circle,
   KeyRound,
   MapPin,
+  SprayCan,
   UserCheck,
-  Wrench,
 } from 'lucide-react-native';
 import { trackingEventLabel } from '@/lib/booking-helpers';
 import type { TrackingEvent } from '@/types/api';
@@ -14,7 +15,7 @@ import { colors, fonts, premium, spacing } from '@/constants/theme';
 const EVENT_ICONS: Record<string, typeof Check> = {
   assigned: UserCheck,
   start_otp_sent: KeyRound,
-  work_started: Wrench,
+  work_started: SprayCan,
   step_done: MapPin,
   end_otp_sent: KeyRound,
   work_completed: Check,
@@ -49,6 +50,7 @@ export function BookingTrackingTimeline({ events }: { events: TrackingEvent[] })
 
   return (
     <View style={styles.wrap}>
+      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       {sorted.map((item, i) => {
         const Icon = EVENT_ICONS[item.event] ?? Circle;
         const isLast = i === sorted.length - 1;
@@ -81,10 +83,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: premium.radiusCard,
     padding: spacing.md,
+    paddingTop: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
+    overflow: 'hidden',
     ...premium.shadowSoft,
   },
+  goldBar: { height: 3, marginHorizontal: -spacing.md, marginTop: -spacing.sm, marginBottom: spacing.sm },
   empty: { padding: spacing.md, alignItems: 'center' },
   emptyText: { fontFamily: fonts.body, fontSize: 13, color: colors.muted },
   row: { flexDirection: 'row', alignItems: 'flex-start', minHeight: 52 },

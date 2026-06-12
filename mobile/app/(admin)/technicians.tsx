@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { FlatList, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
-import { Card } from '@/components/ui/Card';
+import { AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { Input } from '@/components/ui/Input';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
@@ -12,9 +12,10 @@ import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { api, screenLoadConfig } from '@/lib/api';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
+import { technicianDisplayRating, technicianRealRating } from '@/lib/ratings';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { AdminTechnician, User } from '@/types/api';
-import { colors, fonts, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 function techStatus(u: User): { label: string; tone: BadgeTone } {
   if (u.disabled === true) return { label: 'Disabled', tone: 'danger' };
@@ -49,6 +50,10 @@ export default function AdminTechniciansScreen() {
     );
   }, [techs, debouncedSearch]);
 
+  const availableCount = useMemo(() => techs.filter((t) => t.available !== false && !t.disabled).length, [techs]);
+  const offDutyCount = useMemo(() => techs.filter((t) => t.available === false && !t.disabled).length, [techs]);
+  const disabledCount = useMemo(() => techs.filter((t) => t.disabled).length, [techs]);
+
   if (loading) return <Spinner fullScreen />;
 
   if (error) {
@@ -64,8 +69,18 @@ export default function AdminTechniciansScreen() {
   );
 
   const listHeader = (
-    <View style={styles.searchWrap}>
-      <Input label="Search" value={search} onChangeText={setSearch} placeholder="Name, phone, city" />
+    <View>
+      <AdminStatStrip
+        items={[
+          { label: 'Team', value: techs.length },
+          { label: 'Available', value: availableCount, color: colors.green },
+          { label: 'Off duty', value: offDutyCount },
+          { label: 'Disabled', value: disabledCount, color: disabledCount ? colors.error : colors.forest },
+        ]}
+      />
+      <View style={styles.searchWrap}>
+        <Input label="Search" value={search} onChangeText={setSearch} placeholder="Name, phone, city" />
+      </View>
     </View>
   );
 
@@ -85,7 +100,7 @@ export default function AdminTechniciansScreen() {
         renderItem={({ item }) => {
           const st = techStatus(item);
           return (
-            <Card variant="premium" style={styles.card}>
+            <View style={styles.card}>
               <Pressable onPress={() => router.push(`/(admin)/technician/${item.id}`)}>
                 <View style={styles.head}>
                   <View style={styles.avatar}>
@@ -110,34 +125,41 @@ export default function AdminTechniciansScreen() {
               <View style={styles.stats}>
                 <View style={styles.stat}>
                   <Text style={styles.statVal}>
-                    {item.rating && item.rating > 0 ? `★ ${item.rating.toFixed(1)}` : '—'}
+                    {technicianDisplayRating(item) > 0
+                      ? `★ ${technicianDisplayRating(item).toFixed(1)}`
+                      : '—'}
                   </Text>
-                  <Text style={styles.statLabel}>Rating</Text>
+                  <Text style={styles.statLabel}>Public</Text>
+                </View>
+                <View style={styles.stat}>
+                  <Text style={styles.statVal}>
+                    {technicianRealRating(item) != null ? technicianRealRating(item)!.toFixed(1) : '—'}
+                  </Text>
+                  <Text style={styles.statLabel}>Real</Text>
                 </View>
                 <View style={styles.stat}>
                   <Text style={styles.statVal}>{item.completedJobs ?? item.jobsDone ?? 0}</Text>
                   <Text style={styles.statLabel}>Done</Text>
                 </View>
                 <Pressable
-                  style={[styles.stat, styles.schedule]}
+                  style={[styles.stat, styles.actionPrimary]}
                   onPress={() => router.push(`/(admin)/technician/${item.id}`)}
                 >
-                  <Text style={styles.scheduleTitle}>Profile</Text>
-                  <Text style={styles.scheduleSub}>View</Text>
+                  <Text style={styles.actionPrimaryText}>Profile</Text>
                 </Pressable>
                 <Pressable
                   style={styles.stat}
                   onPress={() => router.push({ pathname: '/(admin)/user-edit', params: { id: item.id } })}
                 >
-                  <Text style={styles.actionTitle}>Edit</Text>
+                  <Text style={styles.actionText}>Edit</Text>
                 </Pressable>
                 {item.phone ? (
                   <Pressable style={styles.stat} onPress={() => void Linking.openURL(`tel:${item.phone}`)}>
-                    <Text style={styles.actionTitle}>Call</Text>
+                    <Text style={styles.actionText}>Call</Text>
                   </Pressable>
                 ) : null}
               </View>
-            </Card>
+            </View>
           );
         }}
       />
@@ -146,28 +168,42 @@ export default function AdminTechniciansScreen() {
 }
 
 const styles = StyleSheet.create({
-  searchWrap: { marginBottom: spacing.sm },
-  card: { marginBottom: 12, padding: 15 },
+  searchWrap: { marginBottom: spacing.sm, paddingHorizontal: spacing.md },
+  card: {
+    marginBottom: spacing.sm,
+    padding: spacing.md,
+    borderRadius: premium.radiusCard,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: 'rgba(20,83,45,0.07)',
+    ...shadows.card,
+  },
   head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 15,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     backgroundColor: colors.forest,
     alignItems: 'center',
     justifyContent: 'center',
   },
   init: { fontFamily: fonts.displayExtra, fontSize: 15, color: colors.white },
   flex: { flex: 1 },
-  name: { fontFamily: fonts.display, fontSize: 14 },
+  name: { fontFamily: fonts.display, fontSize: 14, color: colors.ink },
   meta: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
   jobHint: { fontFamily: fonts.body, fontSize: 10, color: colors.green, marginTop: 3 },
-  stats: { flexDirection: 'row', gap: 9, marginTop: 13 },
-  stat: { flex: 1, backgroundColor: surfaces.tintInfo, borderRadius: 11, padding: 9, alignItems: 'center' },
-  statVal: { fontFamily: fonts.displayExtra, fontSize: 14, color: colors.green },
-  statLabel: { fontFamily: fonts.body, fontSize: 9.5, color: colors.muted, marginTop: 2 },
-  schedule: { backgroundColor: colors.green },
-  scheduleTitle: { fontFamily: fonts.display, fontSize: 11, color: colors.white, marginTop: 3 },
-  scheduleSub: { fontFamily: fonts.body, fontSize: 9.5, color: colors.lime },
-  actionTitle: { fontFamily: fonts.display, fontSize: 11, color: colors.green, marginTop: 3 },
+  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: spacing.sm },
+  stat: {
+    flexGrow: 1,
+    minWidth: '28%',
+    backgroundColor: colors.soft,
+    borderRadius: 12,
+    padding: 10,
+    alignItems: 'center',
+  },
+  statVal: { fontFamily: fonts.displayExtra, fontSize: 14, color: colors.forest },
+  statLabel: { fontFamily: fonts.body, fontSize: 9, color: colors.muted, marginTop: 2, textTransform: 'uppercase' },
+  actionPrimary: { backgroundColor: colors.forest },
+  actionPrimaryText: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.white },
+  actionText: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.forest },
 });

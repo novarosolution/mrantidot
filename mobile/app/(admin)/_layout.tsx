@@ -1,7 +1,9 @@
 import { Tabs } from 'expo-router';
-import { BarChart3, Calendar, LayoutGrid, Users } from 'lucide-react-native';
 import { KitTabBarButton } from '@/components/kit/KitTabBarButton';
+import { AppIcons } from '@/constants/appIcons';
 import { colors, design, fonts } from '@/constants/theme';
+
+const Tab = AppIcons.adminTab;
 
 export default function AdminLayout() {
   return (
@@ -16,10 +18,10 @@ export default function AdminLayout() {
         tabBarButton: (props) => <KitTabBarButton {...props} />,
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarIcon: ({ color, size }) => <LayoutGrid color={color} size={size} /> }} />
-      <Tabs.Screen name="bookings" options={{ title: 'Bookings', tabBarIcon: ({ color, size }) => <Calendar color={color} size={size} /> }} />
-      <Tabs.Screen name="team" options={{ title: 'Team', tabBarIcon: ({ color, size }) => <Users color={color} size={size} /> }} />
-      <Tabs.Screen name="reports" options={{ title: 'Reports', tabBarIcon: ({ color, size }) => <BarChart3 color={color} size={size} /> }} />
+      <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarIcon: ({ color, size }) => <Tab.dashboard color={color} size={size} /> }} />
+      <Tabs.Screen name="bookings" options={{ title: 'Bookings', tabBarIcon: ({ color, size }) => <Tab.bookings color={color} size={size} /> }} />
+      <Tabs.Screen name="team" options={{ title: 'Team', tabBarIcon: ({ color, size }) => <Tab.team color={color} size={size} /> }} />
+      <Tabs.Screen name="reports" options={{ title: 'Reports', tabBarIcon: ({ color, size }) => <Tab.reports color={color} size={size} /> }} />
       <Tabs.Screen name="services" options={{ href: null }} />
       <Tabs.Screen name="technicians" options={{ href: null }} />
       <Tabs.Screen name="customers" options={{ href: null }} />

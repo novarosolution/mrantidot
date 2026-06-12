@@ -1,49 +1,48 @@
 import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
-import { CalendarCheck } from 'lucide-react-native';
+import { AppIcons } from '@/constants/appIcons';
 import { Button } from '@/components/ui/Button';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { useBookingCopy } from '@/lib/schedule-copy';
+import { colors, fonts, spacing } from '@/constants/theme';
 
 export function BookingsEmpty({ filter }: { filter: 'active' | 'completed' | 'cancelled' }) {
-  const isActive = filter === 'active';
+  const copy = useBookingCopy();
+  const title =
+    filter === 'active'
+      ? copy.listEmptyActive
+      : filter === 'completed'
+        ? copy.listEmptyCompleted
+        : copy.listEmptyCancelled;
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.card}>
-        <View style={styles.icon}>
-          <CalendarCheck size={32} color={colors.forest} strokeWidth={1.8} />
-        </View>
-        <Text style={styles.title}>
-          {isActive ? 'No active bookings' : filter === 'completed' ? 'No completed bookings' : 'No cancelled bookings'}
-        </Text>
-        <Text style={styles.message}>
-          {isActive
-            ? 'Book a trusted service and track every visit here.'
-            : `You don't have any ${filter} bookings yet.`}
-        </Text>
-        {isActive ? (
-          <Button title="Book a service" variant="premium" onPress={() => router.push('/(customer)/services')} style={styles.btn} />
-        ) : null}
+      <View style={styles.icon}>
+        <AppIcons.quick.bookings size={28} color={colors.forest} strokeWidth={1.8} />
       </View>
+      <Text style={styles.title}>{title}</Text>
+      {filter === 'active' ? (
+        <Button
+          title={copy.listBookServiceButton}
+          variant="premium"
+          onPress={() => router.push('/(customer)/services')}
+          style={styles.btn}
+        />
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, justifyContent: 'center', padding: spacing.md },
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: premium.radiusCard,
-    padding: spacing.lg,
+  wrap: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.06)',
-    ...shadows.floating,
+    padding: spacing.lg,
   },
   icon: {
-    width: 72,
-    height: 72,
-    borderRadius: 22,
+    width: 64,
+    height: 64,
+    borderRadius: 20,
     backgroundColor: colors.soft,
     alignItems: 'center',
     justifyContent: 'center',
@@ -51,18 +50,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: fonts.display,
-    fontSize: 18,
+    fontSize: 17,
     color: colors.ink,
     textAlign: 'center',
   },
-  message: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.muted,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-    lineHeight: 19,
-    maxWidth: 280,
-  },
-  btn: { marginTop: spacing.lg, alignSelf: 'stretch' },
+  btn: { marginTop: spacing.lg, alignSelf: 'stretch', maxWidth: 280 },
 });

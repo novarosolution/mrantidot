@@ -76,7 +76,6 @@ export default function AddressesScreen() {
     displayLabel ? (
       <LocationBanner
         label={displayLabel}
-        hint="Used across bookings and your home screen"
         loading={locating}
         onRefresh={() => void detectAddress()}
       />

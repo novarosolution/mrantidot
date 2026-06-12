@@ -16,12 +16,11 @@ import { api, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { formatSocialProof } from '@/lib/display';
-import { useAppContent } from '@/context/AppContentContext';
+import { serviceDisplayRating } from '@/lib/ratings';
 import type { Service, ServiceReview, ServiceStats } from '@/types/api';
 import { colors, design, fonts, premium, shadows, spacing, typography } from '@/constants/theme';
 
 export default function ServiceDetailScreen() {
-  const { content } = useAppContent();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [service, setService] = useState<Service | null>(null);
   const [stats, setStats] = useState<ServiceStats | null>(null);
@@ -64,7 +63,7 @@ export default function ServiceDetailScreen() {
     );
   }
 
-  const socialProof = formatSocialProof(stats?.bookingCount, stats?.avgRating ?? service.rating);
+  const socialProof = formatSocialProof(stats?.bookingCount, serviceDisplayRating(service));
 
   return (
     <View style={styles.root}>
@@ -136,9 +135,7 @@ export default function ServiceDetailScreen() {
       <StickyActionBar>
         <View style={styles.footerRow}>
           <View style={styles.footerPrice}>
-            <Text style={styles.from}>Starting at</Text>
             <Text style={styles.price}>₹{service.basePrice}</Text>
-            <Text style={styles.footerNote} numberOfLines={1}>{content.trust.guaranteeText}</Text>
           </View>
           <Button
             title="Book now"

@@ -1,5 +1,5 @@
 import { SERVICE_ICON_MAP } from '@/constants/serviceIcons';
-import { SprayCan } from 'lucide-react-native';
+import { AppIcons } from '@/constants/appIcons';
 import { colors } from '@/constants/theme';
 
 export function ServiceIcon({
@@ -13,7 +13,7 @@ export function ServiceIcon({
   color?: string;
   strokeWidth?: number;
 }) {
-  const Icon = SERVICE_ICON_MAP[iconKey] ?? SprayCan;
+  const Icon = SERVICE_ICON_MAP[iconKey] ?? AppIcons.brand;
   return <Icon size={size} color={color} strokeWidth={strokeWidth} />;
 }
 

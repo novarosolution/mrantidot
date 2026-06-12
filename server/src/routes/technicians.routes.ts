@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { User } from '../models/User';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { asyncHandler } from '../middleware/error';
+import { technicianPublicRating } from '../utils/ratings';
 
 export const techniciansRouter = Router();
 
@@ -23,7 +24,7 @@ techniciansRouter.get(
       technicians: technicians.map((t) => ({
         id: t._id.toString(),
         name: t.name,
-        rating: t.rating ?? 0,
+        rating: technicianPublicRating(t),
         jobsDone: t.jobsDone ?? 0,
         city: t.city,
       })),

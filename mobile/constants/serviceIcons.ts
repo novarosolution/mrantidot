@@ -1,41 +1,31 @@
 import type { LucideIcon } from 'lucide-react-native';
 import {
-  AirVent,
-  Bath,
   BedDouble,
   Bird,
   Brush,
   Bug,
+  BugOff,
   Building2,
-  ChefHat,
+  CircleDot,
   ClipboardList,
+  Cloud,
   Droplets,
-  Fan,
-  Flame,
-  Flower2,
-  Hammer,
+  Hexagon,
   Home,
-  Layers,
-  Leaf,
-  Lightbulb,
-  Pipette,
-  Plug,
+  Rat,
+  ScanSearch,
   ShieldCheck,
-  Snowflake,
+  Snail,
   Sparkles,
   SprayCan,
-  Target,
   TreePine,
-  Truck,
-  Waves,
-  Wind,
-  Cloud,
+  Turtle,
   Warehouse,
-  Wrench,
-  Zap,
+  Webhook,
+  Wind,
 } from 'lucide-react-native';
 
-export type ServiceIconCategory = 'pest' | 'cleaning' | 'repair' | 'outdoor' | 'general';
+export type ServiceIconCategory = 'pest' | 'cleaning' | 'property' | 'general';
 
 export interface ServiceIconDef {
   key: string;
@@ -44,52 +34,41 @@ export interface ServiceIconDef {
   Icon: LucideIcon;
 }
 
-/** Canonical service icon registry — used by ServiceIcon, admin picker, and seed data. */
+/** Pest-control service icon registry — used by ServiceIcon, admin picker, and seed data. */
 export const SERVICE_ICON_DEFS: ServiceIconDef[] = [
-  // Pest control
-  { key: 'spray', label: 'Spray', category: 'pest', Icon: SprayCan },
-  { key: 'bug', label: 'Bug', category: 'pest', Icon: Bug },
-  { key: 'mosq', label: 'Mosquito', category: 'pest', Icon: Waves },
-  { key: 'wind', label: 'Mosquito / Air', category: 'pest', Icon: Wind },
-  { key: 'mouse', label: 'Rodent', category: 'pest', Icon: Bug },
+  // Pest treatments
+  { key: 'spray', label: 'Treatment', category: 'pest', Icon: SprayCan },
+  { key: 'bug', label: 'General pest', category: 'pest', Icon: Bug },
+  { key: 'bugoff', label: 'Pest removal', category: 'pest', Icon: BugOff },
+  { key: 'mosq', label: 'Mosquito', category: 'pest', Icon: Wind },
+  { key: 'wind', label: 'Mosquito', category: 'pest', Icon: Wind },
+  { key: 'mouse', label: 'Rodent', category: 'pest', Icon: Rat },
   { key: 'bed', label: 'Bed bug', category: 'pest', Icon: BedDouble },
-  { key: 'termite', label: 'Termite', category: 'pest', Icon: Layers },
+  { key: 'termite', label: 'Termite', category: 'pest', Icon: TreePine },
+  { key: 'tree', label: 'Termite / wood', category: 'pest', Icon: TreePine },
   { key: 'cloud', label: 'Fumigation', category: 'pest', Icon: Cloud },
-  { key: 'bird', label: 'Bird', category: 'pest', Icon: Bird },
-  { key: 'ant', label: 'Ant', category: 'pest', Icon: Target },
+  { key: 'bird', label: 'Bird control', category: 'pest', Icon: Bird },
+  { key: 'ant', label: 'Ant', category: 'pest', Icon: CircleDot },
+  { key: 'spider', label: 'Spider', category: 'pest', Icon: Webhook },
+  { key: 'bee', label: 'Bee / wasp', category: 'pest', Icon: Hexagon },
+  { key: 'lizard', label: 'Lizard', category: 'pest', Icon: Turtle },
+  { key: 'snail', label: 'Snail / slug', category: 'pest', Icon: Snail },
+  { key: 'inspect', label: 'Inspection', category: 'pest', Icon: ScanSearch },
 
-  // Cleaning
+  // Cleaning & sanitation
   { key: 'sparkles', label: 'Deep clean', category: 'cleaning', Icon: Sparkles },
   { key: 'clean', label: 'Cleaning', category: 'cleaning', Icon: Sparkles },
   { key: 'brush', label: 'Scrub', category: 'cleaning', Icon: Brush },
-  { key: 'droplets', label: 'Wash', category: 'cleaning', Icon: Droplets },
-  { key: 'bath', label: 'Bathroom', category: 'cleaning', Icon: Bath },
+  { key: 'droplets', label: 'Sanitize', category: 'cleaning', Icon: Droplets },
 
-  // Repair & home
-  { key: 'snowflake', label: 'AC / Cool', category: 'repair', Icon: Snowflake },
-  { key: 'airvent', label: 'Ventilation', category: 'repair', Icon: AirVent },
-  { key: 'zap', label: 'Electrical', category: 'repair', Icon: Zap },
-  { key: 'plug', label: 'Wiring', category: 'repair', Icon: Plug },
-  { key: 'lightbulb', label: 'Lighting', category: 'repair', Icon: Lightbulb },
-  { key: 'wrench', label: 'Repair', category: 'repair', Icon: Wrench },
-  { key: 'hammer', label: 'Carpentry', category: 'repair', Icon: Hammer },
-  { key: 'pipe', label: 'Plumbing', category: 'repair', Icon: Pipette },
-  { key: 'flame', label: 'Heating', category: 'repair', Icon: Flame },
-  { key: 'fan', label: 'Fan', category: 'repair', Icon: Fan },
-
-  // Outdoor
-  { key: 'tree', label: 'Garden', category: 'outdoor', Icon: TreePine },
-  { key: 'leaf', label: 'Lawn', category: 'outdoor', Icon: Leaf },
-  { key: 'flower', label: 'Plants', category: 'outdoor', Icon: Flower2 },
+  // Property types
+  { key: 'home', label: 'Residential', category: 'property', Icon: Home },
+  { key: 'building', label: 'Commercial', category: 'property', Icon: Building2 },
+  { key: 'warehouse', label: 'Warehouse / silo', category: 'property', Icon: Warehouse },
 
   // General
-  { key: 'home', label: 'Home', category: 'general', Icon: Home },
-  { key: 'building', label: 'Commercial', category: 'general', Icon: Building2 },
-  { key: 'warehouse', label: 'Warehouse / Silo', category: 'general', Icon: Warehouse },
-  { key: 'truck', label: 'Delivery', category: 'general', Icon: Truck },
-  { key: 'shield', label: 'Protection', category: 'general', Icon: ShieldCheck },
-  { key: 'clipboard', label: 'Inspection', category: 'general', Icon: ClipboardList },
-  { key: 'chef', label: 'Kitchen', category: 'general', Icon: ChefHat },
+  { key: 'shield', label: 'Protection plan', category: 'general', Icon: ShieldCheck },
+  { key: 'clipboard', label: 'Inspection report', category: 'general', Icon: ClipboardList },
 ];
 
 export const SERVICE_ICON_MAP: Record<string, LucideIcon> = Object.fromEntries(
@@ -102,8 +81,7 @@ export const SERVICE_ICON_CATEGORIES: { key: ServiceIconCategory | 'all'; label:
   { key: 'all', label: 'All' },
   { key: 'pest', label: 'Pest' },
   { key: 'cleaning', label: 'Cleaning' },
-  { key: 'repair', label: 'Repair' },
-  { key: 'outdoor', label: 'Outdoor' },
+  { key: 'property', label: 'Property' },
   { key: 'general', label: 'General' },
 ];
 

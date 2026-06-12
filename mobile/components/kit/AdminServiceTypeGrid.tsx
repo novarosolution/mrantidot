@@ -1,5 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronRight, LayoutGrid, Plus } from 'lucide-react-native';
+import { ChevronRight, Plus } from 'lucide-react-native';
+import { AppIcons } from '@/constants/appIcons';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SERVICE_TYPE_KEYS, type ServiceTypeKey } from '@/constants/serviceTypes';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
@@ -38,7 +39,7 @@ export function AdminServiceTypeGrid({
         onPress={() => onSelectType('all')}
       >
         <View style={styles.allIcon}>
-          <LayoutGrid size={22} color={colors.forest} />
+          <AppIcons.brand size={22} color={colors.forest} />
         </View>
         <View style={styles.allBody}>
           <Text style={styles.allTitle}>All services</Text>

@@ -119,6 +119,8 @@ function formatBookingForTechnician(
     scheduleMode: base.scheduleMode,
     scheduleRequest: base.scheduleRequest,
     scheduleConfirmedAt: base.scheduleConfirmedAt,
+    propertyType: base.propertyType,
+    propertyTypeLabel: base.propertyTypeLabel,
     address: base.address,
     status: base.status,
     assignmentMode: base.assignmentMode,

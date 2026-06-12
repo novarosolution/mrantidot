@@ -2,6 +2,9 @@ import '../types/express';
 import { Router } from 'express';
 import { Booking } from '../models/Booking';
 import { User } from '../models/User';
+import { Review } from '../models/Review';
+import { Offer } from '../models/Offer';
+import { Service } from '../models/Service';
 import { TechnicianAttendance } from '../models/TechnicianAttendance';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { asyncHandler } from '../middleware/error';
@@ -100,6 +103,22 @@ async function revenueByMonthBuckets(): Promise<{ label: string; amount: number 
   return buckets;
 }
 
+async function bookingsTrendBuckets(days = 7): Promise<{ label: string; count: number }[]> {
+  const buckets: { label: string; count: number }[] = [];
+  const now = new Date();
+  for (let i = days - 1; i >= 0; i--) {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - i);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    const count = await Booking.countDocuments({ createdAt: { $gte: start, $lt: end } });
+    const label = i === 0 ? 'Today' : start.toLocaleString('en', { weekday: 'short' });
+    buckets.push({ label, count });
+  }
+  return buckets;
+}
+
 statsRouter.get(
   '/admin',
   requireAuth,
@@ -132,6 +151,16 @@ statsRouter.get(
       periodPending,
       prevPending,
       periodStatusAgg,
+      reviewAgg,
+      periodReviewCount,
+      offerCounts,
+      offerUsesAgg,
+      serviceCounts,
+      topTechnicians,
+      topCustomers,
+      paymentSplitAgg,
+      couponBookings,
+      bookingsTrend,
     ] = await Promise.all([
       Booking.countDocuments(),
       Booking.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
@@ -188,6 +217,87 @@ statsRouter.get(
         { $match: { createdAt: { $gte: rangeStart, $lt: now } } },
         { $group: { _id: '$status', count: { $sum: 1 } } },
       ]),
+      Review.aggregate([
+        { $match: { hidden: { $ne: true } } },
+        { $group: { _id: null, total: { $sum: 1 }, avg: { $avg: '$stars' } } },
+      ]),
+      Review.countDocuments({ hidden: { $ne: true }, createdAt: { $gte: rangeStart, $lt: now } }),
+      Promise.all([Offer.countDocuments(), Offer.countDocuments({ active: true })]),
+      Offer.aggregate([{ $group: { _id: null, uses: { $sum: '$useCount' } } }]),
+      Promise.all([Service.countDocuments(), Service.countDocuments({ active: true })]),
+      Booking.aggregate([
+        {
+          $match: {
+            status: 'completed',
+            updatedAt: { $gte: rangeStart, $lt: now },
+            technicianId: { $exists: true, $ne: null },
+          },
+        },
+        {
+          $group: {
+            _id: '$technicianId',
+            jobs: { $sum: 1 },
+            revenue: { $sum: '$amount.total' },
+          },
+        },
+        { $sort: { jobs: -1 } },
+        { $limit: 5 },
+        {
+          $lookup: {
+            from: 'users',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'tech',
+          },
+        },
+        { $unwind: '$tech' },
+        {
+          $project: {
+            id: '$_id',
+            name: '$tech.name',
+            jobs: 1,
+            revenue: 1,
+          },
+        },
+      ]),
+      Booking.aggregate([
+        { $match: { createdAt: { $gte: rangeStart, $lt: now } } },
+        {
+          $group: {
+            _id: '$customerId',
+            bookings: { $sum: 1 },
+            spend: { $sum: '$amount.total' },
+          },
+        },
+        { $sort: { spend: -1 } },
+        { $limit: 5 },
+        {
+          $lookup: {
+            from: 'users',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'customer',
+          },
+        },
+        { $unwind: '$customer' },
+        {
+          $project: {
+            id: '$_id',
+            name: '$customer.name',
+            bookings: 1,
+            spend: 1,
+          },
+        },
+      ]),
+      Booking.aggregate([
+        { $match: { createdAt: { $gte: rangeStart, $lt: now } } },
+        { $group: { _id: '$paymentMethod', count: { $sum: 1 } } },
+      ]),
+      Booking.countDocuments({
+        createdAt: { $gte: rangeStart, $lt: now },
+        couponCode: { $exists: true, $nin: [null, ''] },
+      }),
+      bookingsTrendBuckets(7),
     ]);
 
     const byStatus: Record<string, number> = {};
@@ -212,6 +322,22 @@ statsRouter.get(
       updatedAt: { $gte: prevStart, $lt: rangeStart },
     });
 
+    const periodCompleted = periodByStatus.completed ?? 0;
+    const periodCancelled = periodByStatus.cancelled ?? 0;
+    const completionRate =
+      periodBookings > 0 ? Math.round((periodCompleted / periodBookings) * 100) : 0;
+    const cancellationRate =
+      periodBookings > 0 ? Math.round((periodCancelled / periodBookings) * 100) : 0;
+    const avgOrderValue = Math.round(periodRevenue / Math.max(1, periodCompleted));
+
+    const paymentSplit: Record<string, number> = {};
+    for (const row of paymentSplitAgg) {
+      paymentSplit[row._id as string] = row.count as number;
+    }
+
+    const [totalOffers, activeOffers] = offerCounts;
+    const [totalServices, activeServices] = serviceCounts;
+
     res.json({
       totalBookings,
       byStatus,
@@ -234,6 +360,45 @@ statsRouter.get(
         pending: pctDelta(periodPending, prevPending),
       },
       period: p,
+      analytics: {
+        reviews: {
+          total: reviewAgg[0]?.total ?? 0,
+          averageRating: Math.round((reviewAgg[0]?.avg ?? 0) * 10) / 10,
+          periodCount: periodReviewCount,
+        },
+        offers: {
+          total: totalOffers,
+          active: activeOffers,
+          totalRedemptions: offerUsesAgg[0]?.uses ?? 0,
+        },
+        catalog: {
+          totalServices,
+          activeServices,
+        },
+        performance: {
+          completionRate,
+          cancellationRate,
+          avgOrderValue,
+          couponBookings,
+        },
+        paymentSplit: {
+          upi_card: paymentSplit.upi_card ?? 0,
+          pay_after: paymentSplit.pay_after ?? 0,
+        },
+        topTechnicians: topTechnicians.map((t) => ({
+          id: String(t.id),
+          name: t.name as string,
+          jobs: t.jobs as number,
+          revenue: t.revenue as number,
+        })),
+        topCustomers: topCustomers.map((c) => ({
+          id: String(c.id),
+          name: c.name as string,
+          bookings: c.bookings as number,
+          spend: c.spend as number,
+        })),
+        bookingsTrend,
+      },
     });
   }),
 );

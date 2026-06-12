@@ -3,6 +3,7 @@ import { ChevronLeft } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { safeGoBack } from '@/lib/routes';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
@@ -64,7 +65,7 @@ export default function ServicesByTypeScreen() {
   if (!typeKey || !meta) {
     return (
       <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-        <ListEmptyRetry message="Unknown service type" onRetry={() => router.back()} />
+        <ListEmptyRetry message="Unknown service type" onRetry={() => safeGoBack('/(customer)/services')} />
       </SafeAreaView>
     );
   }
@@ -72,7 +73,7 @@ export default function ServicesByTypeScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right']}>
       <View style={[styles.header, { paddingTop: headerTopPad(insets.top) }]}>
-        <Pressable style={styles.back} onPress={() => router.back()} hitSlop={8}>
+        <Pressable style={styles.back} onPress={() => safeGoBack('/(customer)/services')} hitSlop={8}>
           <ChevronLeft size={22} color={colors.forest} />
         </Pressable>
         <View style={[styles.headerIcon, { backgroundColor: meta.bg }]}>

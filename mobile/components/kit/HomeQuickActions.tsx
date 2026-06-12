@@ -1,71 +1,90 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { CalendarCheck, Gift, Headphones, Sparkles } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { AppIcons } from '@/constants/appIcons';
+import { colors, fonts, spacing } from '@/constants/theme';
 
 const ACTIONS = [
-  { key: 'book', label: 'Book now', icon: Sparkles, route: '/(customer)/services' as const, tint: colors.forest },
-  { key: 'bookings', label: 'Bookings', icon: CalendarCheck, route: '/(customer)/bookings' as const, tint: colors.secondaryDark },
-  { key: 'offers', label: 'Offers', icon: Gift, route: '/(customer)/offers' as const, tint: colors.amberInk },
-  { key: 'help', label: 'Support', icon: Headphones, route: '/(customer)/help' as const, tint: colors.blue },
+  {
+    key: 'book',
+    label: 'Book',
+    icon: AppIcons.quick.book,
+    route: '/(customer)/services' as const,
+    tint: colors.forest,
+    bg: '#E8F5EC',
+  },
+  {
+    key: 'bookings',
+    label: 'Bookings',
+    icon: AppIcons.quick.bookings,
+    route: '/(customer)/bookings' as const,
+    tint: colors.blue,
+    bg: colors.blueBg,
+  },
+  {
+    key: 'offers',
+    label: 'Offers',
+    icon: AppIcons.quick.offers,
+    route: '/(customer)/offers' as const,
+    tint: colors.amberInk,
+    bg: colors.amberBg,
+  },
+  {
+    key: 'help',
+    label: 'Help',
+    icon: AppIcons.quick.support,
+    route: '/(customer)/help' as const,
+    tint: colors.secondaryDark,
+    bg: colors.secondarySoft,
+  },
 ];
 
 export function HomeQuickActions() {
   return (
-    <View style={styles.row}>
-      {ACTIONS.map((a) => {
-        const Icon = a.icon;
-        return (
-          <Pressable
-            key={a.key}
-            style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
-            onPress={() => router.push(a.route)}
-          >
-            <LinearGradient
-              colors={['#FFFFFF', '#F7FAF6']}
-              style={styles.iconBox}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+    <View style={styles.wrap}>
+      <View style={styles.row}>
+        {ACTIONS.map((a) => {
+          const Icon = a.icon;
+          return (
+            <Pressable
+              key={a.key}
+              style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
+              onPress={() => router.push(a.route)}
             >
-              <Icon size={22} color={a.tint} strokeWidth={2} />
-            </LinearGradient>
-            <Text style={styles.label}>{a.label}</Text>
-          </Pressable>
-        );
-      })}
+              <View style={[styles.iconBox, { backgroundColor: a.bg }]}>
+                <Icon size={20} color={a.tint} strokeWidth={2.2} />
+              </View>
+              <Text style={styles.label}>{a.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.md,
-    marginTop: spacing.md,
-    gap: 10,
+  wrap: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
   },
+  row: { flexDirection: 'row', gap: 8 },
   tile: {
     flex: 1,
     alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderRadius: 16,
     backgroundColor: colors.white,
-    borderRadius: premium.radiusCard,
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: 4,
     borderWidth: 1,
     borderColor: 'rgba(20,83,45,0.06)',
-    ...shadows.card,
   },
-  pressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
+  pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   label: {
     fontFamily: fonts.bodySemi,

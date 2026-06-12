@@ -1,4 +1,4 @@
-import { Inbox } from 'lucide-react-native';
+import { AppIcons } from '@/constants/appIcons';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, design, fonts, premium, shadows, spacing } from '@/constants/theme';
 
@@ -7,7 +7,7 @@ export function EmptyState({ title, message }: { title: string; message?: string
     <View style={styles.wrap}>
       <View style={styles.card}>
         <View style={styles.iconCircle}>
-          <Inbox size={28} color={colors.secondaryDark} strokeWidth={1.8} />
+          <AppIcons.empty size={28} color={colors.secondaryDark} strokeWidth={1.8} />
         </View>
         <Text style={styles.title}>{title}</Text>
         {message ? <Text style={styles.message}>{message}</Text> : null}

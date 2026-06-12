@@ -1,17 +1,23 @@
 import { Link, router } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput } from 'react-native';
-import { AuthField, AuthScreenLayout, authScreenStyles } from '@/components/kit/auth/AuthScreenLayout';
+import {
+  AuthFooterText,
+  AuthFormSection,
+  AuthLoginShell,
+} from '@/components/kit/auth/AuthScreenKit';
+import { AuthField, authScreenStyles } from '@/components/kit/auth/AuthScreenLayout';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
 import { getApiErrorMessage } from '@/lib/api';
 import { homeRouteForRole } from '@/lib/auth-routes';
+import { isProfileIncomplete } from '@/lib/profile-display';
 import { appToast } from '@/lib/toast';
 import { spacing, colors, fonts } from '@/constants/theme';
 
 export default function LoginScreen() {
-  const { login } = useAuth();
+  const { login, refreshMe } = useAuth();
   const { content } = useAppContent();
 
   const passwordRef = useRef<TextInput>(null);
@@ -45,79 +51,88 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const signedIn = await login(id, pass);
-      appToast.success('Welcome back', content.branding.name);
+      await refreshMe({ silent: true });
+      appToast.success('Welcome back', displayUserGreeting(signedIn.name));
+      if (signedIn.role === 'customer' && isProfileIncomplete(signedIn)) {
+        appToast.info('Complete your profile', 'Add your name and email to finish setup.');
+        router.replace('/(customer)/settings');
+        return;
+      }
       router.replace(homeRouteForRole(signedIn.role));
     } catch (err) {
       appToast.error('Sign in failed', getApiErrorMessage(err, 'Check your credentials and try again'));
     } finally {
       setLoading(false);
     }
-  }, [content.branding.name, identifier, login, password]);
+  }, [identifier, login, password, refreshMe]);
 
   return (
-    <AuthScreenLayout
-      brandName={content.branding.name}
-      footer={
+    <AuthLoginShell title="Sign in">
+      <AuthFormSection>
+        <AuthField
+          label="Email or phone"
+          value={identifier}
+          onChangeText={(text) => {
+            setIdentifier(text);
+            if (identifierError) setIdentifierError(undefined);
+          }}
+          placeholder="Email or mobile number"
+          error={identifierError}
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+        />
+
+        <AuthField
+          label="Password"
+          value={password}
+          onChangeText={(text) => {
+            setPassword(text);
+            if (passwordError) setPasswordError(undefined);
+          }}
+          placeholder="Your password"
+          error={passwordError}
+          secure
+          inputRef={passwordRef}
+          returnKeyType="go"
+          onSubmitEditing={() => void handleLogin()}
+        />
+
+        <Pressable
+          style={styles.forgotBtn}
+          onPress={() => {
+            const contact = content.support.phone || content.support.email;
+            appToast.info(
+              'Password reset',
+              contact ? `Contact: ${contact}` : 'Use OTP sign in instead.',
+            );
+          }}
+        >
+          <Text style={styles.forgotText}>Forgot password?</Text>
+        </Pressable>
+
+        <Button title="Sign in" variant="premium" onPress={() => void handleLogin()} loading={loading} />
+
+        <Link href="/(auth)/otp" asChild>
+          <Button title="Sign in with OTP" variant="outline" style={styles.altBtn} />
+        </Link>
+      </AuthFormSection>
+
+      <AuthFooterText>
         <Text style={authScreenStyles.footer}>
           New here?{' '}
           <Link href="/(auth)/register">
             <Text style={authScreenStyles.footerLink}>Create account</Text>
           </Link>
         </Text>
-      }
-    >
-      <AuthField
-        label="Email or phone"
-        value={identifier}
-        onChangeText={(text) => {
-          setIdentifier(text);
-          if (identifierError) setIdentifierError(undefined);
-        }}
-        placeholder="Email or mobile number"
-        error={identifierError}
-        returnKeyType="next"
-        onSubmitEditing={() => passwordRef.current?.focus()}
-      />
-
-      <Text style={styles.loginHint}>
-        Admin login uses ADMIN_PHONE or ADMIN_EMAIL from server/.env — not the old default admin@mrantidot.com unless synced.
-      </Text>
-
-      <AuthField
-        label="Password"
-        value={password}
-        onChangeText={(text) => {
-          setPassword(text);
-          if (passwordError) setPasswordError(undefined);
-        }}
-        placeholder="Your password"
-        error={passwordError}
-        secure
-        inputRef={passwordRef}
-        returnKeyType="go"
-        onSubmitEditing={() => void handleLogin()}
-      />
-
-      <Pressable
-        style={styles.forgotBtn}
-        onPress={() => {
-          const contact = content.support.phone || content.support.email;
-          appToast.info(
-            'Password reset',
-            contact ? `Contact: ${contact}` : 'Use OTP sign in instead.',
-          );
-        }}
-      >
-        <Text style={styles.forgotText}>Forgot password?</Text>
-      </Pressable>
-
-      <Button title="Sign in" variant="premium" onPress={() => void handleLogin()} loading={loading} />
-
-      <Link href="/(auth)/otp" asChild>
-        <Button title="Sign in with OTP" variant="outline" style={styles.altBtn} />
-      </Link>
-    </AuthScreenLayout>
+      </AuthFooterText>
+    </AuthLoginShell>
   );
+}
+
+function displayUserGreeting(name?: string): string {
+  const trimmed = name?.trim();
+  if (!trimmed || trimmed.toLowerCase() === 'customer') return 'Signed in successfully';
+  return trimmed.split(' ')[0] ?? trimmed;
 }
 
 const styles = StyleSheet.create({
@@ -133,14 +148,5 @@ const styles = StyleSheet.create({
   },
   altBtn: {
     marginTop: spacing.md,
-  },
-  loginHint: {
-    fontFamily: fonts.body,
-    fontSize: 11.5,
-    color: colors.muted,
-    lineHeight: 16,
-    marginTop: -6,
-    marginBottom: spacing.md,
-    paddingHorizontal: 2,
   },
 });

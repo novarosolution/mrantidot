@@ -1,13 +1,13 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Bell, Calendar, CheckCircle } from 'lucide-react-native';
+import { AppIcons } from '@/constants/appIcons';
 import type { AppNotification } from '@/types/api';
 import { colors, design, fonts, premium, spacing } from '@/constants/theme';
 
 function iconForType(type: string) {
-  if (type.startsWith('admin_')) return Bell;
-  if (type.includes('booking') || type.includes('confirmed')) return Calendar;
-  if (type.includes('complete') || type.includes('verified')) return CheckCircle;
-  return Bell;
+  if (type.startsWith('admin_')) return AppIcons.notification.admin;
+  if (type.includes('booking') || type.includes('confirmed')) return AppIcons.notification.booking;
+  if (type.includes('complete') || type.includes('verified')) return AppIcons.notification.complete;
+  return AppIcons.notification.default;
 }
 
 function formatWhen(createdAt?: string): string {

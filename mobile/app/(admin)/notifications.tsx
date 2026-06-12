@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text } from 'react-native';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { NotificationRow } from '@/components/kit/NotificationRow';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
@@ -55,7 +56,8 @@ export default function AdminNotificationsScreen() {
     }
   }
 
-  const hasUnread = items.some((n) => !n.read);
+  const unreadCount = items.filter((n) => !n.read).length;
+  const hasUnread = unreadCount > 0;
 
   if (loading) return <Spinner fullScreen />;
 
@@ -68,17 +70,28 @@ export default function AdminNotificationsScreen() {
   }
 
   const markAllBtn = hasUnread ? (
-    <Pressable onPress={() => void markAllRead()} disabled={markingAll} style={styles.markAll}>
-      <Text style={styles.markAllText}>{markingAll ? '…' : 'Mark all read'}</Text>
+    <Pressable
+      onPress={() => void markAllRead()}
+      disabled={markingAll}
+      style={({ pressed }) => [styles.markAll, pressed && styles.pressed]}
+    >
+      <Text style={styles.markAllText}>{markingAll ? '…' : 'Read all'}</Text>
     </Pressable>
   ) : undefined;
 
   return (
     <AdminListShell
       title="Notifications"
-      subtitle={hasUnread ? `${items.filter((n) => !n.read).length} unread` : 'All caught up'}
+      subtitle={hasUnread ? `${unreadCount} unread` : 'All caught up'}
       rightAction={markAllBtn}
     >
+      <AdminStatStrip
+        items={[
+          { label: 'Total', value: items.length },
+          { label: 'Unread', value: unreadCount, color: unreadCount > 0 ? colors.amberInk : colors.forest },
+          { label: 'Read', value: items.length - unreadCount },
+        ]}
+      />
       <FlatList
         data={items}
         keyExtractor={(n) => n.id}
@@ -87,12 +100,7 @@ export default function AdminNotificationsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />
         }
         contentContainerStyle={items.length === 0 ? adminListShellStyles.empty : adminListShellStyles.list}
-        ListEmptyComponent={
-          <EmptyState
-            title="No notifications yet"
-            message="You will see new bookings and jobs needing attention here"
-          />
-        }
+        ListEmptyComponent={<EmptyState title="No notifications" message="New bookings and jobs will appear here" />}
         renderItem={({ item }) => <NotificationRow item={item} onPress={() => void openItem(item)} />}
       />
     </AdminListShell>
@@ -101,10 +109,11 @@ export default function AdminNotificationsScreen() {
 
 const styles = StyleSheet.create({
   markAll: {
-    backgroundColor: colors.soft,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
+    backgroundColor: colors.forest,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 999,
   },
-  markAllText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.green },
+  pressed: { opacity: 0.88 },
+  markAllText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.white },
 });

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { appToast } from '@/lib/toast';
 import { User, Mail, Phone, MapPin } from 'lucide-react-native';
@@ -13,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { useLocation } from '@/context/LocationContext';
 import { api } from '@/lib/api';
+import { displayUserEmail, displayUserName, isProfileIncomplete } from '@/lib/profile-display';
 import { colors, design, fonts, spacing } from '@/constants/theme';
 
 export default function SettingsScreen() {
@@ -24,13 +26,23 @@ export default function SettingsScreen() {
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+  const syncFromUser = useCallback(() => {
     if (!user) return;
-    setName(user.name ?? '');
-    setEmail(user.email ?? '');
+    setName(user.name?.trim() && user.name.toLowerCase() !== 'customer' ? user.name : '');
+    setEmail(displayUserEmail(user.email) ?? '');
     setCity(user.city ?? '');
     setPhone(user.phone ?? '');
   }, [user]);
+
+  useEffect(() => {
+    syncFromUser();
+  }, [syncFromUser]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshMe({ silent: true });
+    }, [refreshMe]),
+  );
 
   async function detectCity() {
     const loc = await detectAddress();
@@ -58,11 +70,13 @@ export default function SettingsScreen() {
       <CustomerPageHeader variant="premium" title="Settings" showBack />
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="always">
         <UserAccountCard compact />
-        <Text style={styles.role}>Signed in as Customer</Text>
+        <Text style={styles.role}>Signed in as Customer · {displayUserName(user)}</Text>
+        {isProfileIncomplete(user) ? (
+          <Text style={styles.completeHint}>Complete your profile below.</Text>
+        ) : null}
         {displayLabel ? (
           <LocationBanner
             label={displayLabel}
-            hint="Detected service area"
             loading={locating}
             onRefresh={() => void detectCity()}
           />
@@ -85,7 +99,16 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: design.screenBg },
   container: { padding: spacing.md, paddingBottom: spacing.xl },
-  role: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginBottom: spacing.md, textAlign: 'center' },
+  role: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginBottom: spacing.xs, textAlign: 'center' },
+  completeHint: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.forest,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+    lineHeight: 17,
+    paddingHorizontal: spacing.sm,
+  },
   form: { padding: spacing.md, gap: spacing.sm },
   btnWrap: { marginTop: spacing.md },
 });

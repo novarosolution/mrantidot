@@ -9,6 +9,7 @@ import { useAppContent } from '@/context/AppContentContext';
 import { api } from '@/lib/api';
 import { appToast } from '@/lib/toast';
 import { homeRouteForRole } from '@/lib/auth-routes';
+import { isProfileIncomplete } from '@/lib/profile-display';
 import { colors, fonts, spacing } from '@/constants/theme';
 
 function maskPhone(phone: string): string {
@@ -80,6 +81,11 @@ export default function OtpScreen() {
     setLoading(true);
     try {
       const signedIn = await otpVerify(trimmedPhone, trimmedCode);
+      if (signedIn.role === 'customer' && isProfileIncomplete(signedIn)) {
+        appToast.info('Complete your profile', 'Add your name and email to finish setup.');
+        router.replace('/(customer)/settings');
+        return;
+      }
       router.replace(homeRouteForRole(signedIn.role));
     } catch {
       // handled by API interceptor

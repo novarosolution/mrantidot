@@ -259,13 +259,13 @@ export function BookingSuccessScreen({
 
           <FadeSlideIn delay={320} slideFrom={20}>
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Booking summary</Text>
-              <SummaryRow label="Reference" value={refLabel} />
-              <SummaryRow label="Service" value={serviceName} />
-              <SummaryRow label="Requested visit" value={schedule} />
-              {paymentLabel ? <SummaryRow label="Payment" value={paymentLabel} /> : null}
+              <Text style={styles.cardTitle}>{bookingCopy.successSummaryTitle}</Text>
+              <SummaryRow label={bookingCopy.successLabelReference} value={refLabel} />
+              <SummaryRow label={bookingCopy.successLabelService} value={serviceName} />
+              <SummaryRow label={bookingCopy.successLabelVisit} value={schedule} />
+              {paymentLabel ? <SummaryRow label={bookingCopy.successLabelPayment} value={paymentLabel} /> : null}
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Estimated total</Text>
+                <Text style={styles.totalLabel}>{bookingCopy.successLabelTotal}</Text>
                 <Text style={styles.totalValue}>₹{total}</Text>
               </View>
             </View>
@@ -273,10 +273,10 @@ export function BookingSuccessScreen({
         </ScrollView>
 
         <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-          <Button title="View booking" onPress={viewBooking} variant="gold" />
+          <Button title={bookingCopy.successViewBookingButton} onPress={viewBooking} variant="gold" />
           <Pressable style={({ pressed }) => [styles.homeBtn, pressed && styles.pressed]} onPress={goHome}>
             <Home size={16} color={colors.lime} />
-            <Text style={styles.homeText}>Back to home</Text>
+            <Text style={styles.homeText}>{bookingCopy.successHomeButton}</Text>
             <ChevronRight size={16} color="rgba(255,255,255,0.55)" />
           </Pressable>
         </View>

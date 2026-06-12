@@ -18,6 +18,7 @@ export function OtpEntrySheet({
   title,
   subtitle,
   loading,
+  errorTrigger,
   onClose,
   onSubmit,
 }: {
@@ -25,6 +26,8 @@ export function OtpEntrySheet({
   title: string;
   subtitle?: string;
   loading?: boolean;
+  /** Increment to shake input and signal a failed verify attempt. */
+  errorTrigger?: number;
   onClose: () => void;
   onSubmit: (otp: string) => void;
 }) {
@@ -38,6 +41,12 @@ export function OtpEntrySheet({
       setTimeout(() => inputRef.current?.focus(), 300);
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (!visible || !errorTrigger) return;
+    setCode('');
+    triggerShake();
+  }, [errorTrigger, visible]);
 
   function triggerShake() {
     shake.setValue(0);
@@ -70,7 +79,6 @@ export function OtpEntrySheet({
             <KeyRound size={24} color={colors.white} />
           </View>
           <Text style={styles.title}>{title}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
 
           <Animated.View style={{ transform: [{ translateX: shake }] }}>
             <TextInput
@@ -86,8 +94,6 @@ export function OtpEntrySheet({
               textAlign="center"
             />
           </Animated.View>
-
-          <Text style={styles.hint}>Ask the customer for their 6-digit code</Text>
 
           <Button
             title={loading ? 'Verifying…' : 'Verify code'}

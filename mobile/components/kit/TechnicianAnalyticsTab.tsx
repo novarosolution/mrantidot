@@ -1,35 +1,28 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { Clock, Download } from 'lucide-react-native';
+import { Clock, Download, IndianRupee, SprayCan, Star } from 'lucide-react-native';
+import { AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { AttendanceAnalyticsCard } from '@/components/kit/AttendanceAnalyticsCard';
 import { AttendanceTrendChart } from '@/components/kit/AttendanceTrendChart';
+import { formatRupee } from '@/components/kit/format';
 import { JobVisitCard } from '@/components/kit/JobVisitCard';
 import { KpiCard } from '@/components/kit/KpiCard';
 import { PendingAnalyticsRow } from '@/components/kit/PendingAnalyticsRow';
+import { ReportsSectionCard } from '@/components/kit/ReportsPageKit';
 import { StatusPipelineCard } from '@/components/kit/StatusPipelineCard';
+import { TechnicianReviewCard } from '@/components/kit/TechnicianProfileKit';
 import { WeeklyBarChart } from '@/components/kit/WeeklyBarChart';
 import { Chip } from '@/components/ui/Chip';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { RatingStars } from '@/components/ui/RatingStars';
 import { formatMonthLabel, statusKeyToMetric } from '@/lib/technician-metrics';
 import { bookingStatusLabel } from '@/lib/booking-helpers';
 import type {
   BookingStatus,
-  Review,
   TechnicianDetailResponse,
   TechnicianMetricKey,
 } from '@/types/api';
-import { colors, fonts, spacing } from '@/constants/theme';
-
-const SECTION = {
-  pending: 'Pending schedule queue',
-  pipeline: 'Job pipeline',
-  operations: 'Operational metrics',
-  trends: 'Weekly trends',
-  visits: 'Job visit log',
-  reviews: 'Recent reviews',
-} as const;
+import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 function monthOptions(current: string): string[] {
   const [y, m] = current.split('-').map(Number);
@@ -113,103 +106,125 @@ export function TechnicianAnalyticsTab({
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.toolbar}>
+      <View style={styles.toolbarCard}>
+        <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.toolbarGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+        <Text style={styles.toolbarTitle}>Period · {monthLabel}</Text>
         <View style={styles.monthRow}>
           {months.map((m) => (
-            <Chip
-              key={m}
-              label={monthChipLabel(m)}
-              selected={m === month}
-              onPress={() => onMonthChange(m)}
-            />
+            <Chip key={m} label={monthChipLabel(m)} selected={m === month} onPress={() => onMonthChange(m)} compact />
           ))}
         </View>
         <Pressable style={styles.exportBtn} onPress={() => void exportReport()} accessibilityLabel="Export report">
-          <Download size={16} color={colors.secondaryDark} />
-          <Text style={styles.exportText}>Export</Text>
+          <Download size={16} color={colors.lime} />
+          <Text style={styles.exportText}>Export report</Text>
         </Pressable>
       </View>
 
-      <View style={styles.sectionHead}>
-        <Text style={styles.sectionTitle}>{SECTION.pending}</Text>
-        <Pressable onPress={() => router.push('/(admin)/bookings?status=pending')}>
-          <Text style={styles.link}>View all</Text>
-        </Pressable>
-      </View>
+      <AdminStatStrip
+        items={[
+          {
+            label: 'Attendance',
+            value: analytics ? `${analytics.attendanceRate}%` : '—',
+            color: colors.forest,
+          },
+          {
+            label: 'Completion',
+            value: analytics ? `${analytics.completionRate}%` : '—',
+            color: colors.green,
+          },
+          {
+            label: 'Earnings',
+            value: stats.earnings >= 1000 ? formatRupee(stats.earnings) : `₹${stats.earnings}`,
+          },
+          { label: 'Active', value: stats.activeJobs, color: colors.amberInk },
+        ]}
+      />
+
       <View style={styles.kpiRow}>
         <KpiCard
-          icon={Clock}
-          value={String(globalPending?.count ?? 0)}
-          label="Pending (all)"
+          icon={SprayCan}
+          value={String(stats.completedJobs)}
+          label="Completed"
+          iconBg={colors.soft}
+          iconColor={colors.green}
+          onPress={() => onMetricPress('completed')}
+        />
+        <KpiCard
+          icon={IndianRupee}
+          value={stats.earnings >= 1000 ? formatRupee(stats.earnings) : `₹${stats.earnings}`}
+          label="Total earned"
+          iconBg={colors.blueBg}
+          iconColor={colors.blue}
+          onPress={() => onMetricPress('earnings')}
+        />
+        <KpiCard
+          icon={Star}
+          value={stats.reviewCount > 0 ? String(stats.reviewCount) : '—'}
+          label="Reviews"
           iconBg={colors.amberBg}
           iconColor={colors.amberInk}
-          onPress={() => onMetricPress('pending_global')}
         />
         <KpiCard
           icon={Clock}
-          value={String(globalPending?.periodCount ?? 0)}
-          label={`Pending (${monthChipLabel(month)})`}
-          iconBg={colors.amberBg}
-          iconColor={colors.amberInk}
-          onPress={() => onMetricPress('pending_global')}
+          value={String(stats.activeJobs)}
+          label="Active now"
+          iconBg={colors.secondarySoft}
+          iconColor={colors.secondaryDark}
+          onPress={() => onMetricPress('active')}
         />
       </View>
-      {(globalPending?.bookings ?? []).slice(0, 5).map((b) => (
-        <PendingAnalyticsRow key={b.id} booking={b} onPress={() => onOpenBooking(b.id)} />
-      ))}
-      {(globalPending?.bookings?.length ?? 0) === 0 ? (
-        <Text style={styles.emptyHint}>No bookings awaiting schedule confirmation.</Text>
-      ) : null}
+
+      <ReportsSectionCard title="Operational metrics" hint="Attendance, visits & job completion · tap for details">
+        {analytics ? (
+          <AttendanceAnalyticsCard analytics={analytics} stats={stats} onMetricPress={onMetricPress} />
+        ) : (
+          <Text style={styles.emptyHint}>Attendance data will appear once this technician checks in.</Text>
+        )}
+      </ReportsSectionCard>
+
+      <ReportsSectionCard title="Weekly trends" hint={`Jobs, earnings & attendance · ${monthLabel}`}>
+        {jobsTrend.length > 0 ? (
+          <>
+            <WeeklyBarChart
+              title="Jobs completed"
+              subtitle={monthLabel}
+              data={jobsTrend.map((b) => ({ label: b.label, value: b.completed, key: b.label }))}
+              onBarPress={(index) => onMetricPress('week_jobs', index)}
+            />
+            <WeeklyBarChart
+              title="Weekly earnings"
+              subtitle={monthLabel}
+              data={jobsTrend.map((b) => ({ label: b.label, value: b.earnings, key: b.label }))}
+              valuePrefix="₹"
+              onBarPress={(index) => onMetricPress('week_earnings', index)}
+            />
+          </>
+        ) : (
+          <Text style={styles.emptyHint}>No completed jobs in {monthLabel} yet.</Text>
+        )}
+        {attendanceTrend.length > 0 ? (
+          <AttendanceTrendChart
+            title="Attendance by week"
+            subtitle={monthLabel}
+            data={attendanceTrend}
+            onBarPress={(index) => onMetricPress('week_attendance', index)}
+          />
+        ) : null}
+      </ReportsSectionCard>
 
       {statusBreakdown.length > 0 ? (
-        <>
-          <Text style={styles.sectionTitle}>{SECTION.pipeline}</Text>
+        <ReportsSectionCard title="Job pipeline" hint={`${monthLabel} · this technician's bookings`}>
           <StatusPipelineCard
+            hideTitle
             items={statusBreakdown}
-            periodLabel={`${monthLabel} · this technician`}
+            periodLabel={`Counts for ${monthLabel}`}
             onStatusPress={(status) => onMetricPress(statusKeyToMetric(status))}
           />
-        </>
+        </ReportsSectionCard>
       ) : null}
 
-      <Text style={styles.sectionTitle}>{SECTION.operations}</Text>
-      {analytics ? (
-        <AttendanceAnalyticsCard
-          analytics={analytics}
-          stats={stats}
-          onMetricPress={onMetricPress}
-        />
-      ) : (
-        <EmptyState
-          title="No analytics yet"
-          message="Attendance data will appear once this technician checks in."
-        />
-      )}
-
-      <Text style={styles.sectionTitle}>{SECTION.trends}</Text>
-      <WeeklyBarChart
-        title="Jobs completed"
-        subtitle={monthLabel}
-        data={jobsTrend.map((b) => ({ label: b.label, value: b.completed, key: b.label }))}
-        onBarPress={(index) => onMetricPress('week_jobs', index)}
-      />
-      <WeeklyBarChart
-        title="Weekly earnings"
-        subtitle={monthLabel}
-        data={jobsTrend.map((b) => ({ label: b.label, value: b.earnings, key: b.label }))}
-        valuePrefix="₹"
-        onBarPress={(index) => onMetricPress('week_earnings', index)}
-      />
-      <AttendanceTrendChart
-        title="Attendance by week"
-        subtitle={monthLabel}
-        data={attendanceTrend}
-        onBarPress={(index) => onMetricPress('week_attendance', index)}
-      />
-
       {jobVisits.length > 0 ? (
-        <View style={styles.block}>
-          <Text style={styles.sectionTitle}>{SECTION.visits}</Text>
+        <ReportsSectionCard title="Job visit log" hint="Scheduled and completed visits">
           {jobVisits.map((visit) => {
             const booking = bookings.find((b) => b.id === visit.bookingId);
             if (!booking) return null;
@@ -222,78 +237,93 @@ export function TechnicianAnalyticsTab({
               />
             );
           })}
-        </View>
+        </ReportsSectionCard>
       ) : null}
 
       {reviews.length > 0 ? (
-        <View style={styles.block}>
-          <Text style={styles.sectionTitle}>{SECTION.reviews}</Text>
+        <ReportsSectionCard title="Recent reviews" hint="Customer ratings and comments">
           {reviews.map((r) => (
-            <ReviewRow key={r.id} review={r} />
+            <TechnicianReviewCard key={r.id} stars={r.stars} comment={r.comment} tags={r.tags} />
           ))}
-        </View>
+        </ReportsSectionCard>
       ) : null}
+
+      <ReportsSectionCard
+        title="Pending schedule queue"
+        hint="All bookings awaiting admin confirmation (company-wide)"
+        actionLabel="View all"
+        onAction={() => router.push('/(admin)/bookings?status=pending')}
+      >
+        <View style={styles.pendingKpiRow}>
+          <KpiCard
+            icon={Clock}
+            value={String(globalPending?.count ?? 0)}
+            label="Pending (all)"
+            iconBg={colors.amberBg}
+            iconColor={colors.amberInk}
+            onPress={() => onMetricPress('pending_global')}
+          />
+          <KpiCard
+            icon={Clock}
+            value={String(globalPending?.periodCount ?? 0)}
+            label={`This month`}
+            iconBg={colors.amberBg}
+            iconColor={colors.amberInk}
+            onPress={() => onMetricPress('pending_global')}
+          />
+        </View>
+        {(globalPending?.bookings ?? []).slice(0, 5).map((b) => (
+          <PendingAnalyticsRow key={b.id} booking={b} onPress={() => onOpenBooking(b.id)} />
+        ))}
+        {(globalPending?.bookings?.length ?? 0) === 0 ? (
+          <Text style={styles.emptyHint}>No bookings awaiting schedule confirmation.</Text>
+        ) : null}
+      </ReportsSectionCard>
     </View>
   );
 }
 
-function ReviewRow({ review }: { review: Review }) {
-  return (
-    <View style={styles.reviewCard}>
-      <RatingStars value={review.stars} size={16} />
-      {review.comment ? <Text style={styles.reviewComment}>{review.comment}</Text> : null}
-      {review.tags.length > 0 ? (
-        <Text style={styles.reviewTags}>{review.tags.join(' · ')}</Text>
-      ) : null}
-    </View>
-  );
-}
+const TAB_BAR_PAD = 96;
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.sm },
-  toolbar: { marginBottom: spacing.sm },
+  wrap: { gap: spacing.sm, paddingBottom: TAB_BAR_PAD },
+  toolbarCard: {
+    marginHorizontal: spacing.md,
+    borderRadius: premium.radiusCard,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: 'rgba(20,83,45,0.07)',
+    padding: spacing.md,
+    paddingTop: spacing.sm + 4,
+    overflow: 'hidden',
+    ...shadows.card,
+  },
+  toolbarGold: { height: 3, marginHorizontal: -spacing.md, marginTop: -spacing.sm - 4, marginBottom: spacing.sm },
+  toolbarTitle: { fontFamily: fonts.display, fontSize: 14, color: colors.ink, marginBottom: spacing.sm },
   monthRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.sm },
   exportBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: colors.secondarySoft,
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    backgroundColor: colors.forest,
   },
-  exportText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.secondaryDark },
-  sectionHead: {
+  exportText: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.white },
+  kpiRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: spacing.md,
+    flexWrap: 'wrap',
+    gap: 10,
+    paddingHorizontal: spacing.md,
   },
-  sectionTitle: {
-    fontFamily: fonts.display,
-    fontSize: 14,
-    color: colors.ink,
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  link: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.secondaryDark },
-  kpiRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  pendingKpiRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   emptyHint: {
     fontFamily: fonts.body,
-    fontSize: 12,
+    fontSize: 13,
     color: colors.muted,
+    lineHeight: 18,
     marginBottom: spacing.sm,
   },
-  block: { marginTop: spacing.sm },
-  reviewCard: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  reviewComment: { fontFamily: fonts.body, fontSize: 13, color: colors.ink, marginTop: 6 },
-  reviewTags: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 4 },
 });

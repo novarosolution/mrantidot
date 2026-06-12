@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
-import { Gift } from 'lucide-react-native';
+import { AppIcons } from '@/constants/appIcons';
 import { Button } from '@/components/ui/Button';
 import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
 
@@ -9,7 +9,7 @@ export function OffersEmpty() {
     <View style={styles.wrap}>
       <View style={styles.card}>
         <View style={styles.icon}>
-          <Gift size={32} color={premium.accentGold} strokeWidth={1.8} />
+          <AppIcons.quick.offers size={32} color={premium.accentGold} strokeWidth={1.8} />
         </View>
         <Text style={styles.title}>No offers right now</Text>
         <Text style={styles.message}>New coupons and seasonal deals will show up here. Book a service anytime at regular pricing.</Text>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Alert, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
 import {
@@ -9,12 +10,15 @@ import {
 } from '@/components/kit/TechnicianProfilePanel';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
+import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage, safeAsync } from '@/lib/api';
+import { useTechCopy } from '@/lib/tech-copy';
 import type { Booking, DayAttendanceStatus, TechnicianStats } from '@/types/api';
 import { design } from '@/constants/theme';
-import { StyleSheet } from 'react-native';
 
 export default function TechProfileScreen() {
+  const copy = useTechCopy();
+  const { refreshMe } = useAuth();
   const [stats, setStats] = useState<TechnicianStats | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [attendance, setAttendance] = useState<Record<string, DayAttendanceStatus>>({});
@@ -57,12 +61,32 @@ export default function TechProfileScreen() {
     }
   }
 
+  const confirmMarkOff = useCallback(() => {
+    Alert.alert(copy.techOffDutyButton, copy.techOffDutyHint, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: copy.techOffDutyButton,
+        style: 'destructive',
+        onPress: () =>
+          void safeAsync(async () => {
+            setCheckingIn(true);
+            try {
+              await markTechnicianAbsent(copy);
+              await Promise.all([load(), refreshMe({ silent: true })]);
+            } finally {
+              setCheckingIn(false);
+            }
+          }),
+      },
+    ]);
+  }, [copy, load, refreshMe]);
+
   if (loading) return <Spinner fullScreen />;
 
   if (loadError) {
     return (
       <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-        <CustomerPageHeader variant="premium" title="My profile" showBack />
+        <CustomerPageHeader variant="premium" title={copy.techProfileTitle} showBack />
         <ListEmptyRetry message={loadError} onRetry={() => safeAsync(load)} />
       </SafeAreaView>
     );
@@ -70,13 +94,9 @@ export default function TechProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <CustomerPageHeader
-        variant="premium"
-        title="My profile"
-        subtitle="Stats, earnings & schedule"
-        showBack
-      />
+      <CustomerPageHeader variant="premium" title={copy.techProfileTitle} showBack />
       <TechnicianProfilePanel
+        copy={copy}
         stats={stats}
         bookings={bookings}
         attendance={attendance}
@@ -91,24 +111,14 @@ export default function TechProfileScreen() {
           void safeAsync(async () => {
             setCheckingIn(true);
             try {
-              await checkInTechnician();
-              await load();
+              await checkInTechnician(copy);
+              await Promise.all([load(), refreshMe({ silent: true })]);
             } finally {
               setCheckingIn(false);
             }
           })
         }
-        onMarkAbsent={() =>
-          void safeAsync(async () => {
-            setCheckingIn(true);
-            try {
-              await markTechnicianAbsent();
-              await load();
-            } finally {
-              setCheckingIn(false);
-            }
-          })
-        }
+        onMarkAbsent={confirmMarkOff}
       />
     </SafeAreaView>
   );

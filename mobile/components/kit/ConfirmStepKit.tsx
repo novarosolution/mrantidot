@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { type LucideIcon } from 'lucide-react-native';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ShieldCheck, Sparkles } from 'lucide-react-native';
+import { ShieldCheck, SprayCan } from 'lucide-react-native';
 import type { BookingAmount } from '@/types/api';
 import type { PickedImage } from '@/lib/upload';
 import { colors, fonts, gradients, premium, spacing } from '@/constants/theme';
@@ -82,7 +82,7 @@ export function ConfirmTotalCard({
         </View>
         {amount.coupon > 0 ? (
           <View style={styles.saveChip}>
-            <Sparkles size={11} color={colors.lime} />
+            <SprayCan size={11} color={colors.lime} />
             <Text style={styles.saveChipText}>-₹{amount.coupon}</Text>
           </View>
         ) : null}

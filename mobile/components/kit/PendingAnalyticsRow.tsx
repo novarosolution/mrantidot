@@ -7,7 +7,7 @@ import {
 } from '@/lib/booking-helpers';
 import { formatTimeAgo } from '@/lib/time-ago';
 import type { Booking } from '@/types/api';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 export function PendingAnalyticsRow({
   booking,
@@ -16,7 +16,6 @@ export function PendingAnalyticsRow({
   booking: Booking;
   onPress: () => void;
 }) {
-  const isCustom = booking.scheduleMode === 'custom';
   const age = formatTimeAgo(booking.createdAt);
 
   return (
@@ -31,16 +30,10 @@ export function PendingAnalyticsRow({
           </Text>
           {age ? <Text style={styles.age}>{age}</Text> : null}
         </View>
-        <Text style={styles.customer} numberOfLines={1}>
-          {bookingCustomerName(booking)}
+        <Text style={styles.meta} numberOfLines={1}>
+          {bookingCustomerName(booking)} · {bookingScheduleDisplay(booking)}
         </Text>
-        <Text style={styles.schedule} numberOfLines={1}>
-          {bookingScheduleDisplay(booking)}
-        </Text>
-        <View style={styles.badges}>
-          <Text style={styles.badge}>{isCustom ? 'Custom time' : 'Standard window'}</Text>
-          <Text style={styles.badgeConfirm}>Confirm schedule</Text>
-        </View>
+        <Text style={styles.badge}>Needs confirmation</Text>
       </View>
       <ChevronRight size={18} color={colors.muted} />
     </Pressable>
@@ -56,44 +49,34 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: premium.radiusCard,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(20,83,45,0.07)',
     marginBottom: spacing.sm,
-    ...premium.shadowSoft,
+    ...shadows.card,
   },
-  pressed: { opacity: 0.85 },
+  pressed: { opacity: 0.88 },
   icon: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: colors.amberBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   body: { flex: 1, minWidth: 0 },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  service: { fontFamily: fonts.display, fontSize: 13.5, color: colors.ink, flex: 1 },
-  age: { fontFamily: fonts.body, fontSize: 10.5, color: colors.muted },
-  customer: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest, marginTop: 2 },
-  schedule: { fontFamily: fonts.body, fontSize: 11.5, color: colors.muted, marginTop: 2 },
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+  service: { fontFamily: fonts.display, fontSize: 14, color: colors.ink, flex: 1 },
+  age: { fontFamily: fonts.body, fontSize: 10, color: colors.muted },
+  meta: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 4 },
   badge: {
+    alignSelf: 'flex-start',
     fontFamily: fonts.bodySemi,
-    fontSize: 9.5,
+    fontSize: 10,
     color: colors.amberInk,
     backgroundColor: colors.amberBg,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 999,
-    overflow: 'hidden',
-  },
-  badgeConfirm: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 9.5,
-    color: colors.secondaryInk,
-    backgroundColor: colors.secondarySoft,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
+    marginTop: 6,
     overflow: 'hidden',
   },
 });

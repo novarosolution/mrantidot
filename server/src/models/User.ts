@@ -10,7 +10,10 @@ export interface IUser extends Document {
   email: string;
   passwordHash: string;
   city?: string;
+  /** Real average from customer reviews (updated automatically). */
   rating: number;
+  /** Public rating override set by admin; customers see this when set. */
+  displayRating?: number | null;
   jobsDone: number;
   available: boolean;
   disabled: boolean;
@@ -31,6 +34,7 @@ const userSchema = new Schema<IUser>(
     passwordHash: { type: String, required: true, select: false },
     city: { type: String, trim: true },
     rating: { type: Number, default: 0 },
+    displayRating: { type: Number, default: null, min: 0, max: 5 },
     jobsDone: { type: Number, default: 0 },
     available: { type: Boolean, default: true },
     disabled: { type: Boolean, default: false },

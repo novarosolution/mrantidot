@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ArrowRight, Star } from 'lucide-react-native';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import { formatSocialProof } from '@/lib/display';
+import { serviceDisplayRating } from '@/lib/ratings';
 import type { Service } from '@/types/api';
 import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
 
@@ -15,8 +16,11 @@ export function PopularServiceCard({
   bookingCount?: number;
   onPress: () => void;
 }) {
-  const social = formatSocialProof(bookingCount ?? service.stats?.bookingCount, service.stats?.avgRating ?? service.rating);
-  const rating = service.stats?.avgRating ?? service.rating ?? 0;
+  const social = formatSocialProof(
+    bookingCount ?? service.stats?.bookingCount,
+    serviceDisplayRating(service),
+  );
+  const rating = serviceDisplayRating(service);
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}>
@@ -48,12 +52,12 @@ export function PopularServiceCard({
               {social ? <Text style={styles.social}>{social}</Text> : null}
             </View>
             <View style={styles.priceRow}>
-              <Text style={styles.from}>Starts at</Text>
               <Text style={styles.price}>₹{service.basePrice}</Text>
             </View>
           </View>
           <View style={styles.cta}>
-            <ArrowRight size={20} color={colors.forest} strokeWidth={2.5} />
+            <Text style={styles.ctaText}>Book</Text>
+            <ArrowRight size={16} color={colors.forest} strokeWidth={2.5} />
           </View>
         </View>
       </LinearGradient>
@@ -144,13 +148,7 @@ const styles = StyleSheet.create({
   priceRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 6,
     marginTop: 8,
-  },
-  from: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.55)',
   },
   price: {
     fontFamily: fonts.displayExtra,
@@ -159,11 +157,19 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   cta: {
-    width: 44,
-    height: 44,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderRadius: 14,
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 2,
+  },
+  ctaText: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 10,
+    color: colors.forest,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
 });

@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Lock } from 'lucide-react-native';
 import { router } from 'expo-router';
+import { safeGoBack } from '@/lib/routes';
 import { BrandLogo } from '@/components/BrandLogo';
 import { colors, fonts, gradients, premium, shadows, spacing } from '@/constants/theme';
 
@@ -194,7 +195,7 @@ export function AuthLoginShell({
         <View style={styles.loginGlow} pointerEvents="none" />
         <View style={styles.loginGlowB} pointerEvents="none" />
         {showBack ? (
-          <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={12}>
+          <Pressable style={styles.backBtn} onPress={() => safeGoBack('/(auth)/login')} hitSlop={12}>
             <ChevronLeft size={22} color={colors.white} />
           </Pressable>
         ) : null}

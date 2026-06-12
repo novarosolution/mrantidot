@@ -1,5 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { safeGoBack } from '@/lib/routes';
 import { type ReactNode, type RefObject, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -119,7 +120,7 @@ export function AuthScreenLayout({
         end={{ x: 1, y: 1 }}
       >
         {showBack ? (
-          <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={12}>
+          <Pressable style={styles.backBtn} onPress={() => safeGoBack('/(auth)/login')} hitSlop={12}>
             <ChevronLeft size={22} color={colors.white} />
           </Pressable>
         ) : null}

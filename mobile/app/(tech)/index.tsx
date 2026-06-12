@@ -6,10 +6,12 @@ import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
 import { LogOut } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '@/context/AuthContext';
+import { AdminStatStrip } from '@/components/kit/AdminPageKit';
+import { AnalyticsStatGrid } from '@/components/kit/AnalyticsStatGrid';
 import { BookingListCard } from '@/components/kit/BookingListCard';
+import { formatRupee } from '@/components/kit/format';
+import { TechCheckInCard, TechOffDutyCard, TechOnDutyCard, TechSectionTitle } from '@/components/kit/TechPageKit';
 import { UserAccountCard } from '@/components/kit/UserAccountCard';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
@@ -17,15 +19,26 @@ import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api'
 import { CACHE_TTL } from '@/lib/apiCache';
 import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
 import { localDateKey } from '@/lib/dates';
-import { jobVisitHint } from '@/lib/job-visit-helpers';
-import { bookingServiceName, bookingVisitDate } from '@/lib/booking-helpers';
+import { bookingVisitDate } from '@/lib/booking-helpers';
+import { useTechCopy } from '@/lib/tech-copy';
 import type { Booking, DayAttendanceStatus, TechnicianStats } from '@/types/api';
-import { colors, design, fonts, spacing, surfaces } from '@/constants/theme';
+import { colors, design, fonts, spacing } from '@/constants/theme';
+import {
+  Briefcase,
+  CheckCircle2,
+  Clock,
+  IndianRupee,
+  ShieldCheck,
+  Star,
+} from 'lucide-react-native';
 
-type Section = { key: string; title: string; data: Booking[]; empty: string };
+type Section = { key: string; title: string; data: Booking[] };
+
+const TAB_BAR_PAD = 88;
 
 export default function TechDashboard() {
-  const { logout, user } = useAuth();
+  const copy = useTechCopy();
+  const { logout, user, refreshMe } = useAuth();
   const [stats, setStats] = useState<TechnicianStats | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [todayStatus, setTodayStatus] = useState<DayAttendanceStatus>('pending');
@@ -57,14 +70,34 @@ export default function TechDashboard() {
     setCheckingIn(true);
     try {
       await api.post('/attendance/check-in');
-      Toast.show({ type: 'success', text1: 'You are on duty today' });
-      await load({ skipCache: true });
+      Toast.show({ type: 'success', text1: copy.techOnDutyBadge.replace('● ', '') });
+      await Promise.all([load({ skipCache: true }), refreshMe({ silent: true })]);
     } catch (err) {
       Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not check in') });
     } finally {
       setCheckingIn(false);
     }
   }
+
+  async function markOffToday() {
+    setCheckingIn(true);
+    try {
+      await api.post('/attendance/mark-absent');
+      Toast.show({ type: 'success', text1: copy.techOffDutyBadge });
+      await Promise.all([load({ skipCache: true }), refreshMe({ silent: true })]);
+    } catch (err) {
+      Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not update attendance') });
+    } finally {
+      setCheckingIn(false);
+    }
+  }
+
+  const confirmMarkOff = useCallback(() => {
+    Alert.alert(copy.techOffDutyButton, copy.techOffDutyHint, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: copy.techOffDutyButton, style: 'destructive', onPress: () => void markOffToday() },
+    ]);
+  }, [copy.techOffDutyButton, copy.techOffDutyHint]);
 
   useEffect(() => {
     safeAsync(async () => {
@@ -98,46 +131,102 @@ export default function TechDashboard() {
     const active = bookings.filter((b) => !['completed', 'cancelled'].includes(b.status));
     const past = bookings.filter((b) => ['completed', 'cancelled'].includes(b.status));
     const todayJobs = active.filter((b) => bookingVisitDate(b) === today);
-    const upcoming = active.filter((b) => {
-      const d = bookingVisitDate(b);
-      return d > today;
-    });
+    const upcoming = active.filter((b) => bookingVisitDate(b) > today);
     const result: Section[] = [];
     if (todayJobs.length) {
-      result.push({ key: 'today', title: `Today (${todayJobs.length})`, data: todayJobs, empty: 'No jobs scheduled for today' });
+      result.push({ key: 'today', title: `Today (${todayJobs.length})`, data: todayJobs });
     }
     if (upcoming.length) {
-      result.push({ key: 'upcoming', title: `Upcoming (${upcoming.length})`, data: upcoming, empty: 'No upcoming jobs' });
+      result.push({ key: 'upcoming', title: `Upcoming (${upcoming.length})`, data: upcoming });
     }
     if (!todayJobs.length && !upcoming.length && active.length) {
-      result.push({ key: 'assigned', title: 'Assigned', data: active, empty: 'No active jobs' });
+      result.push({ key: 'assigned', title: `Assigned (${active.length})`, data: active });
     }
     if (past.length) {
-      result.push({ key: 'past', title: `Past (${past.length})`, data: past, empty: 'No completed jobs yet' });
+      result.push({ key: 'past', title: `Past (${past.length})`, data: past });
     }
     return result;
   }, [bookings, today]);
 
   const flatData = useMemo(
-    () => sections.flatMap((s) => [{ type: 'header' as const, section: s }, ...s.data.map((b) => ({ type: 'job' as const, booking: b }))]),
+    () =>
+      sections.flatMap((s) => [
+        { type: 'header' as const, section: s },
+        ...s.data.map((b) => ({ type: 'job' as const, booking: b })),
+      ]),
     [sections],
   );
+
+  const verifyJob = bookings.find((b) => b.status === 'awaiting_verification');
+  const activeJob = bookings.find((b) => b.status === 'in_progress');
+
+  const statItems = stats
+    ? [
+        {
+          key: 'assigned',
+          label: 'Assigned',
+          value: String(stats.assigned),
+          icon: Briefcase,
+          iconBg: colors.blueBg,
+          iconColor: colors.blue,
+        },
+        {
+          key: 'active',
+          label: 'Active',
+          value: String(stats.inProgress),
+          icon: Clock,
+          iconBg: colors.amberBg,
+          iconColor: colors.amberInk,
+          onPress: () => activeJob && router.push(`/(tech)/job/${activeJob.id}`),
+        },
+        {
+          key: 'verify',
+          label: 'Verify',
+          value: String(stats.awaitingVerification ?? 0),
+          icon: ShieldCheck,
+          iconBg: colors.secondarySoft,
+          iconColor: colors.secondaryDark,
+          onPress: () => verifyJob && router.push(`/(tech)/job/${verifyJob.id}`),
+        },
+        {
+          key: 'done',
+          label: 'Done',
+          value: String(stats.completed),
+          icon: CheckCircle2,
+          iconBg: colors.soft,
+          iconColor: colors.green,
+        },
+        {
+          key: 'earnings',
+          label: 'Earnings',
+          value: stats.earnings >= 1000 ? formatRupee(stats.earnings) : `₹${stats.earnings}`,
+          icon: IndianRupee,
+          iconBg: colors.soft,
+          iconColor: colors.forest,
+          onPress: () => router.push('/(tech)/profile'),
+        },
+        {
+          key: 'rating',
+          label: 'Rating',
+          value: `★${stats.rating}`,
+          icon: Star,
+          iconBg: colors.amberBg,
+          iconColor: colors.amberInk,
+        },
+      ]
+    : [];
 
   const headerBar = (
     <CustomerPageHeader
       variant="premium"
-      title="My Jobs"
-      subtitle={`${user?.name?.trim() || 'Technician'} · ${bookings.length} job${bookings.length === 1 ? '' : 's'}`}
+      title={copy.techJobsTitle}
+      subtitle={`Hi, ${(user?.name?.trim() || 'Technician').split(' ')[0]}`}
       rightAction={
         <Pressable style={styles.logoutBtn} onPress={confirmLogout}>
           <LogOut size={18} color={colors.white} />
         </Pressable>
       }
-    >
-      <Pressable onPress={() => router.push('/(tech)/profile')}>
-        <Text style={styles.analyticsLink}>My profile →</Text>
-      </Pressable>
-    </CustomerPageHeader>
+    />
   );
 
   if (loading) return <Spinner fullScreen />;
@@ -181,69 +270,77 @@ export default function TechDashboard() {
             <View style={styles.accountWrap}>
               <UserAccountCard compact onPress={() => router.push('/(tech)/profile')} />
             </View>
+
             {todayStatus === 'pending' ? (
-              <Card variant="premium" style={styles.checkInCard}>
-                <Text style={styles.checkInTitle}>Mark yourself on duty</Text>
-                <Button title="Check in for today" onPress={() => void checkInToday()} loading={checkingIn} />
-              </Card>
+              <TechCheckInCard
+                title={copy.techCheckInTitle}
+                subtitle={copy.techCheckInSubtitle}
+                onDutyLabel={copy.techOnDutyButton}
+                offDutyLabel={copy.techOffDutyButton}
+                onCheckIn={() => void checkInToday()}
+                onMarkAbsent={confirmMarkOff}
+                loading={checkingIn}
+              />
             ) : todayStatus === 'came' ? (
-              <View style={styles.onDutyChip}>
-                <Text style={styles.onDutyChipText}>● On duty today</Text>
-              </View>
-            ) : null}
-            {stats && (
-              <View style={styles.statsRow}>
-                <Stat label="Assigned" value={stats.assigned} />
-                <Stat label="Active" value={stats.inProgress} />
-                <Stat
-                  label="Verify"
-                  value={stats.awaitingVerification ?? 0}
-                  onPress={() => {
-                    const verifyJob = bookings.find((b) => b.status === 'awaiting_verification');
-                    if (verifyJob) router.push(`/(tech)/job/${verifyJob.id}`);
-                  }}
-                />
-                <Stat label="Done" value={stats.completed} />
-                <Stat
-                  label="Earnings"
-                  value={`₹${stats.earnings}`}
-                  onPress={() => router.push('/(tech)/profile')}
-                />
-                <Stat label="Rating" value={`★${stats.rating}`} />
-              </View>
+              <TechOnDutyCard
+                badgeLabel={copy.techOnDutyBadge}
+                markOffLabel={copy.techOffDutyButton}
+                onMarkOff={confirmMarkOff}
+                loading={checkingIn}
+              />
+            ) : (
+              <TechOffDutyCard
+                badgeLabel={copy.techOffDutyBadge}
+                hint={copy.techOffDutyHint}
+                backOnDutyLabel={copy.techBackOnDutyButton}
+                onGoOnDuty={() => void checkInToday()}
+                loading={checkingIn}
+              />
             )}
+
+            {stats ? (
+              <>
+                <AdminStatStrip
+                  items={[
+                    { label: 'Assigned', value: stats.assigned },
+                    { label: 'Active', value: stats.inProgress, color: colors.amberInk },
+                    {
+                      label: 'Earnings',
+                      value: stats.earnings >= 1000 ? formatRupee(stats.earnings) : `₹${stats.earnings}`,
+                    },
+                    { label: 'Rating', value: `★${stats.rating}`, color: colors.forest },
+                  ]}
+                />
+                <View style={styles.statsBlock}>
+                  <TechSectionTitle title={copy.techPerformanceTitle} hint="Tap a tile for job details" />
+                  <AnalyticsStatGrid items={statItems} />
+                </View>
+              </>
+            ) : null}
+
+            {sections.length > 0 ? (
+              <TechSectionTitle title="Your schedule" hint="Today, upcoming & completed jobs" />
+            ) : null}
           </View>
         }
-        contentContainerStyle={bookings.length === 0 ? styles.empty : styles.list}
+        contentContainerStyle={[
+          bookings.length === 0 && sections.length === 0 ? styles.empty : styles.list,
+          { paddingBottom: TAB_BAR_PAD },
+        ]}
         ListEmptyComponent={
-          <EmptyState title="No jobs assigned" message="New jobs from admin will appear here" />
+          <EmptyState title={copy.techEmptyJobsTitle} message={copy.techEmptyJobsMessage} />
         }
         renderItem={({ item }) => {
           if (item.type === 'header') {
-            return <Text style={styles.section}>{item.section.title}</Text>;
+            return <Text style={styles.sectionHeader}>{item.section.title}</Text>;
           }
-          const b = item.booking;
-          const steps = b.steps ?? [];
-          const done = steps.filter((s) => s.status === 'done').length;
-          const total = steps.length || 1;
           return (
-            <View>
-              <BookingListCard
-                booking={b}
-                hideAmount
-                showCustomer
-                onPress={() => router.push(`/(tech)/job/${b.id}`)}
-              />
-              <Text style={styles.visitHint}>{jobVisitHint(b, today)}</Text>
-              <View style={styles.progressRow}>
-                <View style={styles.progressTrack}>
-                  <View style={[styles.progressFill, { width: `${(done / total) * 100}%` }]} />
-                </View>
-                <Text style={styles.progressLabel}>
-                  {bookingServiceName(b)} · {done}/{total} steps
-                </Text>
-              </View>
-            </View>
+            <BookingListCard
+              booking={item.booking}
+              hideAmount
+              showCustomer
+              onPress={() => router.push(`/(tech)/job/${item.booking.id}`)}
+            />
           );
         }}
       />
@@ -251,35 +348,8 @@ export default function TechDashboard() {
   );
 }
 
-function Stat({
-  label,
-  value,
-  onPress,
-}: {
-  label: string;
-  value: number | string;
-  onPress?: () => void;
-}) {
-  const content = (
-    <Card variant="premium" style={styles.stat}>
-      <Text style={styles.statVal}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </Card>
-  );
-  if (onPress) {
-    return (
-      <Pressable style={styles.statWrap} onPress={onPress}>
-        {content}
-      </Pressable>
-    );
-  }
-  return <View style={styles.statWrap}>{content}</View>;
-}
-
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: design.screenBg },
-  header: { paddingHorizontal: spacing.md, paddingBottom: spacing.lg },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   logoutBtn: {
     width: 40,
     height: 40,
@@ -288,51 +358,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { fontFamily: fonts.displayExtra, fontSize: 22, color: colors.white },
-  headerSub: { fontFamily: fonts.body, fontSize: 12, color: colors.lime, marginTop: 4 },
-  analyticsLink: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.secondaryDark, marginTop: 8, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
-  accountWrap: { paddingHorizontal: spacing.md, marginTop: -4 },
-  checkInCard: { marginHorizontal: spacing.md, marginTop: spacing.sm, padding: spacing.md },
-  checkInTitle: { fontFamily: fonts.display, fontSize: 14, marginBottom: spacing.sm },
-  onDutyChip: {
-    alignSelf: 'flex-start',
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
-    backgroundColor: surfaces.tintSuccess,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  onDutyChipText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
-  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: spacing.md, marginTop: -8 },
-  statWrap: { width: '30%', flexGrow: 1, minWidth: '28%' },
-  stat: { alignItems: 'center', paddingVertical: 14 },
-  statVal: { fontFamily: fonts.displayExtra, fontSize: 20, color: colors.green },
-  statLabel: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
-  section: {
-    ...design.sectionTitle,
-    paddingHorizontal: spacing.md,
+  accountWrap: { paddingHorizontal: spacing.md, marginTop: spacing.sm },
+  statsBlock: { paddingHorizontal: spacing.md, marginTop: spacing.sm },
+  sectionHeader: {
+    fontFamily: fonts.display,
+    fontSize: 14,
+    color: colors.forest,
     marginTop: spacing.md,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
+    paddingHorizontal: spacing.md,
   },
-  list: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl },
-  empty: { flexGrow: 1 },
-  visitHint: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    color: colors.muted,
-    marginTop: -4,
-    marginBottom: 4,
-    paddingHorizontal: 4,
-  },
-  progressRow: { marginTop: -6, marginBottom: spacing.sm, paddingHorizontal: 4 },
-  progressTrack: {
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginBottom: 4,
-  },
-  progressFill: { height: '100%', backgroundColor: colors.green },
-  progressLabel: { fontFamily: fonts.body, fontSize: 10, color: colors.muted },
+  list: { paddingHorizontal: spacing.md },
+  empty: { flexGrow: 1, paddingHorizontal: spacing.md },
 });

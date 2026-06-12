@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Check, CheckCircle2, Lock, Sparkles, Tag, X } from 'lucide-react-native';
+import { Check, CheckCircle2, Lock, SprayCan, Tag, X } from 'lucide-react-native';
 import { textInputDefaults } from '@/components/ui/textInputDefaults';
 import type { BookingAmount, Offer } from '@/types/api';
 import { colors, fonts, gradients, premium, spacing } from '@/constants/theme';
@@ -23,7 +23,7 @@ export function PaymentPriceHero({
       <Text style={styles.heroTotal}>₹{amount.total}</Text>
       {amount.coupon > 0 ? (
         <View style={styles.savePill}>
-          <Sparkles size={12} color={colors.lime} />
+          <SprayCan size={12} color={colors.lime} />
           <Text style={styles.saveText}>You save ₹{amount.coupon}</Text>
         </View>
       ) : null}

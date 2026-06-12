@@ -47,7 +47,9 @@ attendanceRouter.post(
 
     const date = todayDateKey();
     const record = await upsertAttendance(tech._id, date, 'present', 'technician');
-    res.json({ attendance: formatAttendance(record), date, status: 'came' });
+    tech.available = true;
+    await tech.save();
+    res.json({ attendance: formatAttendance(record), date, status: 'came', available: true });
   }),
 );
 
@@ -70,7 +72,9 @@ attendanceRouter.post(
       'technician',
       req.body.note,
     );
-    res.json({ attendance: formatAttendance(record), date, status: 'not_came' });
+    tech.available = false;
+    await tech.save();
+    res.json({ attendance: formatAttendance(record), date, status: 'not_came', available: false });
   }),
 );
 

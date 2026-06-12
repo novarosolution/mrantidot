@@ -1,13 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { paramString } from '@/lib/routeParams';
+import { safeGoBack } from '@/lib/routes';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
+import { AdminFormCard, AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { IconInput } from '@/components/kit/IconInput';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Chip } from '@/components/ui/Chip';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
@@ -104,7 +104,7 @@ export default function OfferEditScreen() {
         await api.post('/admin/offers', { ...body, active: true });
       }
       Toast.show({ type: 'success', text1: 'Saved' });
-      router.back();
+      safeGoBack('/(admin)/offers');
     } catch (err) {
       Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not save offer') });
     } finally {
@@ -124,7 +124,7 @@ export default function OfferEditScreen() {
             try {
               await api.delete(`/admin/offers/${id}`);
               Toast.show({ type: 'success', text1: 'Offer deactivated' });
-              router.back();
+              safeGoBack('/(admin)/offers');
             } catch (err) {
               Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not deactivate offer') });
             }
@@ -161,13 +161,17 @@ export default function OfferEditScreen() {
         keyboardShouldPersistTaps="always"
         showsVerticalScrollIndicator={false}
       >
-        <Card variant="premium" style={styles.form}>
+        <AdminFormCard>
           <IconInput label="Code" value={code} onChangeText={setCode} autoCapitalize="characters" />
           <Text style={styles.label}>Discount type</Text>
-          <View style={styles.chips}>
-            <Chip label="Fixed ₹" selected={discountType === 'fixed'} onPress={() => setDiscountType('fixed')} />
-            <Chip label="Percent %" selected={discountType === 'percent'} onPress={() => setDiscountType('percent')} />
-          </View>
+          <AdminFilterChips
+            chips={[
+              { key: 'fixed', label: 'Fixed ₹' },
+              { key: 'percent', label: 'Percent %' },
+            ]}
+            selected={discountType}
+            onSelect={(key) => setDiscountType(key as 'fixed' | 'percent')}
+          />
           <IconInput
             label={discountType === 'percent' ? 'Discount (%)' : 'Discount (₹)'}
             value={discount}
@@ -176,12 +180,17 @@ export default function OfferEditScreen() {
           />
           <IconInput label="Description" value={description} onChangeText={setDescription} />
           <Text style={styles.label}>Expiry</Text>
-          <View style={styles.chips}>
-            <Chip label="No expiry" selected={!expiresAt} onPress={() => setExpiresAt('')} />
-            {[7, 30, 90].map((d) => (
-              <Chip key={d} label={`+${d}d`} selected={expiresAt === addDays(d)} onPress={() => setExpiresAt(addDays(d))} />
-            ))}
-          </View>
+          <AdminFilterChips
+            chips={[
+              { key: 'none', label: 'No expiry' },
+              ...[7, 30, 90].map((d) => ({ key: String(d), label: `+${d}d` })),
+            ]}
+            selected={!expiresAt ? 'none' : [7, 30, 90].find((d) => expiresAt === addDays(d))?.toString() ?? 'custom'}
+            onSelect={(key) => {
+              if (key === 'none') setExpiresAt('');
+              else setExpiresAt(addDays(Number(key)));
+            }}
+          />
           <IconInput
             label="Expires (YYYY-MM-DD, optional)"
             value={expiresAt}
@@ -200,14 +209,12 @@ export default function OfferEditScreen() {
             onChangeText={setMinOrderAmount}
             keyboardType="numeric"
           />
-        </Card>
+        </AdminFormCard>
       </ScrollView>
     </AdminListShell>
   );
 }
 
 const styles = StyleSheet.create({
-  form: { padding: spacing.md },
-  label: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, marginBottom: 8 },
-  chips: { flexDirection: 'row', gap: 8, marginBottom: spacing.sm },
+  label: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, marginBottom: 8, marginTop: spacing.sm },
 });

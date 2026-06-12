@@ -11,6 +11,7 @@ import { Review } from '../models/Review';
 import { Booking } from '../models/Booking';
 import { User } from '../models/User';
 import { getOptionalUser } from '../utils/optionalAuth';
+import { formatServiceStatsForRole } from '../utils/ratings';
 
 export const servicesRouter = Router();
 
@@ -63,6 +64,7 @@ servicesRouter.get(
     const services = await Service.find(filter).sort({ name: 1 });
     const includeStats =
       req.query.includeStats === '1' || req.query.includeStats === 'true';
+    const viewerRole = getOptionalUser(req)?.role;
     let statsById: Record<string, Awaited<ReturnType<typeof getServiceStats>>> | undefined;
     if (includeStats && services.length) {
       statsById = await getStatsForServiceIds(services.map((s) => s._id.toString()));
@@ -71,7 +73,10 @@ servicesRouter.get(
       services: services.map((s) => {
         const base = formatService(s);
         const sid = s._id.toString();
-        return statsById ? { ...base, stats: statsById[sid] } : base;
+        const raw = statsById?.[sid];
+        return raw
+          ? { ...base, stats: formatServiceStatsForRole(raw, viewerRole) }
+          : base;
       }),
     });
   }),
@@ -87,7 +92,8 @@ servicesRouter.get(
       throw new AppError(404, 'Service not found');
     }
     const stats = await getServiceStats(req.params.id);
-    res.json({ stats });
+    const viewerRole = getOptionalUser(req)?.role;
+    res.json({ stats: formatServiceStatsForRole(stats, viewerRole) });
   }),
 );
 

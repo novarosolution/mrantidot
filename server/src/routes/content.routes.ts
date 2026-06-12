@@ -61,6 +61,7 @@ function formatHomeConfig(doc: Awaited<ReturnType<typeof getOrCreateHomeDoc>>) {
       popular: titles.popular ?? DEFAULT_HOME_CONFIG.sectionTitles.popular,
     },
     searchPlaceholder: c.searchPlaceholder ?? DEFAULT_HOME_CONFIG.searchPlaceholder,
+    servicesSubtitle: c.servicesSubtitle ?? DEFAULT_HOME_CONFIG.servicesSubtitle,
     servicesActionLabel: c.servicesActionLabel ?? DEFAULT_HOME_CONFIG.servicesActionLabel,
     popularActionLabel: c.popularActionLabel ?? DEFAULT_HOME_CONFIG.popularActionLabel,
     categoryChips:
@@ -79,6 +80,7 @@ function mergeHomeConfig(
   const next: IHomeConfig = {
     sectionTitles: { ...current.sectionTitles },
     searchPlaceholder: current.searchPlaceholder ?? DEFAULT_HOME_CONFIG.searchPlaceholder,
+    servicesSubtitle: current.servicesSubtitle ?? DEFAULT_HOME_CONFIG.servicesSubtitle,
     servicesActionLabel: current.servicesActionLabel ?? DEFAULT_HOME_CONFIG.servicesActionLabel,
     popularActionLabel: current.popularActionLabel ?? DEFAULT_HOME_CONFIG.popularActionLabel,
     categoryChips: [...(current.categoryChips ?? DEFAULT_HOME_CONFIG.categoryChips)],
@@ -100,6 +102,7 @@ function mergeHomeConfig(
   }
 
   if (typeof cfg.searchPlaceholder === 'string') next.searchPlaceholder = cfg.searchPlaceholder;
+  if (typeof cfg.servicesSubtitle === 'string') next.servicesSubtitle = cfg.servicesSubtitle;
   if (typeof cfg.servicesActionLabel === 'string') next.servicesActionLabel = cfg.servicesActionLabel;
   if (typeof cfg.popularActionLabel === 'string') next.popularActionLabel = cfg.popularActionLabel;
 
@@ -148,6 +151,7 @@ async function formatHomeConfigResolved(doc: Awaited<ReturnType<typeof getOrCrea
       popular: titles.popular ?? DEFAULT_HOME_CONFIG.sectionTitles.popular,
     },
     searchPlaceholder: c.searchPlaceholder ?? DEFAULT_HOME_CONFIG.searchPlaceholder,
+    servicesSubtitle: c.servicesSubtitle ?? DEFAULT_HOME_CONFIG.servicesSubtitle,
     servicesActionLabel: c.servicesActionLabel ?? DEFAULT_HOME_CONFIG.servicesActionLabel,
     popularActionLabel: c.popularActionLabel ?? DEFAULT_HOME_CONFIG.popularActionLabel,
     categoryChips:
@@ -233,25 +237,18 @@ contentRouter.patch(
   }),
 );
 
+function strBookingField(val: unknown, fallback: string): string {
+  return typeof val === 'string' && val.trim() ? val.trim() : fallback;
+}
+
 function formatBookingCopy(raw?: Partial<IBookingCopyConfig>): IBookingCopyConfig {
   const d = DEFAULT_BOOKING_COPY;
   const b = raw ?? {};
-  return {
-    scheduleStepTitle: b.scheduleStepTitle?.trim() || d.scheduleStepTitle,
-    scheduleStepSubtitle: b.scheduleStepSubtitle?.trim() || d.scheduleStepSubtitle,
-    standardModeLabel: b.standardModeLabel?.trim() || d.standardModeLabel,
-    customModeLabel: b.customModeLabel?.trim() || d.customModeLabel,
-    customNotesPlaceholder: b.customNotesPlaceholder?.trim() || d.customNotesPlaceholder,
-    pendingCustomerTitle: b.pendingCustomerTitle?.trim() || d.pendingCustomerTitle,
-    pendingCustomerHint: b.pendingCustomerHint?.trim() || d.pendingCustomerHint,
-    pendingFactsSubtitle: b.pendingFactsSubtitle?.trim() || d.pendingFactsSubtitle,
-    pendingReviewNote: b.pendingReviewNote?.trim() || d.pendingReviewNote,
-    requestSubmittedToast: b.requestSubmittedToast?.trim() || d.requestSubmittedToast,
-    adminRequestTitle: b.adminRequestTitle?.trim() || d.adminRequestTitle,
-    adminConfirmTitle: b.adminConfirmTitle?.trim() || d.adminConfirmTitle,
-    adminConfirmHint: b.adminConfirmHint?.trim() || d.adminConfirmHint,
-    adminConfirmButton: b.adminConfirmButton?.trim() || d.adminConfirmButton,
-  };
+  const out = { ...d };
+  for (const key of Object.keys(d) as (keyof IBookingCopyConfig)[]) {
+    out[key] = strBookingField(b[key], d[key]);
+  }
+  return out;
 }
 
 function formatAppConfig(doc: Awaited<ReturnType<typeof getOrCreateAppDoc>>): IAppConfig {
@@ -351,23 +348,7 @@ function mergeAppConfig(current: IAppConfig, patch: Record<string, unknown>): IA
 
   const booking = patch.booking as Record<string, unknown> | undefined;
   if (booking && typeof booking === 'object') {
-    next.booking = formatBookingCopy({
-      ...next.booking,
-      scheduleStepTitle: asString(booking.scheduleStepTitle, next.booking?.scheduleStepTitle ?? ''),
-      scheduleStepSubtitle: asString(booking.scheduleStepSubtitle, next.booking?.scheduleStepSubtitle ?? ''),
-      standardModeLabel: asString(booking.standardModeLabel, next.booking?.standardModeLabel ?? ''),
-      customModeLabel: asString(booking.customModeLabel, next.booking?.customModeLabel ?? ''),
-      customNotesPlaceholder: asString(booking.customNotesPlaceholder, next.booking?.customNotesPlaceholder ?? ''),
-      pendingCustomerTitle: asString(booking.pendingCustomerTitle, next.booking?.pendingCustomerTitle ?? ''),
-      pendingCustomerHint: asString(booking.pendingCustomerHint, next.booking?.pendingCustomerHint ?? ''),
-      pendingFactsSubtitle: asString(booking.pendingFactsSubtitle, next.booking?.pendingFactsSubtitle ?? ''),
-      pendingReviewNote: asString(booking.pendingReviewNote, next.booking?.pendingReviewNote ?? ''),
-      requestSubmittedToast: asString(booking.requestSubmittedToast, next.booking?.requestSubmittedToast ?? ''),
-      adminRequestTitle: asString(booking.adminRequestTitle, next.booking?.adminRequestTitle ?? ''),
-      adminConfirmTitle: asString(booking.adminConfirmTitle, next.booking?.adminConfirmTitle ?? ''),
-      adminConfirmHint: asString(booking.adminConfirmHint, next.booking?.adminConfirmHint ?? ''),
-      adminConfirmButton: asString(booking.adminConfirmButton, next.booking?.adminConfirmButton ?? ''),
-    });
+    next.booking = formatBookingCopy({ ...next.booking, ...booking } as Partial<IBookingCopyConfig>);
   }
 
   return next;

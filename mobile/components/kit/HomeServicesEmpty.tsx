@@ -1,37 +1,45 @@
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
-import { Sparkles } from 'lucide-react-native';
+import { SearchX } from 'lucide-react-native';
+import { AppIcons } from '@/constants/appIcons';
 import { Button } from '@/components/ui/Button';
 import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 export function HomeServicesEmpty({ filtered }: { filtered?: boolean }) {
   return (
     <View style={styles.wrap}>
-      <View style={styles.card}>
+      <LinearGradient
+        colors={['#FFFFFF', '#F7FAF6']}
+        style={styles.card}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
         <View style={styles.icon}>
-          <Sparkles size={28} color={colors.forest} strokeWidth={1.8} />
+          {filtered ? (
+            <SearchX size={26} color={colors.forest} strokeWidth={1.8} />
+          ) : (
+            <AppIcons.brand size={26} color={colors.forest} strokeWidth={1.8} />
+          )}
         </View>
-        <Text style={styles.title}>{filtered ? 'No matching services' : 'Services coming soon'}</Text>
+        <Text style={styles.title}>{filtered ? 'No matches' : 'Coming soon'}</Text>
         <Text style={styles.message}>
-          {filtered
-            ? 'Try another category or clear your search.'
-            : 'Browse our full catalogue or check back shortly.'}
+          {filtered ? 'Try another filter or search.' : 'Check back shortly.'}
         </Text>
         <Button
-          title={filtered ? 'Clear filters' : 'Browse services'}
+          title="Browse all"
           variant="premium"
           onPress={() => router.push('/(customer)/services')}
           style={styles.btn}
         />
-      </View>
+      </LinearGradient>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { paddingHorizontal: spacing.md, paddingVertical: spacing.md },
+  wrap: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   card: {
-    backgroundColor: colors.white,
     borderRadius: premium.radiusCard,
     padding: spacing.lg,
     alignItems: 'center',
@@ -47,12 +55,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(20,83,45,0.06)',
   },
   title: {
-    fontFamily: fonts.display,
-    fontSize: 17,
+    fontFamily: fonts.displayExtra,
+    fontSize: 18,
     color: colors.ink,
     textAlign: 'center',
+    letterSpacing: -0.2,
   },
   message: {
     fontFamily: fonts.body,

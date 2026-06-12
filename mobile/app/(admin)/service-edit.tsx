@@ -1,21 +1,22 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
+import { safeGoBack } from '@/lib/routes';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
+import { AdminFormCard, AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { IconInput } from '@/components/kit/IconInput';
 import { ServiceIconPicker } from '@/components/kit/ServiceIconPicker';
 import { ServiceTypePicker } from '@/components/kit/ServiceTypePicker';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Chip } from '@/components/ui/Chip';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
+import { serviceRealRating } from '@/lib/ratings';
 import { useScreenLoad } from '@/lib/useScreenLoad';
-import type { ServiceCategory, ServiceTypeKey } from '@/types/api';
+import type { ServiceCategory, ServiceStats, ServiceTypeKey } from '@/types/api';
 import { colors, fonts, spacing } from '@/constants/theme';
 
 const CATEGORIES: { key: ServiceCategory; label: string }[] = [
@@ -35,24 +36,29 @@ export default function ServiceEditScreen() {
   const [shortDesc, setShortDesc] = useState('');
   const [steps, setSteps] = useState('Arrival,Before,After,Sign-off');
   const [rating, setRating] = useState('4.8');
+  const [realRating, setRealRating] = useState<number | null>(null);
+  const [reviewCount, setReviewCount] = useState(0);
   const [saving, setSaving] = useState(false);
   const { loading, error, runLoad, reload } = useScreenLoad(!!id);
 
   const load = useCallback(async () => {
     if (!id) return;
-    const { data } = await api.get<{
-      service: {
-        name: string;
-        iconKey: string;
-        basePrice: number;
-        shortDesc: string;
-        stepTemplate?: string[];
-        category?: ServiceCategory;
-        rating?: number;
-        serviceTypes?: ServiceTypeKey[];
-      };
-    }>(`/services/${id}`, screenLoadConfig);
-    const s = data.service;
+    const [svcRes, statsRes] = await Promise.all([
+      api.get<{
+        service: {
+          name: string;
+          iconKey: string;
+          basePrice: number;
+          shortDesc: string;
+          stepTemplate?: string[];
+          category?: ServiceCategory;
+          rating?: number;
+          serviceTypes?: ServiceTypeKey[];
+        };
+      }>(`/services/${id}`, screenLoadConfig),
+      api.get<{ stats: ServiceStats }>(`/services/${id}/stats`, screenLoadConfig),
+    ]);
+    const s = svcRes.data.service;
     setName(s.name);
     setIconKey(s.iconKey);
     setCategory(s.category ?? 'general');
@@ -61,6 +67,9 @@ export default function ServiceEditScreen() {
     setShortDesc(s.shortDesc);
     setRating(String(s.rating ?? 4.8));
     setSteps((s.stepTemplate ?? []).join(','));
+    const stats = statsRes.data.stats;
+    setRealRating(serviceRealRating(stats));
+    setReviewCount(stats.reviewCount ?? 0);
   }, [id]);
 
   useEffect(() => {
@@ -105,7 +114,7 @@ export default function ServiceEditScreen() {
         await api.post('/services', body);
       }
       Toast.show({ type: 'success', text1: 'Saved' });
-      router.back();
+      safeGoBack('/(admin)/services');
     } finally {
       setSaving(false);
     }
@@ -123,7 +132,7 @@ export default function ServiceEditScreen() {
             try {
               await api.delete(`/services/${id}`);
               Toast.show({ type: 'success', text1: 'Service deactivated' });
-              router.back();
+              safeGoBack('/(admin)/services');
             } catch {
               Toast.show({ type: 'error', text1: 'Could not deactivate service' });
             }
@@ -161,29 +170,39 @@ export default function ServiceEditScreen() {
         showsVerticalScrollIndicator={false}
       >
         <PremiumSectionHeader title="Icon" style={styles.sectionHead} />
-        <Card variant="premium" style={styles.form}>
+        <AdminFormCard style={styles.form}>
           <ServiceIconPicker value={iconKey} onChange={setIconKey} />
-        </Card>
+        </AdminFormCard>
 
         <PremiumSectionHeader title="Pest control types" style={styles.sectionHead} />
-        <Card variant="premium" style={styles.form}>
+        <AdminFormCard style={styles.form}>
           <ServiceTypePicker value={serviceTypes} onChange={setServiceTypes} />
-        </Card>
+        </AdminFormCard>
 
         <PremiumSectionHeader title="Details" style={styles.sectionHead} />
-        <Card variant="premium" style={styles.form}>
+        <AdminFormCard style={styles.form}>
           <IconInput label="Name" value={name} onChangeText={setName} />
           <Text style={styles.label}>Category</Text>
-          <View style={styles.chipRow}>
-            {CATEGORIES.map((c) => (
-              <Chip key={c.key} label={c.label} selected={category === c.key} onPress={() => setCategory(c.key)} />
-            ))}
-          </View>
+          <AdminFilterChips
+            chips={CATEGORIES.map((c) => ({ key: c.key, label: c.label }))}
+            selected={category}
+            onSelect={(key) => setCategory(key as ServiceCategory)}
+          />
           <IconInput label="Base price" value={basePrice} onChangeText={setBasePrice} keyboardType="numeric" />
-          <IconInput label="Rating (0–5)" value={rating} onChangeText={setRating} keyboardType="decimal-pad" />
+          <IconInput
+            label="Public rating"
+            value={rating}
+            onChangeText={setRating}
+            keyboardType="decimal-pad"
+          />
+          {id ? (
+            <Text style={styles.realHint}>
+              Real avg: {realRating != null ? `★ ${realRating.toFixed(1)} (${reviewCount})` : '—'}
+            </Text>
+          ) : null}
           <IconInput label="Short description" value={shortDesc} onChangeText={setShortDesc} />
           <IconInput label="Steps (comma-separated)" value={steps} onChangeText={setSteps} />
-        </Card>
+        </AdminFormCard>
       </ScrollView>
     </AdminListShell>
   );
@@ -191,7 +210,14 @@ export default function ServiceEditScreen() {
 
 const styles = StyleSheet.create({
   sectionHead: { marginTop: 0, paddingHorizontal: 0, marginBottom: spacing.xs },
-  form: { padding: spacing.md, marginBottom: spacing.md },
+  form: { marginBottom: spacing.md },
   label: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, marginTop: spacing.sm, marginBottom: 6 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.sm },
+  realHint: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.forest,
+    marginTop: -4,
+    marginBottom: spacing.sm,
+    lineHeight: 17,
+  },
 });

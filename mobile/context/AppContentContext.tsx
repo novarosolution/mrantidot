@@ -10,7 +10,7 @@ import {
 import { api } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import type { AppConfig } from '@/types/api';
-import { DEFAULT_BOOKING_COPY } from '@/constants/bookingCopy';
+import { DEFAULT_BOOKING_COPY, getBookingCopy } from '@/constants/bookingCopy';
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
   support: {
@@ -57,7 +57,12 @@ export function AppContentProvider({ children }: { children: ReactNode }) {
         silent401: true,
         cacheTtlMs: CACHE_TTL.content,
       });
-      if (data?.app) setContent(data.app);
+      if (data?.app) {
+        setContent({
+          ...data.app,
+          booking: getBookingCopy(data.app.booking),
+        });
+      }
     } catch {
       // keep defaults on failure
     } finally {

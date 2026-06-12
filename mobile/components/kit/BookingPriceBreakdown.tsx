@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { BookingAmount } from '@/types/api';
+import { useBookingCopy } from '@/lib/schedule-copy';
 import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 export function BookingPriceBreakdown({
@@ -9,18 +10,19 @@ export function BookingPriceBreakdown({
   amount: Pick<BookingAmount, 'base' | 'gst' | 'coupon' | 'total'>;
   compact?: boolean;
 }) {
+  const copy = useBookingCopy();
   return (
-    <View style={[styles.wrap, compact && styles.compact]}>
-      <View style={styles.goldRule} />
-      <Text style={styles.heading}>Price breakdown</Text>
-      <Row label="Service charge" value={`₹${amount.base}`} />
-      <Row label="GST (18%)" value={`₹${amount.gst}`} />
+    <View style={[styles.wrap, compact && styles.compact, compact && styles.embedded]}>
+      {!compact ? <View style={styles.goldRule} /> : null}
+      <Text style={styles.heading}>{copy.priceBreakdownTitle}</Text>
+      <Row label={copy.priceLabelService} value={`₹${amount.base}`} />
+      <Row label={copy.priceLabelGst} value={`₹${amount.gst}`} />
       {amount.coupon > 0 ? (
-        <Row label="Coupon discount" value={`-₹${amount.coupon}`} valueStyle={styles.discount} />
+        <Row label={copy.priceLabelCoupon} value={`-₹${amount.coupon}`} valueStyle={styles.discount} />
       ) : null}
       <View style={styles.divider} />
       <View style={styles.totalRow}>
-        <Text style={styles.totalLabel}>You pay</Text>
+        <Text style={styles.totalLabel}>{copy.priceLabelTotal}</Text>
         <Text style={styles.totalValue}>₹{amount.total}</Text>
       </View>
     </View>
@@ -64,7 +66,8 @@ const styles = StyleSheet.create({
     opacity: 0.55,
     borderRadius: 1,
   },
-  compact: { padding: spacing.sm },
+  compact: { padding: spacing.sm, borderWidth: 0, shadowOpacity: 0, elevation: 0, backgroundColor: 'transparent' },
+  embedded: { paddingHorizontal: 0, paddingTop: 0 },
   heading: {
     fontFamily: fonts.bodySemi,
     fontSize: 11,

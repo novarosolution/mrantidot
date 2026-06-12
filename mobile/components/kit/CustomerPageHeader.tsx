@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { safeGoBack } from '@/lib/routes';
 import { ChevronLeft } from 'lucide-react-native';
 import { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -14,6 +14,7 @@ export function CustomerPageHeader({
   showBack,
   variant = 'light',
   rightAction,
+  overlapReserve,
   children,
 }: {
   title: string;
@@ -21,6 +22,8 @@ export function CustomerPageHeader({
   showBack?: boolean;
   variant?: Variant;
   rightAction?: ReactNode;
+  /** Extra bottom padding so a floating panel can overlap the hero. */
+  overlapReserve?: boolean;
   children?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
@@ -30,7 +33,7 @@ export function CustomerPageHeader({
     <View style={[styles.row, { paddingTop: padTop }]}>
       {showBack ? (
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => safeGoBack()}
           style={[styles.backBtn, (variant === 'gradient' || variant === 'premium') && styles.backBtnOnGradient]}
         >
           <ChevronLeft color={variant === 'gradient' || variant === 'premium' ? colors.white : colors.ink} size={20} />
@@ -52,7 +55,11 @@ export function CustomerPageHeader({
     return (
       <LinearGradient
         colors={variant === 'premium' ? [...gradients.premiumHero] : [...gradients.header]}
-        style={[styles.gradientWrap, variant === 'premium' && styles.premiumWrap, { paddingBottom: spacing.md }]}
+        style={[
+          styles.gradientWrap,
+          variant === 'premium' && styles.premiumWrap,
+          { paddingBottom: overlapReserve ? spacing.xl + 24 : spacing.md },
+        ]}
       >
         {variant === 'premium' ? <View style={styles.heroGlow} /> : null}
         {content}

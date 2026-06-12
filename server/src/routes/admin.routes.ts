@@ -121,6 +121,7 @@ adminRouter.patch(
   body('role').optional().isIn(['customer', 'technician', 'admin']),
   body('available').optional().isBoolean(),
   body('disabled').optional().isBoolean(),
+  body('displayRating').optional({ nullable: true }).isFloat({ min: 0, max: 5 }),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
     const user = await User.findById(req.params.id);
@@ -152,6 +153,10 @@ adminRouter.patch(
     if (typeof req.body.disabled === 'boolean') {
       user.disabled = req.body.disabled;
       if (req.body.disabled) user.available = false;
+    }
+    if (req.body.displayRating !== undefined && user.role === 'technician') {
+      const v = req.body.displayRating;
+      user.displayRating = v === null || v === '' ? null : Number(v);
     }
     if (req.body.phone) {
       const phone = normalizePhone(req.body.phone);

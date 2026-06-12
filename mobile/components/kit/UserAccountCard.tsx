@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/context/AuthContext';
+import { displayUserEmail, displayUserName } from '@/lib/profile-display';
 import type { UserRole } from '@/types/api';
 import { colors, fonts, gradients, spacing, surfaces } from '@/constants/theme';
 
@@ -15,8 +16,8 @@ export function UserAccountCard({ compact, onPress }: { compact?: boolean; onPre
   const { user } = useAuth();
   if (!user) return null;
 
-  const displayName = user.name?.trim() || 'Account';
-  const contact = user.phone?.trim() || user.email || '';
+  const displayName = displayUserName(user);
+  const contact = user.phone?.trim() || displayUserEmail(user.email) || '';
   const initial = displayName[0]?.toUpperCase() ?? 'U';
 
   const inner = (

@@ -19,6 +19,7 @@ export interface IHomeConfig {
     services: string;
     popular: string;
   };
+  servicesSubtitle?: string;
   searchPlaceholder: string;
   servicesActionLabel: string;
   popularActionLabel: string;
@@ -78,6 +79,109 @@ export interface IBookingCopyConfig {
   adminConfirmTitle: string;
   adminConfirmHint: string;
   adminConfirmButton: string;
+  wizardScreenTitle: string;
+  wizardStepSchedule: string;
+  wizardStepProperty: string;
+  wizardStepAddress: string;
+  wizardStepPayment: string;
+  wizardStepConfirm: string;
+  wizardReviewSectionTitle: string;
+  wizardContinueButton: string;
+  wizardSubmitButton: string;
+  wizardBackButton: string;
+  listScreenTitle: string;
+  listFilterActive: string;
+  listFilterCompleted: string;
+  listFilterCancelled: string;
+  listNextVisitLabel: string;
+  listEmptyActive: string;
+  listEmptyCompleted: string;
+  listEmptyCancelled: string;
+  listBookServiceButton: string;
+  successSummaryTitle: string;
+  successLabelReference: string;
+  successLabelService: string;
+  successLabelVisit: string;
+  successLabelPayment: string;
+  successLabelTotal: string;
+  successViewBookingButton: string;
+  successHomeButton: string;
+  detailScreenTitle: string;
+  detailDetailsTitle: string;
+  detailDetailsSubtitle: string;
+  trackingSectionTitle: string;
+  trackingSectionSubtitle: string;
+  trackingStepReceived: string;
+  trackingStepConfirmed: string;
+  trackingStepAssignExpert: string;
+  trackingStepShareStartCode: string;
+  trackingStepInProgress: string;
+  trackingStepShareCompletionCode: string;
+  trackingStepCompleted: string;
+  activitySectionTitle: string;
+  activitySectionSubtitle: string;
+  treatmentStepsTitle: string;
+  treatmentStepsLiveSubtitle: string;
+  treatmentStepsDoneSubtitle: string;
+  detailLiveProgressLabel: string;
+  detailLiveBadge: string;
+  otpStartTitle: string;
+  otpStartSubtitle: string;
+  otpEndTitle: string;
+  otpEndSubtitle: string;
+  detailActionEnterCode: string;
+  detailActionReview: string;
+  detailActionCancel: string;
+  detailActionBookAgain: string;
+  factLabelWhen: string;
+  factLabelWhere: string;
+  factLabelProperty: string;
+  factLabelPayment: string;
+  factLabelCoupon: string;
+  factLabelTechnician: string;
+  priceBreakdownTitle: string;
+  priceLabelService: string;
+  priceLabelGst: string;
+  priceLabelCoupon: string;
+  priceLabelTotal: string;
+  cancelConfirmTitle: string;
+  cancelConfirmMessage: string;
+  cancelConfirmKeep: string;
+  cancelConfirmAction: string;
+  statusGuidancePending: string;
+  statusGuidanceConfirmed: string;
+  statusGuidanceInProgress: string;
+  statusGuidanceAwaitingVerification: string;
+  statusGuidanceCompleted: string;
+  statusGuidanceCancelled: string;
+  techJobsTitle: string;
+  techProfileTitle: string;
+  techCheckInTitle: string;
+  techCheckInSubtitle: string;
+  techOnDutyButton: string;
+  techOffDutyButton: string;
+  techOnDutyBadge: string;
+  techOffDutyBadge: string;
+  techOffDutyHint: string;
+  techBackOnDutyButton: string;
+  techPerformanceTitle: string;
+  techScheduleTitle: string;
+  techJobVisitsTitle: string;
+  techEmptyJobsTitle: string;
+  techEmptyJobsMessage: string;
+  techJobValueLabel: string;
+  techVisitTimesTitle: string;
+  techJobDetailsTitle: string;
+  techTreatmentStepsTitle: string;
+  techActivityTitle: string;
+  techEnterStartCode: string;
+  techEnterCompletionCode: string;
+  techCompleteStepsFirst: string;
+  techStartOtpTitle: string;
+  techEndOtpTitle: string;
+  techLocationNoteLabel: string;
+  techLocationNotePlaceholder: string;
+  techNoStepsHint: string;
 }
 
 export interface IAppConfig {
@@ -126,6 +230,7 @@ const homeConfigSchema = new Schema<IHomeConfig>(
       popular: { type: String, default: 'Popular Now' },
     },
     searchPlaceholder: { type: String, default: 'Search services…' },
+    servicesSubtitle: { type: String, default: 'Trusted pest control & home services' },
     servicesActionLabel: { type: String, default: 'View all' },
     popularActionLabel: { type: String, default: 'See more' },
     categoryChips: {
@@ -153,25 +258,7 @@ const faqItemSchema = new Schema<IFaqItem>(
   { _id: false },
 );
 
-const bookingCopySchema = new Schema<IBookingCopyConfig>(
-  {
-    scheduleStepTitle: { type: String, default: '' },
-    scheduleStepSubtitle: { type: String, default: '' },
-    standardModeLabel: { type: String, default: '' },
-    customModeLabel: { type: String, default: '' },
-    customNotesPlaceholder: { type: String, default: '' },
-    pendingCustomerTitle: { type: String, default: '' },
-    pendingCustomerHint: { type: String, default: '' },
-    pendingFactsSubtitle: { type: String, default: '' },
-    pendingReviewNote: { type: String, default: '' },
-    requestSubmittedToast: { type: String, default: '' },
-    adminRequestTitle: { type: String, default: '' },
-    adminConfirmTitle: { type: String, default: '' },
-    adminConfirmHint: { type: String, default: '' },
-    adminConfirmButton: { type: String, default: '' },
-  },
-  { _id: false },
-);
+const bookingCopySchema = new Schema<IBookingCopyConfig>({}, { _id: false, strict: false });
 
 const appConfigSchema = new Schema<IAppConfig>(
   {
@@ -228,6 +315,7 @@ export const DEFAULT_HOME_PROMO: IHomePromo = {
 
 export const DEFAULT_HOME_CONFIG: IHomeConfig = {
   sectionTitles: { services: 'Our Services', popular: 'Popular Now' },
+  servicesSubtitle: 'Trusted pest control & home services',
   searchPlaceholder: 'Search services…',
   servicesActionLabel: 'View all',
   popularActionLabel: 'See more',
@@ -257,6 +345,109 @@ export const DEFAULT_BOOKING_COPY: IBookingCopyConfig = {
   adminConfirmHint:
     'Review the customer’s request and set the final visit time before notifying them.',
   adminConfirmButton: 'Confirm & notify customer',
+  wizardScreenTitle: 'Book service',
+  wizardStepSchedule: 'Schedule',
+  wizardStepProperty: 'Property',
+  wizardStepAddress: 'Address',
+  wizardStepPayment: 'Payment',
+  wizardStepConfirm: 'Confirm',
+  wizardReviewSectionTitle: 'Review & confirm',
+  wizardContinueButton: 'Continue',
+  wizardSubmitButton: 'Submit request',
+  wizardBackButton: 'Back',
+  listScreenTitle: 'My Bookings',
+  listFilterActive: 'Active',
+  listFilterCompleted: 'Done',
+  listFilterCancelled: 'Cancelled',
+  listNextVisitLabel: 'Next visit',
+  listEmptyActive: 'No active bookings',
+  listEmptyCompleted: 'Nothing completed yet',
+  listEmptyCancelled: 'No cancelled bookings',
+  listBookServiceButton: 'Book a service',
+  successSummaryTitle: 'Booking summary',
+  successLabelReference: 'Reference',
+  successLabelService: 'Service',
+  successLabelVisit: 'Requested visit',
+  successLabelPayment: 'Payment',
+  successLabelTotal: 'Estimated total',
+  successViewBookingButton: 'View booking',
+  successHomeButton: 'Back to home',
+  detailScreenTitle: 'Your booking',
+  detailDetailsTitle: 'Booking details',
+  detailDetailsSubtitle: 'Visit, location & payment',
+  trackingSectionTitle: 'Tracking',
+  trackingSectionSubtitle: 'Where your booking stands',
+  trackingStepReceived: 'Booking received',
+  trackingStepConfirmed: 'Schedule confirmed',
+  trackingStepAssignExpert: 'Assigning service expert',
+  trackingStepShareStartCode: 'Share start code',
+  trackingStepInProgress: 'Treatment in progress',
+  trackingStepShareCompletionCode: 'Share completion code',
+  trackingStepCompleted: 'Completed',
+  activitySectionTitle: 'Activity',
+  activitySectionSubtitle: 'Latest updates',
+  treatmentStepsTitle: 'Treatment steps',
+  treatmentStepsLiveSubtitle: 'Updates as work happens',
+  treatmentStepsDoneSubtitle: 'Completed work',
+  detailLiveProgressLabel: 'Live progress',
+  detailLiveBadge: 'Live',
+  otpStartTitle: 'Start code',
+  otpStartSubtitle: 'Share this with your technician when they arrive',
+  otpEndTitle: 'Completion code',
+  otpEndSubtitle: 'Give this code once treatment is finished',
+  detailActionEnterCode: 'Enter completion code',
+  detailActionReview: 'Leave a review',
+  detailActionCancel: 'Cancel booking',
+  detailActionBookAgain: 'Book again',
+  factLabelWhen: 'When',
+  factLabelWhere: 'Where',
+  factLabelProperty: 'Property',
+  factLabelPayment: 'Payment',
+  factLabelCoupon: 'Coupon',
+  factLabelTechnician: 'Your technician',
+  priceBreakdownTitle: 'Price breakdown',
+  priceLabelService: 'Service charge',
+  priceLabelGst: 'GST (18%)',
+  priceLabelCoupon: 'Coupon discount',
+  priceLabelTotal: 'You pay',
+  cancelConfirmTitle: 'Cancel booking?',
+  cancelConfirmMessage: 'This cannot be undone.',
+  cancelConfirmKeep: 'Keep booking',
+  cancelConfirmAction: 'Cancel booking',
+  statusGuidancePending: 'We’re confirming your visit time. You’ll be notified once it’s scheduled.',
+  statusGuidanceConfirmed: 'Share your start code when our service expert arrives.',
+  statusGuidanceInProgress: 'Treatment is in progress at your location.',
+  statusGuidanceAwaitingVerification: 'Share your completion code to finish the booking.',
+  statusGuidanceCompleted: 'This booking is complete. Thank you for choosing Mr Antidot.',
+  statusGuidanceCancelled: 'This booking was cancelled. You can book again anytime.',
+  techJobsTitle: 'My Jobs',
+  techProfileTitle: 'My profile',
+  techCheckInTitle: 'Mark yourself on duty',
+  techCheckInSubtitle: 'Check in when you start your work day so admin can track attendance.',
+  techOnDutyButton: 'On duty today',
+  techOffDutyButton: 'Off today',
+  techOnDutyBadge: '● On duty today',
+  techOffDutyBadge: 'Off duty today',
+  techOffDutyHint: 'You will not receive new job assignments while off duty.',
+  techBackOnDutyButton: 'Go on duty',
+  techPerformanceTitle: 'Performance',
+  techScheduleTitle: 'Schedule calendar',
+  techJobVisitsTitle: 'Job visits',
+  techEmptyJobsTitle: 'No jobs assigned',
+  techEmptyJobsMessage: 'New jobs from admin will appear here.',
+  techJobValueLabel: 'Job value',
+  techVisitTimesTitle: 'Visit times',
+  techJobDetailsTitle: 'Job details',
+  techTreatmentStepsTitle: 'Treatment steps',
+  techActivityTitle: 'Activity',
+  techEnterStartCode: 'Enter start code',
+  techEnterCompletionCode: 'Enter completion code',
+  techCompleteStepsFirst: 'Complete steps first',
+  techStartOtpTitle: 'Start work',
+  techEndOtpTitle: 'Complete job',
+  techLocationNoteLabel: 'Location note',
+  techLocationNotePlaceholder: 'Building or landmark',
+  techNoStepsHint: 'No step photos required. Enter completion code when done.',
 };
 
 export const DEFAULT_APP_CONFIG: IAppConfig = {

@@ -4,13 +4,13 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeHero } from '@/components/kit/HomeHero';
 import { HomeQuickActions } from '@/components/kit/HomeQuickActions';
-import { HomeSection } from '@/components/kit/HomeSection';
 import { HomeServicesEmpty } from '@/components/kit/HomeServicesEmpty';
+import { HomeServicesSection } from '@/components/kit/HomeServicesSection';
 import { PopularServiceCard } from '@/components/kit/PopularServiceCard';
 import { ServiceGrid } from '@/components/kit/ServiceGrid';
 import { CustomerServiceTypeSection } from '@/components/kit/CustomerServiceTypeSection';
 import { PromoBanner } from '@/components/ui/PromoBanner';
-import { Chip } from '@/components/ui/Chip';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { useAuth } from '@/context/AuthContext';
@@ -50,7 +50,6 @@ export default function CustomerHome() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-
   const [metaLoaded, setMetaLoaded] = useState(false);
 
   const loadMeta = useCallback(async (skipCache = false) => {
@@ -142,10 +141,7 @@ export default function CustomerHome() {
   async function onRefresh() {
     setRefreshing(true);
     try {
-      await Promise.all([
-        loadMeta(true),
-        loadServices(true),
-      ]);
+      await Promise.all([loadMeta(true), loadServices(true)]);
       setLoadError(null);
     } catch (err) {
       setLoadError(getApiErrorMessage(err, 'Could not refresh'));
@@ -181,9 +177,12 @@ export default function CustomerHome() {
       <ScrollView
         style={styles.root}
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />
+        }
         showsVerticalScrollIndicator={false}
       >
+        {/* —— Hero + search —— */}
         <HomeHero
           topInset={insets.top}
           searchPlaceholder={homeConfig.searchPlaceholder}
@@ -193,65 +192,68 @@ export default function CustomerHome() {
           unread={unread}
         />
 
-        <PromoBanner
-          promo={homePromo}
-          onPress={() => {
-            if (promoServiceId) router.push(`/service/${promoServiceId}`);
-          }}
-        />
+        <FadeSlideIn delay={60}>
+          <PromoBanner
+            promo={homePromo}
+            onPress={() => {
+              if (promoServiceId) router.push(`/service/${promoServiceId}`);
+            }}
+          />
+        </FadeSlideIn>
 
-        <HomeQuickActions />
+        <FadeSlideIn delay={90}>
+          <HomeQuickActions />
+        </FadeSlideIn>
 
-        <CustomerServiceTypeSection />
+        {/* —— Pest types —— */}
+        <FadeSlideIn delay={120}>
+          <CustomerServiceTypeSection />
+        </FadeSlideIn>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chips}
-          contentContainerStyle={styles.chipsContent}
-        >
-          {homeConfig.categoryChips.map((c) => (
-            <Chip key={c.label} label={c.label} selected={cat === c.label} onPress={() => setCat(c.label)} />
-          ))}
-        </ScrollView>
+        {/* —— Services + category filter —— */}
+        <FadeSlideIn delay={150} trigger={`${cat}-${debouncedQ}`}>
+          <HomeServicesSection
+            title={homeConfig.sectionTitles.services}
+            actionLabel={homeConfig.servicesActionLabel}
+            onAction={() => router.push('/(customer)/services')}
+            chips={homeConfig.categoryChips}
+            selectedCategory={cat}
+            onSelectCategory={setCat}
+          >
+            {loading && services.length === 0 ? (
+              <View style={styles.loadingBox}>
+                <Spinner />
+              </View>
+            ) : services.length === 0 ? (
+              <HomeServicesEmpty filtered={Boolean(debouncedQ) || cat !== 'All'} />
+            ) : (
+              <ServiceGrid services={services} onPressItem={(s) => router.push(`/service/${s.id}`)} />
+            )}
+          </HomeServicesSection>
+        </FadeSlideIn>
 
-        <PremiumSectionHeader
-          title={homeConfig.sectionTitles.services}
-          actionLabel={homeConfig.servicesActionLabel}
-          onAction={() => router.push('/(customer)/services')}
-        />
-
-        <HomeSection>
-          {loading && services.length === 0 ? (
+        {/* —— Popular pick —— */}
+        <FadeSlideIn delay={180}>
+          <PremiumSectionHeader
+            title={homeConfig.sectionTitles.popular}
+            actionLabel={homeConfig.popularActionLabel}
+            onAction={() => router.push('/(customer)/services')}
+            compact
+          />
+          {loading && !popular ? (
             <View style={styles.loadingBox}>
               <Spinner />
             </View>
-          ) : services.length === 0 ? (
-            <HomeServicesEmpty filtered={Boolean(debouncedQ) || cat !== 'All'} />
+          ) : popular ? (
+            <PopularServiceCard
+              service={popular}
+              bookingCount={popularStats?.bookingCount}
+              onPress={() => router.push(`/service/${popular.id}`)}
+            />
           ) : (
-            <ServiceGrid services={services} onPressItem={(s) => router.push(`/service/${s.id}`)} />
+            <HomeServicesEmpty />
           )}
-        </HomeSection>
-
-        <PremiumSectionHeader
-          title={homeConfig.sectionTitles.popular}
-          actionLabel={homeConfig.popularActionLabel}
-          onAction={() => router.push('/(customer)/services')}
-        />
-
-        {loading && !popular ? (
-          <View style={styles.loadingBox}>
-            <Spinner />
-          </View>
-        ) : popular ? (
-          <PopularServiceCard
-            service={popular}
-            bookingCount={popularStats?.bookingCount}
-            onPress={() => router.push(`/service/${popular.id}`)}
-          />
-        ) : (
-          <HomeServicesEmpty />
-        )}
+        </FadeSlideIn>
       </ScrollView>
     </SafeAreaView>
   );
@@ -260,8 +262,6 @@ export default function CustomerHome() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: design.screenBg },
   root: { flex: 1 },
-  content: { paddingBottom: spacing.xxl },
-  chips: { marginTop: spacing.md },
-  chipsContent: { paddingHorizontal: spacing.md, paddingVertical: 6 },
-  loadingBox: { paddingVertical: spacing.xl, alignItems: 'center' },
+  content: { paddingBottom: spacing.xxl + 16 },
+  loadingBox: { paddingVertical: spacing.lg, alignItems: 'center' },
 });

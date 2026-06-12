@@ -1,19 +1,42 @@
+import { type ReactNode } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Bell, Search } from 'lucide-react-native';
-import { HomeTrustStrip } from '@/components/kit/HomeTrustStrip';
-import { LocationChip } from '@/components/kit/LocationChip';
+import { Dimensions, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Bell, MapPin, RefreshCw, Search, X } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useLocation } from '@/context/LocationContext';
-import { colors, fonts, headerTopPad, premium, shadows, spacing } from '@/constants/theme';
+import { homeGreetingName } from '@/lib/profile-display';
+import { colors, design, fonts, gradients, headerTopPad, shadows, spacing } from '@/constants/theme';
 import { textInputDefaults } from '@/components/ui/textInputDefaults';
+
+const ACTION = 44;
 
 function greeting(): string {
   const h = new Date().getHours();
   if (h < 12) return 'Good morning';
   if (h < 17) return 'Good afternoon';
   return 'Good evening';
+}
+
+function HeroAction({
+  onPress,
+  children,
+  badge,
+}: {
+  onPress: () => void;
+  children: ReactNode;
+  badge?: number;
+}) {
+  return (
+    <Pressable style={({ pressed }) => [styles.actionBtn, pressed && styles.actionPressed]} onPress={onPress}>
+      {children}
+      {badge != null && badge > 0 ? (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
 }
 
 export function HomeHero({
@@ -33,64 +56,64 @@ export function HomeHero({
 }) {
   const { user } = useAuth();
   const { displayLabel, locating, refreshLocation } = useLocation();
-  const firstName = (user?.name?.trim() || 'Guest').split(' ')[0];
-  const cityLabel = displayLabel;
+  const firstName = homeGreetingName(user);
+  const initial = user?.name?.[0]?.toUpperCase() ?? 'U';
 
   return (
     <View style={styles.wrap}>
       <LinearGradient
-        colors={['#2BB563', '#1A6B3C', '#0E3A20']}
+        colors={[...gradients.premiumHero]}
         style={[styles.hero, { paddingTop: headerTopPad(topInset) }]}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.95, y: 1 }}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
         <View style={styles.glowA} />
         <View style={styles.glowB} />
 
-        <View style={styles.top}>
-          <Pressable onPress={() => router.push('/(customer)/profile')} style={styles.greetCol}>
+        <View style={styles.topRow}>
+          <View style={styles.greetCol}>
             <Text style={styles.eyebrow}>{greeting()}</Text>
             <Text style={styles.greet}>{firstName}</Text>
-            {cityLabel ? (
-              <View style={styles.cityRow}>
-                <LocationChip
-                  label={cityLabel}
-                  loading={locating}
-                  variant="dark"
-                  onPress={() => void refreshLocation()}
-                />
-              </View>
-            ) : null}
-          </Pressable>
-          <View style={styles.topRight}>
-            <Pressable style={styles.iconBtn} onPress={() => router.push('/(customer)/notifications')}>
-              <Bell size={19} color={colors.forest} strokeWidth={2} />
-              {unread > 0 ? (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{unread > 9 ? '9+' : unread}</Text>
-                </View>
-              ) : null}
-            </Pressable>
-            <Pressable style={styles.avatar} onPress={() => router.push('/(customer)/profile')}>
+          </View>
+          <View style={styles.actions}>
+            <HeroAction onPress={() => router.push('/(customer)/notifications')} badge={unread}>
+              <Bell size={20} color={colors.forest} strokeWidth={2} />
+            </HeroAction>
+            <Pressable
+              style={({ pressed }) => [styles.avatarBtn, pressed && styles.actionPressed]}
+              onPress={() => router.push('/(customer)/profile')}
+            >
               <LinearGradient
-                colors={['rgba(168,224,78,0.35)', 'rgba(255,255,255,0.08)']}
+                colors={['#2A9D5C', '#14532D']}
                 style={StyleSheet.absoluteFill}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               />
-              <Text style={styles.avatarText}>{user?.name?.[0]?.toUpperCase() ?? 'U'}</Text>
+              <Text style={styles.avatarText}>{initial}</Text>
             </Pressable>
           </View>
         </View>
 
-        <HomeTrustStrip />
+        {displayLabel ? (
+          <Pressable
+            style={({ pressed }) => [styles.locationRow, pressed && styles.actionPressed]}
+            onPress={() => void refreshLocation()}
+            disabled={locating}
+          >
+            <MapPin size={14} color={colors.lime} strokeWidth={2.2} />
+            <Text style={styles.locationText} numberOfLines={1}>
+              {displayLabel}
+            </Text>
+            <RefreshCw size={13} color="rgba(255,255,255,0.7)" />
+          </Pressable>
+        ) : null}
+
+        <View style={styles.heroCurve} />
       </LinearGradient>
 
       <View style={styles.searchOuter}>
         <View style={styles.searchWrap}>
-          <View style={styles.searchIcon}>
-            <Search size={17} color={colors.forest} strokeWidth={2.2} />
-          </View>
+          <Search size={18} color={colors.forest} strokeWidth={2.2} />
           <TextInput
             style={styles.search}
             {...textInputDefaults}
@@ -101,6 +124,11 @@ export function HomeHero({
             onSubmitEditing={onSubmitSearch}
             returnKeyType="search"
           />
+          {query.length > 0 ? (
+            <Pressable style={styles.clearBtn} onPress={() => onChangeQuery('')} hitSlop={8}>
+              <X size={16} color={colors.muted} />
+            </Pressable>
+          ) : null}
         </View>
       </View>
     </View>
@@ -108,41 +136,51 @@ export function HomeHero({
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: spacing.xs },
+  wrap: { marginBottom: spacing.sm },
   hero: {
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xl + 28,
+    paddingBottom: spacing.xl + 32,
     overflow: 'hidden',
   },
   glowA: {
     position: 'absolute',
-    top: -70,
-    right: -40,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
+    top: -60,
+    right: -30,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
     backgroundColor: 'rgba(168,224,78,0.14)',
   },
   glowB: {
     position: 'absolute',
     bottom: 20,
-    left: -60,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
+    left: -50,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
-  top: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+  heroCurve: {
+    position: 'absolute',
+    bottom: -1,
+    left: 0,
+    right: 0,
+    height: 24,
+    backgroundColor: design.screenBg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
-  greetCol: { flex: 1, paddingRight: spacing.sm },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  greetCol: { flex: 1, paddingTop: 2 },
   eyebrow: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.bodySemi,
     fontSize: 13,
     color: 'rgba(255,255,255,0.72)',
-    letterSpacing: 0.2,
   },
   greet: {
     fontFamily: fonts.displayExtra,
@@ -152,21 +190,36 @@ const styles = StyleSheet.create({
     letterSpacing: -0.6,
     marginTop: 2,
   },
-  cityRow: { marginTop: 8 },
-  topRight: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  iconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingTop: 2,
+  },
+  actionBtn: {
+    width: ACTION,
+    height: ACTION,
+    borderRadius: ACTION / 2,
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
-    ...premium.shadowSoft,
+    ...shadows.card,
   },
+  avatarBtn: {
+    width: ACTION,
+    height: ACTION,
+    borderRadius: ACTION / 2,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
+  actionPressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
   badge: {
     position: 'absolute',
-    top: 4,
-    right: 4,
+    top: -2,
+    right: -2,
     minWidth: 18,
     height: 18,
     borderRadius: 9,
@@ -178,41 +231,57 @@ const styles = StyleSheet.create({
     borderColor: colors.white,
   },
   badgeText: { fontFamily: fonts.bodyBold, fontSize: 9, color: colors.white },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(168,224,78,0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   avatarText: { fontFamily: fonts.displayExtra, color: colors.white, fontSize: 17 },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 8,
+    marginTop: spacing.md,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    maxWidth: '100%',
+  },
+  locationText: {
+    flexShrink: 1,
+    fontFamily: fonts.bodySemi,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.92)',
+  },
   searchOuter: {
-    marginTop: -30,
+    marginTop: -28,
     paddingHorizontal: spacing.md,
     zIndex: 2,
   },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+    borderRadius: 16,
+    paddingHorizontal: spacing.md,
+    height: 52,
     backgroundColor: colors.white,
-    borderRadius: 18,
-    paddingHorizontal: 6,
-    height: 56,
     borderWidth: 1,
     borderColor: 'rgba(20,83,45,0.08)',
     ...shadows.floating,
   },
-  searchIcon: {
-    width: 44,
-    height: 44,
+  search: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: 15,
+    color: colors.ink,
+    paddingVertical: 0,
+  },
+  clearBtn: {
+    width: 28,
+    height: 28,
     borderRadius: 14,
     backgroundColor: colors.soft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 4,
   },
-  search: { flex: 1, fontSize: 15, color: colors.ink, paddingRight: spacing.sm },
 });

@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
-import { Gift, Sparkles } from 'lucide-react-native';
+import { AppIcons } from '@/constants/appIcons';
 import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 export function OffersPromoHero({ offerCount }: { offerCount: number }) {
@@ -13,11 +13,11 @@ export function OffersPromoHero({ offerCount }: { offerCount: number }) {
         end={{ x: 1, y: 1 }}
       >
         <View style={styles.icon}>
-          <Gift size={24} color={premium.accentGold} strokeWidth={2} />
+          <AppIcons.quick.offers size={24} color={premium.accentGold} strokeWidth={2} />
         </View>
         <View style={styles.body}>
           <View style={styles.badgeRow}>
-            <Sparkles size={12} color={premium.accentGold} />
+            <AppIcons.brand size={12} color={premium.accentGold} />
             <Text style={styles.badge}>Exclusive deals</Text>
           </View>
           <Text style={styles.title}>

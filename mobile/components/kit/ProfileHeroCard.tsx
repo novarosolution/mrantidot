@@ -57,10 +57,7 @@ export function ProfileHeroCard({
         <View style={styles.glowB} />
 
         <View style={styles.heroTop}>
-          <View>
-            <Text style={styles.screenTitle}>My account</Text>
-            <Text style={styles.screenSub}>Manage your profile & preferences</Text>
-          </View>
+          <Text style={styles.screenTitle}>My account</Text>
           <View style={styles.heroActions}>
             <Pressable style={styles.heroIconBtn} onPress={() => router.push('/(customer)/notifications')}>
               <Bell size={18} color={colors.white} strokeWidth={2} />
@@ -131,6 +128,11 @@ export function ProfileHeroCard({
                 </Pressable>
               </View>
             ) : null}
+            {!phone && !email && !city ? (
+              <Pressable style={styles.metaChip} onPress={() => router.push('/(customer)/settings')}>
+                <Text style={styles.metaHint}>Add your phone, email and city in settings</Text>
+              </Pressable>
+            ) : null}
           </View>
 
           <Pressable style={styles.editRow} onPress={() => router.push('/(customer)/settings')}>
@@ -178,12 +180,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: colors.white,
     letterSpacing: -0.4,
-  },
-  screenSub: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.72)',
-    marginTop: 4,
   },
   heroActions: { flexDirection: 'row', gap: 8 },
   heroIconBtn: {
@@ -320,6 +316,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 13,
     color: colors.ink,
+  },
+  metaHint: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.forest,
+    textAlign: 'center',
   },
   editRow: {
     flexDirection: 'row',

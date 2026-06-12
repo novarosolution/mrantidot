@@ -1,7 +1,7 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronRight, LucideIcon } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 export function AdminHubLink({
   icon: Icon,
@@ -13,25 +13,26 @@ export function AdminHubLink({
 }: {
   icon: LucideIcon;
   label: string;
-  desc: string;
+  desc?: string;
   accent?: string;
   accentBg?: string;
   onPress: () => void;
 }) {
   return (
     <Pressable style={({ pressed }) => [styles.card, pressed && styles.pressed]} onPress={onPress}>
-      <LinearGradient colors={[accentBg, colors.white]} style={styles.icon} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldEdge} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+      <View style={[styles.icon, { backgroundColor: accentBg }]}>
         <Icon size={20} color={accent} strokeWidth={2.2} />
-      </LinearGradient>
+      </View>
       <View style={styles.body}>
         <Text style={styles.label}>{label}</Text>
-        <Text style={styles.desc} numberOfLines={2}>
-          {desc}
-        </Text>
+        {desc ? (
+          <Text style={styles.desc} numberOfLines={1}>
+            {desc}
+          </Text>
+        ) : null}
       </View>
-      <View style={styles.chevron}>
-        <ChevronRight size={16} color={colors.forest} />
-      </View>
+      <ChevronRight size={18} color={colors.muted} strokeWidth={2} />
     </Pressable>
   );
 }
@@ -40,31 +41,33 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
     padding: spacing.md,
-    borderRadius: 18,
+    paddingLeft: spacing.md + 4,
+    borderRadius: premium.radiusCard,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.08)',
-    ...premium.shadowSoft,
+    borderColor: 'rgba(20,83,45,0.07)',
+    overflow: 'hidden',
+    ...shadows.card,
   },
-  pressed: { opacity: 0.94, transform: [{ scale: 0.995 }] },
+  goldEdge: {
+    position: 'absolute',
+    left: 0,
+    top: 10,
+    bottom: 10,
+    width: 3,
+    borderRadius: 2,
+  },
+  pressed: { opacity: 0.92, transform: [{ scale: 0.995 }] },
   icon: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   body: { flex: 1, minWidth: 0 },
   label: { fontFamily: fonts.bodySemi, fontSize: 15, color: colors.ink },
-  desc: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 3, lineHeight: 17 },
-  chevron: {
-    width: 32,
-    height: 32,
-    borderRadius: 999,
-    backgroundColor: colors.soft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  desc: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 2 },
 });

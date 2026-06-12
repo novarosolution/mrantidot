@@ -2,8 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
-import { Card } from '@/components/ui/Card';
-import { Chip } from '@/components/ui/Chip';
+import { AdminFilterChips, AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { StarRating } from '@/components/ui/StarRating';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -13,7 +12,7 @@ import { api, screenLoadConfig } from '@/lib/api';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { AdminReview } from '@/types/api';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 type ReviewFilter = 'all' | 'visible' | 'hidden';
 
@@ -48,6 +47,13 @@ export default function AdminReviewsScreen() {
     return reviews;
   }, [reviews, filter]);
 
+  const hiddenCount = useMemo(() => reviews.filter((r) => r.hidden).length, [reviews]);
+  const avgStars = useMemo(() => {
+    if (reviews.length === 0) return '—';
+    const sum = reviews.reduce((a, r) => a + r.stars, 0);
+    return (sum / reviews.length).toFixed(1);
+  }, [reviews]);
+
   const toggleHidden = useCallback(async (r: AdminReview) => {
     const next = !r.hidden;
     setReviews((prev) => prev.map((x) => (x.id === r.id ? { ...x, hidden: next } : x)));
@@ -61,18 +67,26 @@ export default function AdminReviewsScreen() {
 
   const header = useMemo(
     () => (
-      <View style={styles.chips}>
-        {(['all', 'visible', 'hidden'] as const).map((key) => (
-          <Chip
-            key={key}
-            label={key.charAt(0).toUpperCase() + key.slice(1)}
-            selected={filter === key}
-            onPress={() => setFilter(key)}
-          />
-        ))}
+      <View>
+        <AdminStatStrip
+          items={[
+            { label: 'Total', value: reviews.length },
+            { label: 'Avg rating', value: avgStars },
+            { label: 'Hidden', value: hiddenCount, color: hiddenCount ? colors.error : colors.forest },
+          ]}
+        />
+        <AdminFilterChips
+          chips={[
+            { key: 'all', label: 'All' },
+            { key: 'visible', label: 'Visible' },
+            { key: 'hidden', label: 'Hidden' },
+          ]}
+          selected={filter}
+          onSelect={(key) => setFilter(key as ReviewFilter)}
+        />
       </View>
     ),
-    [filter],
+    [filter, reviews.length, avgStars, hiddenCount],
   );
 
   if (loading) return <Spinner fullScreen />;
@@ -86,7 +100,7 @@ export default function AdminReviewsScreen() {
   }
 
   return (
-    <AdminListShell title="Reviews" subtitle="Moderate customer feedback">
+    <AdminListShell title="Reviews" subtitle={`${reviews.length} total`}>
       <FlatList
         data={visible}
         keyExtractor={(r) => r.id}
@@ -98,7 +112,7 @@ export default function AdminReviewsScreen() {
         contentContainerStyle={visible.length === 0 ? adminListShellStyles.empty : adminListShellStyles.list}
         ListEmptyComponent={<EmptyState title="No reviews" message="Reviews appear after completed bookings" />}
         renderItem={({ item }) => (
-          <Card variant="premium" style={styles.card}>
+          <View style={styles.card}>
             <View style={styles.row}>
               <StarRating rating={item.stars} size={15} showValue />
               {item.hidden ? <StatusBadge label="Hidden" tone="danger" /> : null}
@@ -113,13 +127,13 @@ export default function AdminReviewsScreen() {
             ) : null}
             <View style={styles.actions}>
               <Pressable onPress={() => router.push(`/(admin)/booking/${item.bookingId}`)}>
-                <Text style={styles.link}>View booking</Text>
+                <Text style={styles.link}>Booking</Text>
               </Pressable>
               <Pressable onPress={() => void toggleHidden(item)}>
                 <Text style={styles.link}>{item.hidden ? 'Show' : 'Hide'}</Text>
               </Pressable>
             </View>
-          </Card>
+          </View>
         )}
       />
     </AdminListShell>
@@ -127,8 +141,15 @@ export default function AdminReviewsScreen() {
 }
 
 const styles = StyleSheet.create({
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.sm },
-  card: { padding: spacing.md, marginBottom: spacing.sm },
+  card: {
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderRadius: premium.radiusCard,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: 'rgba(20,83,45,0.07)',
+    ...shadows.card,
+  },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   meta: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 6 },
   comment: { fontFamily: fonts.body, fontSize: 13, color: colors.ink, marginTop: 8, lineHeight: 18 },

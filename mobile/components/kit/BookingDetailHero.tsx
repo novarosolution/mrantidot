@@ -10,22 +10,24 @@ import {
   bookingServiceIconKey,
   bookingServiceName,
   bookingStatusLabel,
-  bookingStatusMessage,
 } from '@/lib/booking-helpers';
 import type { Booking } from '@/types/api';
-import { colors, fonts, premium, shadows, spacing, statusColors, typography } from '@/constants/theme';
+import { colors, fonts, premium, shadows, spacing, typography } from '@/constants/theme';
 
 export function BookingDetailHero({
   booking,
   live,
+  overlap,
+  guidance,
 }: {
   booking: Booking;
   live?: boolean;
+  overlap?: boolean;
+  guidance?: string;
 }) {
-  const palette = statusColors[booking.status] ?? statusColors.pending;
-  const guidance = bookingStatusMessage(booking.status);
   const enter = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(1)).current;
+  const isDark = Boolean(live);
 
   useEffect(() => {
     Animated.timing(enter, {
@@ -56,62 +58,93 @@ export function BookingDetailHero({
     ],
   };
 
+  const statusLabel = bookingStatusLabel(booking.status);
+  const hint = guidance?.trim();
+
+  const topRow = (
+    <View style={styles.top}>
+      <View style={[styles.icon, !isDark && styles.iconLight]}>
+        <ServiceIcon iconKey={bookingServiceIconKey(booking)} size={28} color={isDark ? colors.lime : colors.lime} />
+      </View>
+      <View style={styles.info}>
+        <Text style={[styles.service, !isDark && styles.serviceLight]} numberOfLines={2}>
+          {bookingServiceName(booking)}
+        </Text>
+        <Text style={[styles.ref, !isDark && styles.refLight]}>{bookingRef(booking.id)}</Text>
+      </View>
+      {live ? (
+        <View style={styles.liveBadge}>
+          <Animated.View style={[styles.liveDot, { transform: [{ scale: pulse }] }]} />
+          <Text style={styles.liveText}>Live</Text>
+        </View>
+      ) : (
+        <StatusPill status={booking.status} />
+      )}
+    </View>
+  );
+
+  const detailRow = (
+    <View style={[styles.detailRow, !isDark && styles.detailRowLight]}>
+      <View style={styles.detailItem}>
+        <Text style={[styles.detailLabel, !isDark && styles.detailLabelLight]}>Visit</Text>
+        <Text style={[styles.schedule, !isDark && styles.scheduleLight]}>{bookingScheduleDisplay(booking)}</Text>
+      </View>
+      {booking.amount?.total ? (
+        <View style={[styles.amountChip, !isDark && styles.amountChipLight]}>
+          <IndianRupee size={12} color={isDark ? colors.lime : colors.forest} />
+          <Text style={[styles.amount, !isDark && styles.amountLight]}>{booking.amount.total}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+
+  const addressRow = (
+    <View style={styles.addressRow}>
+      <MapPin size={13} color={isDark ? 'rgba(255,255,255,0.55)' : colors.muted} />
+      <Text style={[styles.address, !isDark && styles.addressLight]} numberOfLines={2}>
+        {booking.address}
+      </Text>
+    </View>
+  );
+
+  const statusBanner = hint ? (
+    <View style={[styles.statusBanner, isDark ? styles.statusBannerDark : styles.statusBannerLight]}>
+      <Text style={[styles.statusLabel, isDark ? styles.statusLabelDark : styles.statusLabelLight]}>{statusLabel}</Text>
+      <Text style={[styles.statusHint, isDark ? styles.statusHintDark : styles.statusHintLight]}>{hint}</Text>
+    </View>
+  ) : null;
+
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, overlap && styles.wrapOverlap]}>
       <Animated.View style={cardStyle}>
-        <LinearGradient
-          colors={['#14532D', '#0E3A20']}
-          style={styles.card}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.glow} />
-          <View style={styles.goldLine} />
-          <View style={styles.top}>
-            <View style={styles.icon}>
-              <ServiceIcon iconKey={bookingServiceIconKey(booking)} size={28} color={colors.lime} />
-            </View>
-            <View style={styles.info}>
-              <Text style={styles.service} numberOfLines={2}>
-                {bookingServiceName(booking)}
-              </Text>
-              <Text style={styles.ref}>{bookingRef(booking.id)}</Text>
-            </View>
-            {live ? (
-              <View style={styles.liveBadge}>
-                <Animated.View style={[styles.liveDot, { transform: [{ scale: pulse }] }]} />
-                <Text style={styles.liveText}>Live</Text>
-              </View>
-            ) : (
-              <StatusPill status={booking.status} />
-            )}
-          </View>
-
-          <View style={styles.detailRow}>
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>Visit</Text>
-              <Text style={styles.schedule}>{bookingScheduleDisplay(booking)}</Text>
-            </View>
-            {booking.amount?.total ? (
-              <View style={styles.amountChip}>
-                <IndianRupee size={12} color={colors.lime} />
-                <Text style={styles.amount}>{booking.amount.total}</Text>
-              </View>
-            ) : null}
-          </View>
-
-          <View style={styles.addressRow}>
-            <MapPin size={13} color="rgba(255,255,255,0.55)" />
-            <Text style={styles.address} numberOfLines={2}>
-              {booking.address}
-            </Text>
-          </View>
-
-          <View style={[styles.statusBanner, { backgroundColor: palette.bg }]}>
-            <Text style={[styles.statusLabel, { color: palette.text }]}>{bookingStatusLabel(booking.status)}</Text>
-            {guidance ? <Text style={[styles.statusHint, { color: palette.text }]}>{guidance}</Text> : null}
-          </View>
-        </LinearGradient>
+        {isDark ? (
+          <LinearGradient
+            colors={['#14532D', '#0E3A20']}
+            style={styles.card}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.glow} />
+            <View style={styles.goldLine} />
+            {topRow}
+            {detailRow}
+            {addressRow}
+            {statusBanner}
+          </LinearGradient>
+        ) : (
+          <LinearGradient
+            colors={['#FFFFFF', '#F6FAF7']}
+            style={[styles.card, styles.cardLight]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+          >
+            <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+            {topRow}
+            {detailRow}
+            {addressRow}
+            {statusBanner}
+          </LinearGradient>
+        )}
       </Animated.View>
     </View>
   );
@@ -122,11 +155,26 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.md,
     marginBottom: spacing.md,
   },
+  wrapOverlap: {
+    marginTop: -28,
+    zIndex: 2,
+  },
   card: {
     borderRadius: premium.radiusCard,
     padding: spacing.md,
     overflow: 'hidden',
     ...shadows.hero,
+  },
+  cardLight: {
+    borderWidth: 1,
+    borderColor: 'rgba(20,83,45,0.08)',
+    ...shadows.floating,
+  },
+  goldBar: {
+    height: 3,
+    marginHorizontal: -spacing.md,
+    marginTop: -spacing.md,
+    marginBottom: spacing.sm,
   },
   glow: {
     position: 'absolute',
@@ -162,6 +210,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
   },
+  iconLight: {
+    backgroundColor: colors.forest,
+    borderColor: colors.forest,
+  },
   info: { flex: 1, minWidth: 0 },
   service: {
     fontFamily: fonts.displayExtra,
@@ -170,12 +222,14 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     letterSpacing: -0.2,
   },
+  serviceLight: { color: colors.ink },
   ref: {
     fontFamily: fonts.body,
     fontSize: 11,
     color: 'rgba(255,255,255,0.65)',
     marginTop: 4,
   },
+  refLight: { color: colors.muted },
   liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -210,6 +264,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.1)',
   },
+  detailRowLight: { borderTopColor: colors.border },
   detailItem: { flex: 1 },
   detailLabel: {
     fontFamily: fonts.bodySemi,
@@ -218,12 +273,14 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  detailLabelLight: { color: colors.muted },
   schedule: {
     fontFamily: fonts.bodySemi,
     fontSize: 14,
     color: colors.lime,
     marginTop: 4,
   },
+  scheduleLight: { color: colors.forest },
   amountChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -235,11 +292,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(168,224,78,0.25)',
   },
+  amountChipLight: {
+    backgroundColor: colors.soft,
+    borderColor: 'rgba(20,83,45,0.1)',
+  },
   amount: {
     ...typography.price,
     fontSize: 16,
     color: colors.lime,
   },
+  amountLight: { color: colors.forest },
   addressRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -253,20 +315,26 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.75)',
     lineHeight: 17,
   },
+  addressLight: { color: colors.muted },
   statusBanner: {
     marginTop: spacing.sm,
     padding: spacing.sm + 2,
     borderRadius: 14,
   },
-  statusLabel: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 13,
+  statusBannerDark: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
-  statusHint: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    marginTop: 4,
-    opacity: 0.9,
-    lineHeight: 17,
+  statusBannerLight: {
+    backgroundColor: colors.soft,
+    borderWidth: 1,
+    borderColor: 'rgba(20,83,45,0.08)',
   },
+  statusLabel: { fontFamily: fonts.bodySemi, fontSize: 13 },
+  statusLabelDark: { color: colors.lime },
+  statusLabelLight: { color: colors.forest },
+  statusHint: { fontFamily: fonts.body, fontSize: 12, marginTop: 4, lineHeight: 17 },
+  statusHintDark: { color: 'rgba(255,255,255,0.85)' },
+  statusHintLight: { color: colors.muted },
 });

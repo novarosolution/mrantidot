@@ -51,14 +51,16 @@ export function PromoBanner({
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginHorizontal: spacing.md, marginTop: spacing.md },
+  wrap: { marginHorizontal: spacing.md, marginTop: spacing.sm },
   banner: {
     borderRadius: premium.radiusCard,
-    padding: spacing.md + 2,
-    paddingRight: 88,
+    padding: spacing.md + 4,
+    paddingRight: 92,
     overflow: 'hidden',
-    minHeight: 108,
+    minHeight: 112,
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(168,224,78,0.15)',
     ...shadows.hero,
   },
   glow: {

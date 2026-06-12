@@ -13,12 +13,14 @@ export function BookServiceStrip({
   onBack,
   title,
   subtitle,
+  compact,
 }: {
   service: Service;
   durationLabel: string;
   onBack?: () => void;
   title?: string;
   subtitle?: string;
+  compact?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const hero = useRef(new Animated.Value(0)).current;
@@ -61,7 +63,11 @@ export function BookServiceStrip({
   return (
     <LinearGradient
       colors={[...gradients.bookHero]}
-      style={[styles.wrap, onBack ? { paddingTop: headerTopPad(insets.top) } : null]}
+      style={[
+        styles.wrap,
+        compact && styles.wrapCompact,
+        onBack ? { paddingTop: headerTopPad(insets.top) } : null,
+      ]}
     >
       <Animated.View
         style={[
@@ -77,7 +83,7 @@ export function BookServiceStrip({
         ]}
       />
       {onBack ? (
-        <View style={styles.navRow}>
+        <View style={[styles.navRow, compact && styles.navRowCompact]}>
           <Pressable
             style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
             onPress={onBack}
@@ -94,13 +100,22 @@ export function BookServiceStrip({
               </Text>
             ) : null}
             {subtitle ? (
-              <Text style={styles.navSub} numberOfLines={2}>
+              <Text style={styles.navSub} numberOfLines={1}>
                 {subtitle}
               </Text>
             ) : null}
           </View>
+          {compact ? (
+            <View style={styles.compactMeta}>
+              <Text style={styles.compactName} numberOfLines={1}>
+                {service.name}
+              </Text>
+              <Text style={styles.compactPrice}>₹{service.basePrice}</Text>
+            </View>
+          ) : null}
         </View>
       ) : null}
+      {!compact ? (
       <Animated.View style={[styles.row, heroStyle]}>
         <View style={styles.icon}>
           <ServiceIcon iconKey={service.iconKey} size={28} color={colors.lime} />
@@ -120,6 +135,7 @@ export function BookServiceStrip({
           </View>
         </View>
       </Animated.View>
+      ) : null}
     </LinearGradient>
   );
 }
@@ -127,11 +143,17 @@ export function BookServiceStrip({
 const styles = StyleSheet.create({
   wrap: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.lg,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-    marginBottom: 2,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     overflow: 'hidden',
+  },
+  wrapCompact: {
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   glow: {
     position: 'absolute',
@@ -143,6 +165,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(168,224,78,0.14)',
   },
   navRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: spacing.md },
+  navRowCompact: { marginBottom: 0 },
+  compactMeta: { alignItems: 'flex-end', maxWidth: 120 },
+  compactName: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.white, textAlign: 'right' },
+  compactPrice: { fontFamily: fonts.displayExtra, fontSize: 13, color: colors.lime, marginTop: 2 },
   backBtn: {
     width: 40,
     height: 40,
@@ -159,9 +185,9 @@ const styles = StyleSheet.create({
   navSub: { fontFamily: fonts.body, fontSize: 11.5, color: colors.lime, marginTop: 2, lineHeight: 16 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   icon: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',

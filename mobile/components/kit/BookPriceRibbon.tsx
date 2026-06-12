@@ -7,13 +7,15 @@ export function BookPriceRibbon({
   total,
   savings,
   stepHint,
+  compact,
 }: {
   total: number;
   savings?: number;
   stepHint?: string;
+  compact?: boolean;
 }) {
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, compact && styles.wrapCompact]}>
       <View style={styles.left}>
         <Text style={styles.kicker}>Estimated total</Text>
         {stepHint ? <Text style={styles.hint} numberOfLines={1}>{stepHint}</Text> : null}
@@ -48,7 +50,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
     marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
     marginBottom: spacing.sm,
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -57,6 +59,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(182,132,28,0.22)',
     ...premium.shadowSoft,
+  },
+  wrapCompact: {
+    marginTop: 0,
+    marginBottom: spacing.xs,
+    paddingVertical: 8,
   },
   left: { flex: 1, minWidth: 0 },
   kicker: {

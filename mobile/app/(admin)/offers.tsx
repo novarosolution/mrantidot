@@ -1,10 +1,10 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, RefreshControl, View } from 'react-native';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
+import { AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminOfferCard } from '@/components/kit/AdminOfferCard';
-import { Chip } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
@@ -12,7 +12,7 @@ import { api, screenLoadConfig } from '@/lib/api';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { Offer } from '@/types/api';
-import { colors, spacing } from '@/constants/theme';
+import { colors } from '@/constants/theme';
 
 type OfferFilter = 'all' | 'active' | 'inactive';
 
@@ -62,17 +62,16 @@ export default function AdminOffersScreen() {
 
   const header = useMemo(
     () => (
-      <View style={styles.header}>
-        <View style={styles.chips}>
-          {(['all', 'active', 'inactive'] as const).map((key) => (
-            <Chip
-              key={key}
-              label={key === 'all' ? `All (${offers.length})` : key === 'active' ? `Active (${activeCount})` : `Inactive (${offers.length - activeCount})`}
-              selected={listFilter === key}
-              onPress={() => setListFilter(key)}
-            />
-          ))}
-        </View>
+      <View>
+        <AdminFilterChips
+          chips={[
+            { key: 'all', label: `All (${offers.length})` },
+            { key: 'active', label: `Active (${activeCount})` },
+            { key: 'inactive', label: `Inactive (${offers.length - activeCount})` },
+          ]}
+          selected={listFilter}
+          onSelect={(key) => setListFilter(key as OfferFilter)}
+        />
       </View>
     ),
     [offers.length, activeCount, listFilter],
@@ -93,7 +92,7 @@ export default function AdminOffersScreen() {
   return (
     <AdminListShell
       title="Offers & coupons"
-      subtitle={`${activeCount} active · used at checkout`}
+      subtitle={`${activeCount} active`}
       rightAction={addBtn}
     >
       <FlatList
@@ -109,7 +108,7 @@ export default function AdminOffersScreen() {
         ListEmptyComponent={
           <EmptyState
             title={listFilter === 'all' ? 'No offers yet' : `No ${listFilter} offers`}
-            message="Create a coupon code customers can apply when booking"
+            message="Create a coupon for checkout"
           />
         }
         renderItem={({ item }) => (
@@ -124,8 +123,3 @@ export default function AdminOffersScreen() {
     </AdminListShell>
   );
 }
-
-const styles = StyleSheet.create({
-  header: { paddingBottom: spacing.sm },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: spacing.md },
-});

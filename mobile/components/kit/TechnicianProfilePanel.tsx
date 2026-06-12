@@ -1,22 +1,28 @@
 import { router } from 'expo-router';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { safeGoBack } from '@/lib/routes';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { Briefcase, CheckCircle2, Clock, IndianRupee, ShieldCheck, Star } from 'lucide-react-native';
+import { AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { AnalyticsStatGrid, type AnalyticsStatItem } from '@/components/kit/AnalyticsStatGrid';
 import { AttendanceAnalyticsCard } from '@/components/kit/AttendanceAnalyticsCard';
+import { formatRupee } from '@/components/kit/format';
 import { JobVisitCard } from '@/components/kit/JobVisitCard';
 import { KpiCard } from '@/components/kit/KpiCard';
 import { TechnicianDayCalendar } from '@/components/kit/TechnicianDayCalendar';
+import { TechCheckInCard, TechOffDutyCard, TechOnDutyCard, TechSectionTitle } from '@/components/kit/TechPageKit';
 import { UserAccountCard } from '@/components/kit/UserAccountCard';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
 import { bookingVisitDate } from '@/lib/booking-helpers';
 import { localDateKey } from '@/lib/dates';
-import type { Booking, DayAttendanceStatus, TechnicianStats } from '@/types/api';
-import { colors, fonts, spacing, surfaces } from '@/constants/theme';
+import type { Booking, BookingCopyConfig, DayAttendanceStatus, TechnicianStats } from '@/types/api';
+import { colors, spacing } from '@/constants/theme';
+
+const TAB_BAR_PAD = 96;
 
 export function TechnicianProfilePanel({
+  copy,
   stats,
   bookings,
   attendance,
@@ -30,6 +36,7 @@ export function TechnicianProfilePanel({
   onCheckIn,
   onMarkAbsent,
 }: {
+  copy: BookingCopyConfig;
   stats: TechnicianStats | null;
   bookings: Booking[];
   attendance: Record<string, DayAttendanceStatus>;
@@ -56,7 +63,7 @@ export function TechnicianProfilePanel({
           icon: Briefcase,
           iconBg: colors.blueBg,
           iconColor: colors.blue,
-          onPress: () => router.back(),
+          onPress: () => safeGoBack('/(tech)'),
         },
         {
           key: 'active',
@@ -72,8 +79,8 @@ export function TechnicianProfilePanel({
           label: 'Verify',
           value: String(stats.awaitingVerification ?? 0),
           icon: ShieldCheck,
-          iconBg: surfaces.tintWarning,
-          iconColor: colors.amberInk,
+          iconBg: colors.secondarySoft,
+          iconColor: colors.secondaryDark,
           onPress: () => verifyJob && router.push(`/(tech)/job/${verifyJob.id}`),
         },
         {
@@ -87,7 +94,7 @@ export function TechnicianProfilePanel({
         {
           key: 'earnings',
           label: 'Earnings',
-          value: `₹${stats.earnings}`,
+          value: stats.earnings >= 1000 ? formatRupee(stats.earnings) : `₹${stats.earnings}`,
           icon: IndianRupee,
           iconBg: colors.soft,
           iconColor: colors.green,
@@ -97,8 +104,8 @@ export function TechnicianProfilePanel({
           label: 'Rating',
           value: `★${stats.rating}`,
           icon: Star,
-          iconBg: colors.secondarySoft,
-          iconColor: colors.secondaryDark,
+          iconBg: colors.amberBg,
+          iconColor: colors.amberInk,
         },
       ]
     : [];
@@ -109,63 +116,90 @@ export function TechnicianProfilePanel({
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />
       }
+      showsVerticalScrollIndicator={false}
     >
       <UserAccountCard compact />
 
       {todayStatus === 'pending' ? (
-        <Card variant="premium" style={styles.banner}>
-          <Text style={styles.bannerTitle}>Mark yourself on duty</Text>
-          <Text style={styles.bannerSub}>Check in when you start your work day.</Text>
-          <View style={styles.bannerActions}>
-            <Button title="On duty today" variant="premium" fullWidth={false} onPress={onCheckIn} loading={checkingIn} style={styles.bannerBtn} />
-            <Button title="Off today" variant="secondary" fullWidth={false} onPress={onMarkAbsent} loading={checkingIn} style={styles.bannerBtn} />
-          </View>
-        </Card>
+        <TechCheckInCard
+          title={copy.techCheckInTitle}
+          subtitle={copy.techCheckInSubtitle}
+          onDutyLabel={copy.techOnDutyButton}
+          offDutyLabel={copy.techOffDutyButton}
+          onCheckIn={onCheckIn}
+          onMarkAbsent={onMarkAbsent}
+          loading={checkingIn}
+        />
       ) : todayStatus === 'came' ? (
-        <Card variant="premium" style={styles.onDuty}>
-          <Text style={styles.onDutyText}>On duty today</Text>
-        </Card>
+        <TechOnDutyCard
+          badgeLabel={copy.techOnDutyBadge}
+          markOffLabel={copy.techOffDutyButton}
+          onMarkOff={onMarkAbsent}
+          loading={checkingIn}
+        />
       ) : (
-        <Card variant="premium" style={styles.offDuty}>
-          <Text style={styles.offDutyText}>Marked off duty today</Text>
-        </Card>
+        <TechOffDutyCard
+          badgeLabel={copy.techOffDutyBadge}
+          hint={copy.techOffDutyHint}
+          backOnDutyLabel={copy.techBackOnDutyButton}
+          onGoOnDuty={onCheckIn}
+          loading={checkingIn}
+        />
       )}
 
-      {statItems.length > 0 ? (
-        <View style={styles.statsBlock}>
-          <Text style={styles.sectionTitle}>Performance</Text>
-          <AnalyticsStatGrid items={statItems} />
-        </View>
+      {stats ? (
+        <>
+          <AdminStatStrip
+            items={[
+              {
+                label: 'Attendance',
+                value: stats.analytics ? `${stats.analytics.attendanceRate}%` : '—',
+              },
+              {
+                label: 'Completion',
+                value: stats.analytics ? `${stats.analytics.completionRate}%` : '—',
+                color: colors.green,
+              },
+              {
+                label: 'Earnings',
+                value: stats.earnings >= 1000 ? formatRupee(stats.earnings) : `₹${stats.earnings}`,
+              },
+              { label: 'Jobs done', value: stats.jobsDone ?? stats.completed },
+            ]}
+          />
+          <View style={styles.block}>
+            <TechSectionTitle title={copy.techPerformanceTitle} hint="Tap a metric for details" />
+            <AnalyticsStatGrid items={statItems} />
+          </View>
+          <View style={styles.earningsRow}>
+            <KpiCard
+              icon={IndianRupee}
+              value={stats.earnings >= 1000 ? formatRupee(stats.earnings) : `₹${stats.earnings}`}
+              label="Total earnings"
+              iconBg={colors.soft}
+              iconColor={colors.green}
+            />
+            <KpiCard
+              icon={CheckCircle2}
+              value={String(stats.jobsDone ?? stats.completed)}
+              label="Jobs done (all time)"
+              iconBg={colors.blueBg}
+              iconColor={colors.blue}
+            />
+          </View>
+        </>
       ) : null}
 
       {stats?.analytics ? (
-        <View style={styles.statsBlock}>
+        <View style={styles.block}>
+          <TechSectionTitle title="Attendance & visits" hint="This month's operational stats" />
           <AttendanceAnalyticsCard analytics={stats.analytics} />
         </View>
       ) : null}
 
-      {stats ? (
-        <View style={styles.earningsRow}>
-          <KpiCard
-            icon={IndianRupee}
-            value={`₹${stats.earnings}`}
-            label={`Total earnings`}
-            iconBg={colors.soft}
-            iconColor={colors.green}
-          />
-          <KpiCard
-            icon={CheckCircle2}
-            value={String(stats.jobsDone ?? stats.completed)}
-            label="Jobs done (all time)"
-            iconBg={colors.blueBg}
-            iconColor={colors.blue}
-          />
-        </View>
-      ) : null}
-
       {(stats?.jobVisits?.length ?? 0) > 0 ? (
-        <View style={styles.statsBlock}>
-          <Text style={styles.sectionTitle}>Job visits ({month})</Text>
+        <View style={styles.block}>
+          <TechSectionTitle title={`${copy.techJobVisitsTitle} (${month})`} hint="Tap to open job" />
           {stats!.jobVisits!.map((visit) => {
             const booking = bookings.find((b) => b.id === visit.bookingId);
             if (!booking) return null;
@@ -181,8 +215,8 @@ export function TechnicianProfilePanel({
         </View>
       ) : null}
 
-      <View style={styles.statsBlock}>
-        <Text style={styles.sectionTitle}>Schedule calendar</Text>
+      <View style={styles.block}>
+        <TechSectionTitle title={copy.techScheduleTitle} hint="Tap a day to view jobs" />
         <TechnicianDayCalendar
           calendar={calendar}
           attendance={attendance}
@@ -191,6 +225,10 @@ export function TechnicianProfilePanel({
           monthKey={month}
           onMonthChange={onMonthChange}
         />
+      </View>
+
+      <View style={styles.footer}>
+        <Button title="View all jobs" variant="secondary" onPress={() => safeGoBack('/(tech)')} />
       </View>
     </ScrollView>
   );
@@ -222,20 +260,20 @@ export async function loadTechnicianProfileData(month: string) {
   };
 }
 
-export async function checkInTechnician() {
+export async function checkInTechnician(copy: Pick<BookingCopyConfig, 'techOnDutyBadge'>) {
   try {
     await api.post('/attendance/check-in');
-    Toast.show({ type: 'success', text1: 'You are on duty today' });
+    Toast.show({ type: 'success', text1: copy.techOnDutyBadge.replace('● ', '') });
   } catch (err) {
     Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not check in') });
     throw err;
   }
 }
 
-export async function markTechnicianAbsent() {
+export async function markTechnicianAbsent(copy: Pick<BookingCopyConfig, 'techOffDutyBadge'>) {
   try {
     await api.post('/attendance/mark-absent');
-    Toast.show({ type: 'success', text1: 'Marked off duty for today' });
+    Toast.show({ type: 'success', text1: copy.techOffDutyBadge });
   } catch (err) {
     Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not update attendance') });
     throw err;
@@ -243,22 +281,8 @@ export async function markTechnicianAbsent() {
 }
 
 const styles = StyleSheet.create({
-  container: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl },
-  banner: { padding: spacing.md, marginBottom: spacing.md, marginTop: spacing.sm },
-  bannerTitle: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
-  bannerSub: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 4, marginBottom: spacing.md },
-  bannerActions: { flexDirection: 'row', gap: spacing.sm },
-  bannerBtn: { flex: 1 },
-  onDuty: { padding: spacing.md, marginBottom: spacing.md, backgroundColor: surfaces.tintSuccess },
-  onDutyText: { fontFamily: fonts.bodySemi, fontSize: 14, color: surfaces.tintSuccessInk },
-  offDuty: { padding: spacing.md, marginBottom: spacing.md, backgroundColor: surfaces.tintDanger },
-  offDutyText: { fontFamily: fonts.bodySemi, fontSize: 14, color: surfaces.tintDangerInk },
-  statsBlock: { marginBottom: spacing.md },
-  sectionTitle: {
-    fontFamily: fonts.display,
-    fontSize: 14,
-    color: colors.ink,
-    marginBottom: spacing.sm,
-  },
+  container: { paddingHorizontal: spacing.md, paddingBottom: TAB_BAR_PAD },
+  block: { marginBottom: spacing.md },
   earningsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: spacing.md },
+  footer: { marginTop: spacing.sm, marginBottom: spacing.md },
 });

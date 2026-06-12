@@ -172,7 +172,7 @@ const SERVICES: SeedService[] = [
   },
   {
     name: 'Rodent Treatment',
-    iconKey: 'shield',
+    iconKey: 'mouse',
     basePrice: 899,
     shortDesc: 'Rodent control service to eliminate rats and mice and seal entry points.',
     category: 'residential',

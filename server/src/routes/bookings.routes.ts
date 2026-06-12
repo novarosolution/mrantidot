@@ -330,8 +330,18 @@ bookingsRouter.post(
     } catch (e) {
       throw new AppError(400, e instanceof Error ? e.message : 'Invalid start code');
     }
+    const noSteps = booking.steps.length === 0;
+    if (noSteps) {
+      booking.status = 'awaiting_verification';
+      issueEndOtp(booking);
+    }
     await booking.save();
-    await notifyWorkOtpEvent(booking, 'work_started');
+    if (noSteps) {
+      await notifyBookingEvent(booking, 'awaiting_verification', { notifyAdmin: false });
+      await notifyWorkOtpEvent(booking, 'end_otp_ready');
+    } else {
+      await notifyWorkOtpEvent(booking, 'work_started');
+    }
     const populated = await loadBooking(booking._id.toString());
     res.json({ booking: formatBookingForRole(populated, req.user!.role) });
   }),

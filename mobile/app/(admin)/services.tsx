@@ -33,7 +33,7 @@ export default function AdminServicesScreen() {
   const load = useCallback(async (opts?: { skipCache?: boolean }) => {
     const { data } = await api.get<{ services: Service[] }>('/services', {
       ...screenLoadConfig,
-      params: { includeInactive: '1' },
+      params: { includeInactive: '1', includeStats: '1' },
       cacheTtlMs: CACHE_TTL.services,
       ...(opts?.skipCache ? { skipCache: true } : {}),
     });

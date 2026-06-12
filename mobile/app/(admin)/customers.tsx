@@ -3,8 +3,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
+import { AdminFilterChips, AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { Card } from '@/components/ui/Card';
-import { Chip } from '@/components/ui/Chip';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
@@ -65,28 +65,26 @@ export default function AdminCustomersScreen() {
 
   const listHeader = (
     <View>
-      <View style={styles.summary}>
-        <Card variant="premium" style={styles.sumCard}>
-          <Text style={styles.sumVal}>{summary.total}</Text>
-          <Text style={styles.sumLabel}>Total</Text>
-        </Card>
-        <Card variant="premium" style={styles.sumCard}>
-          <Text style={styles.sumVal}>{summary.new}</Text>
-          <Text style={styles.sumLabel}>New</Text>
-        </Card>
-        <Card variant="premium" style={styles.sumCard}>
-          <Text style={styles.sumVal}>{summary.vip}</Text>
-          <Text style={styles.sumLabel}>VIP</Text>
-        </Card>
-      </View>
+      <AdminStatStrip
+        items={[
+          { label: 'Total', value: summary.total, color: colors.forest },
+          { label: 'New', value: summary.new, color: colors.blue },
+          { label: 'VIP', value: summary.vip, color: colors.amberInk },
+        ]}
+      />
       <View style={styles.searchWrap}>
-        <Input label="Search" value={search} onChangeText={setSearch} placeholder="Name, phone, email, city" />
+        <Input label="Search" value={search} onChangeText={setSearch} placeholder="Name, phone, email" />
       </View>
-      <View style={styles.chips}>
-        {(['all', 'active', 'vip', 'disabled'] as const).map((key) => (
-          <Chip key={key} label={key.charAt(0).toUpperCase() + key.slice(1)} selected={listFilter === key} onPress={() => setListFilter(key)} />
-        ))}
-      </View>
+      <AdminFilterChips
+        chips={[
+          { key: 'all', label: 'All' },
+          { key: 'active', label: 'Active' },
+          { key: 'vip', label: 'VIP' },
+          { key: 'disabled', label: 'Disabled' },
+        ]}
+        selected={listFilter}
+        onSelect={(k) => setListFilter(k as CustomerFilter)}
+      />
     </View>
   );
 
@@ -147,12 +145,7 @@ export default function AdminCustomersScreen() {
 }
 
 const styles = StyleSheet.create({
-  summary: { flexDirection: 'row', gap: 10, marginBottom: spacing.sm },
-  sumCard: { flex: 1, alignItems: 'center', paddingVertical: 12 },
-  sumVal: { fontFamily: fonts.displayExtra, fontSize: 18, color: colors.green },
-  sumLabel: { fontFamily: fonts.body, fontSize: 10, color: colors.muted, marginTop: 2 },
   searchWrap: { paddingBottom: spacing.sm },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: spacing.sm },
   card: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: spacing.sm, padding: 13 },
   cardDisabled: { opacity: 0.65 },
   avatar: {

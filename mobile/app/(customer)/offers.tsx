@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
-import { Sparkles } from 'lucide-react-native';
+import { AppIcons } from '@/constants/appIcons';
 import { CustomerListShell } from '@/components/kit/CustomerListShell';
 import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/AdminActionSheet';
 import { OfferCouponCard } from '@/components/kit/OfferCouponCard';
@@ -86,7 +86,7 @@ export default function OffersScreen() {
 
   const browseFab = (
     <Pressable style={styles.fab} onPress={() => router.push('/(customer)/services')} hitSlop={8}>
-      <Sparkles size={17} color={colors.white} strokeWidth={2.2} />
+      <AppIcons.brand size={17} color={colors.white} strokeWidth={2.2} />
     </Pressable>
   );
 

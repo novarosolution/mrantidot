@@ -13,6 +13,7 @@ export function CustomerListShell({
   rightAction,
   headerExtra,
   accountStrip,
+  heroOverlap,
   children,
 }: {
   title: string;
@@ -22,6 +23,7 @@ export function CustomerListShell({
   rightAction?: ReactNode;
   headerExtra?: ReactNode;
   accountStrip?: boolean;
+  heroOverlap?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -32,6 +34,7 @@ export function CustomerListShell({
         showBack={showBack}
         variant={headerVariant}
         rightAction={rightAction}
+        overlapReserve={heroOverlap}
       >
         {headerExtra}
       </CustomerPageHeader>

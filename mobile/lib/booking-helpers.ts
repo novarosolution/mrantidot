@@ -62,11 +62,26 @@ const STATUS_GUIDANCE: Record<BookingStatus, string> = {
   cancelled: 'This booking was cancelled. You can book again anytime.',
 };
 
+const TECHNICIAN_STATUS_GUIDANCE: Record<BookingStatus, string> = {
+  pending: 'Waiting for operations to confirm the visit schedule.',
+  confirmed: 'Ask the customer for their 6-digit start code, then tap below to begin.',
+  in_progress: 'Capture a geotagged photo for each step, or finish when no steps are required.',
+  awaiting_verification: 'Ask the customer for their completion code to finish this job.',
+  completed: 'This job is finished. Great work!',
+  cancelled: 'This job was cancelled. No further action needed.',
+};
+
 export function bookingStatusLabel(status: BookingStatus): string {
   return STATUS_LABELS[status] ?? status;
 }
 
-export function bookingStatusMessage(status: BookingStatus): string {
+export function bookingStatusMessage(
+  status: BookingStatus,
+  audience: 'customer' | 'technician' | 'staff' = 'customer',
+): string {
+  if (audience === 'technician') {
+    return TECHNICIAN_STATUS_GUIDANCE[status] ?? '';
+  }
   return STATUS_GUIDANCE[status] ?? '';
 }
 
@@ -132,6 +147,10 @@ export function bookingVisitDate(booking: Booking): string {
 
 export function isVerificationPhase(status: BookingStatus): boolean {
   return status === 'awaiting_verification';
+}
+
+export function isBookingLive(status: BookingStatus): boolean {
+  return status === 'in_progress' || status === 'awaiting_verification';
 }
 
 export function isTerminalBookingStatus(status: BookingStatus): boolean {
