@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { Bell } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fonts, gradients, headerTopPad, radius, spacing } from '@/constants/theme';
+import { adminType, colors, fonts, gradients, headerTopPad, premium, radius, shadows, spacing } from '@/constants/theme';
 
 const ACTION = 44;
 
@@ -34,6 +34,7 @@ export function AdminScreenHeader({
       end={{ x: 1, y: 1 }}
     >
       <View style={styles.glowA} pointerEvents="none" />
+      <View style={styles.glowB} pointerEvents="none" />
       <View style={styles.row}>
         <View style={styles.textCol}>
           <Text style={styles.title} numberOfLines={1}>
@@ -75,6 +76,10 @@ export function AdminScreenHeader({
           <Text style={styles.avatarText}>{letter}</Text>
         </Pressable>
       </View>
+      <View style={styles.goldRule}>
+        <View style={styles.goldAccent} />
+        <View style={styles.goldLine} />
+      </View>
     </LinearGradient>
   );
 }
@@ -86,6 +91,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: radius.xl,
     borderBottomRightRadius: radius.xl,
     overflow: 'hidden',
+    ...shadows.hero,
   },
   glowA: {
     position: 'absolute',
@@ -96,10 +102,19 @@ const styles = StyleSheet.create({
     borderRadius: 70,
     backgroundColor: 'rgba(168,224,78,0.12)',
   },
+  glowB: {
+    position: 'absolute',
+    bottom: -20,
+    left: -40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(212,160,23,0.08)',
+  },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   textCol: { flex: 1, minWidth: 0 },
-  title: { fontFamily: fonts.displayExtra, fontSize: 26, color: colors.white, letterSpacing: -0.5 },
-  sub: { fontFamily: fonts.body, fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+  title: { ...adminType.screenTitle },
+  sub: { ...adminType.screenSubtitle, marginTop: 2 },
   actionBtn: {
     width: ACTION,
     height: ACTION,
@@ -107,6 +122,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadows.card,
   },
   avatarBtn: {
     width: ACTION,
@@ -133,6 +149,23 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.white,
   },
-  badgeText: { fontFamily: fonts.bodyBold, fontSize: 9, color: colors.white },
-  avatarText: { fontFamily: fonts.displayExtra, fontSize: 17, color: colors.white },
+  badgeText: { ...adminType.badgeCount },
+  avatarText: { fontFamily: fonts.displayExtra, fontSize: 17, color: colors.white, letterSpacing: -0.2 },
+  goldRule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  goldAccent: {
+    width: 28,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: premium.accentGold,
+  },
+  goldLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
 });

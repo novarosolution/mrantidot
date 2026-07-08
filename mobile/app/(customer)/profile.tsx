@@ -1,14 +1,16 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import { CreditCard, FileText, Info, LogOut, Settings } from 'lucide-react-native';
 import { AppIcons } from '@/constants/appIcons';
 import { ProfileHeroCard } from '@/components/kit/ProfileHeroCard';
+import { TAB_BAR_SCROLL_PAD, customerScrollProps } from '@/components/kit/GlassScreenKit';
 import { ProfileHighlights } from '@/components/kit/ProfileHighlights';
 import { ProfileMenuRow } from '@/components/kit/ProfileMenuRow';
 import { ProfileMenuSection } from '@/components/kit/ProfileMenuSection';
 import { ProfileQuickActions } from '@/components/kit/ProfileQuickActions';
 import { ProfileSupportCard } from '@/components/kit/ProfileSupportCard';
+import { ProfileTrustBanner } from '@/components/kit/ProfileTrustBanner';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { ProfileUpcomingCard } from '@/components/kit/ProfileUpcomingCard';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { PremiumScreen } from '@/components/ui/PremiumScreen';
@@ -21,7 +23,7 @@ import { useAppContent } from '@/context/AppContentContext';
 import { useLocation } from '@/context/LocationContext';
 import { displayUserEmail, displayUserName } from '@/lib/profile-display';
 import type { Booking } from '@/types/api';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 const ACCOUNT_MENU = [
   {
@@ -39,7 +41,7 @@ const ACCOUNT_MENU = [
     iconBg: colors.secondarySoft,
   },
   {
-    icon: CreditCard,
+    icon: AppIcons.profile.payments,
     label: 'Payment Methods',
     href: '/(customer)/payment-methods' as const,
     tint: colors.blue,
@@ -61,7 +63,7 @@ const ACCOUNT_MENU = [
     badgeKey: 'unread' as const,
   },
   {
-    icon: Settings,
+    icon: AppIcons.profile.settings,
     label: 'Settings',
     href: '/(customer)/settings' as const,
     tint: colors.ink,
@@ -72,8 +74,8 @@ const ACCOUNT_MENU = [
 const SUPPORT_MENU = [
   { icon: AppIcons.profile.help, label: 'Help & Support', href: '/(customer)/help' as const, tint: colors.secondaryDark, iconBg: colors.secondarySoft },
   { icon: AppIcons.profile.faq, label: 'FAQs', href: '/(customer)/faq' as const, tint: colors.forest, iconBg: '#E8F5EC' },
-  { icon: Info, label: 'About', href: '/(customer)/about' as const, tint: colors.forest, iconBg: '#E8F5EC' },
-  { icon: FileText, label: 'Terms of Service', href: '/(customer)/terms' as const, tint: colors.muted, iconBg: colors.greyBg },
+  { icon: AppIcons.ui.info, label: 'About', href: '/(customer)/about' as const, tint: colors.forest, iconBg: '#E8F5EC' },
+  { icon: AppIcons.ui.terms, label: 'Terms of Service', href: '/(customer)/terms' as const, tint: colors.muted, iconBg: colors.greyBg },
   { icon: AppIcons.profile.privacy, label: 'Privacy Policy', href: '/(customer)/privacy' as const, tint: colors.muted, iconBg: colors.greyBg },
 ];
 
@@ -195,6 +197,7 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />}
+        {...customerScrollProps}
       >
         <ProfileHeroCard
           name={displayName}
@@ -203,6 +206,7 @@ export default function ProfileScreen() {
           city={displayLabel ?? user?.city}
           memberSince={formatMemberSince(user?.createdAt)}
           unread={unread}
+          rating={user?.rating}
         />
 
         {error ? <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} /> : null}
@@ -220,6 +224,10 @@ export default function ProfileScreen() {
         )}
 
         <ProfileQuickActions />
+
+        {content.trust.guaranteeText ? (
+          <ProfileTrustBanner guaranteeText={content.trust.guaranteeText} badges={content.trust.badges} />
+        ) : null}
 
         {upcoming ? (
           <ProfileUpcomingCard
@@ -270,19 +278,27 @@ export default function ProfileScreen() {
             router.replace('/(auth)/login');
           }}
         >
-          <LogOut size={18} color={colors.error} strokeWidth={2} />
+          <PremiumIcon
+            icon={AppIcons.ui.logout}
+            variant="soft"
+            size="md"
+            color={colors.error}
+            bg={colors.errorBg}
+            boxSize={38}
+          />
           <Text style={styles.logoutText}>Sign out</Text>
         </Pressable>
 
         <Text style={styles.footer}>{content.branding.name}</Text>
+        {content.branding.tagline ? <Text style={styles.tagline}>{content.branding.tagline}</Text> : null}
       </ScrollView>
     </PremiumScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  content: { paddingBottom: spacing.xxl },
+  root: { flex: 1, overflow: 'hidden' },
+  content: { paddingBottom: TAB_BAR_SCROLL_PAD, flexGrow: 1 },
   statsLoading: {
     marginHorizontal: spacing.md,
     height: 88,
@@ -295,20 +311,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
     borderRadius: premium.radiusCard,
     backgroundColor: colors.white,
-    borderWidth: 1.5,
-    borderColor: 'rgba(192,73,46,0.25)',
+    borderWidth: 1,
+    borderColor: 'rgba(192,73,46,0.2)',
+    ...shadows.card,
   },
   logoutPressed: { opacity: 0.92, transform: [{ scale: 0.99 }] },
   logoutText: { fontFamily: fonts.bodySemi, fontSize: 15, color: colors.error },
   footer: {
     textAlign: 'center',
     marginTop: spacing.lg,
-    fontFamily: fonts.display,
-    fontSize: 13,
+    fontFamily: fonts.brandSub,
+    fontSize: 14,
     color: colors.forest,
+    letterSpacing: 0.2,
+  },
+  tagline: {
+    textAlign: 'center',
+    marginTop: 4,
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.muted,
+    paddingHorizontal: spacing.lg,
   },
 });

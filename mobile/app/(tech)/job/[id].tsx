@@ -8,7 +8,6 @@ import {
   Image,
   Platform,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -22,6 +21,7 @@ import { BookingTrackingTimeline } from '@/components/kit/BookingTrackingTimelin
 import { JobProgressCard } from '@/components/kit/JobProgressCard';
 import { OtpEntrySheet } from '@/components/kit/OtpEntrySheet';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
+import { TechScreenScroll } from '@/components/kit/TechScreenKit';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
@@ -212,33 +212,29 @@ export default function TechJobScreen() {
 
       let geo: { lat: number; lng: number; address: string } | undefined;
       const { status: loc } = await Location.requestForegroundPermissionsAsync();
-      if (loc === 'granted') {
-        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        let address = note.trim() || booking.address?.trim() || 'On-site location';
-        try {
-          const [place] = await Location.reverseGeocodeAsync({
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-          });
-          if (place) {
-            address = [place.street, place.city, place.region].filter(Boolean).join(', ') || address;
-          }
-        } catch {
-          /* use fallback address */
-        }
-        geo = { lat: pos.coords.latitude, lng: pos.coords.longitude, address };
-      } else if (note.trim()) {
-        geo = { lat: 0, lng: 0, address: note.trim() };
-      } else if (booking.address?.trim()) {
-        geo = { lat: 0, lng: 0, address: booking.address.trim() };
-      } else {
+      if (loc !== 'granted') {
         Toast.show({
-          type: 'info',
-          text1: 'Location needed',
-          text2: 'Enable GPS or add a location note before uploading',
+          type: 'error',
+          text1: 'Location permission required',
+          text2: 'Enable GPS to capture geotagged step photos',
         });
         return;
       }
+
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      let address = note.trim() || booking.address?.trim() || 'On-site location';
+      try {
+        const [place] = await Location.reverseGeocodeAsync({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        });
+        if (place) {
+          address = [place.street, place.city, place.region].filter(Boolean).join(', ') || address;
+        }
+      } catch {
+        /* use fallback address */
+      }
+      geo = { lat: pos.coords.latitude, lng: pos.coords.longitude, address };
 
       const photoUrl = await uploadImage(asset.uri, undefined, asset.mimeType);
       await api.patch(`/bookings/${id}/steps/${index}`, {
@@ -296,13 +292,11 @@ export default function TechJobScreen() {
         showBack
         rightAction={headerLive ? <StatusBadge label="● Live" tone="success" /> : null}
       />
-      <ScrollView
+      <TechScreenScroll
         contentContainerStyle={styles.container}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => void onPullRefresh()} tintColor={colors.green} />
         }
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
       >
         <FadeSlideIn>
           <BookingStatusBanner status={booking.status} audience="technician" />
@@ -441,7 +435,7 @@ export default function TechJobScreen() {
             </>
           ) : null}
         </FadeSlideIn>
-      </ScrollView>
+      </TechScreenScroll>
 
       {(needsStartCode || needsEndCode) && (
         <StickyActionBar>

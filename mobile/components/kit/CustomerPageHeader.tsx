@@ -1,10 +1,10 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { safeGoBack } from '@/lib/routes';
+import { adminGoBack, safeGoBack } from '@/lib/routes';
 import { ChevronLeft } from 'lucide-react-native';
 import { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, classic, fonts, gradients, headerTopPad, premium, radius, shadows, spacing, surfaces } from '@/constants/theme';
+import { colors, classic, customerType, gradients, headerTopPad, premium, radius, shadows, spacing, surfaces } from '@/constants/theme';
 
 type Variant = 'gradient' | 'light' | 'premium';
 
@@ -15,6 +15,8 @@ export function CustomerPageHeader({
   variant = 'light',
   rightAction,
   overlapReserve,
+  backFallback,
+  onBack,
   children,
 }: {
   title: string;
@@ -24,16 +26,31 @@ export function CustomerPageHeader({
   rightAction?: ReactNode;
   /** Extra bottom padding so a floating panel can overlap the hero. */
   overlapReserve?: boolean;
+  /** When set, back uses admin/custom fallback instead of customer home. */
+  backFallback?: string;
+  onBack?: () => void;
   children?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
   const padTop = headerTopPad(insets.top);
 
+  function handleBack() {
+    if (onBack) {
+      onBack();
+      return;
+    }
+    if (backFallback) {
+      adminGoBack(backFallback);
+      return;
+    }
+    safeGoBack();
+  }
+
   const content = (
     <View style={[styles.row, { paddingTop: padTop }]}>
       {showBack ? (
         <Pressable
-          onPress={() => safeGoBack()}
+          onPress={handleBack}
           style={[styles.backBtn, (variant === 'gradient' || variant === 'premium') && styles.backBtnOnGradient]}
         >
           <ChevronLeft color={variant === 'gradient' || variant === 'premium' ? colors.white : colors.ink} size={20} />
@@ -123,12 +140,12 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   backSpacer: { width: 40 },
-  textCol: { flex: 1 },
-  title: { fontFamily: fonts.displayExtra, fontSize: 20, color: colors.ink },
-  titlePremium: { fontSize: 22 },
-  titleOnGradient: { color: colors.white },
-  sub: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, marginTop: 2 },
-  subOnGradient: { color: colors.lime },
+  textCol: { flex: 1, minWidth: 0 },
+  title: { ...customerType.cardTitle, fontSize: 20, letterSpacing: -0.35, color: colors.ink },
+  titlePremium: { ...customerType.pageTitleCompact },
+  titleOnGradient: { ...customerType.pageTitleCompact, fontSize: 20, letterSpacing: -0.4 },
+  sub: { ...customerType.pageSubtitleMuted },
+  subOnGradient: { ...customerType.pageSubtitle },
   classicRule: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="${BASE_URL:-http://localhost:4000}"
+BASE_URL="${BASE_URL:-http://localhost:4001}"
 API="${BASE_URL}/api"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="${SCRIPT_DIR}/../.env"
@@ -73,14 +73,20 @@ BOOK_JSON=$(curl -s -X POST "${API}/bookings" \
   -H "Content-Type: application/json" \
   -d "{
     \"serviceId\":\"${SERVICE_ID}\",
-    \"schedule\":{\"date\":\"2026-06-20\",\"slot\":\"10:00-12:00\"},
+    \"scheduleMode\":\"standard\",
+    \"scheduleRequest\":{\"date\":\"2026-12-20\",\"slot\":\"09:00-11:00\"},
+    \"propertyType\":\"2bhk\",
     \"address\":\"123 Test St, Austin TX\",
     \"paymentMethod\":\"upi_card\",
     \"couponCode\":\"ANTIDOT100\",
     \"problemPhotos\":[\"/uploads/sample.jpg\"]
   }")
-echo "$BOOK_JSON" | jq '{id: .booking.id, status: .booking.status, amount: .booking.amount, steps: .booking.steps | length}'
+echo "$BOOK_JSON" | jq '{id: .booking.id, status: .booking.status, amount: .booking.amount, steps: (.booking.steps | length), error: .error}'
 BOOKING_ID=$(jq_val "$BOOK_JSON" '.booking.id')
+if [[ "$BOOKING_ID" == "null" || -z "$BOOKING_ID" ]]; then
+  echo "FAIL: booking create — $(echo "$BOOK_JSON" | jq -r '.error // .message // "unknown"')"
+  exit 1
+fi
 BASE=$(jq_val "$BOOK_JSON" '.booking.amount.base')
 GST=$(jq_val "$BOOK_JSON" '.booking.amount.gst')
 COUPON=$(jq_val "$BOOK_JSON" '.booking.amount.coupon')
@@ -98,6 +104,13 @@ TECH_JSON=$(login "9000000010" "tech123")
 TECH_TOKEN=$(jq_val "$TECH_JSON" '.token')
 TECH_ID=$(jq_val "$TECH_JSON" '.user.id')
 echo "--- Technician login OK id=${TECH_ID} ---"
+
+echo "--- PATCH /bookings/:id/confirm-schedule (admin) ---"
+curl -s -X PATCH "${API}/bookings/${BOOKING_ID}/confirm-schedule" \
+  -H "Authorization: Bearer ${ADMIN_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"schedule":{"date":"2026-12-20","slot":"09:00-11:00"}}' | jq '{status: .booking.status, schedule: .booking.schedule}'
+echo ""
 
 echo "--- PATCH /bookings/:id/assign (admin, ensure tech) ---"
 curl -s -X PATCH "${API}/bookings/${BOOKING_ID}/assign" \
@@ -132,7 +145,7 @@ echo "$(echo "$FORBIDDEN" | sed '$d')" | jq .
 echo "status: $(echo "$FORBIDDEN" | tail -1 | sed 's/HTTP://')"
 echo ""
 
-echo "--- Technician stats BEFORE review ---"
+echo "--- Technician stats BEFORE completion ---"
 STATS_BEFORE=$(curl -s "${API}/stats/technician" -H "Authorization: Bearer ${TECH_TOKEN}")
 echo "$STATS_BEFORE" | jq .
 JOBS_BEFORE=$(jq_val "$STATS_BEFORE" '.jobsDone')
@@ -186,23 +199,23 @@ if [[ "$(jq_val "$VERIFY" '.booking.status')" != "completed" ]]; then
 fi
 echo ""
 
+echo "--- Technician stats AFTER completion (jobsDone delta) ---"
+STATS_AFTER=$(curl -s "${API}/stats/technician" -H "Authorization: Bearer ${TECH_TOKEN}")
+echo "$STATS_AFTER" | jq .
+JOBS_AFTER=$(jq_val "$STATS_AFTER" '.jobsDone')
+if [[ "$JOBS_AFTER" -le "$JOBS_BEFORE" ]]; then
+  echo "FAIL: jobsDone did not increase on completion (${JOBS_BEFORE} -> ${JOBS_AFTER})"
+  exit 1
+fi
+echo "jobsDone delta OK: ${JOBS_BEFORE} -> ${JOBS_AFTER}"
+echo ""
+
 echo "--- POST /reviews ---"
 REVIEW=$(curl -s -X POST "${API}/reviews" \
   -H "Authorization: Bearer ${CUST_TOKEN}" \
   -H "Content-Type: application/json" \
   -d "{\"bookingId\":\"${BOOKING_ID}\",\"stars\":5,\"tags\":[\"on-time\",\"professional\"],\"comment\":\"Great job\"}")
 echo "$REVIEW" | jq .
-echo ""
-
-echo "--- Technician stats AFTER review (jobsDone delta) ---"
-STATS_AFTER=$(curl -s "${API}/stats/technician" -H "Authorization: Bearer ${TECH_TOKEN}")
-echo "$STATS_AFTER" | jq .
-JOBS_AFTER=$(jq_val "$STATS_AFTER" '.jobsDone')
-if [[ "$JOBS_AFTER" -le "$JOBS_BEFORE" ]]; then
-  echo "FAIL: jobsDone did not increase (${JOBS_BEFORE} -> ${JOBS_AFTER})"
-  exit 1
-fi
-echo "jobsDone delta OK: ${JOBS_BEFORE} -> ${JOBS_AFTER}"
 echo ""
 
 echo "--- GET /reviews/booking/:id ---"

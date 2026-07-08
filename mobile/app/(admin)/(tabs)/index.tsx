@@ -1,11 +1,10 @@
-import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { RefreshControl, StyleSheet, View } from 'react-native';
 import { AdminBookingRow } from '@/components/kit/AdminBookingRow';
 import { AdminFilterChips, AdminQuickGrid } from '@/components/kit/AdminPageKit';
 import { PendingAnalyticsRow } from '@/components/kit/PendingAnalyticsRow';
 import { AdminScreenHeader } from '@/components/kit/AdminScreenHeader';
+import { AdminTabScreen } from '@/components/kit/AdminScreenKit';
 import { AdminSectionTitle } from '@/components/kit/AdminListShell';
 import { KpiCard } from '@/components/kit/KpiCard';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -14,36 +13,37 @@ import { Spinner } from '@/components/ui/Spinner';
 import { AppIcons } from '@/constants/appIcons';
 import { useAuth } from '@/context/AuthContext';
 import { api, screenLoadConfig } from '@/lib/api';
+import { adminRoutes, appPush } from '@/lib/routes';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useUnreadNotifications } from '@/lib/useUnreadNotifications';
 import { userInitial } from '@/lib/userInitials';
 import { bookingStatusLabel } from '@/lib/booking-helpers';
 import type { AdminStats, BookingStatus } from '@/types/api';
-import { colors, design, spacing } from '@/constants/theme';
+import { colors, spacing } from '@/constants/theme';
 
 const QUICK_ACTIONS = [
   { key: 'bookings', icon: AppIcons.adminQuick.bookings, label: 'Bookings' },
   { key: 'services', icon: AppIcons.adminQuick.services, label: 'Services' },
   { key: 'tech', icon: AppIcons.adminQuick.addTech, label: 'Add tech' },
-  { key: 'offers', icon: AppIcons.adminQuick.offers, label: 'Offers' },
-  { key: 'content', icon: AppIcons.adminQuick.content, label: 'Content' },
-  { key: 'team', icon: AppIcons.adminQuick.team, label: 'Team' },
 ];
 
 function quickRoute(key: string) {
   switch (key) {
     case 'bookings':
-      return router.push('/(admin)/bookings');
+      return appPush(adminRoutes.bookings);
     case 'services':
-      return router.push('/(admin)/services');
+      return appPush(adminRoutes.services);
     case 'tech':
-      return router.push({ pathname: '/(admin)/user-edit', params: { role: 'technician' } });
+      return appPush({
+        pathname: adminRoutes.userEdit,
+        params: { role: 'technician', returnTo: adminRoutes.home },
+      });
     case 'offers':
-      return router.push('/(admin)/offers');
+      return appPush(adminRoutes.offers);
     case 'content':
-      return router.push('/(admin)/content');
+      return appPush(adminRoutes.content);
     case 'team':
-      return router.push('/(admin)/team');
+      return appPush(adminRoutes.team);
     default:
       break;
   }
@@ -75,10 +75,13 @@ export default function AdminDashboard() {
 
   if (error && !stats) {
     return (
-      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-        <AdminScreenHeader title={`Hi, ${firstName}`} subtitle="Dashboard" userInitial={initial} unreadCount={unreadCount} />
+      <AdminTabScreen
+        header={
+          <AdminScreenHeader title={`Hi, ${firstName}`} subtitle="Dashboard" userInitial={initial} unreadCount={unreadCount} />
+        }
+      >
         <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
-      </SafeAreaView>
+      </AdminTabScreen>
     );
   }
 
@@ -94,21 +97,18 @@ export default function AdminDashboard() {
     })) ?? [];
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <ScrollView
-        style={styles.root}
-        contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />}
-        showsVerticalScrollIndicator={false}
-      >
+    <AdminTabScreen
+      header={
         <AdminScreenHeader
           title={`Hi, ${firstName}`}
           subtitle="Dashboard"
           userInitial={initial}
           unreadCount={unreadCount}
         />
-
-        <AdminSectionTitle title="Quick actions" hint="Jump to common admin tasks" />
+      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />}
+    >
+        <AdminSectionTitle title="Quick actions" hint="Common tasks · see Manage tab for more" />
         <AdminQuickGrid items={QUICK_ACTIONS} onPress={quickRoute} />
 
         <AdminSectionTitle title="Overview" hint="Tap a card to drill into bookings or customers" />
@@ -119,7 +119,7 @@ export default function AdminDashboard() {
             label="Pending"
             iconBg={colors.amberBg}
             iconColor={colors.amberInk}
-            onPress={() => router.push('/(admin)/bookings?status=pending')}
+            onPress={() => appPush('/(admin)/bookings?status=pending')}
           />
           <KpiCard
             icon={AppIcons.adminKpi.bookings}
@@ -128,7 +128,7 @@ export default function AdminDashboard() {
             delta={stats.deltas?.bookings}
             iconBg={colors.blueBg}
             iconColor={colors.blue}
-            onPress={() => router.push('/(admin)/bookings')}
+            onPress={() => appPush('/(admin)/bookings')}
           />
           <KpiCard
             icon={AppIcons.adminKpi.active}
@@ -137,7 +137,7 @@ export default function AdminDashboard() {
             delta={stats.deltas?.activeJobs}
             iconBg={colors.secondarySoft}
             iconColor={colors.secondaryDark}
-            onPress={() => router.push('/(admin)/bookings?status=active')}
+            onPress={() => appPush('/(admin)/bookings?status=active')}
           />
           <KpiCard
             icon={AppIcons.adminKpi.customers}
@@ -146,7 +146,7 @@ export default function AdminDashboard() {
             delta={stats.deltas?.customers}
             iconBg={colors.soft}
             iconColor={colors.green}
-            onPress={() => router.push('/(admin)/customers')}
+            onPress={() => appPush('/(admin)/customers')}
           />
         </View>
 
@@ -155,7 +155,7 @@ export default function AdminDashboard() {
             <AdminFilterChips
               chips={statusChips}
               selected=""
-              onSelect={(key) => router.push(`/(admin)/bookings?status=${key}`)}
+              onSelect={(key) => appPush(`/(admin)/bookings?status=${key}`)}
             />
           </View>
         ) : null}
@@ -166,21 +166,21 @@ export default function AdminDashboard() {
               title="Pending queue"
               hint="Needs your attention"
               actionLabel="All"
-              onAction={() => router.push('/(admin)/bookings?status=pending')}
+              onAction={() => appPush('/(admin)/bookings?status=pending')}
             />
             <View style={styles.bookingWrap}>
               {stats.pendingBookings!.slice(0, 5).map((b) => (
                 <PendingAnalyticsRow
                   key={b.id}
                   booking={b}
-                  onPress={() => router.push(`/(admin)/booking/${b.id}`)}
+                  onPress={() => appPush(`/(admin)/booking/${b.id}`)}
                 />
               ))}
             </View>
           </>
         ) : null}
 
-        <AdminSectionTitle title="Recent" hint="Latest bookings across all statuses" actionLabel="All" onAction={() => router.push('/(admin)/bookings')} />
+        <AdminSectionTitle title="Recent" hint="Latest bookings across all statuses" actionLabel="All" onAction={() => appPush('/(admin)/bookings')} />
 
         {stats.recentBookings.length === 0 ? (
           <View style={styles.bookingWrap}>
@@ -189,25 +189,22 @@ export default function AdminDashboard() {
         ) : (
           stats.recentBookings.slice(0, 3).map((b) => (
             <View key={b.id} style={styles.bookingWrap}>
-              <AdminBookingRow booking={b} onPress={() => router.push(`/(admin)/booking/${b.id}`)} />
+              <AdminBookingRow booking={b} onPress={() => appPush(`/(admin)/booking/${b.id}`)} />
             </View>
           ))
         )}
-      </ScrollView>
-    </SafeAreaView>
+    </AdminTabScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: design.screenBg },
-  root: { flex: 1 },
-  content: { paddingBottom: spacing.xxl },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
     paddingHorizontal: spacing.md,
     marginTop: spacing.sm,
+    width: '100%',
   },
   statusWrap: { marginTop: spacing.sm, marginBottom: spacing.xs },
   bookingWrap: { paddingHorizontal: spacing.md },

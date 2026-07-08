@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { AppIcons } from '@/constants/appIcons';
 import { Button } from '@/components/ui/Button';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, customerType, premium, shadows, spacing } from '@/constants/theme';
 
 export function OffersEmpty() {
   return (
@@ -41,14 +41,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(182,132,28,0.2)',
   },
-  title: { fontFamily: fonts.display, fontSize: 18, color: colors.ink, textAlign: 'center' },
+  title: { ...customerType.emptyTitle },
   message: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.muted,
-    textAlign: 'center',
+    ...customerType.emptyBody,
     marginTop: spacing.sm,
-    lineHeight: 19,
     maxWidth: 280,
   },
   btn: { marginTop: spacing.lg, alignSelf: 'stretch' },

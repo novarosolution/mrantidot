@@ -2,7 +2,10 @@ import { type LucideIcon, ChevronDown } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { AdminGoldBar } from '@/components/kit/AdminScreenKit';
+import { customerScrollProps } from '@/components/kit/GlassScreenKit';
+import { ADMIN_QUICK_COLS, adminGridCellWidth } from '@/lib/adminGrid';
+import { adminSurfaces, adminType, colors, premium, shadows, spacing } from '@/constants/theme';
 
 export function AdminQuickGrid({
   items,
@@ -11,15 +14,17 @@ export function AdminQuickGrid({
   items: { key: string; icon: LucideIcon; label: string }[];
   onPress: (key: string) => void;
 }) {
+  const tileWidth = adminGridCellWidth(ADMIN_QUICK_COLS);
+
   return (
     <View style={styles.quickGrid}>
       {items.map(({ key, icon: Icon, label }) => (
         <Pressable
           key={key}
-          style={({ pressed }) => [styles.quickTile, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.quickTile, { width: tileWidth }, pressed && styles.pressed]}
           onPress={() => onPress(key)}
         >
-          <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.quickGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+          <AdminGoldBar height={2} style={styles.quickGold} />
           <View style={styles.quickIcon}>
             <Icon size={20} color={colors.forest} strokeWidth={2.2} />
           </View>
@@ -42,7 +47,7 @@ export function AdminFilterChips({
   onSelect: (key: string) => void;
 }) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+    <ScrollView horizontal contentContainerStyle={styles.chipsRow} {...customerScrollProps}>
       {chips.map((c) => {
         const active = selected === c.key;
         return (
@@ -67,13 +72,7 @@ export function AdminStatStrip({
 }) {
   return (
     <View style={styles.stripWrap}>
-      <LinearGradient
-        colors={['#FFFFFF', '#F6FAF7']}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
-      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <AdminGoldBar />
       <View style={styles.stripRow}>
         {items.map((item, index) => (
           <View key={item.label} style={[styles.stripCell, index < items.length - 1 && styles.stripBorder]}>
@@ -93,28 +92,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     gap: 10,
     marginTop: spacing.sm,
+    width: '100%',
   },
   quickTile: {
-    width: '31%',
-    flexGrow: 1,
-    minWidth: '30%',
     alignItems: 'center',
     paddingVertical: spacing.sm + 2,
     paddingTop: spacing.sm + 6,
     borderRadius: 16,
-    backgroundColor: colors.white,
+    backgroundColor: adminSurfaces.panelTint,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: adminSurfaces.cardBorder,
     overflow: 'hidden',
     ...shadows.card,
   },
   quickGold: {
     position: 'absolute',
     top: 0,
-    left: 12,
-    right: 12,
-    height: 2,
-    borderRadius: 1,
+    left: 0,
+    right: 0,
   },
   pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   quickIcon: {
@@ -126,12 +121,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 6,
   },
-  quickLabel: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 11,
-    color: colors.ink,
-    textAlign: 'center',
-  },
+  quickLabel: { ...adminType.quickLabel },
   chipsRow: {
     paddingHorizontal: spacing.md,
     gap: 8,
@@ -142,19 +132,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: colors.white,
+    backgroundColor: adminSurfaces.chipBg,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.1)',
+    borderColor: adminSurfaces.chipBorder,
   },
   chipActive: {
     backgroundColor: colors.forest,
     borderColor: colors.forest,
   },
-  chipText: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 13,
-    color: colors.forest,
-  },
+  chipText: { ...adminType.chipText },
   chipTextActive: { color: colors.white },
   stripWrap: {
     marginHorizontal: spacing.md,
@@ -162,10 +148,10 @@ const styles = StyleSheet.create({
     borderRadius: premium.radiusCard,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: adminSurfaces.cardBorder,
+    backgroundColor: adminSurfaces.panelTint,
     ...shadows.card,
   },
-  goldBar: { height: 3, width: '100%' },
   stripRow: {
     flexDirection: 'row',
     paddingVertical: spacing.md,
@@ -180,26 +166,15 @@ const styles = StyleSheet.create({
     borderRightWidth: StyleSheet.hairlineWidth,
     borderRightColor: 'rgba(20,83,45,0.1)',
   },
-  stripValue: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 20,
-    letterSpacing: -0.3,
-  },
-  stripLabel: {
-    fontFamily: fonts.body,
-    fontSize: 9,
-    color: colors.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: 2,
-  },
+  stripValue: { ...adminType.statValue },
+  stripLabel: { ...adminType.statLabel, marginTop: 2 },
 });
 
 /** White form surface with gold top accent — used on content & edit screens. */
 export function AdminFormCard({ children, style }: { children: ReactNode; style?: object }) {
   return (
     <View style={[formStyles.card, style]}>
-      <LinearGradient colors={['#D4A017', '#B6841C']} style={formStyles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <AdminGoldBar style={formStyles.goldBar} />
       {children}
     </View>
   );
@@ -211,13 +186,13 @@ const formStyles = StyleSheet.create({
     marginHorizontal: spacing.md,
     padding: spacing.md,
     borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
+    backgroundColor: adminSurfaces.panelTint,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: adminSurfaces.cardBorder,
     overflow: 'hidden',
     ...shadows.card,
   },
-  goldBar: { height: 3, width: '100%', marginBottom: spacing.sm, marginTop: -spacing.md, marginHorizontal: -spacing.md },
+  goldBar: { marginBottom: spacing.sm, marginTop: -spacing.md, marginHorizontal: -spacing.md },
 });
 
 /** Hint banner shown under content tabs. */
@@ -225,7 +200,7 @@ export function AdminTabHint({ title, body }: { title: string; body: string }) {
   return (
     <View style={hintStyles.wrap}>
       <LinearGradient colors={['#F6FAF7', '#FFFFFF']} style={hintStyles.card} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        <LinearGradient colors={['#D4A017', '#B6841C']} style={hintStyles.gold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+        <AdminGoldBar style={hintStyles.gold} />
         <Text style={hintStyles.title}>{title}</Text>
         <Text style={hintStyles.body}>{body}</Text>
       </LinearGradient>
@@ -265,7 +240,7 @@ export function AdminCollapsibleCard({
       </Pressable>
       {open ? (
         <View style={collapseStyles.body}>
-          <LinearGradient colors={['#D4A017', '#B6841C']} style={collapseStyles.gold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+          <AdminGoldBar height={2} style={collapseStyles.gold} />
           {children}
         </View>
       ) : null}
@@ -283,9 +258,9 @@ const hintStyles = StyleSheet.create({
     borderColor: 'rgba(20,83,45,0.08)',
     overflow: 'hidden',
   },
-  gold: { height: 3, marginHorizontal: -spacing.md, marginTop: -spacing.sm - 4, marginBottom: spacing.sm },
-  title: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest },
-  body: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 4, lineHeight: 17 },
+  gold: { marginHorizontal: -spacing.md, marginTop: -spacing.sm - 4, marginBottom: spacing.sm },
+  title: { ...adminType.formTitle, fontSize: 13, color: colors.forest },
+  body: { ...adminType.formSub, marginTop: 4, lineHeight: 17 },
 });
 
 const collapseStyles = StyleSheet.create({
@@ -293,9 +268,9 @@ const collapseStyles = StyleSheet.create({
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,
     borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
+    backgroundColor: adminSurfaces.panelTint,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: adminSurfaces.cardBorder,
     overflow: 'hidden',
     ...shadows.card,
   },
@@ -307,13 +282,13 @@ const collapseStyles = StyleSheet.create({
   },
   pressed: { opacity: 0.92 },
   headText: { flex: 1 },
-  title: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
-  sub: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
+  title: { ...adminType.formTitle },
+  sub: { ...adminType.formSub },
   body: {
     padding: spacing.md,
     paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
-  gold: { height: 2, marginBottom: spacing.sm, marginTop: -spacing.sm },
+  gold: { marginBottom: spacing.sm, marginTop: -spacing.sm },
 });

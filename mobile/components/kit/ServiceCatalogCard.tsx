@@ -4,7 +4,7 @@ import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import { serviceDisplayRating } from '@/lib/ratings';
 import type { Service } from '@/types/api';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, customerType, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 const COLS = 2;
 const GAP = 10;
@@ -100,10 +100,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   name: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 13,
-    lineHeight: 17,
-    color: colors.ink,
+    ...customerType.serviceGridTitle,
     minHeight: 34,
   },
   metaRow: {
@@ -121,11 +118,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: colors.soft,
   },
-  metaText: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 10,
-    color: colors.forest,
-  },
+  metaText: { ...customerType.kicker, fontSize: 10, color: colors.forest },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -135,12 +128,7 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
-  price: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 17,
-    color: premium.accentGold,
-    letterSpacing: -0.3,
-  },
+  price: { ...customerType.listPrice },
   bookBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -151,11 +139,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.forest,
   },
   bookPressed: { opacity: 0.88 },
-  bookText: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 10,
-    color: colors.white,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
+  bookText: { ...customerType.kicker, fontSize: 10, color: colors.white },
 });

@@ -23,6 +23,7 @@ import {
   buildJobVisitsForBookings,
   computeJobVisitAnalytics,
 } from '../utils/jobVisit';
+import { technicianPublicRating } from '../utils/ratings';
 
 export const statsRouter = Router();
 
@@ -447,8 +448,8 @@ statsRouter.get(
       inProgress,
       completed,
       awaitingVerification,
-      rating: tech.rating,
-      jobsDone: tech.jobsDone,
+      rating: technicianPublicRating(tech),
+      jobsDone: Math.max(tech.jobsDone ?? 0, completed),
       earnings: earningsAgg[0]?.earnings ?? 0,
       month,
       attendance,

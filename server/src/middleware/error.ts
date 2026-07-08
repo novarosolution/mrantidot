@@ -40,6 +40,31 @@ export function errorHandler(
     return;
   }
 
+  if (err instanceof mongoose.Error.CastError) {
+    sendError(res, 400, `Invalid ${err.path}: "${err.value}"`, 'BAD_REQUEST');
+    return;
+  }
+
+  // Duplicate key (unique index) errors surface as plain MongoServerError, not AppError.
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code?: number }).code === 11000
+  ) {
+    const keyValue = (err as { keyValue?: Record<string, unknown> }).keyValue;
+    const field = keyValue ? Object.keys(keyValue)[0] : undefined;
+    sendError(res, 409, field ? `${field} already in use` : 'Duplicate value', 'CONFLICT');
+    return;
+  }
+
+  // Malformed ObjectId strings passed straight to `new Types.ObjectId()` throw BSONError,
+  // not a Mongoose CastError — treat the same way (bad input, not a server fault).
+  if (err instanceof Error && err.name === 'BSONError') {
+    sendError(res, 400, 'Invalid identifier', 'BAD_REQUEST');
+    return;
+  }
+
   console.error('[error]', err);
   sendError(res, 500, 'Internal server error', 'INTERNAL');
 }

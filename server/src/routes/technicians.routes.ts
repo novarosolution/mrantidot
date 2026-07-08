@@ -17,7 +17,7 @@ techniciansRouter.get(
       available: { $ne: false },
       disabled: { $ne: true },
     })
-      .select('name rating jobsDone city')
+      .select('name rating displayRating jobsDone city')
       .sort({ rating: -1, jobsDone: -1, name: 1 });
 
     res.json({

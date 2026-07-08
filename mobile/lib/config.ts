@@ -1,14 +1,26 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-const DEFAULT_PORT = 4000;
+/** Must match server/.env PORT (default 4001 — port 4000 is often taken on macOS). */
+const DEFAULT_PORT = 4001;
 
 /**
  * In Expo dev, the device reaches Metro at a specific host/IP. Re-using that same
  * host for the API guarantees reachability and means we never have to hand-edit an
  * IP in .env when the network (and the Mac's LAN IP) changes.
  */
-function devHostApiUrl(): string | undefined {
+function parsePortFromUrl(url: string | undefined): number | undefined {
+  if (!url) return undefined;
+  try {
+    const port = new URL(url).port;
+    if (port) return parseInt(port, 10);
+    return url.startsWith('https:') ? 443 : 80;
+  } catch {
+    return undefined;
+  }
+}
+
+function devHostApiUrl(port: number): string | undefined {
   const hostUri =
     Constants.expoConfig?.hostUri ??
     // Fallbacks for older manifests / Expo Go
@@ -26,7 +38,7 @@ function devHostApiUrl(): string | undefined {
     host = '10.0.2.2';
   }
 
-  return `http://${host}:${DEFAULT_PORT}`;
+  return `http://${host}:${port}`;
 }
 
 const fromExtra =
@@ -36,17 +48,34 @@ const fromExtra =
 
 const explicit =
   process.env.EXPO_PUBLIC_API_URL?.trim() || fromExtra || undefined;
-const auto = __DEV__ ? devHostApiUrl() : undefined;
+
+const apiPort = parsePortFromUrl(explicit) ?? DEFAULT_PORT;
+const auto = __DEV__ ? devHostApiUrl(apiPort) : undefined;
 
 /**
  * Precedence:
- * - In dev, always prefer the live Expo/Metro host so the app talks to your local API.
+ * - In dev, use EXPO_PUBLIC_API_URL when set (correct port from .env).
+ * - Otherwise auto-detect host from Metro with apiPort.
  * - In production builds, use deploy.config / EXPO_PUBLIC_API_URL.
  */
 const resolvedApiUrl =
-  __DEV__ && auto
-    ? auto
-    : explicit ?? auto ?? `http://127.0.0.1:${DEFAULT_PORT}`;
+  __DEV__ && explicit
+    ? explicit.replace(/\/$/, '')
+    : __DEV__ && auto
+      ? auto
+      : explicit?.replace(/\/$/, '') ?? auto ?? `http://127.0.0.1:${DEFAULT_PORT}`;
+
+/** Android emulator reaches the dev machine via 10.0.2.2, not LAN IP or localhost. */
+function forAndroidEmulator(url: string): string {
+  if (Platform.OS !== 'android' || Constants.isDevice) return url;
+  try {
+    const parsed = new URL(url);
+    parsed.hostname = '10.0.2.2';
+    return parsed.toString().replace(/\/$/, '');
+  } catch {
+    return url;
+  }
+}
 
 if (!explicit && !auto) {
   console.warn(
@@ -56,5 +85,5 @@ if (!explicit && !auto) {
 }
 
 export const config = {
-  apiUrl: resolvedApiUrl,
+  apiUrl: __DEV__ ? forAndroidEmulator(resolvedApiUrl) : resolvedApiUrl,
 };

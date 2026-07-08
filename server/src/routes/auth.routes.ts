@@ -211,7 +211,14 @@ authRouter.patch(
     };
 
     if (name !== undefined) updates.name = name;
-    if (email !== undefined) updates.email = email;
+    if (email !== undefined) {
+      const normalizedEmail = normalizeLoginEmail(email);
+      const taken = await User.findOne({ email: normalizedEmail, _id: { $ne: req.user!.id } });
+      if (taken) {
+        throw new AppError(400, 'Email already registered');
+      }
+      updates.email = normalizedEmail;
+    }
     if (city !== undefined) updates.city = city;
     if (phone !== undefined) {
       const normalizedPhone = normalizePhone(phone);

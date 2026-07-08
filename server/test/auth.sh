@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="${BASE_URL:-http://localhost:4000}"
+BASE_URL="${BASE_URL:-http://localhost:4001}"
 API="${BASE_URL}/api/auth"
 
 SUFFIX="${RANDOM}${RANDOM}"
@@ -22,6 +22,7 @@ HTTP=$(echo "$REGISTER" | tail -1 | sed 's/HTTP://')
 BODY=$(echo "$REGISTER" | sed '$d')
 echo "$BODY" | jq .
 echo "status: ${HTTP}"
+[[ "$HTTP" == "201" ]] || { echo "FAIL: register expected 201"; exit 1; }
 TOKEN=$(echo "$BODY" | jq -r '.token')
 HAS_HASH=$(echo "$BODY" | jq 'has("user") and (.user | has("passwordHash"))')
 if [[ "$HAS_HASH" == "true" ]]; then echo "FAIL: passwordHash leaked"; exit 1; fi
@@ -32,7 +33,9 @@ DUP=$(curl -s -w "\nHTTP:%{http_code}" -X POST "${API}/register" \
   -H "Content-Type: application/json" \
   -d "{\"name\":\"Dup\",\"phone\":\"${PHONE}\",\"email\":\"dup${EMAIL}\",\"password\":\"${PASSWORD}\"}")
 echo "$DUP" | sed '$d' | jq .
-echo "status: $(echo "$DUP" | tail -1 | sed 's/HTTP://')"
+DUP_HTTP=$(echo "$DUP" | tail -1 | sed 's/HTTP://')
+echo "status: ${DUP_HTTP}"
+[[ "$DUP_HTTP" == "400" ]] || { echo "FAIL: duplicate register expected 400"; exit 1; }
 echo ""
 
 echo "--- POST /login by phone ---"
@@ -40,7 +43,9 @@ LOGIN=$(curl -s -w "\nHTTP:%{http_code}" -X POST "${API}/login" \
   -H "Content-Type: application/json" \
   -d "{\"identifier\":\"${PHONE}\",\"password\":\"${PASSWORD}\"}")
 echo "$LOGIN" | sed '$d' | jq .
-echo "status: $(echo "$LOGIN" | tail -1 | sed 's/HTTP://')"
+LOGIN_HTTP=$(echo "$LOGIN" | tail -1 | sed 's/HTTP://')
+echo "status: ${LOGIN_HTTP}"
+[[ "$LOGIN_HTTP" == "200" ]] || { echo "FAIL: login expected 200"; exit 1; }
 TOKEN=$(echo "$LOGIN" | sed '$d' | jq -r '.token')
 echo ""
 
@@ -75,7 +80,9 @@ OTP=$(curl -s -w "\nHTTP:%{http_code}" -X POST "${API}/otp/verify" \
   -H "Content-Type: application/json" \
   -d "{\"phone\":\"${OTP_PHONE}\",\"code\":\"4700\"}")
 echo "$OTP" | sed '$d' | jq .
-echo "status: $(echo "$OTP" | tail -1 | sed 's/HTTP://')"
+OTP_HTTP=$(echo "$OTP" | tail -1 | sed 's/HTTP://')
+echo "status: ${OTP_HTTP}"
+[[ "$OTP_HTTP" == "200" ]] || { echo "FAIL: otp verify expected 200"; exit 1; }
 OTP_HASH=$(echo "$OTP" | sed '$d' | jq '(.user | has("passwordHash"))')
 if [[ "$OTP_HASH" == "true" ]]; then echo "FAIL: passwordHash leaked in OTP"; exit 1; fi
 

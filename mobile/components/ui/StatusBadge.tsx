@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, premium, surfaces } from '@/constants/theme';
+import { colors, fonts, premium, premiumType, surfaces } from '@/constants/theme';
 
 export type BadgeTone = 'success' | 'info' | 'sky' | 'warning' | 'danger' | 'neutral' | 'gold';
 
@@ -30,5 +30,5 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignSelf: 'flex-start',
   },
-  text: { fontSize: 11, fontFamily: fonts.bodySemi, letterSpacing: 0.2 },
+  text: { ...premiumType.kicker, fontSize: 10.5, letterSpacing: 0.35 },
 });

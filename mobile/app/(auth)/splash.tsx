@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { LocationLaunchScreen } from '@/components/kit/LocationLaunchScreen';
 import { useLocation } from '@/context/LocationContext';
 import { homeRouteForRole } from '@/lib/auth-routes';
+import { appReplace } from '@/lib/routes';
 import { isOnboardingDone } from '@/lib/onboarding';
 import { useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
@@ -20,7 +21,6 @@ export default function SplashScreen() {
   const [phase, setPhase] = useState<'detecting' | 'found' | 'denied'>('detecting');
   const startedAt = useRef(Date.now());
   const navigated = useRef(false);
-  const [forceContinue, setForceContinue] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,7 +54,7 @@ export default function SplashScreen() {
     !authLoading &&
     contentLoaded &&
     phase !== 'detecting' &&
-    (Boolean(user) || phase === 'found' || (phase === 'denied' && forceContinue));
+    (Boolean(user) || phase === 'found' || phase === 'denied');
 
   useEffect(() => {
     if (!ready || navigated.current) return;
@@ -68,7 +68,7 @@ export default function SplashScreen() {
       navigated.current = true;
 
       if (user) {
-        router.replace(homeRouteForRole(user.role));
+        appReplace(homeRouteForRole(user.role));
         return;
       }
 
@@ -88,8 +88,17 @@ export default function SplashScreen() {
       areaLabel={areaLabel}
       phase={phase}
       onContinue={() => {
-        setForceContinue(true);
+        if (navigated.current) return;
+        navigated.current = true;
         void setLocation({ city: 'your area', area: '', granted: false, updatedAt: Date.now() });
+        void (async () => {
+          if (user) {
+            appReplace(homeRouteForRole(user.role));
+            return;
+          }
+          const done = await isOnboardingDone();
+          router.replace(done ? '/(auth)/login' : '/(auth)/onboarding');
+        })();
       }}
     />
   );

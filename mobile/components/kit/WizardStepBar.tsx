@@ -57,13 +57,15 @@ export function WizardStepBar({
   return (
     <View style={[styles.wrap, compact && styles.wrapCompact]}>
       {!compact ? <View style={styles.goldRule} /> : null}
-      <View style={styles.progressMeta}>
+      <View style={[styles.progressMeta, compact && styles.progressMetaCompact]}>
         <Text style={styles.progressLabel}>
           Step {step + 1} of {labels.length}
         </Text>
-        <Text style={styles.progressStep} numberOfLines={1}>
-          {labels[step]}
-        </Text>
+        {!compact ? (
+          <Text style={styles.progressStep} numberOfLines={1}>
+            {labels[step]}
+          </Text>
+        ) : null}
       </View>
       <View style={[styles.track, compact && styles.trackCompact]}>
         <Animated.View style={[styles.fillWrap, { width: fillWidth }]}>
@@ -86,6 +88,7 @@ export function WizardStepBar({
               <Animated.View
                 style={[
                   styles.dot,
+                  compact && styles.dotCompact,
                   done && styles.dotDone,
                   active && styles.dotActive,
                   { transform: [{ scale: dotScales[i] ?? 1 }] },
@@ -139,8 +142,11 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   wrapCompact: {
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.sm,
+    paddingTop: 4,
+    paddingBottom: spacing.xs,
+  },
+  progressMetaCompact: {
+    marginBottom: spacing.xs,
   },
   goldRule: {
     height: 2,
@@ -177,12 +183,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     overflow: 'hidden',
   },
-  trackCompact: { marginBottom: spacing.sm },
+  trackCompact: { marginBottom: spacing.xs, height: 4 },
   fillWrap: { height: '100%' },
   fill: { flex: 1, borderRadius: 3 },
   steps: { flexDirection: 'row', justifyContent: 'space-between' },
   item: { flex: 1, alignItems: 'center', gap: 6 },
   itemPressed: { opacity: 0.6 },
+  dotCompact: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+  },
   dot: {
     width: 32,
     height: 32,

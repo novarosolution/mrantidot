@@ -12,7 +12,8 @@ import {
   bookingTechnicianName,
 } from '@/lib/booking-helpers';
 import type { Booking, Service, User } from '@/types/api';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { AdminGoldBar } from '@/components/kit/AdminScreenKit';
+import { adminSurfaces, adminType, colors, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 export const AdminBookingListCard = memo(function AdminBookingListCard({
   item,
@@ -33,6 +34,7 @@ export const AdminBookingListCard = memo(function AdminBookingListCard({
 
   return (
     <View style={styles.card}>
+      <AdminGoldBar height={2} style={styles.goldTop} />
       <Pressable onPress={() => onOpen(item.id)} style={({ pressed }) => pressed && styles.pressed}>
         <View style={styles.top}>
           <Text style={styles.ref}>{bookingRef(item.id)}</Text>
@@ -79,15 +81,18 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: spacing.sm,
     padding: spacing.md,
+    paddingTop: spacing.sm + 6,
     borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
+    backgroundColor: adminSurfaces.panelTint,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: adminSurfaces.cardBorder,
+    overflow: 'hidden',
     ...shadows.card,
   },
+  goldTop: { marginHorizontal: -spacing.md, marginTop: -spacing.sm - 6, marginBottom: spacing.sm },
   pressed: { opacity: 0.92 },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  ref: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.muted },
+  ref: { ...adminType.listRef },
   main: { flexDirection: 'row', alignItems: 'center', gap: 11, marginTop: spacing.sm },
   icon: {
     width: 44,
@@ -98,10 +103,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   flex: { flex: 1, minWidth: 0 },
-  svc: { fontFamily: fonts.display, fontSize: 14, color: colors.ink },
-  meta: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
+  svc: { ...adminType.listTitle },
+  meta: { ...adminType.listMeta },
   scheduleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
-  scheduleText: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.forest, flex: 1 },
+  scheduleText: { ...adminType.listMeta, fontSize: 11, flex: 1 },
   pendingBadge: {
     fontFamily: fonts.bodySemi,
     fontSize: 9,
@@ -112,7 +117,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: 'hidden',
   },
-  price: { fontFamily: fonts.displayExtra, fontSize: 15, color: colors.green },
+  price: { ...adminType.listPrice },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',

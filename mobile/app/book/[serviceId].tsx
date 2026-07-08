@@ -363,22 +363,22 @@ export default function BookWizardScreen() {
           durationLabel={durationLabel}
           onBack={() => (step > 0 ? setStep((s) => s - 1) : safeGoBack('/(customer)/services'))}
           title={step > 0 ? bookStepLabels[step]! : bookingCopy.wizardScreenTitle}
-          compact={step > 0}
+          variant={step === 0 ? 'slim' : 'compact'}
         />
         <WizardStepBar
           step={step}
           labels={bookStepLabels}
           icons={[...BOOK_STEP_ICONS]}
           onStepPress={goToStep}
-          compact={step > 0}
+          compact
         />
 
         {pricing ? (
           <BookPriceRibbon
             total={pricing.total}
             savings={pricing.coupon > 0 ? pricing.coupon : undefined}
-            stepHint={bookStepLabels[step]}
-            compact={step > 0}
+            stepHint={step > 0 ? bookStepLabels[step] : undefined}
+            compact
           />
         ) : null}
       </View>
@@ -393,15 +393,14 @@ export default function BookWizardScreen() {
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       >
           <FadeSlideHorizontal step={step}>
-            {step === 0 ? <BookServiceSpecs service={service} durationLabel={durationLabel} /> : null}
-
-            {step === 0 && (
+            {step === 0 ? (
               <ScheduleStepPanel
                 title={bookingCopy.scheduleStepTitle}
                 subtitle={bookingCopy.scheduleStepSubtitle}
                 animTrigger={step}
+                compactHeader
               >
-                <ScheduleSection step={1} title="Visit type">
+                <ScheduleSection step={1} title="Visit type" compact>
                   <ScheduleModeToggle
                     mode={scheduleMode}
                     onChange={setScheduleMode}
@@ -410,7 +409,7 @@ export default function BookWizardScreen() {
                   />
                 </ScheduleSection>
 
-                <ScheduleSection step={2} title="Select date">
+                <ScheduleSection step={2} title="Select date" compact>
                   <ScheduleDayPicker
                     selectedDate={date}
                     onSelect={(d, i) => {
@@ -423,6 +422,7 @@ export default function BookWizardScreen() {
                 <ScheduleSection
                   step={3}
                   title={scheduleMode === 'standard' ? 'Pick a time slot' : 'Set your time'}
+                  compact
                 >
                   {scheduleMode === 'standard' ? (
                     <ScheduleSlotPicker selectedSlot={slot} onSelect={setSlot} />
@@ -452,27 +452,31 @@ export default function BookWizardScreen() {
                   <ScheduleSelectionBanner label={scheduleSummary} />
                 ) : null}
               </ScheduleStepPanel>
-            )}
+            ) : null}
+
+            {step === 0 ? (
+              <BookServiceSpecs service={service} durationLabel={durationLabel} compact />
+            ) : null}
 
             {step === 1 && (
-              <BookWizardStepPanel icon={Building2} title="Property type" animTrigger={step}>
-                <BookWizardSection step={1} title="What type of premises?">
+              <BookWizardStepPanel icon={Building2} title="Property type" animTrigger={step} compactHeader>
+                <BookWizardSection step={1} title="What type of premises?" compact>
                   <PropertyTypePicker value={propertyType} onChange={setPropertyType} />
                 </BookWizardSection>
               </BookWizardStepPanel>
             )}
 
             {step === 2 && (
-              <BookWizardStepPanel icon={MapPin} title="Service address" animTrigger={step}>
+              <BookWizardStepPanel icon={MapPin} title="Service address" animTrigger={step} compactHeader>
                 {displayLabel ? (
                   <LocationBanner label={displayLabel} loading={locating} />
                 ) : null}
-                <BookWizardSection step={1} title="Quick fill">
+                <BookWizardSection step={1} title="Quick fill" compact>
                   <AddressLocateButton loading={locating} onPress={() => void fillAddressFromLocation()} />
                 </BookWizardSection>
 
                 {addresses.length > 0 ? (
-                  <BookWizardSection step={2} title="Saved addresses">
+                  <BookWizardSection step={2} title="Saved addresses" compact>
                     {addresses.map((a) => (
                       <AddressCard
                         key={a.id}
@@ -487,7 +491,7 @@ export default function BookWizardScreen() {
                   </BookWizardSection>
                 ) : null}
 
-                <BookWizardSection step={addresses.length > 0 ? 3 : 2} title="Enter address">
+                <BookWizardSection step={addresses.length > 0 ? 3 : 2} title="Enter address" compact>
                   <AddressManualField
                     value={address}
                     onChangeText={(t) => {
@@ -499,20 +503,20 @@ export default function BookWizardScreen() {
 
                 {address.trim() ? <AddressConfirmBanner address={address} /> : null}
 
-                <BookWizardSection step={addresses.length > 0 ? 4 : 3} title="Problem photos">
+                <BookWizardSection step={addresses.length > 0 ? 4 : 3} title="Problem photos" compact>
                   <AddressPhotoGrid photos={photoUris} onChange={setPhotoUris} max={6} />
                 </BookWizardSection>
               </BookWizardStepPanel>
             )}
 
             {step === 3 && pricing && (
-              <BookWizardStepPanel icon={CreditCard} title="Payment & offers" animTrigger={step}>
-                <BookWizardSection step={1} title="Price summary">
+              <BookWizardStepPanel icon={CreditCard} title="Payment & offers" animTrigger={step} compactHeader>
+                <BookWizardSection step={1} title="Price summary" compact>
                   <PaymentPriceHero amount={pricing} />
                 </BookWizardSection>
 
                 {activeOffers.length > 0 ? (
-                  <BookWizardSection step={2} title="Available offers">
+                  <BookWizardSection step={2} title="Available offers" compact>
                     <PaymentOfferList
                       offers={activeOffers}
                       selectedCode={coupon}
@@ -521,7 +525,7 @@ export default function BookWizardScreen() {
                   </BookWizardSection>
                 ) : null}
 
-                <BookWizardSection step={activeOffers.length > 0 ? 3 : 2} title="Coupon code">
+                <BookWizardSection step={activeOffers.length > 0 ? 3 : 2} title="Coupon code" compact>
                   <PaymentCouponField
                     value={coupon}
                     onChangeText={setCoupon}
@@ -530,7 +534,7 @@ export default function BookWizardScreen() {
                   />
                 </BookWizardSection>
 
-                <BookWizardSection step={activeOffers.length > 0 ? 4 : 3} title="Payment method">
+                <BookWizardSection step={activeOffers.length > 0 ? 4 : 3} title="Payment method" compact>
                   <BookPaymentPicker
                     methods={paymentMethods}
                     selected={paymentMethod}
@@ -547,8 +551,9 @@ export default function BookWizardScreen() {
                 title={bookingCopy.wizardReviewSectionTitle}
                 subtitle={bookingCopy.pendingReviewNote}
                 animTrigger={step}
+                compactHeader
               >
-                <BookWizardSection step={1} title="Your booking">
+                <BookWizardSection step={1} title="Your booking" compact>
                   <ConfirmDetailsList
                     items={[
                       { icon: Calendar, label: 'Requested schedule', value: scheduleSummary },
@@ -576,12 +581,12 @@ export default function BookWizardScreen() {
                 </BookWizardSection>
 
                 {photoUris.length > 0 ? (
-                  <BookWizardSection step={2} title="Attached photos">
+                  <BookWizardSection step={2} title="Attached photos" compact>
                     <ConfirmPhotoStrip photos={photoUris} />
                   </BookWizardSection>
                 ) : null}
 
-                <BookWizardSection step={photoUris.length > 0 ? 3 : 2} title="Estimated total">
+                <BookWizardSection step={photoUris.length > 0 ? 3 : 2} title="Estimated total" compact>
                   <ConfirmTotalCard
                     amount={pricing}
                     paymentLabel={paymentMethod ? paymentMethodLabel(paymentMethod) : '—'}
@@ -635,7 +640,7 @@ const styles = StyleSheet.create({
   },
   errorTitle: { fontFamily: fonts.displayExtra, fontSize: 18, color: colors.white },
   scroll: { flex: 1 },
-  container: { padding: spacing.md, paddingTop: spacing.sm, paddingBottom: 110 },
+  container: { padding: spacing.md, paddingTop: spacing.xs, paddingBottom: 120 },
   notesWrap: { marginTop: spacing.md },
   modeRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md },
   techOption: {

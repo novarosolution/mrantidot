@@ -20,13 +20,16 @@ const EXT_BY_MIME: Record<string, string> = {
   'image/bmp': '.bmp',
   'image/avif': '.avif',
   'image/tiff': '.tiff',
-  'image/svg+xml': '.svg',
 };
 
-const IMAGE_EXT = /\.(jpe?g|png|gif|webp|heic|heif|bmp|avif|tiff?|svg)$/i;
+// SVG is intentionally excluded — it can embed executable <script> content and is a
+// stored-XSS risk once served back from /uploads, and job photos are always raster.
+const IMAGE_EXT = /\.(jpe?g|png|gif|webp|heic|heif|bmp|avif|tiff?)$/i;
+const SVG_MIME = 'image/svg+xml';
 
 function isImageFile(file: Express.Multer.File): boolean {
   const mime = file.mimetype?.toLowerCase() ?? '';
+  if (mime === SVG_MIME || /\.svg$/i.test(file.originalname)) return false;
   if (mime.startsWith('image/')) return true;
   return IMAGE_EXT.test(file.originalname);
 }

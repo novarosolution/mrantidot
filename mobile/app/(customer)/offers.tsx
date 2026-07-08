@@ -1,8 +1,10 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
-import { AppIcons } from '@/constants/appIcons';
+import { LayoutGrid } from 'lucide-react-native';
 import { CustomerListShell } from '@/components/kit/CustomerListShell';
+import { HeaderActionButton } from '@/components/kit/HeaderActionButton';
+import { TAB_BAR_SCROLL_PAD, customerScrollProps } from '@/components/kit/GlassScreenKit';
 import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/AdminActionSheet';
 import { OfferCouponCard } from '@/components/kit/OfferCouponCard';
 import { OffersEmpty } from '@/components/kit/OffersEmpty';
@@ -10,7 +12,6 @@ import { OffersPromoHero } from '@/components/kit/OffersPromoHero';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
 import { Spinner } from '@/components/ui/Spinner';
-import { Pressable } from 'react-native';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import type { Offer, Service } from '@/types/api';
 import { colors, spacing } from '@/constants/theme';
@@ -85,15 +86,20 @@ export default function OffersScreen() {
     : [];
 
   const browseFab = (
-    <Pressable style={styles.fab} onPress={() => router.push('/(customer)/services')} hitSlop={8}>
-      <AppIcons.brand size={17} color={colors.white} strokeWidth={2.2} />
-    </Pressable>
+    <HeaderActionButton
+      icon={LayoutGrid}
+      onPress={() => router.push('/(customer)/services')}
+      accessibilityLabel="Browse services"
+    />
   );
 
+  const subtitle =
+    offers.length === 0
+      ? 'Seasonal deals appear here'
+      : `${offers.length} coupon${offers.length === 1 ? '' : 's'} available`;
+
   return (
-    <CustomerListShell title="Offers" showBack={false}
-      rightAction={browseFab}
-    >
+    <CustomerListShell title="Offers" subtitle={subtitle} showBack={false} rightAction={browseFab}>
       {loading ? (
         <Spinner />
       ) : loadError && offers.length === 0 ? (
@@ -103,8 +109,9 @@ export default function OffersScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />}
+          {...customerScrollProps}
         >
-          <OffersPromoHero offerCount={offers.length} />
+          {offers.length === 0 ? <OffersPromoHero offerCount={0} /> : null}
 
           {offers.length === 0 ? (
             <OffersEmpty />
@@ -132,15 +139,7 @@ export default function OffersScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: spacing.xxl },
+  content: { paddingBottom: TAB_BAR_SCROLL_PAD, flexGrow: 1 },
   section: { marginBottom: spacing.xs },
   offerWrap: { paddingHorizontal: spacing.md },
-  fab: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: colors.forest,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 });

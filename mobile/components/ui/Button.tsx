@@ -11,7 +11,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
-import { colors, fonts, gradients, premium, spacing, buttonTokens } from '@/constants/theme';
+import { colors, fonts, gradients, premium, premiumType, spacing, buttonTokens } from '@/constants/theme';
 
 interface ButtonProps extends PressableProps {
   title: string;
@@ -91,8 +91,19 @@ export function Button({
     paddingHorizontal: sz.padH,
   };
 
+  const labelFont =
+    variant === 'premium' || variant === 'gold' || variant === 'primary'
+      ? premiumType.button
+      : premiumType.buttonAlt;
+
   const label = (color: string) => (
-    <ButtonLabel title={title} loading={loading} color={color} fontSize={sz.font} textStyle={textStyle} />
+    <ButtonLabel
+      title={title}
+      loading={loading}
+      color={color}
+      fontSize={sz.font}
+      textStyle={[labelFont, textStyle]}
+    />
   );
 
   if (variant === 'premium' || variant === 'primary') {
@@ -262,7 +273,7 @@ const styles = StyleSheet.create({
   inline: { alignSelf: 'flex-start' },
   label: {
     fontFamily: fonts.bodySemi,
-    letterSpacing: 0.15,
+    letterSpacing: 0.25,
     textAlign: 'center',
   },
   fill: {

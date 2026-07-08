@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { BookingListCard } from '@/components/kit/BookingListCard';
 import { BookingsEmpty } from '@/components/kit/BookingsEmpty';
 import { BookingsNextHighlight } from '@/components/kit/BookingsNextHighlight';
 import { BookingsSummaryBar } from '@/components/kit/BookingsSummaryBar';
 import { CustomerListShell, listShellStyles } from '@/components/kit/CustomerListShell';
+import { HeaderActionButton } from '@/components/kit/HeaderActionButton';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
@@ -85,12 +86,16 @@ export default function MyBookingsScreen() {
   }, [filtered, filter, nextActive]);
 
   const total = counts.active + counts.completed + counts.cancelled;
-  const subtitle = loading ? undefined : `${total} booking${total === 1 ? '' : 's'}`;
+  const subtitle = loading
+    ? undefined
+    : `${counts.active} active · ${total} total`;
 
   const bookFab = (
-    <Pressable style={styles.fab} onPress={() => router.push('/(customer)/services')} hitSlop={8}>
-      <Plus size={20} color={colors.white} strokeWidth={2.5} />
-    </Pressable>
+    <HeaderActionButton
+      icon={Plus}
+      onPress={() => router.push('/(customer)/services')}
+      accessibilityLabel="Book a service"
+    />
   );
 
   return (
@@ -157,12 +162,4 @@ export default function MyBookingsScreen() {
 
 const styles = StyleSheet.create({
   header: { marginTop: spacing.xs },
-  fab: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.forest,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 });

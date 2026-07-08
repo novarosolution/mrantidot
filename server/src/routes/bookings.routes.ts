@@ -22,6 +22,7 @@ import { incrementOfferUse } from '../utils/coupons';
 import { notifyBookingEvent, notifyAdminsForBooking, notifyWorkOtpEvent } from '../utils/notifications';
 import {
   appendTracking,
+  incrementTechnicianJobsDone,
   issueEndOtp,
   issueStartOtp,
   regenerateOtp,
@@ -416,6 +417,13 @@ bookingsRouter.patch(
       if (nextStatus === 'in_progress') {
         throw new AppError(400, 'Use start code verification to begin work');
       }
+      if (
+        nextStatus === 'awaiting_verification' &&
+        booking.steps.length > 0 &&
+        !allStepsDone(booking.steps)
+      ) {
+        throw new AppError(400, 'Complete all treatment steps before requesting the completion code');
+      }
       try {
         assertStatusTransition(booking.status, nextStatus);
       } catch (e) {
@@ -425,11 +433,19 @@ bookingsRouter.patch(
       throw new AppError(403, 'Access denied');
     }
 
+    const enteringVerification = nextStatus === 'awaiting_verification' && booking.status !== 'awaiting_verification';
+
     booking.status = nextStatus;
+    if (enteringVerification && !booking.workOtp?.end) {
+      issueEndOtp(booking);
+    }
     await booking.save();
 
     if (nextStatus === 'in_progress') await notifyBookingEvent(booking, 'in_progress');
-    if (nextStatus === 'awaiting_verification') await notifyBookingEvent(booking, 'awaiting_verification');
+    if (enteringVerification) {
+      await notifyBookingEvent(booking, 'awaiting_verification');
+      await notifyWorkOtpEvent(booking, 'end_otp_ready');
+    }
     if (nextStatus === 'cancelled') {
       appendTracking(booking, 'cancelled');
       await booking.save();
@@ -471,8 +487,20 @@ bookingsRouter.patch(
       throw new AppError(400, 'Step not found');
     }
 
+    if (req.body.status === 'done' && req.user!.role === 'technician' && step.status !== 'active') {
+      throw new AppError(400, 'Complete the current active step first');
+    }
+
     step.status = req.body.status;
-    if (req.body.photoUrl) step.photoUrl = req.body.photoUrl;
+    if (req.body.status === 'done' && req.user!.role === 'technician') {
+      const photoUrl = req.body.photoUrl ?? step.photoUrl;
+      if (!photoUrl) {
+        throw new AppError(400, 'Photo is required to complete this step');
+      }
+      step.photoUrl = photoUrl;
+    } else if (req.body.photoUrl) {
+      step.photoUrl = req.body.photoUrl;
+    }
     if (req.body.geo) {
       const { lat, lng, address } = req.body.geo as {
         lat?: number;
@@ -482,7 +510,12 @@ bookingsRouter.patch(
       if (typeof lat !== 'number' || typeof lng !== 'number') {
         throw new AppError(400, 'geo.lat and geo.lng are required numbers');
       }
+      if (req.user!.role === 'technician' && lat === 0 && lng === 0) {
+        throw new AppError(400, 'GPS location is required for step photos');
+      }
       step.geo = { lat, lng, address: address ?? '' };
+    } else if (req.body.status === 'done' && req.user!.role === 'technician') {
+      throw new AppError(400, 'GPS location is required for step photos');
     }
     if (req.body.status === 'done') {
       step.capturedAt = new Date();
@@ -524,6 +557,7 @@ async function completeBooking(booking: IBooking, override = false): Promise<IBo
     appendTracking(booking, 'admin_override');
   }
   await booking.save();
+  await incrementTechnicianJobsDone(booking.technicianId);
   if (override) {
     await notifyBookingEvent(booking, 'completed');
   } else {

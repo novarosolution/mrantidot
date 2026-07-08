@@ -157,8 +157,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   input: {
+    fontFamily: fonts.displaySemi,
     fontSize: 32,
-    fontWeight: '600',
     letterSpacing: 12,
     color: colors.forest,
     backgroundColor: colors.soft,

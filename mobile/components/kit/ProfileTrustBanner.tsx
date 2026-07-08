@@ -1,29 +1,32 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
 import { ShieldCheck } from 'lucide-react-native';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, fonts, premium, premiumType, shadows, spacing } from '@/constants/theme';
 
 export function ProfileTrustBanner({ guaranteeText, badges }: { guaranteeText: string; badges?: string[] }) {
   const chips = badges?.slice(0, 3) ?? [];
 
   return (
     <View style={styles.wrap}>
-      <LinearGradient colors={['#E8F5EC', '#FFFFFF']} style={styles.card} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        <View style={styles.icon}>
-          <ShieldCheck size={22} color={colors.forest} strokeWidth={2} />
-        </View>
-        <View style={styles.body}>
-          <Text style={styles.title}>Protected by our guarantee</Text>
-          <Text style={styles.text}>{guaranteeText}</Text>
-          {chips.length > 0 ? (
-            <View style={styles.chips}>
-              {chips.map((b) => (
-                <View key={b} style={styles.chip}>
-                  <Text style={styles.chipText}>{b}</Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
+      <LinearGradient colors={['#FFFFFF', '#F4FAF6']} style={styles.card} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+        <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+        <View style={styles.row}>
+          <LinearGradient colors={['#14532D', '#1E8E4E']} style={styles.icon} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <ShieldCheck size={22} color={colors.white} strokeWidth={2} />
+          </LinearGradient>
+          <View style={styles.body}>
+            <Text style={styles.title}>Protected by our guarantee</Text>
+            <Text style={styles.text}>{guaranteeText}</Text>
+            {chips.length > 0 ? (
+              <View style={styles.chips}>
+                {chips.map((b) => (
+                  <View key={b} style={styles.chip}>
+                    <Text style={styles.chipText}>{b}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </View>
         </View>
       </LinearGradient>
     </View>
@@ -33,32 +36,36 @@ export function ProfileTrustBanner({ guaranteeText, badges }: { guaranteeText: s
 const styles = StyleSheet.create({
   wrap: { marginHorizontal: spacing.md, marginBottom: spacing.md },
   card: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    padding: spacing.md,
     borderRadius: premium.radiusCard,
     borderWidth: 1,
     borderColor: 'rgba(30,142,78,0.12)',
+    overflow: 'hidden',
+    ...shadows.card,
+  },
+  goldBar: { height: 3, width: '100%' },
+  row: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    padding: spacing.md,
   },
   icon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: colors.white,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   body: { flex: 1 },
-  title: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest },
-  text: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 4, lineHeight: 17 },
+  title: { ...premiumType.cardTitle, color: colors.forest },
+  text: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 5, lineHeight: 18 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.sm },
   chip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: 'rgba(30,142,78,0.08)',
+    backgroundColor: colors.soft,
+    borderWidth: 1,
+    borderColor: 'rgba(30,142,78,0.12)',
   },
   chipText: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.forest },
 });

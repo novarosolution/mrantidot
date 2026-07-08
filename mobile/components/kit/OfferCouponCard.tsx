@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ArrowRight, Calendar, Copy, Tag } from 'lucide-react-native';
 import { appToast } from '@/lib/toast';
 import type { Offer } from '@/types/api';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, customerType, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 function discountLabel(offer: Offer): string {
   if (offer.discountType === 'percent') return `${offer.discount}% OFF`;
@@ -110,19 +110,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  saveLabel: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.65)',
-    letterSpacing: 1,
-  },
+  saveLabel: { ...customerType.offerSaveLabel },
   saveValue: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 18,
-    color: colors.lime,
-    textAlign: 'center',
+    ...customerType.offerSaveValue,
     marginTop: 4,
-    lineHeight: 22,
   },
   perforation: {
     position: 'absolute',
@@ -151,12 +142,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  code: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 17,
-    color: colors.forest,
-    letterSpacing: 0.5,
-  },
+  code: { ...customerType.offerCode },
   copyBtn: {
     width: 28,
     height: 28,
@@ -173,23 +159,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(182,132,28,0.25)',
   },
-  badgeText: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 9,
-    color: premium.accentGold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
+  badgeText: { ...customerType.kicker, color: premium.accentGold },
   desc: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.muted,
+    ...customerType.offerDesc,
     marginTop: spacing.sm,
-    lineHeight: 18,
   },
   metaRow: { marginTop: spacing.sm, gap: 4 },
   expiryRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  meta: { fontFamily: fonts.body, fontSize: 11, color: colors.muted },
+  meta: { ...customerType.listMetaMuted },
   ctaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -199,7 +176,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  cta: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest },
+  cta: { ...customerType.listMeta, fontSize: 13 },
   ctaIcon: {
     width: 26,
     height: 26,

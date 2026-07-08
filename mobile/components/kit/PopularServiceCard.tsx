@@ -5,7 +5,7 @@ import { ServiceIcon } from '@/components/ServiceIcon';
 import { formatSocialProof } from '@/lib/display';
 import { serviceDisplayRating } from '@/lib/ratings';
 import type { Service } from '@/types/api';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, customerType, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 export function PopularServiceCard({
   service,
@@ -93,13 +93,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(168,224,78,0.3)',
     marginBottom: spacing.sm,
   },
-  badgeText: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 10,
-    color: colors.lime,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
+  badgeText: { ...customerType.kicker, color: colors.lime },
   body: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   icon: {
     width: 68,
@@ -113,11 +107,7 @@ const styles = StyleSheet.create({
   },
   info: { flex: 1, minWidth: 0 },
   name: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 17,
-    color: colors.white,
-    lineHeight: 22,
-    letterSpacing: -0.2,
+    ...customerType.cardTitleLight,
   },
   metaRow: {
     flexDirection: 'row',
@@ -135,14 +125,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: 'rgba(0,0,0,0.2)',
   },
-  ratingText: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 11,
-    color: colors.white,
-  },
+  ratingText: { ...customerType.listMetaMuted, color: colors.white, fontSize: 11 },
   social: {
-    fontFamily: fonts.body,
-    fontSize: 11,
+    ...customerType.listMetaMuted,
     color: 'rgba(255,255,255,0.65)',
   },
   priceRow: {
@@ -150,12 +135,7 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     marginTop: 8,
   },
-  price: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 22,
-    color: premium.accentGold,
-    letterSpacing: -0.4,
-  },
+  price: { ...customerType.listPriceHero },
   cta: {
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -165,11 +145,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
   },
-  ctaText: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 10,
-    color: colors.forest,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
+  ctaText: { ...customerType.kicker, color: colors.forest },
 });

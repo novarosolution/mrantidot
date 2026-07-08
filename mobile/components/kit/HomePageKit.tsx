@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Chip } from '@/components/ui/Chip';
+import { customerScrollProps } from '@/components/kit/GlassScreenKit';
 import { colors, spacing } from '@/constants/theme';
 
 /** Inline category chips — no bulky card wrapper. */
@@ -14,11 +15,7 @@ export function HomeCategoryFilter({
   onSelect: (label: string) => void;
 }) {
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.row}
-    >
+    <ScrollView horizontal contentContainerStyle={styles.row} {...customerScrollProps}>
       {chips.map((c) => (
         <Chip
           key={c.label}

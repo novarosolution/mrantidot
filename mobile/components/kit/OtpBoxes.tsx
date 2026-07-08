@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
-import { colors, formField, premium, spacing } from '@/constants/theme';
+import { colors, fonts, formField, premium, spacing } from '@/constants/theme';
 import { textInputDefaults } from '@/components/ui/textInputDefaults';
 
 export function OtpBoxes({
@@ -93,7 +93,8 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontSize: 28,
-    fontWeight: '600',
+    fontFamily: fonts.displaySemi,
+    letterSpacing: 2,
     color: colors.ink,
     height: '100%',
   },

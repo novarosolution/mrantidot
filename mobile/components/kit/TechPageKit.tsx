@@ -9,14 +9,17 @@ export function TechSectionTitle({
   hint,
   actionLabel,
   onAction,
+  flush,
 }: {
   title: string;
   hint?: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Use inside TechScreenGutter — drops extra horizontal inset. */
+  flush?: boolean;
 }) {
   return (
-    <View style={styles.sectionBlock}>
+    <View style={[styles.sectionBlock, flush && styles.sectionFlush]}>
       <View style={styles.sectionRow}>
         <View style={styles.sectionText}>
           <Text style={styles.sectionTitle}>{title}</Text>
@@ -44,6 +47,7 @@ export function TechCheckInCard({
   onCheckIn,
   onMarkAbsent,
   loading,
+  flush,
 }: {
   title: string;
   subtitle: string;
@@ -52,9 +56,10 @@ export function TechCheckInCard({
   onCheckIn: () => void;
   onMarkAbsent: () => void;
   loading?: boolean;
+  flush?: boolean;
 }) {
   return (
-    <View style={styles.checkInCard}>
+    <View style={[styles.checkInCard, flush && styles.cardFlush]}>
       <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.cardGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <Text style={styles.checkInTitle}>{title}</Text>
       <Text style={styles.checkInSub}>{subtitle}</Text>
@@ -72,15 +77,17 @@ export function TechOffDutyCard({
   backOnDutyLabel,
   onGoOnDuty,
   loading,
+  flush,
 }: {
   badgeLabel: string;
   hint: string;
   backOnDutyLabel: string;
   onGoOnDuty: () => void;
   loading?: boolean;
+  flush?: boolean;
 }) {
   return (
-    <View style={styles.offDutyCard}>
+    <View style={[styles.offDutyCard, flush && styles.cardFlush]}>
       <LinearGradient colors={['#FCA5A5', '#EF4444']} style={styles.cardGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <View style={styles.offDutyBadgeRow}>
         <Text style={styles.offDutyBadgeText}>{badgeLabel}</Text>
@@ -96,20 +103,27 @@ export function TechOnDutyCard({
   markOffLabel,
   onMarkOff,
   loading,
+  flush,
 }: {
   badgeLabel: string;
   markOffLabel: string;
   onMarkOff: () => void;
   loading?: boolean;
+  flush?: boolean;
 }) {
   return (
-    <View style={styles.onDutyCard}>
-      <View style={styles.onDutyRow}>
-        <Text style={styles.onDutyBadgeText}>{badgeLabel}</Text>
-        <Pressable onPress={onMarkOff} disabled={loading} hitSlop={8}>
-          <Text style={[styles.markOffLink, loading && styles.markOffDisabled]}>{markOffLabel}</Text>
-        </Pressable>
-      </View>
+    <View style={[styles.onDutyCard, flush && styles.cardFlush]}>
+      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.cardGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <LinearGradient colors={['#E8F5EC', '#FFFFFF']} style={styles.onDutyInner} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+        <View style={styles.onDutyRow}>
+          <View style={styles.onDutyBadge}>
+            <Text style={styles.onDutyBadgeText}>{badgeLabel}</Text>
+          </View>
+          <Pressable onPress={onMarkOff} disabled={loading} hitSlop={8}>
+            <Text style={[styles.markOffLink, loading && styles.markOffDisabled]}>{markOffLabel}</Text>
+          </Pressable>
+        </View>
+      </LinearGradient>
     </View>
   );
 }
@@ -143,10 +157,11 @@ export function TechQuickLink({
 
 const styles = StyleSheet.create({
   sectionBlock: { paddingHorizontal: spacing.md, marginTop: spacing.md, marginBottom: spacing.xs },
+  sectionFlush: { paddingHorizontal: 0 },
   sectionRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   sectionText: { flex: 1 },
-  sectionTitle: { fontFamily: fonts.displayExtra, fontSize: 17, color: colors.ink, letterSpacing: -0.3 },
-  sectionHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 3, lineHeight: 17 },
+  sectionTitle: { fontFamily: fonts.displayExtra, fontSize: 17, lineHeight: 22, letterSpacing: -0.35, color: colors.ink },
+  sectionHint: { fontFamily: fonts.body, fontSize: 12, lineHeight: 17, letterSpacing: 0.1, color: colors.muted, marginTop: 3 },
   sectionAction: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest, paddingTop: 2 },
   sectionRule: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm, gap: spacing.sm },
   sectionGold: { width: 28, height: 3, borderRadius: 2 },
@@ -165,9 +180,10 @@ const styles = StyleSheet.create({
   },
   cardGold: { height: 3, marginHorizontal: -spacing.md, marginTop: -spacing.sm - 4, marginBottom: spacing.sm },
   checkInTitle: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
-  checkInSub: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 4, marginBottom: spacing.md, lineHeight: 17 },
+  checkInSub: { fontFamily: fonts.body, fontSize: 12, lineHeight: 17, letterSpacing: 0.1, color: colors.muted, marginTop: 4, marginBottom: spacing.md },
   checkInActions: { flexDirection: 'row', gap: spacing.sm },
   checkInBtn: { flex: 1 },
+  cardFlush: { marginHorizontal: 0 },
   offDutyCard: {
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,
@@ -199,12 +215,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: 'rgba(20,83,45,0.07)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
+    overflow: 'hidden',
     ...shadows.card,
   },
+  onDutyInner: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 4 },
   onDutyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  onDutyBadgeText: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest, flex: 1 },
+  onDutyBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: colors.soft,
+    borderWidth: 1,
+    borderColor: 'rgba(30,142,78,0.15)',
+  },
+  onDutyBadgeText: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest },
   markOffLink: { fontFamily: fonts.bodySemi, fontSize: 12, color: '#B91C1C' },
   markOffDisabled: { opacity: 0.5 },
   dutyBadge: {

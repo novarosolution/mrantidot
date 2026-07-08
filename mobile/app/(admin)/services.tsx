@@ -13,6 +13,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
+import { adminRoutes } from '@/lib/routes';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { SERVICE_TYPE_LABELS } from '@/constants/serviceTypes';
@@ -138,6 +139,8 @@ export default function AdminServicesScreen() {
       title={listTitle}
       subtitle={listSubtitle}
       rightAction={<AdminAddButton onPress={() => openEdit()} />}
+      onBack={backToTypes}
+      backFallback={adminRoutes.services}
       headerExtra={
         <View style={styles.headerExtra}>
           <Pressable style={styles.backTypes} onPress={backToTypes}>

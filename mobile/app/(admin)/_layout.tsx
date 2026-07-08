@@ -1,44 +1,46 @@
-import { Tabs } from 'expo-router';
-import { KitTabBarButton } from '@/components/kit/KitTabBarButton';
-import { AppIcons } from '@/constants/appIcons';
-import { colors, design, fonts } from '@/constants/theme';
-
-const Tab = AppIcons.adminTab;
+import { Redirect, Stack } from 'expo-router';
+import { Spinner } from '@/components/ui/Spinner';
+import { useAuth } from '@/context/AuthContext';
+import { homeRouteForRole } from '@/lib/auth-routes';
+import { appHref } from '@/lib/routes';
 
 export default function AdminLayout() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) return <Spinner fullScreen />;
+
+  if (!user) return <Redirect href="/(auth)/login" />;
+
+  if (user.role !== 'admin') {
+    return <Redirect href={appHref(homeRouteForRole(user.role))} />;
+  }
+
   return (
-    <Tabs
+    <Stack
       screenOptions={{
         headerShown: false,
-        lazy: true,
-        tabBarActiveTintColor: design.tabBarActive,
-        tabBarInactiveTintColor: colors.muted,
-        tabBarStyle: design.tabBar,
-        tabBarLabelStyle: { fontFamily: fonts.bodySemi, fontSize: 10 },
-        tabBarButton: (props) => <KitTabBarButton {...props} />,
+        animation: 'slide_from_right',
+        contentStyle: { backgroundColor: 'transparent' },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarIcon: ({ color, size }) => <Tab.dashboard color={color} size={size} /> }} />
-      <Tabs.Screen name="bookings" options={{ title: 'Bookings', tabBarIcon: ({ color, size }) => <Tab.bookings color={color} size={size} /> }} />
-      <Tabs.Screen name="team" options={{ title: 'Team', tabBarIcon: ({ color, size }) => <Tab.team color={color} size={size} /> }} />
-      <Tabs.Screen name="reports" options={{ title: 'Reports', tabBarIcon: ({ color, size }) => <Tab.reports color={color} size={size} /> }} />
-      <Tabs.Screen name="services" options={{ href: null }} />
-      <Tabs.Screen name="technicians" options={{ href: null }} />
-      <Tabs.Screen name="customers" options={{ href: null }} />
-      <Tabs.Screen name="service-edit" options={{ href: null }} />
-      <Tabs.Screen name="booking/[id]" options={{ href: null }} />
-      <Tabs.Screen name="notifications" options={{ href: null }} />
-      <Tabs.Screen name="customer/[id]" options={{ href: null }} />
-      <Tabs.Screen name="technician/[id]" options={{ href: null }} />
-      <Tabs.Screen name="technician-edit" options={{ href: null }} />
-      <Tabs.Screen name="offers" options={{ href: null }} />
-      <Tabs.Screen name="offer-edit" options={{ href: null }} />
-      <Tabs.Screen name="customer-edit" options={{ href: null }} />
-      <Tabs.Screen name="settings" options={{ href: null }} />
-      <Tabs.Screen name="content" options={{ href: null }} />
-      <Tabs.Screen name="reviews" options={{ href: null }} />
-      <Tabs.Screen name="users" options={{ href: null }} />
-      <Tabs.Screen name="user-edit" options={{ href: null }} />
-    </Tabs>
+      <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
+      <Stack.Screen name="content" />
+      <Stack.Screen name="services" />
+      <Stack.Screen name="service-edit" />
+      <Stack.Screen name="offers" />
+      <Stack.Screen name="offer-edit" />
+      <Stack.Screen name="customers" />
+      <Stack.Screen name="customer/[id]" />
+      <Stack.Screen name="customer-edit" />
+      <Stack.Screen name="technicians" />
+      <Stack.Screen name="technician/[id]" />
+      <Stack.Screen name="technician-edit" />
+      <Stack.Screen name="users" />
+      <Stack.Screen name="user-edit" />
+      <Stack.Screen name="booking/[id]" />
+      <Stack.Screen name="notifications" />
+      <Stack.Screen name="settings" />
+      <Stack.Screen name="reviews" />
+    </Stack>
   );
 }

@@ -1,8 +1,13 @@
 import { type ComponentType } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { AdminGoldBar } from '@/components/kit/AdminScreenKit';
 import { formatDelta, isMeaningfulDelta } from '@/lib/display';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { ADMIN_KPI_COLS, adminGridCellWidth } from '@/lib/adminGrid';
+import { adminSurfaces, adminType, colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+
+export function kpiCardWidth() {
+  return adminGridCellWidth(ADMIN_KPI_COLS);
+}
 
 export function KpiCard({
   icon: Icon,
@@ -12,6 +17,7 @@ export function KpiCard({
   iconBg,
   iconColor,
   onPress,
+  width,
 }: {
   icon: ComponentType<{ color?: string; size?: number }>;
   value: string;
@@ -20,10 +26,13 @@ export function KpiCard({
   iconBg: string;
   iconColor: string;
   onPress?: () => void;
+  width?: number;
 }) {
+  const cardWidth = width ?? kpiCardWidth();
+
   const inner = (
     <>
-      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <AdminGoldBar />
       <View style={styles.content}>
         <View style={[styles.icon, { backgroundColor: iconBg }]}>
           <Icon size={18} color={iconColor} />
@@ -39,28 +48,32 @@ export function KpiCard({
 
   if (onPress) {
     return (
-      <Pressable style={({ pressed }) => [styles.card, pressed && styles.pressed]} onPress={onPress}>
+      <Pressable
+        style={({ pressed }) => [styles.card, { width: cardWidth }, pressed && styles.pressed]}
+        onPress={onPress}
+      >
         {inner}
       </Pressable>
     );
   }
 
-  return <View style={styles.card}>{inner}</View>;
+  return <View style={[styles.card, { width: cardWidth }]}>{inner}</View>;
 }
 
 const styles = StyleSheet.create({
   card: {
-    width: '47%',
     borderRadius: premium.radiusCard,
     overflow: 'hidden',
-    backgroundColor: colors.white,
+    backgroundColor: adminSurfaces.panelTint,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: adminSurfaces.cardBorder,
     ...shadows.card,
   },
   pressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
-  goldBar: { height: 3, width: '100%' },
-  content: { padding: spacing.md },
+  content: {
+    padding: spacing.md,
+    alignItems: 'center',
+  },
   icon: {
     width: 36,
     height: 36,
@@ -69,20 +82,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
-  value: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 22,
-    color: colors.forest,
-    letterSpacing: -0.4,
-  },
-  label: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    color: colors.muted,
-    marginTop: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  delta: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.green, marginTop: 4 },
+  value: { ...adminType.statValue, textAlign: 'center' },
+  label: { ...adminType.statLabel, color: colors.muted, marginTop: 2, textAlign: 'center' },
+  delta: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.green, marginTop: 4, textAlign: 'center' },
   deltaDown: { color: colors.error },
 });

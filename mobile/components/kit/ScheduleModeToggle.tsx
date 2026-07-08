@@ -67,9 +67,9 @@ const styles = StyleSheet.create({
   option: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    gap: 10,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
     backgroundColor: 'transparent',
   },
   optionOn: {
@@ -81,9 +81,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 14,
   },
   iconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',

@@ -1,41 +1,50 @@
 import { ChevronRight } from 'lucide-react-native';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
 import { SERVICE_TYPE_KEYS, type ServiceTypeKey } from '@/constants/serviceTypes';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, customerType, spacing } from '@/constants/theme';
 
 const FEATURED_TYPES: ServiceTypeKey[] = [
-  'general',
+  'deep_cleaning',
   'cockroach',
   'mosquito',
   'rodent',
   'termite',
   'bed_bug',
   'fumigation',
-  'deep_cleaning',
 ];
 
+const COLS = 4;
+const GAP = 10;
+
+function chipWidth() {
+  const pad = spacing.md * 2;
+  return (Dimensions.get('window').width - pad - GAP * (COLS - 1)) / COLS;
+}
+
 export function CustomerServiceTypeSection() {
+  const width = chipWidth();
+
   return (
     <View style={styles.wrap}>
       <PremiumSectionHeader
-        title="Pest types"
+        title="Service types"
         actionLabel="All"
         onAction={() => router.push('/(customer)/services')}
         compact
         showRule={false}
         style={styles.header}
       />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+      <View style={styles.grid}>
         {FEATURED_TYPES.map((key) => {
           const meta = SERVICE_TYPE_META[key];
           const Icon = meta.icon;
           return (
             <Pressable
               key={key}
-              style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.chip, { width }, pressed && styles.pressed]}
               onPress={() => router.push(`/browse/${key}`)}
             >
               <View style={[styles.chipIcon, { backgroundColor: meta.bg }]}>
@@ -48,13 +57,13 @@ export function CustomerServiceTypeSection() {
           );
         })}
         <Pressable
-          style={({ pressed }) => [styles.chip, styles.moreChip, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.chip, styles.moreChip, { width }, pressed && styles.pressed]}
           onPress={() => router.push('/(customer)/services')}
         >
           <Text style={styles.moreCount}>+{SERVICE_TYPE_KEYS.length - FEATURED_TYPES.length}</Text>
           <ChevronRight size={14} color={colors.muted} />
         </Pressable>
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -62,9 +71,13 @@ export function CustomerServiceTypeSection() {
 const styles = StyleSheet.create({
   wrap: { marginTop: spacing.xs },
   header: { marginTop: spacing.md, marginBottom: spacing.sm },
-  row: { paddingHorizontal: spacing.md, gap: 10, paddingBottom: 2 },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: spacing.md,
+    gap: GAP,
+  },
   chip: {
-    width: 76,
     alignItems: 'center',
     paddingVertical: 10,
     paddingHorizontal: 4,
@@ -82,11 +95,13 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   chipLabel: {
-    fontFamily: fonts.bodySemi,
+    ...customerType.kicker,
     fontSize: 10,
+    lineHeight: 13,
+    textTransform: 'none',
+    letterSpacing: 0.05,
     color: colors.ink,
     textAlign: 'center',
-    lineHeight: 13,
   },
   moreChip: {
     justifyContent: 'center',
@@ -95,7 +110,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   moreCount: {
-    fontFamily: fonts.display,
+    ...customerType.cardTitle,
     fontSize: 16,
     color: colors.forest,
     marginBottom: 2,

@@ -29,6 +29,7 @@ import { type BadgeTone } from '@/components/ui/StatusBadge';
 import { api, screenLoadConfig } from '@/lib/api';
 import { localDateKey } from '@/lib/dates';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
+import { adminRoutes, appPush } from '@/lib/routes';
 import { paramString } from '@/lib/routeParams';
 import { buildMetricDetailRows, metricSheetMeta } from '@/lib/technician-metrics';
 import { useScreenLoad } from '@/lib/useScreenLoad';
@@ -209,9 +210,14 @@ export default function AdminTechnicianDetailScreen() {
       onMetricPress={openMetric}
       compact={viewMode === 'analytics'}
       onCall={technician.phone ? () => void Linking.openURL(`tel:${technician.phone}`) : undefined}
-      onEdit={() => router.push({ pathname: '/(admin)/user-edit', params: { id: technician.id } })}
-      onPending={() => router.push('/(admin)/bookings?status=pending')}
-      onAssign={() => router.push('/(admin)/bookings')}
+      onEdit={() =>
+        router.push({
+          pathname: adminRoutes.userEdit,
+          params: { id: technician.id, returnTo: adminRoutes.technician(technician.id) },
+        })
+      }
+      onPending={() => appPush(`${adminRoutes.bookings}?status=pending`)}
+      onAssign={() => appPush(adminRoutes.bookings)}
     />
   );
 
@@ -228,7 +234,7 @@ export default function AdminTechnicianDetailScreen() {
       onAction={() => {
         if (metricSheet.key === 'pending_global') {
           closeMetricSheet();
-          router.push('/(admin)/bookings?status=pending');
+          appPush(`${adminRoutes.bookings}?status=pending`);
           return;
         }
         if (sheetMeta.listStatus) {
@@ -251,7 +257,7 @@ export default function AdminTechnicianDetailScreen() {
   if (viewMode === 'analytics') {
     return (
       <>
-        <AdminListShell title={technician.name} subtitle="Technician profile">
+        <AdminListShell title={technician.name} subtitle="Technician profile" backFallback={adminRoutes.technicians}>
           <ScrollView
             style={styles.flexList}
             contentContainerStyle={scrollContentStyle}
@@ -280,7 +286,7 @@ export default function AdminTechnicianDetailScreen() {
   if (viewMode === 'calendar') {
     return (
       <>
-        <AdminListShell title={technician.name} subtitle="Technician profile">
+        <AdminListShell title={technician.name} subtitle="Technician profile" backFallback={adminRoutes.technicians}>
           <ScrollView
             style={styles.flexList}
             contentContainerStyle={scrollContentStyle}
@@ -313,7 +319,7 @@ export default function AdminTechnicianDetailScreen() {
 
   return (
     <>
-      <AdminListShell title={technician.name} subtitle="Technician profile">
+      <AdminListShell title={technician.name} subtitle="Technician profile" backFallback={adminRoutes.technicians}>
         <SectionList
           style={styles.flexList}
           sections={sections}

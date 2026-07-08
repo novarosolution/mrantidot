@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { paramString } from '@/lib/routeParams';
-import { safeGoBack } from '@/lib/routes';
+import { adminGoBack, adminRoutes } from '@/lib/routes';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AdminFormCard, AdminFilterChips } from '@/components/kit/AdminPageKit';
@@ -104,7 +104,7 @@ export default function OfferEditScreen() {
         await api.post('/admin/offers', { ...body, active: true });
       }
       Toast.show({ type: 'success', text1: 'Saved' });
-      safeGoBack('/(admin)/offers');
+      adminGoBack(adminRoutes.offers);
     } catch (err) {
       Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not save offer') });
     } finally {
@@ -124,7 +124,7 @@ export default function OfferEditScreen() {
             try {
               await api.delete(`/admin/offers/${id}`);
               Toast.show({ type: 'success', text1: 'Offer deactivated' });
-              safeGoBack('/(admin)/offers');
+              adminGoBack(adminRoutes.offers);
             } catch (err) {
               Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not deactivate offer') });
             }
@@ -148,6 +148,7 @@ export default function OfferEditScreen() {
     <AdminListShell
       title={id ? 'Edit Offer' : 'New Offer'}
       subtitle="Coupon rules"
+      backFallback={adminRoutes.offers}
       keyboardAvoid
       stickyFooter={
         <StickyActionBar>

@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { AppIcons } from '@/constants/appIcons';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, customerType, spacing } from '@/constants/theme';
 
 const BADGES = [
   { icon: AppIcons.trust.verified, label: 'Verified pros' },
@@ -51,9 +51,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  text: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.94)',
-  },
+  text: { ...customerType.trustChip },
 });

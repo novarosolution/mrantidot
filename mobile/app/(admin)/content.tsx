@@ -20,6 +20,7 @@ import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { PromoBanner } from '@/components/ui/PromoBanner';
 import { api, screenLoadConfig } from '@/lib/api';
+import { useAppContent } from '@/context/AppContentContext';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { AppConfig, BookingCopyConfig, HomeConfig, HomePromo, Service } from '@/types/api';
 import { DEFAULT_BOOKING_COPY, BOOKING_COPY_ADMIN_GROUPS, getBookingCopy, type BookingCopyFieldKey } from '@/constants/bookingCopy';
@@ -103,6 +104,7 @@ const DEFAULT_APP: AppConfig = {
 
 export default function AdminContentScreen() {
   const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
+  const { refresh: refreshAppContent } = useAppContent();
   const { loading, error, runLoad, reload } = useScreenLoad();
   const [promo, setPromo] = useState<HomePromo | null>(null);
   const [homeConfig, setHomeConfig] = useState<HomeConfig>(DEFAULT_CONFIG);
@@ -156,6 +158,7 @@ export default function AdminContentScreen() {
         ...appRes.data.app,
         booking: getBookingCopy(appRes.data.app?.booking),
       });
+      await refreshAppContent();
       Toast.show({ type: 'success', text1: 'Content saved' });
     } catch {
       // interceptor handles toast

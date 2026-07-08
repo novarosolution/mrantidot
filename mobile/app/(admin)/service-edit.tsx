@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { safeGoBack } from '@/lib/routes';
+import { adminGoBack, adminRoutes } from '@/lib/routes';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AdminFormCard, AdminFilterChips } from '@/components/kit/AdminPageKit';
@@ -114,7 +114,7 @@ export default function ServiceEditScreen() {
         await api.post('/services', body);
       }
       Toast.show({ type: 'success', text1: 'Saved' });
-      safeGoBack('/(admin)/services');
+      adminGoBack(adminRoutes.services);
     } finally {
       setSaving(false);
     }
@@ -132,7 +132,7 @@ export default function ServiceEditScreen() {
             try {
               await api.delete(`/services/${id}`);
               Toast.show({ type: 'success', text1: 'Service deactivated' });
-              safeGoBack('/(admin)/services');
+              adminGoBack(adminRoutes.services);
             } catch {
               Toast.show({ type: 'error', text1: 'Could not deactivate service' });
             }
@@ -156,6 +156,7 @@ export default function ServiceEditScreen() {
     <AdminListShell
       title={id ? 'Edit Service' : 'New Service'}
       subtitle="Catalog item"
+      backFallback={adminRoutes.services}
       keyboardAvoid
       stickyFooter={
         <StickyActionBar>

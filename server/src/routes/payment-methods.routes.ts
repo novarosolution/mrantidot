@@ -58,6 +58,10 @@ paymentMethodsRouter.post(
 paymentMethodsRouter.patch(
   '/:id',
   param('id').isMongoId(),
+  body('type').optional().isIn(['upi_card', 'pay_after']),
+  body('label').optional().trim().notEmpty(),
+  body('details').optional().trim(),
+  body('isDefault').optional().isBoolean(),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
     const method = await PaymentMethod.findOne({ _id: req.params.id, customerId: req.user!.id });
@@ -65,7 +69,17 @@ paymentMethodsRouter.patch(
     if (req.body.isDefault) {
       await PaymentMethod.updateMany({ customerId: req.user!.id }, { isDefault: false });
     }
-    Object.assign(method, req.body);
+    // Whitelist editable fields only — never let the client overwrite customerId/_id.
+    const { type, label, details, isDefault } = req.body as {
+      type?: 'upi_card' | 'pay_after';
+      label?: string;
+      details?: string;
+      isDefault?: boolean;
+    };
+    if (type !== undefined) method.type = type;
+    if (label !== undefined) method.label = label;
+    if (details !== undefined) method.details = details;
+    if (isDefault !== undefined) method.isDefault = isDefault;
     await method.save();
     res.json({ paymentMethod: method.toJSON() });
   }),

@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppIcons } from '@/constants/appIcons';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, customerType, spacing } from '@/constants/theme';
 
 const ACTIONS = [
   {
@@ -86,10 +86,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 6,
   },
-  label: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 11,
-    color: colors.ink,
-    textAlign: 'center',
-  },
+  label: { ...customerType.quickActionLabel },
 });

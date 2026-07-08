@@ -11,31 +11,35 @@ export function BookWizardStepPanel({
   subtitle,
   children,
   animTrigger,
+  compactHeader,
 }: {
   icon: LucideIcon;
   title: string;
   subtitle?: string;
   children: ReactNode;
   animTrigger?: string | number;
+  compactHeader?: boolean;
 }) {
   return (
     <FadeSlideIn trigger={animTrigger}>
       <View style={styles.root}>
         <LinearGradient
           colors={['#FFFFFF', '#FAFCF9']}
-          style={styles.header}
+          style={[styles.header, compactHeader && styles.headerCompact]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-          <View style={styles.headerIcon}>
-            <Icon size={22} color={colors.forest} strokeWidth={2.2} />
+          <View style={[styles.headerIcon, compactHeader && styles.headerIconCompact]}>
+            <Icon size={compactHeader ? 18 : 22} color={colors.forest} strokeWidth={2.2} />
           </View>
           <View style={styles.headerText}>
-            <Text style={styles.title}>{title}</Text>
-            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+            <Text style={[styles.title, compactHeader && styles.titleCompact]}>{title}</Text>
+            {subtitle ? (
+              <Text style={[styles.subtitle, compactHeader && styles.subtitleCompact]}>{subtitle}</Text>
+            ) : null}
           </View>
         </LinearGradient>
-        <View style={styles.body}>{children}</View>
+        <View style={[styles.body, compactHeader && styles.bodyCompact]}>{children}</View>
       </View>
     </FadeSlideIn>
   );
@@ -46,24 +50,26 @@ export function BookWizardSection({
   title,
   hint,
   children,
+  compact,
 }: {
   step: number;
   title: string;
   hint?: string;
   children: ReactNode;
+  compact?: boolean;
 }) {
   return (
     <View style={styles.section}>
       <View style={styles.sectionHead}>
-        <View style={styles.stepBadge}>
+        <View style={[styles.stepBadge, compact && styles.stepBadgeCompact]}>
           <Text style={styles.stepNum}>{step}</Text>
         </View>
         <View style={styles.sectionTitles}>
-          <Text style={styles.sectionTitle}>{title}</Text>
+          <Text style={[styles.sectionTitle, compact && styles.sectionTitleCompact]}>{title}</Text>
           {hint ? <Text style={styles.sectionHint}>{hint}</Text> : null}
         </View>
       </View>
-      <View style={styles.panel}>{children}</View>
+      <View style={[styles.panel, compact && styles.panelCompact]}>{children}</View>
     </View>
   );
 }
@@ -86,6 +92,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(20,83,45,0.06)',
   },
+  headerCompact: {
+    gap: 10,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
   headerIcon: {
     width: 48,
     height: 48,
@@ -96,6 +107,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(30,142,78,0.12)',
   },
+  headerIconCompact: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+  },
   headerText: { flex: 1 },
   title: {
     fontFamily: fonts.displayExtra,
@@ -104,6 +120,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
     lineHeight: 26,
   },
+  titleCompact: {
+    fontSize: 17,
+    lineHeight: 22,
+  },
   subtitle: {
     fontFamily: fonts.body,
     fontSize: 13,
@@ -111,10 +131,20 @@ const styles = StyleSheet.create({
     marginTop: 4,
     lineHeight: 19,
   },
+  subtitleCompact: {
+    fontSize: 12,
+    marginTop: 2,
+    lineHeight: 17,
+  },
   body: {
     padding: spacing.md,
     gap: spacing.lg,
     backgroundColor: classic.screenBg,
+  },
+  bodyCompact: {
+    gap: spacing.md,
+    padding: spacing.sm,
+    paddingTop: spacing.md,
   },
   section: { gap: spacing.sm },
   sectionHead: {
@@ -131,6 +161,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  stepBadgeCompact: {
+    width: 22,
+    height: 22,
+    borderRadius: 7,
+  },
   stepNum: {
     fontFamily: fonts.bodyBold,
     fontSize: 13,
@@ -141,6 +176,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemi,
     fontSize: 14,
     color: colors.ink,
+  },
+  sectionTitleCompact: {
+    fontSize: 13,
   },
   sectionHint: {
     fontFamily: fonts.body,
@@ -155,5 +193,9 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderWidth: 1,
     borderColor: 'rgba(20,83,45,0.06)',
+  },
+  panelCompact: {
+    padding: spacing.sm,
+    borderRadius: 14,
   },
 });

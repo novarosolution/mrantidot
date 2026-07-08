@@ -11,6 +11,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { api, screenLoadConfig } from '@/lib/api';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
+import { adminRoutes } from '@/lib/routes';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { technicianDisplayRating, technicianRealRating } from '@/lib/ratings';
 import { useScreenLoad } from '@/lib/useScreenLoad';
@@ -65,7 +66,14 @@ export default function AdminTechniciansScreen() {
   }
 
   const addBtn = (
-    <AdminAddButton onPress={() => router.push({ pathname: '/(admin)/user-edit', params: { role: 'technician' } })} />
+    <AdminAddButton
+      onPress={() =>
+        router.push({
+          pathname: adminRoutes.userEdit,
+          params: { role: 'technician', returnTo: adminRoutes.technicians },
+        })
+      }
+    />
   );
 
   const listHeader = (
@@ -85,7 +93,12 @@ export default function AdminTechniciansScreen() {
   );
 
   return (
-    <AdminListShell title="Technicians" subtitle={`${techs.length} on the team`} rightAction={addBtn}>
+    <AdminListShell
+      title="Technicians"
+      subtitle={`${techs.length} on the team`}
+      rightAction={addBtn}
+      backFallback={adminRoutes.team}
+    >
       <FlatList
         data={visibleTechnicians}
         keyExtractor={(t) => t.id}
@@ -101,7 +114,7 @@ export default function AdminTechniciansScreen() {
           const st = techStatus(item);
           return (
             <View style={styles.card}>
-              <Pressable onPress={() => router.push(`/(admin)/technician/${item.id}`)}>
+              <Pressable onPress={() => router.push(adminRoutes.technician(item.id))}>
                 <View style={styles.head}>
                   <View style={styles.avatar}>
                     <Text style={styles.init}>
@@ -143,13 +156,18 @@ export default function AdminTechniciansScreen() {
                 </View>
                 <Pressable
                   style={[styles.stat, styles.actionPrimary]}
-                  onPress={() => router.push(`/(admin)/technician/${item.id}`)}
+                  onPress={() => router.push(adminRoutes.technician(item.id))}
                 >
                   <Text style={styles.actionPrimaryText}>Profile</Text>
                 </Pressable>
                 <Pressable
                   style={styles.stat}
-                  onPress={() => router.push({ pathname: '/(admin)/user-edit', params: { id: item.id } })}
+                  onPress={() =>
+                    router.push({
+                      pathname: adminRoutes.userEdit,
+                      params: { id: item.id, returnTo: adminRoutes.technicians },
+                    })
+                  }
                 >
                   <Text style={styles.actionText}>Edit</Text>
                 </Pressable>

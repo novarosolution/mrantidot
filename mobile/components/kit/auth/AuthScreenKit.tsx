@@ -17,7 +17,7 @@ import { ChevronLeft, Lock } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { safeGoBack } from '@/lib/routes';
 import { BrandLogo } from '@/components/BrandLogo';
-import { colors, fonts, gradients, premium, shadows, spacing } from '@/constants/theme';
+import { colors, fonts, gradients, premium, premiumType, shadows, spacing } from '@/constants/theme';
 
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
 
@@ -315,20 +315,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
   splashBrand: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 32,
+    ...premiumType.brandHero,
     color: colors.white,
     marginTop: spacing.lg,
     textAlign: 'center',
-    letterSpacing: -0.5,
   },
   splashTag: {
-    fontFamily: fonts.body,
-    fontSize: 14,
+    ...premiumType.brandSub,
     color: 'rgba(255,255,255,0.82)',
     marginTop: spacing.sm,
     textAlign: 'center',
-    lineHeight: 21,
     maxWidth: 300,
   },
   trustRow: {
@@ -414,14 +410,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(168,224,78,0.25)',
   },
   loginTitle: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 24,
+    ...premiumType.brandTitle,
     color: colors.white,
     marginTop: spacing.sm,
-    letterSpacing: -0.4,
   },
   loginSub: {
-    fontFamily: fonts.bodySemi,
+    ...premiumType.buttonAlt,
     fontSize: 15,
     color: colors.lime,
     marginTop: 6,

@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { safeGoBack } from '@/lib/routes';
+import { adminGoBack, adminRoutes } from '@/lib/routes';
 import {
   Alert,
   Image,
@@ -211,7 +211,7 @@ export default function AdminBookingDetailScreen() {
         safeAsync(async () => {
           await api.patch(`/bookings/${id}/cancel`);
           Toast.show({ type: 'success', text1: 'Booking cancelled' });
-          safeGoBack('/(admin)/bookings');
+          adminGoBack(adminRoutes.bookings);
         }),
     },
   ];
@@ -263,6 +263,7 @@ export default function AdminBookingDetailScreen() {
     <AdminListShell
       title={title}
       subtitle={subtitle}
+      backFallback={adminRoutes.bookings}
       stickyFooter={
         !terminal ? (
           <StickyActionBar>

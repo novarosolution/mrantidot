@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { ADMIN_KPI_COLS, adminGridCellWidth } from '@/lib/adminGrid';
 import { colors, fonts, premium, spacing } from '@/constants/theme';
 
 export type AnalyticsStatItem = {
@@ -13,15 +15,21 @@ export type AnalyticsStatItem = {
 };
 
 export function AnalyticsStatGrid({ items }: { items: AnalyticsStatItem[] }) {
+  const chipWidth = adminGridCellWidth(ADMIN_KPI_COLS);
+
   return (
     <View style={styles.grid}>
       {items.map((item) => {
-        const Icon = item.icon;
         const inner = (
           <>
-            <View style={[styles.icon, { backgroundColor: item.iconBg ?? colors.soft }]}>
-              <Icon size={16} color={item.iconColor ?? colors.green} />
-            </View>
+            <PremiumIcon
+              icon={item.icon}
+              variant="soft"
+              size="md"
+              color={item.iconColor ?? colors.green}
+              bg={item.iconBg ?? colors.soft}
+              boxSize={36}
+            />
             <Text style={styles.value}>{item.value}</Text>
             <Text style={styles.label}>{item.label}</Text>
           </>
@@ -30,7 +38,7 @@ export function AnalyticsStatGrid({ items }: { items: AnalyticsStatItem[] }) {
           return (
             <Pressable
               key={item.key}
-              style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.chip, { width: chipWidth }, pressed && styles.pressed]}
               onPress={item.onPress}
             >
               {inner}
@@ -38,7 +46,7 @@ export function AnalyticsStatGrid({ items }: { items: AnalyticsStatItem[] }) {
           );
         }
         return (
-          <View key={item.key} style={styles.chip}>
+          <View key={item.key} style={[styles.chip, { width: chipWidth }]}>
             {inner}
           </View>
         );
@@ -48,26 +56,18 @@ export function AnalyticsStatGrid({ items }: { items: AnalyticsStatItem[] }) {
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, width: '100%' },
   chip: {
-    width: '47%',
-    flexGrow: 1,
     padding: spacing.md,
     borderRadius: premium.radiusCard,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
+    gap: 8,
+    alignItems: 'center',
     ...premium.shadowSoft,
   },
   pressed: { opacity: 0.85 },
-  icon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  value: { fontFamily: fonts.displayExtra, fontSize: 18, color: colors.forest },
-  label: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
+  value: { fontFamily: fonts.displayExtra, fontSize: 18, color: colors.forest, textAlign: 'center' },
+  label: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2, textAlign: 'center' },
 });

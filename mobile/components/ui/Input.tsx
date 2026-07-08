@@ -1,6 +1,6 @@
 import { forwardRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
-import { colors, fonts, formField, spacing } from '@/constants/theme';
+import { colors, fonts, formField, premiumType, spacing } from '@/constants/theme';
 import { textInputDefaults, textInputStyles } from '@/components/ui/textInputDefaults';
 
 interface InputProps extends TextInputProps {
@@ -66,11 +66,10 @@ Input.displayName = 'Input';
 const styles = StyleSheet.create({
   wrap: { marginBottom: spacing.md },
   label: {
+    ...premiumType.label,
     fontSize: formField.labelSize,
-    fontFamily: fonts.bodySemi,
     color: colors.ink,
     marginBottom: 8,
-    letterSpacing: 0.2,
   },
   fieldWrap: {
     backgroundColor: formField.bgMuted,

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeHero } from '@/components/kit/HomeHero';
+import { TAB_BAR_SCROLL_PAD, customerScrollProps } from '@/components/kit/GlassScreenKit';
 import { HomeQuickActions } from '@/components/kit/HomeQuickActions';
 import { HomeServicesEmpty } from '@/components/kit/HomeServicesEmpty';
 import { HomeServicesSection } from '@/components/kit/HomeServicesSection';
@@ -181,6 +182,7 @@ export default function CustomerHome() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />
         }
         showsVerticalScrollIndicator={false}
+        {...customerScrollProps}
       >
         {/* —— Hero + search —— */}
         <HomeHero
@@ -260,8 +262,8 @@ export default function CustomerHome() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: design.screenBg },
+  safe: { flex: 1, backgroundColor: design.screenBg, overflow: 'hidden' },
   root: { flex: 1 },
-  content: { paddingBottom: spacing.xxl + 16 },
+  content: { paddingBottom: TAB_BAR_SCROLL_PAD, flexGrow: 1 },
   loadingBox: { paddingVertical: spacing.lg, alignItems: 'center' },
 });

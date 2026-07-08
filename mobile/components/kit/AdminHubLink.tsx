@@ -1,7 +1,7 @@
 import { ChevronRight, LucideIcon } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { adminSurfaces, adminType, colors, gradients, premium, shadows, spacing } from '@/constants/theme';
 
 export function AdminHubLink({
   icon: Icon,
@@ -20,7 +20,7 @@ export function AdminHubLink({
 }) {
   return (
     <Pressable style={({ pressed }) => [styles.card, pressed && styles.pressed]} onPress={onPress}>
-      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldEdge} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+      <LinearGradient colors={[...gradients.goldBar]} style={styles.goldEdge} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
       <View style={[styles.icon, { backgroundColor: accentBg }]}>
         <Icon size={20} color={accent} strokeWidth={2.2} />
       </View>
@@ -32,7 +32,9 @@ export function AdminHubLink({
           </Text>
         ) : null}
       </View>
-      <ChevronRight size={18} color={colors.muted} strokeWidth={2} />
+      <View style={styles.chevron}>
+        <ChevronRight size={16} color={colors.forest} strokeWidth={2.5} />
+      </View>
     </Pressable>
   );
 }
@@ -42,12 +44,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: spacing.md,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
     paddingLeft: spacing.md + 4,
     borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
+    backgroundColor: adminSurfaces.panelTint,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: adminSurfaces.cardBorder,
     overflow: 'hidden',
     ...shadows.card,
   },
@@ -68,6 +71,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   body: { flex: 1, minWidth: 0 },
-  label: { fontFamily: fonts.bodySemi, fontSize: 15, color: colors.ink },
-  desc: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 2 },
+  label: { ...adminType.hubLabel },
+  desc: { ...adminType.hubDesc },
+  chevron: {
+    width: 28,
+    height: 28,
+    borderRadius: 999,
+    backgroundColor: colors.soft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

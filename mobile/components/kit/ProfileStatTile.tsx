@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, customerType, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 export type ProfileStatItem = {
   value: string;
@@ -108,16 +108,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   value: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 20,
-    letterSpacing: -0.4,
-    lineHeight: 24,
+    ...customerType.statValue,
   },
-  label: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 9,
-    color: colors.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
+  label: { ...customerType.statLabel },
 });

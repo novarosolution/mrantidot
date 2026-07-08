@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, premiumType, spacing } from '@/constants/theme';
 
 export function Chip({
   label,
@@ -75,12 +75,12 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   textSelected: {
-    fontFamily: fonts.bodySemi,
+    ...premiumType.buttonAlt,
     fontSize: 13,
     color: colors.white,
   },
   textDefault: {
-    fontFamily: fonts.bodySemi,
+    ...premiumType.buttonAlt,
     fontSize: 13,
     color: colors.forest,
   },
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(20,83,45,0.1)',
   },
   compactText: {
-    fontFamily: fonts.bodySemi,
+    ...premiumType.buttonAlt,
     fontSize: 13,
     color: colors.forest,
   },

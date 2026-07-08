@@ -10,6 +10,7 @@ import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
+import { adminRoutes } from '@/lib/routes';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { User, UserRole } from '@/types/api';
@@ -98,10 +99,21 @@ export default function AdminUsersScreen() {
     );
   }
 
-  const addBtn = <AdminAddButton onPress={() => router.push('/(admin)/user-edit')} />;
+  const addBtn = (
+    <AdminAddButton
+      onPress={() =>
+        router.push({ pathname: adminRoutes.userEdit, params: { returnTo: adminRoutes.users } })
+      }
+    />
+  );
 
   return (
-    <AdminListShell title="Users & roles" subtitle={`${users.length} accounts`} rightAction={addBtn}>
+    <AdminListShell
+      title="Users & roles"
+      subtitle={`${users.length} accounts`}
+      rightAction={addBtn}
+      backFallback={adminRoutes.team}
+    >
       <FlatList
         data={visible}
         keyExtractor={(u) => u.id}
@@ -116,7 +128,12 @@ export default function AdminUsersScreen() {
         renderItem={({ item }) => (
           <Pressable
             style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-            onPress={() => router.push({ pathname: '/(admin)/user-edit', params: { id: item.id } })}
+            onPress={() =>
+              router.push({
+                pathname: adminRoutes.userEdit,
+                params: { id: item.id, returnTo: adminRoutes.users },
+              })
+            }
           >
             <View style={styles.row}>
               <View style={styles.avatar}>

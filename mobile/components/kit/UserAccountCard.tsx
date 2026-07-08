@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/context/AuthContext';
 import { displayUserEmail, displayUserName } from '@/lib/profile-display';
 import type { UserRole } from '@/types/api';
-import { colors, fonts, gradients, spacing, surfaces } from '@/constants/theme';
+import { colors, customerType, fonts, gradients, premium, shadows, spacing } from '@/constants/theme';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   customer: 'Customer',
@@ -12,7 +12,16 @@ const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Admin',
 };
 
-export function UserAccountCard({ compact, onPress }: { compact?: boolean; onPress?: () => void }) {
+export function UserAccountCard({
+  compact,
+  embedded,
+  onPress,
+}: {
+  compact?: boolean;
+  /** Render without outer card — for glass panels. */
+  embedded?: boolean;
+  onPress?: () => void;
+}) {
   const { user } = useAuth();
   if (!user) return null;
 
@@ -22,10 +31,11 @@ export function UserAccountCard({ compact, onPress }: { compact?: boolean; onPre
 
   const inner = (
     <View style={styles.inner}>
+      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <LinearGradient colors={[...gradients.avatarRing]} style={styles.avatarRing}>
-        <View style={styles.avatar}>
+        <LinearGradient colors={['#14532D', '#1E8E4E']} style={styles.avatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <Text style={styles.avatarText}>{initial}</Text>
-        </View>
+        </LinearGradient>
       </LinearGradient>
       <View style={styles.flex}>
         <Text style={styles.name} numberOfLines={1}>
@@ -47,6 +57,10 @@ export function UserAccountCard({ compact, onPress }: { compact?: boolean; onPre
       </View>
     </View>
   );
+
+  if (embedded) {
+    return <View style={[styles.wrap, compact && styles.compact, styles.embedded]}>{inner}</View>;
+  }
 
   if (onPress) {
     return (
@@ -70,34 +84,37 @@ export function UserAccountCard({ compact, onPress }: { compact?: boolean; onPre
 const styles = StyleSheet.create({
   wrap: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
   compact: { marginHorizontal: 0, marginBottom: spacing.md },
-  card: { padding: spacing.md },
-  inner: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  embedded: { marginBottom: 0 },
+  card: { padding: 0, overflow: 'hidden', ...shadows.card },
+  inner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: spacing.md, position: 'relative' },
+  goldBar: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
   avatarRing: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
+    width: 54,
+    height: 54,
+    borderRadius: 18,
     padding: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: colors.forest,
+    width: 50,
+    height: 50,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontFamily: fonts.displayExtra, fontSize: 16, color: colors.white },
+  avatarText: { fontFamily: fonts.displayExtra, fontSize: 20, color: colors.white, letterSpacing: -0.2 },
   flex: { flex: 1, minWidth: 0 },
-  name: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
-  contact: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 2 },
-  city: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
+  name: { ...customerType.accountName },
+  contact: { ...customerType.accountMeta },
+  city: { ...customerType.listMeta, fontSize: 11, marginTop: 2 },
   badge: {
-    backgroundColor: surfaces.tintInfo,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
+    backgroundColor: colors.soft,
+    borderWidth: 1,
+    borderColor: 'rgba(30,142,78,0.15)',
   },
-  badgeText: { fontFamily: fonts.bodySemi, fontSize: 10, color: surfaces.tintInfoInk },
+  badgeText: { ...customerType.pillLabel, color: colors.forest },
 });

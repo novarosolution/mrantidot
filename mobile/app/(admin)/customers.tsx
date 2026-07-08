@@ -13,6 +13,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { formatRupee } from '@/components/kit/format';
 import { api, screenLoadConfig } from '@/lib/api';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
+import { adminRoutes } from '@/lib/routes';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { isAccountDisabled } from '@/lib/user-helpers';
@@ -99,11 +100,23 @@ export default function AdminCustomersScreen() {
   }
 
   const addBtn = (
-    <AdminAddButton onPress={() => router.push({ pathname: '/(admin)/user-edit', params: { role: 'customer' } })} />
+    <AdminAddButton
+      onPress={() =>
+        router.push({
+          pathname: adminRoutes.userEdit,
+          params: { role: 'customer', returnTo: adminRoutes.customers },
+        })
+      }
+    />
   );
 
   return (
-    <AdminListShell title="Customers" subtitle={`${summary.total} registered`} rightAction={addBtn}>
+    <AdminListShell
+      title="Customers"
+      subtitle={`${summary.total} registered`}
+      rightAction={addBtn}
+      backFallback={adminRoutes.team}
+    >
       <FlatList
         data={visibleCustomers}
         keyExtractor={(c) => c.id}
@@ -114,7 +127,7 @@ export default function AdminCustomersScreen() {
         contentContainerStyle={visibleCustomers.length === 0 ? adminListShellStyles.empty : adminListShellStyles.list}
         ListEmptyComponent={<EmptyState title="No customers" message="Try another filter or add a customer" />}
         renderItem={({ item }) => (
-          <Pressable onPress={() => router.push(`/(admin)/customer/${item.id}`)}>
+          <Pressable onPress={() => router.push(adminRoutes.customer(item.id))}>
             <Card variant="premium" style={{ ...styles.card, ...(isAccountDisabled(item) ? styles.cardDisabled : {}) }}>
               <View style={styles.avatar}>
                 <Text style={styles.initial}>

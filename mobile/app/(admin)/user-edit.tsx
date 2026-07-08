@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { safeGoBack } from '@/lib/routes';
+import { adminGoBack, adminRoutes } from '@/lib/routes';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AdminFormCard, AdminFilterChips } from '@/components/kit/AdminPageKit';
@@ -35,6 +35,7 @@ export default function UserEditScreen() {
   const { user: me, refreshMe } = useAuth();
   const id = paramString(useLocalSearchParams<{ id?: string | string[] }>().id);
   const initialRole = parseInitialRole(useLocalSearchParams<{ role?: string | string[] }>().role);
+  const returnTo = paramString(useLocalSearchParams<{ returnTo?: string | string[] }>().returnTo) || adminRoutes.users;
 
   const [role, setRole] = useState<UserRole>(initialRole);
   const [name, setName] = useState('');
@@ -127,7 +128,7 @@ export default function UserEditScreen() {
         });
       }
       Toast.show({ type: 'success', text1: 'Saved' });
-      safeGoBack('/(admin)/users');
+      adminGoBack(returnTo);
     } catch (err) {
       Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not save user') });
     } finally {
@@ -147,7 +148,7 @@ export default function UserEditScreen() {
             try {
               await api.delete(`/admin/users/${id}`);
               Toast.show({ type: 'success', text1: 'Account disabled' });
-              safeGoBack('/(admin)/users');
+              adminGoBack(returnTo);
             } catch (err) {
               Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not disable account') });
             }
@@ -174,6 +175,7 @@ export default function UserEditScreen() {
     <AdminListShell
       title={title}
       subtitle={subtitle}
+      backFallback={returnTo}
       keyboardAvoid
       stickyFooter={
         <StickyActionBar>

@@ -75,7 +75,6 @@ reviewsRouter.post(
     const avg = agg[0]?.avg ?? req.body.stars;
     await User.findByIdAndUpdate(booking.technicianId, {
       rating: Math.round(avg * 10) / 10,
-      $inc: { jobsDone: 1 },
     });
 
     res.status(201).json({ review: formatReview(review) });

@@ -32,7 +32,7 @@ if (!isProduction) {
 
 export const env = {
   isProduction,
-  port: parseInt(process.env.PORT ?? '4000', 10),
+  port: parseInt(process.env.PORT ?? '4001', 10),
   mongoUri,
   jwtSecret: process.env.JWT_SECRET ?? 'supersecret_change_me',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',

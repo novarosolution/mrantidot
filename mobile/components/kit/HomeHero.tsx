@@ -6,7 +6,7 @@ import { Bell, MapPin, RefreshCw, Search, X } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useLocation } from '@/context/LocationContext';
 import { homeGreetingName } from '@/lib/profile-display';
-import { colors, design, fonts, gradients, headerTopPad, shadows, spacing } from '@/constants/theme';
+import { colors, customerType, design, fonts, gradients, headerTopPad, shadows, spacing } from '@/constants/theme';
 import { textInputDefaults } from '@/components/ui/textInputDefaults';
 
 const ACTION = 44;
@@ -123,6 +123,8 @@ export function HomeHero({
             onChangeText={onChangeQuery}
             onSubmitEditing={onSubmitSearch}
             returnKeyType="search"
+            scrollEnabled={false}
+            multiline={false}
           />
           {query.length > 0 ? (
             <Pressable style={styles.clearBtn} onPress={() => onChangeQuery('')} hitSlop={8}>
@@ -178,17 +180,13 @@ const styles = StyleSheet.create({
   },
   greetCol: { flex: 1, paddingTop: 2 },
   eyebrow: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 13,
+    ...customerType.heroEyebrow,
     color: 'rgba(255,255,255,0.72)',
   },
   greet: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 30,
-    lineHeight: 36,
+    ...customerType.heroGreeting,
     color: colors.white,
-    letterSpacing: -0.6,
-    marginTop: 2,
+    marginTop: 4,
   },
   actions: {
     flexDirection: 'row',
@@ -230,8 +228,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.white,
   },
-  badgeText: { fontFamily: fonts.bodyBold, fontSize: 9, color: colors.white },
-  avatarText: { fontFamily: fonts.displayExtra, color: colors.white, fontSize: 17 },
+  badgeText: { ...customerType.badgeCount },
+  avatarText: { fontFamily: fonts.displayExtra, color: colors.white, fontSize: 17, letterSpacing: -0.2 },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -248,9 +246,7 @@ const styles = StyleSheet.create({
   },
   locationText: {
     flexShrink: 1,
-    fontFamily: fonts.bodySemi,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.92)',
+    ...customerType.locationChip,
   },
   searchOuter: {
     marginTop: -28,
@@ -271,9 +267,8 @@ const styles = StyleSheet.create({
   },
   search: {
     flex: 1,
-    fontFamily: fonts.body,
-    fontSize: 15,
-    color: colors.ink,
+    minWidth: 0,
+    ...customerType.searchInput,
     paddingVertical: 0,
   },
   clearBtn: {

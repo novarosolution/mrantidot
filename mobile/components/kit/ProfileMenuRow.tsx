@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ChevronRight, type LucideIcon } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { colors, fonts, spacing } from '@/constants/theme';
+import type { LucideIcon } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
+import { colors, customerType, fonts, spacing } from '@/constants/theme';
 
 export function ProfileMenuRow({
   icon: Icon,
@@ -24,9 +25,7 @@ export function ProfileMenuRow({
 }) {
   return (
     <Pressable style={({ pressed }) => [styles.row, showBorder && styles.border, pressed && styles.pressed]} onPress={onPress}>
-      <LinearGradient colors={[iconBg, colors.white]} style={styles.icon} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        <Icon size={19} color={tint} strokeWidth={2} />
-      </LinearGradient>
+      <PremiumIcon icon={Icon} variant="soft" size="md" color={tint} bg={iconBg} boxSize={48} />
       <View style={styles.textCol}>
         <View style={styles.labelRow}>
           <Text style={styles.label}>{label}</Text>
@@ -38,9 +37,7 @@ export function ProfileMenuRow({
         </View>
         {description ? <Text style={styles.desc}>{description}</Text> : null}
       </View>
-      <View style={styles.chevron}>
-        <ChevronRight size={16} color={colors.forest} strokeWidth={2.5} />
-      </View>
+      <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size="sm" color={colors.forest} />
     </Pressable>
   );
 }
@@ -49,24 +46,15 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 15,
     paddingHorizontal: spacing.md,
     gap: 14,
   },
-  pressed: { opacity: 0.9, backgroundColor: 'rgba(20,83,45,0.02)' },
-  border: { borderBottomWidth: 1, borderBottomColor: 'rgba(20,83,45,0.06)' },
-  icon: {
-    width: 46,
-    height: 46,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
+  pressed: { backgroundColor: 'rgba(20,83,45,0.03)' },
+  border: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(20,83,45,0.08)' },
   textCol: { flex: 1, minWidth: 0 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  label: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.ink },
+  label: { ...customerType.menuLabel },
   badge: {
     minWidth: 20,
     height: 20,
@@ -77,13 +65,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeText: { fontFamily: fonts.bodyBold, fontSize: 10, color: colors.white },
-  desc: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 2 },
-  chevron: {
-    width: 28,
-    height: 28,
-    borderRadius: 999,
-    backgroundColor: colors.soft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  desc: { ...customerType.menuDesc },
 });

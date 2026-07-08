@@ -1,24 +1,18 @@
-import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import {
   CalendarCheck,
-  ClipboardList,
   Download,
-  HardHat,
   IndianRupee,
-  MessageSquare,
   Percent,
   Receipt,
-  SprayCan,
   Star,
-  Tag,
   Users,
 } from 'lucide-react-native';
 import { StatusPipelineCard } from '@/components/kit/StatusPipelineCard';
 import { AdminListShell, adminStyles } from '@/components/kit/AdminListShell';
-import { AdminFilterChips, AdminStatStrip } from '@/components/kit/AdminPageKit';
+import { AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AnalyticsStatGrid } from '@/components/kit/AnalyticsStatGrid';
 import { formatRupee } from '@/components/kit/format';
 import { KpiCard } from '@/components/kit/KpiCard';
@@ -26,7 +20,6 @@ import { RevenueBarChart } from '@/components/kit/RevenueBarChart';
 import {
   BookingsTrendChart,
   ReportsInsightGrid,
-  ReportsManageGrid,
   ReportsRankList,
   ReportsSectionCard,
   ReportsTeamCard,
@@ -35,39 +28,12 @@ import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { AppIcons } from '@/constants/appIcons';
 import { api, screenLoadConfig } from '@/lib/api';
+import { appPush } from '@/lib/routes';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { AdminStats, TeamAttendanceStats } from '@/types/api';
 import { colors, fonts, spacing } from '@/constants/theme';
 
 const PERIODS = ['Week', 'Month', 'Quarter', 'Year'];
-
-const MANAGE_ITEMS = [
-  { key: 'bookings', icon: ClipboardList, label: 'Bookings', desc: 'Assign & track jobs' },
-  { key: 'services', icon: SprayCan, label: 'Services', desc: 'Catalog & pricing' },
-  { key: 'offers', icon: Tag, label: 'Offers', desc: 'Promo codes & deals' },
-  { key: 'reviews', icon: MessageSquare, label: 'Reviews', desc: 'Customer feedback' },
-  { key: 'content', icon: AppIcons.adminQuick.content, label: 'App content', desc: 'Copy & home screen' },
-  { key: 'team', icon: HardHat, label: 'Team', desc: 'Technicians & users' },
-];
-
-function manageRoute(key: string) {
-  switch (key) {
-    case 'bookings':
-      return router.push('/(admin)/bookings');
-    case 'services':
-      return router.push('/(admin)/services');
-    case 'offers':
-      return router.push('/(admin)/offers');
-    case 'reviews':
-      return router.push('/(admin)/reviews');
-    case 'content':
-      return router.push('/(admin)/content');
-    case 'team':
-      return router.push('/(admin)/team');
-    default:
-      break;
-  }
-}
 
 export default function AdminReportsScreen() {
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -160,7 +126,7 @@ export default function AdminReportsScreen() {
         icon: CalendarCheck,
         iconBg: colors.blueBg,
         iconColor: colors.blue,
-        onPress: () => router.push('/(admin)/bookings'),
+        onPress: () => appPush('/(admin)/bookings'),
       },
       {
         key: 'customers',
@@ -169,16 +135,16 @@ export default function AdminReportsScreen() {
         icon: Users,
         iconBg: colors.soft,
         iconColor: colors.green,
-        onPress: () => router.push('/(admin)/customers'),
+        onPress: () => appPush('/(admin)/customers'),
       },
       {
         key: 'techs',
         label: 'Technicians',
         value: String(stats.technicians),
-        icon: HardHat,
+        icon: AppIcons.adminQuick.addTech,
         iconBg: colors.secondarySoft,
         iconColor: colors.secondaryDark,
-        onPress: () => router.push('/(admin)/technicians'),
+        onPress: () => appPush('/(admin)/technicians'),
       },
       {
         key: 'reviews',
@@ -187,7 +153,7 @@ export default function AdminReportsScreen() {
         icon: Star,
         iconBg: colors.amberBg,
         iconColor: colors.amberInk,
-        onPress: () => router.push('/(admin)/reviews'),
+        onPress: () => appPush('/(admin)/reviews'),
       },
       {
         key: 'completion',
@@ -204,7 +170,7 @@ export default function AdminReportsScreen() {
         icon: Percent,
         iconBg: colors.secondarySoft,
         iconColor: colors.secondaryInk,
-        onPress: () => router.push('/(admin)/offers'),
+        onPress: () => appPush('/(admin)/offers'),
       },
     ];
   }, [stats, period]);
@@ -249,19 +215,6 @@ export default function AdminReportsScreen() {
           </View>
         ) : null}
 
-        <AdminStatStrip
-          items={[
-            { label: 'Revenue', value: formatRupee(stats.periodRevenue ?? stats.revenueCompleted) },
-            { label: 'Bookings', value: stats.periodBookings ?? 0 },
-            { label: 'Customers', value: stats.customers },
-            {
-              label: 'Complete',
-              value: a ? `${a.performance.completionRate}%` : '—',
-              color: colors.green,
-            },
-          ]}
-        />
-
         <View style={styles.grid}>
           <KpiCard
             icon={IndianRupee}
@@ -278,7 +231,7 @@ export default function AdminReportsScreen() {
             delta={stats.deltas?.bookings}
             iconBg={colors.blueBg}
             iconColor={colors.blue}
-            onPress={() => router.push('/(admin)/bookings')}
+            onPress={() => appPush('/(admin)/bookings')}
           />
           <KpiCard
             icon={Receipt}
@@ -294,7 +247,7 @@ export default function AdminReportsScreen() {
             delta={stats.deltas?.pending}
             iconBg={colors.amberBg}
             iconColor={colors.amberInk}
-            onPress={() => router.push('/(admin)/bookings?status=pending')}
+            onPress={() => appPush('/(admin)/bookings?status=pending')}
           />
         </View>
 
@@ -307,13 +260,13 @@ export default function AdminReportsScreen() {
             title="Booking pipeline"
             hint={`All-time totals · +N = new in ${period.toLowerCase()}`}
             actionLabel="View all"
-            onAction={() => router.push('/(admin)/bookings')}
+            onAction={() => appPush('/(admin)/bookings')}
           >
             <StatusPipelineCard
               hideTitle
               items={stats.statusBreakdown}
               periodLabel={`New bookings in ${period.toLowerCase()} shown per status`}
-              onStatusPress={(status) => router.push(`/(admin)/bookings?status=${status}`)}
+              onStatusPress={(status) => appPush(`/(admin)/bookings?status=${status}`)}
             />
           </ReportsSectionCard>
         ) : null}
@@ -335,14 +288,14 @@ export default function AdminReportsScreen() {
             title="Team attendance"
             hint={`Field team performance · ${period.toLowerCase()}`}
             actionLabel="Team"
-            onAction={() => router.push('/(admin)/technicians')}
+            onAction={() => appPush('/(admin)/technicians')}
           >
             <ReportsTeamCard
               checkedInToday={teamAttendance.checkedInToday}
               totalTechnicians={teamAttendance.totalTechnicians}
               averageRate={teamAttendance.averageAttendanceRate}
               lowAttendance={teamAttendance.lowAttendance}
-              onTechPress={(id) => router.push(`/(admin)/technician/${id}`)}
+              onTechPress={(id) => appPush(`/(admin)/technician/${id}`)}
             />
           </ReportsSectionCard>
         ) : null}
@@ -355,7 +308,7 @@ export default function AdminReportsScreen() {
                 title: t.name,
                 subtitle: `${t.jobs} jobs · ${formatRupee(t.revenue)}`,
                 value: t.jobs,
-                onPress: () => router.push(`/(admin)/technician/${t.id}`),
+                onPress: () => appPush(`/(admin)/technician/${t.id}`),
               }))}
             />
           </ReportsSectionCard>
@@ -365,7 +318,7 @@ export default function AdminReportsScreen() {
           title="Top services"
           hint={`Most booked in ${period.toLowerCase()}`}
           actionLabel="Catalog"
-          onAction={() => router.push('/(admin)/services')}
+          onAction={() => appPush('/(admin)/services')}
         >
           <ReportsRankList
             items={stats.topServices.map((s) => ({
@@ -373,7 +326,7 @@ export default function AdminReportsScreen() {
               title: s.name,
               subtitle: `${s.count} bookings`,
               value: s.count,
-              onPress: () => router.push(`/(admin)/bookings?serviceId=${s.serviceId}`),
+              onPress: () => appPush(`/(admin)/bookings?serviceId=${s.serviceId}`),
             }))}
             emptyMessage="No bookings in this period yet."
           />
@@ -387,7 +340,7 @@ export default function AdminReportsScreen() {
                 title: c.name,
                 subtitle: `${c.bookings} bookings · ${formatRupee(c.spend)}`,
                 value: c.spend,
-                onPress: () => router.push(`/(admin)/customer/${c.id}`),
+                onPress: () => appPush(`/(admin)/customer/${c.id}`),
               }))}
             />
           </ReportsSectionCard>
@@ -448,10 +401,6 @@ export default function AdminReportsScreen() {
             />
           </ReportsSectionCard>
         ) : null}
-
-        <ReportsSectionCard title="Manage data" hint="Jump to admin screens to update content & records">
-          <ReportsManageGrid items={MANAGE_ITEMS} onPress={manageRoute} />
-        </ReportsSectionCard>
       </ScrollView>
     </AdminListShell>
   );
@@ -470,6 +419,6 @@ const styles = StyleSheet.create({
   },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
   loadingText: { fontFamily: fonts.body, fontSize: 13, color: colors.muted },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: spacing.md, marginTop: spacing.sm },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: spacing.md, marginTop: spacing.sm, width: '100%' },
   chartFlush: { marginHorizontal: -spacing.md },
 });

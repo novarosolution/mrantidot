@@ -3,6 +3,7 @@ import { StyleSheet, View, type RefreshControlProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomerPageHeader } from './CustomerPageHeader';
 import { UserAccountCard } from './UserAccountCard';
+import { TAB_BAR_SCROLL_PAD, customerScrollProps } from '@/components/kit/GlassScreenKit';
 import { colors, design, spacing } from '@/constants/theme';
 
 export function CustomerListShell({
@@ -45,13 +46,13 @@ export function CustomerListShell({
 }
 
 export const listShellStyles = StyleSheet.create({
-  list: { padding: spacing.md, paddingBottom: spacing.xl },
-  empty: { flexGrow: 1, padding: spacing.md },
+  list: { padding: spacing.md, paddingBottom: TAB_BAR_SCROLL_PAD },
+  empty: { flexGrow: 1, padding: spacing.md, paddingBottom: TAB_BAR_SCROLL_PAD },
 });
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: design.screenBg },
-  body: { flex: 1 },
+  safe: { flex: 1, backgroundColor: design.screenBg, overflow: 'hidden' },
+  body: { flex: 1, overflow: 'hidden' },
 });
 
 export type { RefreshControlProps };

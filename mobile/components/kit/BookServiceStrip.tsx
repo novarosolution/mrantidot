@@ -5,7 +5,7 @@ import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import type { Service } from '@/types/api';
-import { colors, fonts, gradients, headerTopPad, spacing } from '@/constants/theme';
+import { colors, fonts, gradients, headerTopPad, premiumType, spacing } from '@/constants/theme';
 
 export function BookServiceStrip({
   service,
@@ -14,14 +14,18 @@ export function BookServiceStrip({
   title,
   subtitle,
   compact,
+  variant = compact ? 'compact' : 'hero',
 }: {
   service: Service;
   durationLabel: string;
   onBack?: () => void;
   title?: string;
   subtitle?: string;
+  /** @deprecated use variant */
   compact?: boolean;
+  variant?: 'hero' | 'slim' | 'compact';
 }) {
+  const resolvedVariant = compact && variant === 'hero' ? 'compact' : variant;
   const insets = useSafeAreaInsets();
   const hero = useRef(new Animated.Value(0)).current;
   const shimmer = useRef(new Animated.Value(0)).current;
@@ -60,12 +64,16 @@ export function BookServiceStrip({
     ],
   };
 
+  const isSlim = resolvedVariant === 'slim';
+  const isCompact = resolvedVariant === 'compact';
+
   return (
     <LinearGradient
       colors={[...gradients.bookHero]}
       style={[
         styles.wrap,
-        compact && styles.wrapCompact,
+        (isCompact || isSlim) && styles.wrapCompact,
+        isSlim && styles.wrapSlim,
         onBack ? { paddingTop: headerTopPad(insets.top) } : null,
       ]}
     >
@@ -83,9 +91,9 @@ export function BookServiceStrip({
         ]}
       />
       {onBack ? (
-        <View style={[styles.navRow, compact && styles.navRowCompact]}>
+        <View style={[styles.navRow, (isCompact || isSlim) && styles.navRowCompact]}>
           <Pressable
-            style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.backBtn, isSlim && styles.backBtnSlim, pressed && styles.pressed]}
             onPress={onBack}
             hitSlop={8}
             accessibilityRole="button"
@@ -95,27 +103,33 @@ export function BookServiceStrip({
           </Pressable>
           <View style={styles.navText}>
             {title ? (
-              <Text style={styles.navTitle} numberOfLines={1}>
+              <Text style={[styles.navTitle, isSlim && styles.navTitleSlim]} numberOfLines={1}>
                 {title}
               </Text>
             ) : null}
-            {subtitle ? (
+            {isSlim ? (
+              <Text style={styles.navSub} numberOfLines={1}>
+                {service.name} · {durationLabel}
+              </Text>
+            ) : subtitle ? (
               <Text style={styles.navSub} numberOfLines={1}>
                 {subtitle}
               </Text>
             ) : null}
           </View>
-          {compact ? (
+          {isCompact || isSlim ? (
             <View style={styles.compactMeta}>
-              <Text style={styles.compactName} numberOfLines={1}>
-                {service.name}
-              </Text>
+              {!isSlim ? (
+                <Text style={styles.compactName} numberOfLines={1}>
+                  {service.name}
+                </Text>
+              ) : null}
               <Text style={styles.compactPrice}>₹{service.basePrice}</Text>
             </View>
           ) : null}
         </View>
       ) : null}
-      {!compact ? (
+      {resolvedVariant === 'hero' ? (
       <Animated.View style={[styles.row, heroStyle]}>
         <View style={styles.icon}>
           <ServiceIcon iconKey={service.iconKey} size={28} color={colors.lime} />
@@ -155,6 +169,9 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
   },
+  wrapSlim: {
+    paddingBottom: spacing.xs,
+  },
   glow: {
     position: 'absolute',
     top: -40,
@@ -169,6 +186,11 @@ const styles = StyleSheet.create({
   compactMeta: { alignItems: 'flex-end', maxWidth: 120 },
   compactName: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.white, textAlign: 'right' },
   compactPrice: { fontFamily: fonts.displayExtra, fontSize: 13, color: colors.lime, marginTop: 2 },
+  backBtnSlim: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+  },
   backBtn: {
     width: 40,
     height: 40,
@@ -181,8 +203,9 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.8 },
   navText: { flex: 1, minWidth: 0 },
-  navTitle: { fontFamily: fonts.displayExtra, fontSize: 18, color: colors.white },
-  navSub: { fontFamily: fonts.body, fontSize: 11.5, color: colors.lime, marginTop: 2, lineHeight: 16 },
+  navTitle: { ...premiumType.navTitleLight, fontSize: 18 },
+  navTitleSlim: { fontSize: 16 },
+  navSub: { ...premiumType.caption, color: colors.lime, marginTop: 2, lineHeight: 16 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   icon: {
     width: 56,
@@ -195,7 +218,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   body: { flex: 1, minWidth: 0 },
-  name: { fontFamily: fonts.displayExtra, fontSize: 18, color: colors.white, lineHeight: 24 },
+  name: { ...premiumType.navTitleLight, fontSize: 18, lineHeight: 24 },
   metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginTop: 10 },
   pricePill: {
     backgroundColor: 'rgba(168,224,78,0.2)',

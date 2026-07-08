@@ -8,6 +8,7 @@ import { useAppContent } from '@/context/AppContentContext';
 import { useLocation } from '@/context/LocationContext';
 import { appToast } from '@/lib/toast';
 import { homeRouteForRole } from '@/lib/auth-routes';
+import { appReplace } from '@/lib/routes';
 import { spacing } from '@/constants/theme';
 
 type Errors = Partial<Record<'name' | 'phone' | 'email' | 'password', string>>;
@@ -61,7 +62,7 @@ export default function RegisterScreen() {
         city: city.trim() || undefined,
       });
       appToast.success('Account created', `Welcome to ${content.branding.name}`);
-      router.replace(homeRouteForRole(signedIn.role));
+      appReplace(homeRouteForRole(signedIn.role));
     } catch {
       // handled by API interceptor
     } finally {

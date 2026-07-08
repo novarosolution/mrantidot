@@ -9,6 +9,7 @@ import { useAppContent } from '@/context/AppContentContext';
 import { api } from '@/lib/api';
 import { appToast } from '@/lib/toast';
 import { homeRouteForRole } from '@/lib/auth-routes';
+import { appReplace } from '@/lib/routes';
 import { isProfileIncomplete } from '@/lib/profile-display';
 import { colors, fonts, spacing } from '@/constants/theme';
 
@@ -86,7 +87,7 @@ export default function OtpScreen() {
         router.replace('/(customer)/settings');
         return;
       }
-      router.replace(homeRouteForRole(signedIn.role));
+      appReplace(homeRouteForRole(signedIn.role));
     } catch {
       // handled by API interceptor
     } finally {

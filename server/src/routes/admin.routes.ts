@@ -147,7 +147,11 @@ adminRouter.patch(
       }
     }
     if (req.body.name) user.name = req.body.name;
-    if (req.body.email) user.email = req.body.email;
+    if (req.body.email) {
+      const dupEmail = await User.findOne({ email: req.body.email, _id: { $ne: user._id } });
+      if (dupEmail) throw new AppError(400, 'Email already in use');
+      user.email = req.body.email;
+    }
     if (req.body.city !== undefined) user.city = req.body.city;
     if (typeof req.body.available === 'boolean') user.available = req.body.available;
     if (typeof req.body.disabled === 'boolean') {

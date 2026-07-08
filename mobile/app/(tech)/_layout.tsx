@@ -1,7 +1,11 @@
 import { Tabs } from 'expo-router';
-import { ClipboardList, UserCircle } from 'lucide-react-native';
 import { KitTabBarButton } from '@/components/kit/KitTabBarButton';
-import { colors, design, fonts } from '@/constants/theme';
+import { GlassTabBarBackground, glassTabBarStyle } from '@/components/kit/GlassScreenKit';
+import { KitTabBarIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
+import { colors, design, typography } from '@/constants/theme';
+
+const Tab = AppIcons.techTab;
 
 export default function TechLayout() {
   return (
@@ -11,8 +15,9 @@ export default function TechLayout() {
         lazy: true,
         tabBarActiveTintColor: design.tabBarActive,
         tabBarInactiveTintColor: colors.muted,
-        tabBarStyle: design.tabBar,
-        tabBarLabelStyle: { fontFamily: fonts.bodySemi, fontSize: 10 },
+        tabBarStyle: glassTabBarStyle,
+        tabBarBackground: () => <GlassTabBarBackground />,
+        tabBarLabelStyle: typography.tabLabel,
         tabBarButton: (props) => <KitTabBarButton {...props} />,
       }}
     >
@@ -20,14 +25,14 @@ export default function TechLayout() {
         name="index"
         options={{
           title: 'Jobs',
-          tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={size} />,
+          tabBarIcon: ({ color, focused }) => <KitTabBarIcon icon={Tab.jobs} color={color} focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => <UserCircle color={color} size={size} />,
+          tabBarIcon: ({ color, focused }) => <KitTabBarIcon icon={Tab.profile} color={color} focused={focused} />,
         }}
       />
       <Tabs.Screen name="analytics" options={{ href: null }} />

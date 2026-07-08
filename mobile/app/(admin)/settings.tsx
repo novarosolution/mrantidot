@@ -1,16 +1,19 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { LogOut } from 'lucide-react-native';
-import { AdminListShell } from '@/components/kit/AdminListShell';
-import { AdminFormCard } from '@/components/kit/AdminPageKit';
-import { UserAccountCard } from '@/components/kit/UserAccountCard';
+import { AdminLightHeader } from '@/components/kit/AdminLightHeader';
+import { AdminSectionTitle } from '@/components/kit/AdminListShell';
 import { IconInput } from '@/components/kit/IconInput';
+import { GlassPanel, GlassScreen } from '@/components/kit/GlassScreenKit';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { UserAccountCard } from '@/components/kit/UserAccountCard';
 import { Button } from '@/components/ui/Button';
+import { AppIcons } from '@/constants/appIcons';
 import { useAuth } from '@/context/AuthContext';
 import { api, getApiErrorMessage } from '@/lib/api';
-import { colors, design, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { adminRoutes } from '@/lib/routes';
+import { colors, fonts, premium, premiumType, spacing, surfaces } from '@/constants/theme';
 
 export default function AdminSettingsScreen() {
   const { user, logout, refreshMe } = useAuth();
@@ -50,26 +53,65 @@ export default function AdminSettingsScreen() {
   }
 
   return (
-    <AdminListShell title="Profile" subtitle="Admin account" keyboardAvoid>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="always">
-        <UserAccountCard compact />
-        <AdminFormCard style={styles.formCard}>
-          <Text style={styles.sectionTitle}>Edit profile</Text>
-          <IconInput label="Name" value={name} onChangeText={setName} />
-          <IconInput label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-          <IconInput label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" />
-          <IconInput label="City" value={city} onChangeText={setCity} />
-          <IconInput label="New password" value={password} onChangeText={setPassword} secure />
-          <Button title="Save" variant="premium" onPress={() => void saveProfile()} loading={saving} style={{ marginTop: spacing.sm }} />
-          {user?.id ? (
-            <Button
-              title="Advanced settings"
-              variant="secondary"
-              onPress={() => router.push({ pathname: '/(admin)/user-edit', params: { id: user.id } })}
-              style={{ marginTop: spacing.sm }}
-            />
-          ) : null}
-        </AdminFormCard>
+    <GlassScreen
+      header={
+        <AdminLightHeader
+          title="Profile"
+          subtitle="Admin account & security"
+          showBack
+          backFallback={adminRoutes.team}
+        />
+      }
+    >
+      <AdminSectionTitle title="Your account" hint="Signed-in admin profile" />
+      <GlassPanel padded={false}>
+        <View style={styles.accountWrap}>
+          <UserAccountCard compact embedded />
+        </View>
+      </GlassPanel>
+
+      <GlassPanel>
+        <Text style={styles.sectionTitle}>Edit profile</Text>
+        <IconInput label="Name" value={name} onChangeText={setName} containerStyle={styles.glassInput} />
+        <IconInput
+          label="Phone"
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+          containerStyle={styles.glassInput}
+        />
+        <IconInput
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          containerStyle={styles.glassInput}
+        />
+        <IconInput label="City" value={city} onChangeText={setCity} containerStyle={styles.glassInput} />
+        <IconInput
+          label="New password"
+          value={password}
+          onChangeText={setPassword}
+          secure
+          containerStyle={styles.glassInput}
+        />
+        <Button title="Save" variant="premium" onPress={() => void saveProfile()} loading={saving} style={{ marginTop: spacing.sm }} />
+        {user?.id ? (
+          <Button
+            title="Advanced settings"
+            variant="secondary"
+            onPress={() =>
+              router.push({
+                pathname: adminRoutes.userEdit,
+                params: { id: user.id, returnTo: adminRoutes.settings },
+              })
+            }
+            style={{ marginTop: spacing.sm }}
+          />
+        ) : null}
+      </GlassPanel>
+
+      <GlassPanel padded={false}>
         <Pressable
           style={({ pressed }) => [styles.logoutCard, pressed && styles.pressed]}
           onPress={async () => {
@@ -77,41 +119,34 @@ export default function AdminSettingsScreen() {
             router.replace('/(auth)/login');
           }}
         >
-          <View style={styles.logoutIcon}>
-            <LogOut size={18} color={colors.error} />
-          </View>
+          <PremiumIcon
+            icon={AppIcons.ui.logout}
+            variant="soft"
+            size="md"
+            color={colors.error}
+            bg={colors.errorBg}
+            boxSize={40}
+          />
           <Text style={styles.logoutTitle}>Sign out</Text>
         </Pressable>
-      </ScrollView>
-    </AdminListShell>
+      </GlassPanel>
+    </GlassScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: spacing.xl },
-  formCard: { marginTop: spacing.md },
-  sectionTitle: { ...design.sectionTitle, marginBottom: spacing.sm },
+  accountWrap: { padding: spacing.md },
+  sectionTitle: { ...premiumType.sectionTitle, fontSize: 16, marginBottom: spacing.sm },
+  glassInput: {
+    backgroundColor: surfaces.glassInput,
+    borderColor: surfaces.glassBorderStrong,
+  },
   logoutCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.md,
     padding: spacing.md,
-    borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: 'rgba(220,38,38,0.15)',
-    ...shadows.card,
   },
   pressed: { opacity: 0.9 },
-  logoutIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.errorBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   logoutTitle: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.error },
 });

@@ -62,8 +62,10 @@ const styles = StyleSheet.create({
   },
   wrapCompact: {
     marginTop: 0,
-    marginBottom: spacing.xs,
-    paddingVertical: 8,
+    marginBottom: 6,
+    marginHorizontal: spacing.md,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
   },
   left: { flex: 1, minWidth: 0 },
   kicker: {
@@ -92,7 +94,7 @@ const styles = StyleSheet.create({
   },
   amount: {
     fontFamily: fonts.displayExtra,
-    fontSize: 22,
+    fontSize: 20,
     color: premium.accentGold,
     letterSpacing: -0.3,
   },

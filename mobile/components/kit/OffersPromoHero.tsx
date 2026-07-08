@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
 import { AppIcons } from '@/constants/appIcons';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, customerType, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 export function OffersPromoHero({ offerCount }: { offerCount: number }) {
   return (
@@ -58,25 +58,13 @@ const styles = StyleSheet.create({
   },
   body: { flex: 1 },
   badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  badge: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 10,
-    color: premium.accentGold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
+  badge: { ...customerType.kicker, color: premium.accentGold },
   title: {
-    fontFamily: fonts.display,
-    fontSize: 16,
-    color: colors.ink,
+    ...customerType.promoTitle,
     marginTop: 4,
-    lineHeight: 21,
   },
   sub: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.muted,
+    ...customerType.menuDesc,
     marginTop: 4,
-    lineHeight: 17,
   },
 });

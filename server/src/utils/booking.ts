@@ -72,15 +72,18 @@ export async function resolveTechnicianForBooking(body: {
 }
 
 export function activateNextStep(steps: IBookingStep[]): IBookingStep[] {
-  const updated = steps.map((s) => ({ ...s }));
-  const allDone = updated.every((s) => s.status === 'done');
-  if (allDone) return updated;
-
-  const nextPending = updated.findIndex((s) => s.status === 'pending');
-  if (nextPending >= 0) {
-    updated[nextPending] = { ...updated[nextPending], status: 'active' };
+  if (steps.every((s) => s.status === 'done')) {
+    return steps;
   }
-  return updated;
+
+  const nextPending = steps.findIndex((s) => s.status === 'pending');
+  if (nextPending < 0) {
+    return steps;
+  }
+
+  return steps.map((step, index) =>
+    index === nextPending ? { ...step, status: 'active' as const } : step,
+  );
 }
 
 export function allStepsDone(steps: IBookingStep[]): boolean {

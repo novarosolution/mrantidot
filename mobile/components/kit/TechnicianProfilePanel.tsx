@@ -1,56 +1,49 @@
 import { router } from 'expo-router';
 import { safeGoBack } from '@/lib/routes';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { Briefcase, CheckCircle2, Clock, IndianRupee, ShieldCheck, Star } from 'lucide-react-native';
-import { AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { AnalyticsStatGrid, type AnalyticsStatItem } from '@/components/kit/AnalyticsStatGrid';
 import { AttendanceAnalyticsCard } from '@/components/kit/AttendanceAnalyticsCard';
 import { formatRupee } from '@/components/kit/format';
-import { JobVisitCard } from '@/components/kit/JobVisitCard';
-import { KpiCard } from '@/components/kit/KpiCard';
 import { TechnicianDayCalendar } from '@/components/kit/TechnicianDayCalendar';
-import { TechCheckInCard, TechOffDutyCard, TechOnDutyCard, TechSectionTitle } from '@/components/kit/TechPageKit';
-import { UserAccountCard } from '@/components/kit/UserAccountCard';
-import { Button } from '@/components/ui/Button';
+import { TechSectionTitle } from '@/components/kit/TechPageKit';
+import { TechProfileHero } from '@/components/kit/TechProfileHero';
+import { TechScreenScroll, techScreenStyles } from '@/components/kit/TechScreenKit';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
 import { bookingVisitDate } from '@/lib/booking-helpers';
-import { localDateKey } from '@/lib/dates';
-import type { Booking, BookingCopyConfig, DayAttendanceStatus, TechnicianStats } from '@/types/api';
-import { colors, spacing } from '@/constants/theme';
-
-const TAB_BAR_PAD = 96;
+import { displayUserName } from '@/lib/profile-display';
+import type { Booking, BookingCopyConfig, DayAttendanceStatus, TechnicianStats, User } from '@/types/api';
+import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 export function TechnicianProfilePanel({
   copy,
+  user,
   stats,
   bookings,
   attendance,
   calendar,
   month,
   todayStatus,
-  checkingIn,
   refreshing,
   onRefresh,
   onMonthChange,
-  onCheckIn,
-  onMarkAbsent,
+  onLogout,
 }: {
   copy: BookingCopyConfig;
+  user: User | null;
   stats: TechnicianStats | null;
   bookings: Booking[];
   attendance: Record<string, DayAttendanceStatus>;
   calendar: Record<string, number>;
   month: string;
   todayStatus: DayAttendanceStatus;
-  checkingIn: boolean;
   refreshing: boolean;
   onRefresh: () => void;
   onMonthChange: (month: string) => void;
-  onCheckIn: () => void;
-  onMarkAbsent: () => void;
+  onLogout?: () => void;
 }) {
-  const today = localDateKey();
   const verifyJob = bookings.find((b) => b.status === 'awaiting_verification');
   const activeJob = bookings.find((b) => b.status === 'in_progress');
 
@@ -60,7 +53,7 @@ export function TechnicianProfilePanel({
           key: 'assigned',
           label: 'Assigned',
           value: String(stats.assigned),
-          icon: Briefcase,
+          icon: AppIcons.techStats.assigned,
           iconBg: colors.blueBg,
           iconColor: colors.blue,
           onPress: () => safeGoBack('/(tech)'),
@@ -69,7 +62,7 @@ export function TechnicianProfilePanel({
           key: 'active',
           label: 'Active',
           value: String(stats.inProgress),
-          icon: Clock,
+          icon: AppIcons.techStats.active,
           iconBg: colors.amberBg,
           iconColor: colors.amberInk,
           onPress: () => activeJob && router.push(`/(tech)/job/${activeJob.id}`),
@@ -78,7 +71,7 @@ export function TechnicianProfilePanel({
           key: 'verify',
           label: 'Verify',
           value: String(stats.awaitingVerification ?? 0),
-          icon: ShieldCheck,
+          icon: AppIcons.techStats.verify,
           iconBg: colors.secondarySoft,
           iconColor: colors.secondaryDark,
           onPress: () => verifyJob && router.push(`/(tech)/job/${verifyJob.id}`),
@@ -87,7 +80,7 @@ export function TechnicianProfilePanel({
           key: 'done',
           label: 'Completed',
           value: String(stats.completed),
-          icon: CheckCircle2,
+          icon: AppIcons.techStats.done,
           iconBg: colors.soft,
           iconColor: colors.green,
         },
@@ -95,7 +88,7 @@ export function TechnicianProfilePanel({
           key: 'earnings',
           label: 'Earnings',
           value: stats.earnings >= 1000 ? formatRupee(stats.earnings) : `₹${stats.earnings}`,
-          icon: IndianRupee,
+          icon: AppIcons.techStats.earnings,
           iconBg: colors.soft,
           iconColor: colors.green,
         },
@@ -103,7 +96,7 @@ export function TechnicianProfilePanel({
           key: 'rating',
           label: 'Rating',
           value: `★${stats.rating}`,
-          icon: Star,
+          icon: AppIcons.techStats.rating,
           iconBg: colors.amberBg,
           iconColor: colors.amberInk,
         },
@@ -111,107 +104,33 @@ export function TechnicianProfilePanel({
     : [];
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.container}
+    <TechScreenScroll
+      contentContainerStyle={techScreenStyles.scrollEmpty}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />
       }
-      showsVerticalScrollIndicator={false}
     >
-      <UserAccountCard compact />
-
-      {todayStatus === 'pending' ? (
-        <TechCheckInCard
-          title={copy.techCheckInTitle}
-          subtitle={copy.techCheckInSubtitle}
-          onDutyLabel={copy.techOnDutyButton}
-          offDutyLabel={copy.techOffDutyButton}
-          onCheckIn={onCheckIn}
-          onMarkAbsent={onMarkAbsent}
-          loading={checkingIn}
-        />
-      ) : todayStatus === 'came' ? (
-        <TechOnDutyCard
-          badgeLabel={copy.techOnDutyBadge}
-          markOffLabel={copy.techOffDutyButton}
-          onMarkOff={onMarkAbsent}
-          loading={checkingIn}
-        />
-      ) : (
-        <TechOffDutyCard
-          badgeLabel={copy.techOffDutyBadge}
-          hint={copy.techOffDutyHint}
-          backOnDutyLabel={copy.techBackOnDutyButton}
-          onGoOnDuty={onCheckIn}
-          loading={checkingIn}
-        />
-      )}
+      <TechProfileHero
+        compact
+        showStats={false}
+        name={displayUserName(user)}
+        phone={user?.phone}
+        city={user?.city}
+        stats={stats}
+        todayStatus={todayStatus}
+      />
 
       {stats ? (
-        <>
-          <AdminStatStrip
-            items={[
-              {
-                label: 'Attendance',
-                value: stats.analytics ? `${stats.analytics.attendanceRate}%` : '—',
-              },
-              {
-                label: 'Completion',
-                value: stats.analytics ? `${stats.analytics.completionRate}%` : '—',
-                color: colors.green,
-              },
-              {
-                label: 'Earnings',
-                value: stats.earnings >= 1000 ? formatRupee(stats.earnings) : `₹${stats.earnings}`,
-              },
-              { label: 'Jobs done', value: stats.jobsDone ?? stats.completed },
-            ]}
-          />
-          <View style={styles.block}>
-            <TechSectionTitle title={copy.techPerformanceTitle} hint="Tap a metric for details" />
-            <AnalyticsStatGrid items={statItems} />
-          </View>
-          <View style={styles.earningsRow}>
-            <KpiCard
-              icon={IndianRupee}
-              value={stats.earnings >= 1000 ? formatRupee(stats.earnings) : `₹${stats.earnings}`}
-              label="Total earnings"
-              iconBg={colors.soft}
-              iconColor={colors.green}
-            />
-            <KpiCard
-              icon={CheckCircle2}
-              value={String(stats.jobsDone ?? stats.completed)}
-              label="Jobs done (all time)"
-              iconBg={colors.blueBg}
-              iconColor={colors.blue}
-            />
-          </View>
-        </>
+        <View style={styles.block}>
+          <TechSectionTitle title={copy.techPerformanceTitle} hint="Tap a metric to open related job" />
+          <AnalyticsStatGrid items={statItems} />
+        </View>
       ) : null}
 
       {stats?.analytics ? (
         <View style={styles.block}>
           <TechSectionTitle title="Attendance & visits" hint="This month's operational stats" />
           <AttendanceAnalyticsCard analytics={stats.analytics} />
-        </View>
-      ) : null}
-
-      {(stats?.jobVisits?.length ?? 0) > 0 ? (
-        <View style={styles.block}>
-          <TechSectionTitle title={`${copy.techJobVisitsTitle} (${month})`} hint="Tap to open job" />
-          {stats!.jobVisits!.map((visit) => {
-            const booking = bookings.find((b) => b.id === visit.bookingId);
-            if (!booking) return null;
-            return (
-              <JobVisitCard
-                key={visit.bookingId}
-                booking={booking}
-                today={today}
-                onPress={() => router.push(`/(tech)/job/${visit.bookingId}`)}
-              />
-            );
-          })}
         </View>
       ) : null}
 
@@ -227,10 +146,20 @@ export function TechnicianProfilePanel({
         />
       </View>
 
-      <View style={styles.footer}>
-        <Button title="View all jobs" variant="secondary" onPress={() => safeGoBack('/(tech)')} />
-      </View>
-    </ScrollView>
+      {onLogout ? (
+        <Pressable style={({ pressed }) => [styles.logout, pressed && styles.logoutPressed]} onPress={onLogout}>
+          <PremiumIcon
+            icon={AppIcons.techProfile.logout}
+            variant="soft"
+            size="md"
+            color={colors.error}
+            bg={colors.errorBg}
+            boxSize={38}
+          />
+          <Text style={styles.logoutText}>Sign out</Text>
+        </Pressable>
+      ) : null}
+    </TechScreenScroll>
   );
 }
 
@@ -281,8 +210,21 @@ export async function markTechnicianAbsent(copy: Pick<BookingCopyConfig, 'techOf
 }
 
 const styles = StyleSheet.create({
-  container: { paddingHorizontal: spacing.md, paddingBottom: TAB_BAR_PAD },
-  block: { marginBottom: spacing.md },
-  earningsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: spacing.md },
-  footer: { marginTop: spacing.sm, marginBottom: spacing.md },
+  block: { paddingHorizontal: spacing.md, marginBottom: spacing.md },
+  logout: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: spacing.md,
+    borderRadius: premium.radiusCard,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: 'rgba(192,73,46,0.2)',
+    ...shadows.card,
+  },
+  logoutPressed: { opacity: 0.92, transform: [{ scale: 0.99 }] },
+  logoutText: { fontFamily: fonts.bodySemi, fontSize: 15, color: colors.error },
 });

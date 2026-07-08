@@ -51,9 +51,9 @@ const styles = StyleSheet.create({
     paddingRight: 4,
   },
   card: {
-    width: 68,
-    paddingVertical: 12,
-    paddingHorizontal: 6,
+    width: 62,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
     alignItems: 'center',
     borderRadius: 16,
     backgroundColor: colors.bg,
@@ -79,10 +79,10 @@ const styles = StyleSheet.create({
   },
   num: {
     fontFamily: fonts.displayExtra,
-    fontSize: 24,
+    fontSize: 21,
     color: colors.ink,
     marginTop: 2,
-    lineHeight: 28,
+    lineHeight: 24,
   },
   month: {
     fontFamily: fonts.body,

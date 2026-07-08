@@ -1,16 +1,16 @@
-import { router } from 'expo-router';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View } from 'react-native';
 import { Bell, Settings } from 'lucide-react-native';
 import { AdminHubLink } from '@/components/kit/AdminHubLink';
 import { AdminScreenHeader } from '@/components/kit/AdminScreenHeader';
+import { AdminTabScreen } from '@/components/kit/AdminScreenKit';
 import { AdminSectionTitle } from '@/components/kit/AdminListShell';
 import { Button } from '@/components/ui/Button';
 import { AppIcons } from '@/constants/appIcons';
 import { useAuth } from '@/context/AuthContext';
+import { adminRoutes, appPush, type RouteInput } from '@/lib/routes';
 import { useUnreadNotifications } from '@/lib/useUnreadNotifications';
 import { userInitial } from '@/lib/userInitials';
-import { colors, design, spacing } from '@/constants/theme';
+import { colors, spacing } from '@/constants/theme';
 
 const Hub = AppIcons.adminHub;
 const Tab = AppIcons.adminTab;
@@ -36,18 +36,23 @@ const OPERATIONS_LINKS = [
   },
 ];
 
-const CONTENT_LINKS = [
+const CONTENT_LINKS: Array<{
+  icon: typeof Hub.homeContent;
+  label: string;
+  desc: string;
+  href: RouteInput;
+}> = [
   {
     icon: Hub.homeContent,
     label: 'App content',
     desc: 'Promo banner, home screen & brand',
-    href: '/(admin)/content' as const,
+    href: adminRoutes.content,
   },
   {
     icon: AppIcons.contentTab.booking,
     label: 'Booking copy',
     desc: 'Wizard steps, lists & status text',
-    href: '/(admin)/content?tab=booking' as const,
+    href: { pathname: adminRoutes.content, params: { tab: 'booking' } },
   },
   {
     icon: Hub.services,
@@ -105,39 +110,41 @@ export default function TeamHubScreen() {
   const initial = userInitial(user?.name);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <AdminScreenHeader
-        title="Manage"
-        subtitle="Content, people & operations"
-        userInitial={initial}
-        unreadCount={unreadCount}
-      />
-      <ScrollView style={styles.flex} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <AdminTabScreen
+      header={
+        <AdminScreenHeader
+          title="Manage"
+          subtitle="Content, people & operations"
+          userInitial={initial}
+          unreadCount={unreadCount}
+        />
+      }
+    >
         <AdminSectionTitle title="Operations" hint="Day-to-day jobs and alerts" />
         <View style={styles.links}>
           {OPERATIONS_LINKS.map((l) => (
-            <AdminHubLink key={l.href} icon={l.icon} label={l.label} desc={l.desc} onPress={() => router.push(l.href)} />
+            <AdminHubLink key={l.href} icon={l.icon} label={l.label} desc={l.desc} onPress={() => appPush(l.href)} />
           ))}
         </View>
 
         <AdminSectionTitle title="Content & catalog" hint="What customers see in the app" />
         <View style={styles.links}>
           {CONTENT_LINKS.map((l) => (
-            <AdminHubLink key={l.href} icon={l.icon} label={l.label} desc={l.desc} onPress={() => router.push(l.href)} />
+            <AdminHubLink key={l.label} icon={l.icon} label={l.label} desc={l.desc} onPress={() => appPush(l.href)} />
           ))}
         </View>
 
         <AdminSectionTitle title="People" hint="Team members and customer accounts" />
         <View style={styles.links}>
           {PEOPLE_LINKS.map((l) => (
-            <AdminHubLink key={l.href} icon={l.icon} label={l.label} desc={l.desc} onPress={() => router.push(l.href)} />
+            <AdminHubLink key={l.href} icon={l.icon} label={l.label} desc={l.desc} onPress={() => appPush(l.href)} />
           ))}
         </View>
 
         <AdminSectionTitle title="Account" hint="Your admin profile" />
         <View style={styles.links}>
           {SYSTEM_LINKS.map((l) => (
-            <AdminHubLink key={l.href} icon={l.icon} label={l.label} desc={l.desc} onPress={() => router.push(l.href)} />
+            <AdminHubLink key={l.href} icon={l.icon} label={l.label} desc={l.desc} onPress={() => appPush(l.href)} />
           ))}
         </View>
 
@@ -145,23 +152,29 @@ export default function TeamHubScreen() {
           <Button
             title="Add technician"
             variant="premium"
-            onPress={() => router.push({ pathname: '/(admin)/user-edit', params: { role: 'technician' } })}
+            onPress={() =>
+              appPush({
+                pathname: adminRoutes.userEdit,
+                params: { role: 'technician', returnTo: adminRoutes.team },
+              })
+            }
           />
           <Button
             title="Add customer"
             variant="secondary"
-            onPress={() => router.push({ pathname: '/(admin)/user-edit', params: { role: 'customer' } })}
+            onPress={() =>
+              appPush({
+                pathname: adminRoutes.userEdit,
+                params: { role: 'customer', returnTo: adminRoutes.team },
+              })
+            }
           />
         </View>
-      </ScrollView>
-    </SafeAreaView>
+    </AdminTabScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: design.screenBg },
-  flex: { flex: 1 },
-  content: { paddingBottom: spacing.xxl },
   links: { paddingHorizontal: spacing.md, gap: spacing.sm },
   addBlock: {
     marginTop: spacing.lg,

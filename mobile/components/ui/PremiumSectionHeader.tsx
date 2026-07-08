@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, customerType, premium, spacing } from '@/constants/theme';
 
 export function PremiumSectionHeader({
   title,
@@ -65,27 +65,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  titleCol: { flex: 1 },
+  titleCol: { flex: 1, minWidth: 0 },
   title: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 20,
-    lineHeight: 26,
-    color: colors.ink,
-    letterSpacing: -0.4,
+    ...customerType.sectionTitle,
   },
   titleCompact: {
-    fontSize: 18,
-    lineHeight: 24,
+    ...customerType.sectionTitleCompact,
   },
   subtitle: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.muted,
-    marginTop: 2,
-    lineHeight: 18,
+    ...customerType.sectionSubtitle,
   },
+  link: { ...customerType.sectionLink },
   action: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  link: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest },
   actionIcon: {
     width: 26,
     height: 26,

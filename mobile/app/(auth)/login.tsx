@@ -12,6 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
 import { getApiErrorMessage } from '@/lib/api';
 import { homeRouteForRole } from '@/lib/auth-routes';
+import { appReplace } from '@/lib/routes';
 import { isProfileIncomplete } from '@/lib/profile-display';
 import { appToast } from '@/lib/toast';
 import { spacing, colors, fonts } from '@/constants/theme';
@@ -55,10 +56,10 @@ export default function LoginScreen() {
       appToast.success('Welcome back', displayUserGreeting(signedIn.name));
       if (signedIn.role === 'customer' && isProfileIncomplete(signedIn)) {
         appToast.info('Complete your profile', 'Add your name and email to finish setup.');
-        router.replace('/(customer)/settings');
+        appReplace('/(customer)/settings');
         return;
       }
-      router.replace(homeRouteForRole(signedIn.role));
+      appReplace(homeRouteForRole(signedIn.role));
     } catch (err) {
       appToast.error('Sign in failed', getApiErrorMessage(err, 'Check your credentials and try again'));
     } finally {

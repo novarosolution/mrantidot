@@ -3,7 +3,8 @@ import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } fro
 import { ChevronRight } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AdminLightHeader } from './AdminLightHeader';
-import { colors, design, fonts, premium, spacing } from '@/constants/theme';
+import { GlassBackdrop, TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
+import { adminSurfaces, adminType, colors, premium, spacing } from '@/constants/theme';
 
 /** Bottom padding when a sticky save bar sits above the tab bar. */
 export const ADMIN_STICKY_FOOTER_PAD = 108;
@@ -18,6 +19,8 @@ export function AdminListShell({
   headerExtra,
   stickyFooter,
   keyboardAvoid = false,
+  backFallback,
+  onBack,
   children,
 }: {
   title: string;
@@ -27,6 +30,8 @@ export function AdminListShell({
   headerExtra?: ReactNode;
   stickyFooter?: ReactNode;
   keyboardAvoid?: boolean;
+  backFallback?: string;
+  onBack?: () => void;
   children: ReactNode;
 }) {
   const body = (
@@ -38,16 +43,26 @@ export function AdminListShell({
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <AdminLightHeader title={title} subtitle={subtitle} showBack={showBack} rightAction={rightAction} />
-      {keyboardAvoid ? (
-        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          {body}
-        </KeyboardAvoidingView>
-      ) : (
-        body
-      )}
-    </SafeAreaView>
+    <View style={styles.root}>
+      <GlassBackdrop />
+      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+        <AdminLightHeader
+          title={title}
+          subtitle={subtitle}
+          showBack={showBack}
+          rightAction={rightAction}
+          backFallback={backFallback}
+          onBack={onBack}
+        />
+        {keyboardAvoid ? (
+          <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            {body}
+          </KeyboardAvoidingView>
+        ) : (
+          body
+        )}
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -86,9 +101,9 @@ export function AdminSectionTitle({
 }
 
 export const adminListShellStyles = StyleSheet.create({
-  list: { padding: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm },
-  empty: { flexGrow: 1, padding: spacing.md },
-  scroll: { padding: spacing.md, paddingBottom: spacing.xl },
+  list: { padding: spacing.md, paddingBottom: TAB_BAR_SCROLL_PAD, gap: spacing.sm },
+  empty: { flexGrow: 1, padding: spacing.md, paddingBottom: TAB_BAR_SCROLL_PAD },
+  scroll: { padding: spacing.md, paddingBottom: TAB_BAR_SCROLL_PAD },
   scrollWithFooter: { padding: spacing.md, paddingBottom: ADMIN_STICKY_FOOTER_PAD },
   scrollWithFooterTall: { padding: spacing.md, paddingBottom: ADMIN_STICKY_FOOTER_PAD_TALL },
 });
@@ -96,7 +111,7 @@ export const adminListShellStyles = StyleSheet.create({
 export const adminStyles = StyleSheet.create({
   content: {
     padding: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingBottom: TAB_BAR_SCROLL_PAD,
     gap: spacing.sm,
   },
   sectionBlock: {
@@ -112,17 +127,10 @@ export const adminStyles = StyleSheet.create({
   },
   sectionTextCol: { flex: 1, minWidth: 0 },
   sectionTitle: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 18,
-    color: colors.ink,
-    letterSpacing: -0.3,
+    ...adminType.sectionTitle,
   },
   sectionHint: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: 3,
-    lineHeight: 17,
+    ...adminType.sectionHint,
   },
   sectionRule: {
     flexDirection: 'row',
@@ -142,11 +150,7 @@ export const adminStyles = StyleSheet.create({
     backgroundColor: colors.border,
   },
   sectionAction: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingTop: 2 },
-  sectionLink: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 13,
-    color: colors.forest,
-  },
+  sectionLink: { ...adminType.sectionLink },
   summaryRow: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -159,26 +163,22 @@ export const adminStyles = StyleSheet.create({
     alignItems: 'center',
   },
   summaryValue: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 22,
-    color: colors.forest,
+    ...adminType.statValue,
   },
   summaryLabel: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    color: colors.muted,
+    ...adminType.statLabel,
     marginTop: 2,
   },
 });
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: design.screenBg },
+  root: { flex: 1, overflow: 'hidden' },
+  safe: { flex: 1 },
   flex: { flex: 1 },
   headerExtra: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     paddingBottom: spacing.xs,
-    backgroundColor: design.screenBg,
   },
-  body: { flex: 1, backgroundColor: design.screenBg },
+  body: { flex: 1, overflow: 'hidden' },
 });

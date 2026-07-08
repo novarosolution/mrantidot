@@ -1,5 +1,4 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
 import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { Clock, Download, IndianRupee, SprayCan, Star } from 'lucide-react-native';
@@ -17,6 +16,7 @@ import { WeeklyBarChart } from '@/components/kit/WeeklyBarChart';
 import { Chip } from '@/components/ui/Chip';
 import { formatMonthLabel, statusKeyToMetric } from '@/lib/technician-metrics';
 import { bookingStatusLabel } from '@/lib/booking-helpers';
+import { appPush } from '@/lib/routes';
 import type {
   BookingStatus,
   TechnicianDetailResponse,
@@ -252,7 +252,7 @@ export function TechnicianAnalyticsTab({
         title="Pending schedule queue"
         hint="All bookings awaiting admin confirmation (company-wide)"
         actionLabel="View all"
-        onAction={() => router.push('/(admin)/bookings?status=pending')}
+        onAction={() => appPush('/(admin)/bookings?status=pending')}
       >
         <View style={styles.pendingKpiRow}>
           <KpiCard

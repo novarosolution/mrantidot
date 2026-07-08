@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Clock } from 'lucide-react-native';
 import { BOOKING_HOURS, BOOKING_MINUTES, formatTime12h } from '@/lib/dates';
 import { colors, fonts, spacing } from '@/constants/theme';
@@ -16,43 +16,55 @@ export function BookTimePicker({
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.hero}>
-        <View style={styles.heroIcon}>
-          <Clock size={22} color={colors.forest} strokeWidth={2.2} />
+      <View style={styles.selectedBar}>
+        <View style={styles.selectedLeft}>
+          <Clock size={16} color={colors.forest} strokeWidth={2.2} />
+          <Text style={styles.selectedLabel}>Selected</Text>
         </View>
-        <View style={styles.heroText}>
-          <Text style={styles.heroLabel}>Selected time</Text>
-          <Text style={styles.heroValue}>{formatTime12h(timeValue)}</Text>
-        </View>
+        <Text style={styles.selectedValue}>{formatTime12h(timeValue)}</Text>
       </View>
 
       <Text style={styles.fieldLabel}>Hour</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+      <View style={styles.grid}>
         {BOOKING_HOURS.map((h) => {
           const on = h === hour;
           return (
             <Pressable
               key={h}
-              style={({ pressed }) => [styles.chip, on && styles.chipOn, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.chip,
+                styles.hourChip,
+                on && styles.chipOn,
+                pressed && styles.pressed,
+              ]}
               onPress={() => onChange(h, minute)}
             >
-              <Text style={[styles.chipText, on && styles.chipTextOn]}>{formatTime12h(`${h}:00`).replace(':00', '')}</Text>
+              <Text style={[styles.chipText, on && styles.chipTextOn]}>
+                {formatTime12h(`${h}:00`).replace(':00', '')}
+              </Text>
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
 
       <Text style={[styles.fieldLabel, styles.fieldLabelGap]}>Minutes</Text>
-      <View style={styles.row}>
+      <View style={styles.minuteRow}>
         {BOOKING_MINUTES.map((m) => {
           const on = m === minute;
           return (
             <Pressable
               key={m}
-              style={({ pressed }) => [styles.chip, styles.chipWide, on && styles.chipOn, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.chip,
+                styles.minuteChip,
+                on && styles.chipOn,
+                pressed && styles.pressed,
+              ]}
               onPress={() => onChange(hour, m)}
             >
-              <Text style={[styles.chipText, on && styles.chipTextOn]}>:{String(m).padStart(2, '0')}</Text>
+              <Text style={[styles.chipText, on && styles.chipTextOn]}>
+                :{String(m).padStart(2, '0')}
+              </Text>
             </Pressable>
           );
         })}
@@ -65,63 +77,75 @@ export function BookTimePicker({
 
 const styles = StyleSheet.create({
   wrap: { gap: 0 },
-  hero: {
+  selectedBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingBottom: spacing.md,
+    justifyContent: 'space-between',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     marginBottom: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  heroIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    borderRadius: 12,
     backgroundColor: colors.soft,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(30,142,78,0.14)',
   },
-  heroText: { flex: 1 },
-  heroLabel: { fontFamily: fonts.body, fontSize: 12, color: colors.muted },
-  heroValue: {
+  selectedLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  selectedLabel: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.muted },
+  selectedValue: {
     fontFamily: fonts.displayExtra,
-    fontSize: 26,
+    fontSize: 18,
     color: colors.forest,
-    marginTop: 2,
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
   fieldLabel: {
     fontFamily: fonts.bodySemi,
-    fontSize: 12,
+    fontSize: 11,
     color: colors.muted,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
-  fieldLabelGap: { marginTop: spacing.md },
-  row: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  fieldLabelGap: { marginTop: spacing.sm },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  minuteRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   chip: {
-    minWidth: 52,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    borderRadius: 10,
     backgroundColor: colors.bg,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: 'transparent',
   },
-  chipWide: { minWidth: 72 },
+  hourChip: {
+    width: '23%',
+    minWidth: 62,
+  },
+  minuteChip: {
+    flex: 1,
+    maxWidth: '48%',
+  },
   chipOn: {
     backgroundColor: colors.soft,
     borderColor: colors.forest,
   },
   pressed: { opacity: 0.88 },
-  chipText: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink },
+  chipText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.ink },
   chipTextOn: { color: colors.forest },
   rangeHint: {
     fontFamily: fonts.body,
     fontSize: 11,
     color: colors.muted,
     textAlign: 'center',
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
   },
 });

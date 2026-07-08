@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useBookingCopy } from '@/lib/schedule-copy';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, customerType, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 type FilterKey = 'active' | 'completed' | 'cancelled';
 
@@ -95,20 +95,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     marginBottom: 4,
   },
-  value: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 20,
-    letterSpacing: -0.3,
-  },
-  label: {
-    fontFamily: fonts.body,
-    fontSize: 9,
-    color: colors.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
+  value: { ...customerType.statValue },
+  label: { ...customerType.statLabel },
   labelSelected: {
-    fontFamily: fonts.bodySemi,
+    ...customerType.statLabel,
     color: colors.forest,
   },
 });

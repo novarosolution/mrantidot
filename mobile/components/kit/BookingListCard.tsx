@@ -12,7 +12,7 @@ import {
   isSchedulePending,
 } from '@/lib/booking-helpers';
 import type { Booking } from '@/types/api';
-import { colors, fonts, premium, shadows, spacing, statusColors, typography } from '@/constants/theme';
+import { colors, customerType, fonts, premium, shadows, spacing, statusColors } from '@/constants/theme';
 
 function stepProgress(booking: Booking): number | null {
   const steps = booking.steps ?? [];
@@ -149,20 +149,17 @@ const styles = StyleSheet.create({
   },
   name: {
     flex: 1,
-    fontFamily: fonts.display,
-    fontSize: 15,
-    color: colors.ink,
-    lineHeight: 20,
+    ...customerType.cardTitle,
   },
-  customer: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest, marginTop: 2 },
+  customer: { ...customerType.listMeta, marginTop: 2 },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     marginTop: 6,
   },
-  meta: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest, flex: 1 },
-  addr: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, flex: 1 },
+  meta: { ...customerType.listMeta, flex: 1 },
+  addr: { ...customerType.listMetaMuted, flex: 1 },
   progressTrack: {
     height: 3,
     borderRadius: 2,
@@ -178,7 +175,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignSelf: 'flex-start',
   },
-  calloutText: { fontFamily: fonts.bodySemi, fontSize: 10 },
+  calloutText: { ...customerType.kicker, fontSize: 10 },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -188,6 +185,6 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
-  ref: { fontFamily: fonts.body, fontSize: 10, color: colors.muted, letterSpacing: 0.3 },
-  total: { ...typography.price, fontSize: 16 },
+  ref: { ...customerType.listRef },
+  total: { ...customerType.listPrice },
 });

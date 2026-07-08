@@ -58,6 +58,11 @@ addressesRouter.post(
 addressesRouter.patch(
   '/:id',
   param('id').isMongoId(),
+  body('label').optional().trim().notEmpty(),
+  body('line1').optional().trim().notEmpty(),
+  body('city').optional().trim().notEmpty(),
+  body('pincode').optional().trim(),
+  body('isDefault').optional().isBoolean(),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
     const address = await SavedAddress.findOne({ _id: req.params.id, customerId: req.user!.id });
@@ -65,7 +70,19 @@ addressesRouter.patch(
     if (req.body.isDefault) {
       await SavedAddress.updateMany({ customerId: req.user!.id }, { isDefault: false });
     }
-    Object.assign(address, req.body);
+    // Whitelist editable fields only — never let the client overwrite customerId/_id.
+    const { label, line1, city, pincode, isDefault } = req.body as {
+      label?: string;
+      line1?: string;
+      city?: string;
+      pincode?: string;
+      isDefault?: boolean;
+    };
+    if (label !== undefined) address.label = label;
+    if (line1 !== undefined) address.line1 = line1;
+    if (city !== undefined) address.city = city;
+    if (pincode !== undefined) address.pincode = pincode;
+    if (isDefault !== undefined) address.isDefault = isDefault;
     await address.save();
     res.json({ address: address.toJSON() });
   }),

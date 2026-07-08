@@ -1,5 +1,6 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, premium, premiumType, shadows, spacing } from '@/constants/theme';
 
 export function ProfileMenuSection({
   title,
@@ -12,8 +13,16 @@ export function ProfileMenuSection({
 }) {
   return (
     <View style={[styles.wrap, style]}>
-      {title ? <Text style={styles.title}>{title}</Text> : null}
-      <View style={styles.card}>{children}</View>
+      {title ? (
+        <View style={styles.titleRow}>
+          <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.titleAccent} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+          <Text style={styles.title}>{title}</Text>
+        </View>
+      ) : null}
+      <View style={styles.card}>
+        <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+        {children}
+      </View>
     </View>
   );
 }
@@ -23,14 +32,21 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.md,
     marginBottom: spacing.md,
   },
-  title: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 11,
-    color: colors.muted,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: spacing.sm,
-    marginLeft: 4,
+    marginLeft: 2,
+  },
+  titleAccent: {
+    width: 3,
+    height: 14,
+    borderRadius: 2,
+  },
+  title: {
+    ...premiumType.heroEyebrow,
+    color: colors.muted,
   },
   card: {
     backgroundColor: colors.white,
@@ -38,5 +54,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(20,83,45,0.06)',
+    ...shadows.card,
+  },
+  goldBar: {
+    height: 3,
+    width: '100%',
   },
 });

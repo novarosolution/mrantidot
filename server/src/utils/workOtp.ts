@@ -1,6 +1,8 @@
 import crypto from 'crypto';
+import { Types } from 'mongoose';
 import { env } from '../config/env';
 import { IBooking, IWorkOtpEntry, TrackingEventType } from '../models/Booking';
+import { User } from '../models/User';
 
 const OTP_LENGTH = 6;
 const MAX_ATTEMPTS = 5;
@@ -91,6 +93,14 @@ function clearAttempts(booking: IBooking, type: 'start' | 'end'): void {
   const lockKey = type === 'start' ? 'startLockedUntil' : 'endLockedUntil';
   delete booking.otpAttempts[lockKey];
   booking.markModified('otpAttempts');
+}
+
+/** Bump technician jobsDone when a booking is marked completed. */
+export async function incrementTechnicianJobsDone(
+  technicianId: Types.ObjectId | string | undefined,
+): Promise<void> {
+  if (!technicianId) return;
+  await User.findByIdAndUpdate(technicianId, { $inc: { jobsDone: 1 } });
 }
 
 export function appendTracking(
@@ -197,6 +207,7 @@ export function verifyEndOtp(booking: IBooking, code: string): void {
   booking.markModified('workOtp');
   clearAttempts(booking, 'end');
   appendTracking(booking, 'work_completed');
+  void incrementTechnicianJobsDone(booking.technicianId);
 }
 
 export function regenerateOtp(booking: IBooking, type: 'start' | 'end'): string {
