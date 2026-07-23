@@ -72,7 +72,7 @@
     },
     "extra": {
       "router": {},
-      "apiUrl": null,
+      "apiUrl": "http://13.60.23.65:4001",
       "eas": {
         "projectId": "f75fd96d-693f-482c-9c86-53cd1ee48a2f"
       }
