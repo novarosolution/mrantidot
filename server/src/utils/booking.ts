@@ -93,7 +93,7 @@ export function allStepsDone(steps: IBookingStep[]): boolean {
 export const ALLOWED_STATUS_TRANSITIONS: Record<string, string[]> = {
   confirmed: ['in_progress', 'cancelled'],
   in_progress: ['awaiting_verification', 'cancelled'],
-  awaiting_verification: ['completed'],
+  awaiting_verification: ['completed', 'cancelled'],
 };
 
 export function assertStatusTransition(current: string, next: string): void {

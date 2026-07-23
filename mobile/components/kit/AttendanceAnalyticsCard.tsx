@@ -1,9 +1,10 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
-import { Card } from '@/components/ui/Card';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { homeShadow } from '@/components/kit/homeUi';
+import { AppIcons } from '@/constants/appIcons';
 import { formatDuration } from '@/lib/job-visit-helpers';
 import type { TechnicianAnalytics, TechnicianDetailStats, TechnicianMetricKey } from '@/types/api';
-import { colors, fonts, spacing, typography } from '@/constants/theme';
+import { colors, fonts, spacing, surfaces, typography } from '@/constants/theme';
 
 type MetricDef = { key: TechnicianMetricKey; label: string; value: string };
 
@@ -25,13 +26,13 @@ export function AttendanceAnalyticsCard({
     { key: 'attendance_rate', label: 'Attendance', value: `${analytics.attendanceRate}%` },
     { key: 'days_present', label: 'Days came', value: String(analytics.daysPresent) },
     { key: 'days_absent', label: 'Did not come', value: String(analytics.daysAbsent) },
-    { key: 'completion_rate', label: 'Job completion', value: `${analytics.completionRate}%` },
+    { key: 'days_leave', label: 'Leave days', value: String(analytics.daysLeave ?? 0) },
   ];
 
   const visitMetrics: MetricDef[] = [
     { key: 'jobs_started', label: 'Jobs started', value: String(analytics.jobsStarted ?? 0) },
     { key: 'jobs_completed', label: 'Jobs stopped', value: String(analytics.jobsCompleted) },
-    { key: 'jobs_no_show', label: 'No-shows', value: String(analytics.jobsNoShow ?? 0) },
+    { key: 'on_time', label: 'On-time', value: analytics.onTimeRate != null ? `${analytics.onTimeRate}%` : '—' },
     { key: 'avg_visit', label: 'Avg visit', value: avgVisit },
   ];
 
@@ -74,33 +75,56 @@ function MetricStat({
     <>
       <Text style={styles.val}>{metric.value}</Text>
       <Text style={styles.label}>{metric.label}</Text>
-      {onPress ? <ChevronRight size={14} color={colors.muted} style={styles.chevron} /> : null}
+      {onPress ? (
+        <PremiumIcon
+          icon={AppIcons.ui.chevronRight}
+          variant="plain"
+          size="sm"
+          color={colors.muted}
+          style={styles.chevron}
+        />
+      ) : null}
     </>
   );
 
   if (onPress) {
     return (
-      <Pressable onPress={() => onPress(metric.key)}>
-        <Card variant="premium" style={styles.stat}>
-          {inner}
-        </Card>
+      <Pressable onPress={() => onPress(metric.key)} style={({ pressed }) => [styles.statShell, pressed && styles.pressed]}>
+        <View style={styles.stat}>{inner}</View>
       </Pressable>
     );
   }
 
   return (
-    <Card variant="premium" style={styles.stat}>
-      {inner}
-    </Card>
+    <View style={styles.statShell}>
+      <View style={styles.stat}>{inner}</View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.sm },
-  sectionTitle: { ...typography.overline, marginTop: spacing.sm, marginBottom: 4 },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
+  sectionTitle: { ...typography.overline, marginTop: spacing.sm, marginBottom: 4, color: colors.forest },
+  divider: { height: 1, backgroundColor: surfaces.glassBorderStrong, marginVertical: spacing.sm },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  stat: { flex: 1, minWidth: '45%', padding: spacing.md, alignItems: 'center', position: 'relative' },
+  pressed: { opacity: 0.9 },
+  statShell: {
+    flex: 1,
+    minWidth: '45%',
+    borderRadius: 18,
+    ...homeShadow.soft,
+  },
+  stat: {
+    padding: spacing.md,
+    alignItems: 'center',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: surfaces.glassBorderStrong,
+    borderTopWidth: 3,
+    borderTopColor: '#8FD03C',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+  },
   val: { fontFamily: fonts.displayExtra, fontSize: 18, color: colors.forest },
   label: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 4 },
   chevron: { position: 'absolute', top: 8, right: 8 },

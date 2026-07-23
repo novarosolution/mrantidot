@@ -1,8 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { ADMIN_KPI_COLS, adminGridCellWidth } from '@/lib/adminGrid';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
 
 export type AnalyticsStatItem = {
   key: string;
@@ -14,9 +13,7 @@ export type AnalyticsStatItem = {
   onPress?: () => void;
 };
 
-export function AnalyticsStatGrid({ items }: { items: AnalyticsStatItem[] }) {
-  const chipWidth = adminGridCellWidth(ADMIN_KPI_COLS);
-
+export function AnalyticsStatGrid({ items, glass = false }: { items: AnalyticsStatItem[]; glass?: boolean }) {
   return (
     <View style={styles.grid}>
       {items.map((item) => {
@@ -24,7 +21,7 @@ export function AnalyticsStatGrid({ items }: { items: AnalyticsStatItem[] }) {
           <>
             <PremiumIcon
               icon={item.icon}
-              variant="soft"
+              variant="mint"
               size="md"
               color={item.iconColor ?? colors.green}
               bg={item.iconBg ?? colors.soft}
@@ -34,11 +31,12 @@ export function AnalyticsStatGrid({ items }: { items: AnalyticsStatItem[] }) {
             <Text style={styles.label}>{item.label}</Text>
           </>
         );
+        const chipStyle = [styles.chip, glass && styles.chipGlass];
         if (item.onPress) {
           return (
             <Pressable
               key={item.key}
-              style={({ pressed }) => [styles.chip, { width: chipWidth }, pressed && styles.pressed]}
+              style={({ pressed }) => [...chipStyle, pressed && styles.pressed]}
               onPress={item.onPress}
             >
               {inner}
@@ -46,7 +44,7 @@ export function AnalyticsStatGrid({ items }: { items: AnalyticsStatItem[] }) {
           );
         }
         return (
-          <View key={item.key} style={[styles.chip, { width: chipWidth }]}>
+          <View key={item.key} style={chipStyle}>
             {inner}
           </View>
         );
@@ -58,14 +56,23 @@ export function AnalyticsStatGrid({ items }: { items: AnalyticsStatItem[] }) {
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, width: '100%' },
   chip: {
+    width: '47%',
+    flexGrow: 1,
     padding: spacing.md,
     borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#E2F0D8',
+    borderTopWidth: 3,
+    borderTopColor: '#8FD03C',
     gap: 8,
     alignItems: 'center',
     ...premium.shadowSoft,
+  },
+  chipGlass: {
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderColor: surfaces.glassBorderStrong,
+    borderTopColor: '#8FD03C',
   },
   pressed: { opacity: 0.85 },
   value: { fontFamily: fonts.displayExtra, fontSize: 18, color: colors.forest, textAlign: 'center' },

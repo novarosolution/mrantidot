@@ -1,14 +1,15 @@
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput } from 'react-native';
+import { StyleSheet, Text, TextInput } from 'react-native';
 import { AuthField, AuthScreenLayout, authScreenStyles } from '@/components/kit/auth/AuthScreenLayout';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
 import { useLocation } from '@/context/LocationContext';
 import { appToast } from '@/lib/toast';
-import { homeRouteForRole } from '@/lib/auth-routes';
-import { appReplace } from '@/lib/routes';
+import { getApiErrorMessage } from '@/lib/api';
+import { appReplace, authRoutes, homeRouteForRole } from '@/lib/routes';
+import { useBrandFill, useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { spacing } from '@/constants/theme';
 
 type Errors = Partial<Record<'name' | 'phone' | 'email' | 'password', string>>;
@@ -16,6 +17,8 @@ type Errors = Partial<Record<'name' | 'phone' | 'email' | 'password', string>>;
 export default function RegisterScreen() {
   const { register } = useAuth();
   const { content } = useAppContent();
+  const ui = useCustomerUiCopy();
+  const { fill } = useBrandFill();
   const { displayCity } = useLocation();
 
   const phoneRef = useRef<TextInput>(null);
@@ -58,13 +61,13 @@ export default function RegisterScreen() {
         name: name.trim(),
         phone: phone.trim(),
         email: email.trim(),
-        password,
+        password: password.trim(),
         city: city.trim() || undefined,
       });
-      appToast.success('Account created', `Welcome to ${content.branding.name}`);
+      appToast.success(ui.authRegisterSuccessToast, `Welcome to ${content.branding.name}`);
       appReplace(homeRouteForRole(signedIn.role));
-    } catch {
-      // handled by API interceptor
+    } catch (err) {
+      appToast.error(ui.authRegisterErrorToast, getApiErrorMessage(err, 'Check your details and try again'));
     } finally {
       setLoading(false);
     }
@@ -73,16 +76,18 @@ export default function RegisterScreen() {
   return (
     <AuthScreenLayout
       brandName={content.branding.name}
-      heading="Create account"
+      brandTag={content.branding.tagline}
+      heading={ui.authRegisterTitle}
+      subtitle={fill(ui.authRegisterSubtitle)}
       showBack
       scroll
       footer={
-        <Text style={authScreenStyles.footer}>
-          Already have an account?{' '}
-          <Link href="/(auth)/login">
+        <>
+          <Text style={authScreenStyles.footer}>Already have an account? </Text>
+          <Link href={authRoutes.login}>
             <Text style={authScreenStyles.footerLink}>Sign in</Text>
           </Link>
-        </Text>
+        </>
       }
     >
       <AuthField
@@ -156,7 +161,7 @@ export default function RegisterScreen() {
         onSubmitEditing={() => void submit()}
       />
 
-      <Button title="Create account" variant="premium" onPress={() => void submit()} loading={loading} style={styles.cta} />
+      <Button title={ui.authRegisterButton} variant="premium" onPress={() => void submit()} loading={loading} style={styles.cta} />
     </AuthScreenLayout>
   );
 }

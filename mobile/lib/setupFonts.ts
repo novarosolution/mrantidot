@@ -15,7 +15,7 @@ export function setupDefaultFonts(): void {
     style: [
       {
         fontFamily: fonts.body,
-        letterSpacing: 0.1,
+        letterSpacing: -0.04,
         ...androidTextFix,
       },
       existing.style,

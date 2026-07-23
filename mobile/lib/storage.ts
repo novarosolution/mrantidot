@@ -30,7 +30,13 @@ export async function clearToken(): Promise<void> {
 
 export async function getUser(): Promise<StoredUser | null> {
   const raw = await AsyncStorage.getItem(USER_KEY);
-  return raw ? (JSON.parse(raw) as StoredUser) : null;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as StoredUser;
+  } catch {
+    await AsyncStorage.removeItem(USER_KEY);
+    return null;
+  }
 }
 
 export async function setUser(user: StoredUser): Promise<void> {

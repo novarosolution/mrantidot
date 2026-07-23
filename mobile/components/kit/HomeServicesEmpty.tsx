@@ -1,78 +1,38 @@
-import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, Text, View } from 'react-native';
-import { SearchX } from 'lucide-react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { Button } from '@/components/ui/Button';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { fonts } from '@/constants/theme';
+import { customerRoutes, appPush } from '@/lib/routes';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 export function HomeServicesEmpty({ filtered }: { filtered?: boolean }) {
+  const ui = useCustomerUiCopy();
   return (
     <View style={styles.wrap}>
-      <LinearGradient
-        colors={['#FFFFFF', '#F7FAF6']}
-        style={styles.card}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={styles.icon}>
-          {filtered ? (
-            <SearchX size={26} color={colors.forest} strokeWidth={1.8} />
-          ) : (
-            <AppIcons.brand size={26} color={colors.forest} strokeWidth={1.8} />
-          )}
-        </View>
-        <Text style={styles.title}>{filtered ? 'No matches' : 'Coming soon'}</Text>
-        <Text style={styles.message}>
-          {filtered ? 'Try another filter or search.' : 'Check back shortly.'}
-        </Text>
-        <Button
-          title="Browse all"
-          variant="premium"
-          onPress={() => router.push('/(customer)/services')}
-          style={styles.btn}
-        />
-      </LinearGradient>
+      <PremiumIcon icon={AppIcons.empty} variant="ring" size="xl" color="#0B7228" boxSize={56} />
+      <Text style={styles.title}>
+        {filtered ? ui.homeEmptyNoMatchesTitle : ui.homeEmptyNoServicesTitle}
+      </Text>
+      <Text style={styles.message}>
+        {filtered ? ui.homeEmptyNoMatchesMessage : ui.homeEmptyNoServicesMessage}
+      </Text>
+      <Pressable onPress={() => appPush(customerRoutes.services)} style={styles.btn}>
+        <Text style={styles.btnText}>{ui.homeEmptyBrowseAll}</Text>
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  card: {
-    borderRadius: premium.radiusCard,
-    padding: spacing.lg,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.06)',
-    ...shadows.card,
+  wrap: { paddingHorizontal: 20, paddingVertical: 28, alignItems: 'center', gap: 8 },
+  title: { fontFamily: fonts.displayExtra, fontSize: 17, color: '#0B2213', marginTop: 4 },
+  message: { fontFamily: fonts.bodyMedium, fontSize: 13, color: '#86AC80' },
+  btn: {
+    marginTop: 8,
+    backgroundColor: '#0B7228',
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
   },
-  icon: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: colors.soft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.06)',
-  },
-  title: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 18,
-    color: colors.ink,
-    textAlign: 'center',
-    letterSpacing: -0.2,
-  },
-  message: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.muted,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-    lineHeight: 19,
-    maxWidth: 260,
-  },
-  btn: { marginTop: spacing.md, alignSelf: 'stretch' },
+  btnText: { fontFamily: fonts.bodyBold, fontSize: 13, color: '#FFFFFF' },
 });

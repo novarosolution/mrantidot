@@ -1,5 +1,6 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Camera, ImageIcon, X } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, premium, spacing } from '@/constants/theme';
 
@@ -29,7 +30,7 @@ export function PhotoSourceSheet({
         >
           <View style={styles.handle} />
           <Pressable style={styles.close} onPress={onClose} hitSlop={8}>
-            <X size={20} color={colors.muted} />
+            <PremiumIcon icon={AppIcons.ui.close} variant="plain" size={20} color={colors.muted} />
           </Pressable>
 
           <Text style={styles.title}>{title}</Text>
@@ -43,7 +44,7 @@ export function PhotoSourceSheet({
             }}
           >
             <View style={[styles.optionIcon, styles.optionIconCamera]}>
-              <Camera size={22} color={colors.white} strokeWidth={2.2} />
+              <PremiumIcon icon={AppIcons.ui.camera} variant="plain" size={22} color={colors.white} strokeWidth={2.2} />
             </View>
             <View style={styles.optionText}>
               <Text style={styles.optionLabel}>Take photo</Text>
@@ -59,7 +60,7 @@ export function PhotoSourceSheet({
             }}
           >
             <View style={[styles.optionIcon, styles.optionIconGallery]}>
-              <ImageIcon size={22} color={colors.forest} strokeWidth={2.2} />
+              <PremiumIcon icon={AppIcons.ui.image} variant="plain" size={22} color={colors.forest} strokeWidth={2.2} />
             </View>
             <View style={styles.optionText}>
               <Text style={styles.optionLabel}>Choose from gallery</Text>

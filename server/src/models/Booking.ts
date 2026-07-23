@@ -72,7 +72,10 @@ export interface IBookingStep {
   title: string;
   description?: string;
   status: StepStatus;
+  /** Primary / first photo (legacy + convenience). */
   photoUrl?: string;
+  /** All progress photos for this step (up to MAX_STEP_PHOTOS). */
+  photoUrls?: string[];
   capturedAt?: Date;
   geo?: {
     lat: number;
@@ -98,6 +101,8 @@ export interface IBooking extends Document {
     coupon: number;
     total: number;
   };
+  /** Locked technician take-home when job is completed (admin pay rules). */
+  technicianEarning?: number;
   paymentMethod: PaymentMethod;
   status: BookingStatus;
   steps: IBookingStep[];
@@ -131,6 +136,7 @@ const bookingStepSchema = new Schema<IBookingStep>(
       default: 'pending',
     },
     photoUrl: { type: String },
+    photoUrls: { type: [String], default: undefined },
     capturedAt: { type: Date },
     geo: { type: geoSchema },
   },
@@ -221,6 +227,7 @@ const bookingSchema = new Schema<IBooking>(
     propertyType: { type: String, enum: PROPERTY_TYPE_KEYS },
     address: { type: String, required: true },
     amount: { type: amountSchema, required: true },
+    technicianEarning: { type: Number, min: 0 },
     paymentMethod: {
       type: String,
       enum: ['upi_card', 'pay_after'],

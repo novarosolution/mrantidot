@@ -1,8 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
-import { HelpCircle, MessageCircle, Phone } from 'lucide-react-native';
-import { router } from 'expo-router';
-import { colors, fonts, premium, premiumType, shadows, spacing } from '@/constants/theme';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
+import { colors, fonts, premium, premiumType, shadows, spacing, surfaces } from '@/constants/theme';
+import { customerRoutes, appPush } from '@/lib/routes';
 
 function digits(v: string) {
   return v.replace(/[^\d+]/g, '');
@@ -29,9 +30,7 @@ export function ProfileSupportCard({
         <View style={styles.row}>
           {phone ? (
             <Pressable style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]} onPress={() => Linking.openURL(`tel:${digits(phone)}`)}>
-              <View style={[styles.btnIcon, { backgroundColor: colors.soft }]}>
-                <Phone size={17} color={colors.forest} strokeWidth={2} />
-              </View>
+              <PremiumIcon icon={AppIcons.ui.phone} variant="mint" size={17} color={colors.forest} strokeWidth={2} boxSize={40} bg={colors.soft} />
               <Text style={styles.btnLabel}>Call</Text>
             </Pressable>
           ) : null}
@@ -40,16 +39,12 @@ export function ProfileSupportCard({
               style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
               onPress={() => Linking.openURL(`https://wa.me/${digits(wa)}`)}
             >
-              <View style={[styles.btnIcon, { backgroundColor: colors.secondarySoft }]}>
-                <MessageCircle size={17} color={colors.secondaryDark} strokeWidth={2} />
-              </View>
+              <PremiumIcon icon={AppIcons.ui.message} variant="mint" size={17} color={colors.secondaryDark} strokeWidth={2} boxSize={40} bg={colors.secondarySoft} />
               <Text style={styles.btnLabel}>WhatsApp</Text>
             </Pressable>
           ) : null}
-          <Pressable style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]} onPress={() => router.push('/(customer)/faq')}>
-            <View style={[styles.btnIcon, { backgroundColor: colors.blueBg }]}>
-              <HelpCircle size={17} color={colors.blue} strokeWidth={2} />
-            </View>
+          <Pressable style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]} onPress={() => appPush(customerRoutes.faq)}>
+            <PremiumIcon icon={AppIcons.ui.help} variant="mint" size={17} color={colors.blue} strokeWidth={2} boxSize={40} bg={colors.blueBg} />
             <Text style={styles.btnLabel}>FAQ</Text>
           </Pressable>
         </View>
@@ -66,7 +61,8 @@ const styles = StyleSheet.create({
     borderRadius: premium.radiusCard,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.08)',
+    borderColor: surfaces.glassBorderStrong,
+    backgroundColor: surfaces.glass,
     ...shadows.card,
   },
   header: {
@@ -77,7 +73,7 @@ const styles = StyleSheet.create({
   title: { ...premiumType.brandSub, fontSize: 18, color: colors.white },
   subtitle: { fontFamily: fonts.body, fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
   body: {
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glass,
     padding: spacing.md,
     paddingTop: spacing.sm + 4,
   },
@@ -89,18 +85,11 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: spacing.sm + 2,
     borderRadius: 16,
-    backgroundColor: colors.card,
+    backgroundColor: surfaces.glass,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: surfaces.glassBorderStrong,
   },
   btnPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
-  btnIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   btnLabel: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.forest },
   hours: {
     fontFamily: fonts.body,

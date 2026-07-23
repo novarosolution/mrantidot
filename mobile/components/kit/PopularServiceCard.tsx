@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ArrowRight, Star } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import { formatSocialProof } from '@/lib/display';
 import { serviceDisplayRating } from '@/lib/ratings';
@@ -45,7 +46,7 @@ export function PopularServiceCard({
             <View style={styles.metaRow}>
               {rating > 0 ? (
                 <View style={styles.ratingChip}>
-                  <Star size={11} color={premium.accentGold} fill={premium.accentGold} />
+                  <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={11} color={premium.accentGold} fill={premium.accentGold} />
                   <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
                 </View>
               ) : null}
@@ -57,7 +58,7 @@ export function PopularServiceCard({
           </View>
           <View style={styles.cta}>
             <Text style={styles.ctaText}>Book</Text>
-            <ArrowRight size={16} color={colors.forest} strokeWidth={2.5} />
+            <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={16} color={colors.forest} strokeWidth={2.5} />
           </View>
         </View>
       </LinearGradient>

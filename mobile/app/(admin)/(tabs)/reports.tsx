@@ -1,20 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, Share, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
-import {
-  CalendarCheck,
-  Download,
-  IndianRupee,
-  Percent,
-  Receipt,
-  Star,
-  Users,
-} from 'lucide-react-native';
 import { StatusPipelineCard } from '@/components/kit/StatusPipelineCard';
-import { AdminListShell, adminStyles } from '@/components/kit/AdminListShell';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AdminSectionTitle } from '@/components/kit/AdminListShell';
 import { AdminFilterChips } from '@/components/kit/AdminPageKit';
+import { AdminScreenHeader } from '@/components/kit/AdminScreenHeader';
+import { AdminTabScreen } from '@/components/kit/AdminScreenKit';
 import { AnalyticsStatGrid } from '@/components/kit/AnalyticsStatGrid';
 import { formatRupee } from '@/components/kit/format';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { KpiCard } from '@/components/kit/KpiCard';
 import { RevenueBarChart } from '@/components/kit/RevenueBarChart';
 import {
@@ -27,15 +22,20 @@ import {
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { AppIcons } from '@/constants/appIcons';
+import { useAuth } from '@/context/AuthContext';
 import { api, screenLoadConfig } from '@/lib/api';
-import { appPush } from '@/lib/routes';
+import { appPush, adminRoutes } from '@/lib/routes';
 import { useScreenLoad } from '@/lib/useScreenLoad';
+import { useUnreadNotifications } from '@/lib/useUnreadNotifications';
+import { userInitial } from '@/lib/userInitials';
 import type { AdminStats, TeamAttendanceStats } from '@/types/api';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, spacing, surfaces } from '@/constants/theme';
 
 const PERIODS = ['Week', 'Month', 'Quarter', 'Year'];
 
 export default function AdminReportsScreen() {
+  const { user } = useAuth();
+  const { unreadCount } = useUnreadNotifications();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [teamAttendance, setTeamAttendance] = useState<TeamAttendanceStats | null>(null);
   const [period, setPeriod] = useState('Month');
@@ -101,20 +101,6 @@ export default function AdminReportsScreen() {
     }
   }
 
-  const headerExtra = (
-    <AdminFilterChips
-      chips={PERIODS.map((p) => ({ key: p, label: p }))}
-      selected={period}
-      onSelect={(p) => !loading && setPeriod(p)}
-    />
-  );
-
-  const exportBtn = (
-    <Pressable style={styles.dl} onPress={() => void exportReport()} accessibilityLabel="Export report">
-      <Download size={18} color={colors.lime} />
-    </Pressable>
-  );
-
   const analyticsGrid = useMemo(() => {
     if (!stats) return [];
     const a = stats.analytics;
@@ -123,37 +109,37 @@ export default function AdminReportsScreen() {
         key: 'bookings',
         label: `Bookings (${period})`,
         value: String(stats.periodBookings ?? 0),
-        icon: CalendarCheck,
-        iconBg: colors.blueBg,
-        iconColor: colors.blue,
-        onPress: () => appPush('/(admin)/bookings'),
+        icon: AppIcons.ui.calendarCheck,
+        iconBg: colors.soft,
+        iconColor: colors.forest,
+        onPress: () => appPush(adminRoutes.bookings),
       },
       {
         key: 'customers',
         label: 'Customers',
         value: String(stats.customers),
-        icon: Users,
+        icon: AppIcons.adminKpi.customers,
         iconBg: colors.soft,
         iconColor: colors.green,
-        onPress: () => appPush('/(admin)/customers'),
+        onPress: () => appPush(adminRoutes.customers),
       },
       {
         key: 'techs',
         label: 'Technicians',
         value: String(stats.technicians),
         icon: AppIcons.adminQuick.addTech,
-        iconBg: colors.secondarySoft,
-        iconColor: colors.secondaryDark,
-        onPress: () => appPush('/(admin)/technicians'),
+        iconBg: colors.soft,
+        iconColor: colors.forest,
+        onPress: () => appPush(adminRoutes.technicians),
       },
       {
         key: 'reviews',
         label: 'Avg rating',
         value: a ? `${a.reviews.averageRating}★` : '—',
-        icon: Star,
-        iconBg: colors.amberBg,
-        iconColor: colors.amberInk,
-        onPress: () => appPush('/(admin)/reviews'),
+        icon: AppIcons.ui.star,
+        iconBg: colors.soft,
+        iconColor: colors.forest,
+        onPress: () => appPush(adminRoutes.reviews),
       },
       {
         key: 'completion',
@@ -167,21 +153,32 @@ export default function AdminReportsScreen() {
         key: 'offers',
         label: 'Active offers',
         value: a ? `${a.offers.active}` : '—',
-        icon: Percent,
-        iconBg: colors.secondarySoft,
-        iconColor: colors.secondaryInk,
-        onPress: () => appPush('/(admin)/offers'),
+        icon: AppIcons.ui.percent,
+        iconBg: colors.soft,
+        iconColor: colors.forest,
+        onPress: () => appPush(adminRoutes.offers),
       },
     ];
   }, [stats, period]);
+
+  const initial = userInitial(user?.name);
+  const header = (
+    <AdminScreenHeader
+      title="Analytics"
+      subtitle={`${period} · revenue, pipeline & team`}
+      eyebrow="INSIGHTS"
+      userInitial={initial}
+      unreadCount={unreadCount}
+    />
+  );
 
   if (loading && !stats) return <Spinner fullScreen />;
 
   if (error && !stats) {
     return (
-      <AdminListShell title="Analytics" subtitle="Reports" rightAction={exportBtn} headerExtra={headerExtra}>
+      <AdminTabScreen header={header}>
         <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
-      </AdminListShell>
+      </AdminTabScreen>
     );
   }
 
@@ -193,232 +190,301 @@ export default function AdminReportsScreen() {
   const paymentTotal = (a?.paymentSplit.upi_card ?? 0) + (a?.paymentSplit.pay_after ?? 0);
 
   return (
-    <AdminListShell
-      title="Analytics"
-      subtitle={`${period} business overview`}
-      showBack={false}
-      rightAction={exportBtn}
-      headerExtra={headerExtra}
+    <AdminTabScreen
+      header={header}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />
+      }
     >
-      <ScrollView
-        style={styles.flex}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />
-        }
-        showsVerticalScrollIndicator={false}
-      >
-        {loading ? (
-          <View style={styles.loadingRow}>
-            <Spinner />
-            <Text style={styles.loadingText}>Updating {period.toLowerCase()} data…</Text>
+      <View style={styles.periodWrap}>
+        <GlassPanel padded={false} intensity={42} style={styles.periodGlass}>
+          <View style={styles.periodInner}>
+            <View style={styles.periodHead}>
+              <View style={styles.periodText}>
+                <Text style={styles.periodEyebrow}>PERIOD</Text>
+                <Text style={styles.periodTitle}>Compare performance</Text>
+              </View>
+              <Pressable
+                style={({ pressed }) => [styles.exportBtn, pressed && styles.pressed]}
+                onPress={() => void exportReport()}
+                accessibilityRole="button"
+                accessibilityLabel="Export report"
+              >
+                <PremiumIcon icon={AppIcons.ui.download} variant="plain" size="sm" color={colors.forest} strokeWidth={2.2} />
+              </Pressable>
+            </View>
+            <AdminFilterChips
+              chips={PERIODS.map((p) => ({ key: p, label: p }))}
+              selected={period}
+              onSelect={(p) => !loading && setPeriod(p)}
+            />
           </View>
-        ) : null}
+        </GlassPanel>
+      </View>
 
-        <View style={styles.grid}>
-          <KpiCard
-            icon={IndianRupee}
-            value={formatRupee(stats.periodRevenue ?? stats.revenueCompleted)}
-            label={`Revenue (${period})`}
-            delta={stats.deltas?.revenue}
-            iconBg={colors.soft}
-            iconColor={colors.green}
-          />
-          <KpiCard
-            icon={CalendarCheck}
-            value={String(stats.periodBookings ?? 0)}
-            label={`Bookings (${period})`}
-            delta={stats.deltas?.bookings}
-            iconBg={colors.blueBg}
-            iconColor={colors.blue}
-            onPress={() => appPush('/(admin)/bookings')}
-          />
-          <KpiCard
-            icon={Receipt}
-            value={`₹${avgOrder}`}
-            label="Avg order"
-            iconBg={colors.secondarySoft}
-            iconColor={colors.secondaryDark}
-          />
-          <KpiCard
-            icon={AppIcons.adminKpi.pending}
-            value={String(stats.periodPending ?? stats.byStatus.pending ?? 0)}
-            label={`Pending (${period})`}
-            delta={stats.deltas?.pending}
-            iconBg={colors.amberBg}
-            iconColor={colors.amberInk}
-            onPress={() => appPush('/(admin)/bookings?status=pending')}
-          />
+      {loading ? (
+        <View style={styles.loadingRow}>
+          <Spinner />
+          <Text style={styles.loadingText}>Updating {period.toLowerCase()} data…</Text>
         </View>
+      ) : null}
 
-        <ReportsSectionCard title="Entity metrics" hint="Tap a tile to open that section">
-          <AnalyticsStatGrid items={analyticsGrid} />
-        </ReportsSectionCard>
+      <AdminSectionTitle title="Key metrics" hint={`${period} snapshot`} />
+      <View style={styles.grid}>
+        <KpiCard
+          icon={AppIcons.ui.rupee}
+          value={formatRupee(stats.periodRevenue ?? stats.revenueCompleted)}
+          label={`Revenue (${period})`}
+          delta={stats.deltas?.revenue}
+          iconBg={colors.soft}
+          iconColor={colors.green}
+          glass
+        />
+        <KpiCard
+          icon={AppIcons.ui.calendarCheck}
+          value={String(stats.periodBookings ?? 0)}
+          label={`Bookings (${period})`}
+          delta={stats.deltas?.bookings}
+          iconBg={colors.soft}
+          iconColor={colors.forest}
+          onPress={() => appPush(adminRoutes.bookings)}
+          glass
+        />
+        <KpiCard
+          icon={AppIcons.ui.pay}
+          value={`₹${avgOrder}`}
+          label="Avg order"
+          iconBg={colors.soft}
+          iconColor={colors.forest}
+          glass
+        />
+        <KpiCard
+          icon={AppIcons.adminKpi.pending}
+          value={String(stats.periodPending ?? stats.byStatus.pending ?? 0)}
+          label={`Pending (${period})`}
+          delta={stats.deltas?.pending}
+          iconBg={colors.soft}
+          iconColor={colors.forest}
+          onPress={() => appPush(adminRoutes.bookingsFiltered({ status: 'pending' }))}
+          glass
+        />
+      </View>
 
-        {stats.statusBreakdown && stats.statusBreakdown.length > 0 ? (
-          <ReportsSectionCard
-            title="Booking pipeline"
-            hint={`All-time totals · +N = new in ${period.toLowerCase()}`}
-            actionLabel="View all"
-            onAction={() => appPush('/(admin)/bookings')}
-          >
-            <StatusPipelineCard
-              hideTitle
-              items={stats.statusBreakdown}
-              periodLabel={`New bookings in ${period.toLowerCase()} shown per status`}
-              onStatusPress={(status) => appPush(`/(admin)/bookings?status=${status}`)}
-            />
-          </ReportsSectionCard>
-        ) : null}
-
-        <ReportsSectionCard title="Revenue trend" hint="Completed job revenue — last 7 months">
-          <View style={styles.chartFlush}>
-            <RevenueBarChart title="Monthly revenue" data={months} />
-          </View>
-        </ReportsSectionCard>
-
-        {a?.bookingsTrend && a.bookingsTrend.length > 0 ? (
-          <ReportsSectionCard title="Booking volume" hint="New bookings created each day">
-            <BookingsTrendChart data={a.bookingsTrend} />
-          </ReportsSectionCard>
-        ) : null}
-
-        {teamAttendance ? (
-          <ReportsSectionCard
-            title="Team attendance"
-            hint={`Field team performance · ${period.toLowerCase()}`}
-            actionLabel="Team"
-            onAction={() => appPush('/(admin)/technicians')}
-          >
-            <ReportsTeamCard
-              checkedInToday={teamAttendance.checkedInToday}
-              totalTechnicians={teamAttendance.totalTechnicians}
-              averageRate={teamAttendance.averageAttendanceRate}
-              lowAttendance={teamAttendance.lowAttendance}
-              onTechPress={(id) => appPush(`/(admin)/technician/${id}`)}
-            />
-          </ReportsSectionCard>
-        ) : null}
-
-        {a && a.topTechnicians.length > 0 ? (
-          <ReportsSectionCard title="Top technicians" hint={`Completed jobs in ${period.toLowerCase()}`}>
-            <ReportsRankList
-              items={a.topTechnicians.map((t) => ({
-                key: t.id,
-                title: t.name,
-                subtitle: `${t.jobs} jobs · ${formatRupee(t.revenue)}`,
-                value: t.jobs,
-                onPress: () => appPush(`/(admin)/technician/${t.id}`),
-              }))}
-            />
-          </ReportsSectionCard>
-        ) : null}
-
+      {stats.statusBreakdown && stats.statusBreakdown.length > 0 ? (
         <ReportsSectionCard
-          title="Top services"
-          hint={`Most booked in ${period.toLowerCase()}`}
-          actionLabel="Catalog"
-          onAction={() => appPush('/(admin)/services')}
+          title="Booking pipeline"
+          hint={`All-time totals · +N = new in ${period.toLowerCase()}`}
+          actionLabel="View all"
+          onAction={() => appPush(adminRoutes.bookings)}
+          glass
         >
-          <ReportsRankList
-            items={stats.topServices.map((s) => ({
-              key: String(s.serviceId),
-              title: s.name,
-              subtitle: `${s.count} bookings`,
-              value: s.count,
-              onPress: () => appPush(`/(admin)/bookings?serviceId=${s.serviceId}`),
-            }))}
-            emptyMessage="No bookings in this period yet."
+          <StatusPipelineCard
+            hideTitle
+            flush
+            items={stats.statusBreakdown}
+            periodLabel={`New bookings in ${period.toLowerCase()} shown per status`}
+            onStatusPress={(status) => appPush(adminRoutes.bookingsFiltered({ status: status }))}
           />
         </ReportsSectionCard>
+      ) : null}
 
-        {a && a.topCustomers.length > 0 ? (
-          <ReportsSectionCard title="Top customers" hint={`Highest spend in ${period.toLowerCase()}`}>
-            <ReportsRankList
-              items={a.topCustomers.map((c) => ({
-                key: c.id,
-                title: c.name,
-                subtitle: `${c.bookings} bookings · ${formatRupee(c.spend)}`,
-                value: c.spend,
-                onPress: () => appPush(`/(admin)/customer/${c.id}`),
-              }))}
-            />
-          </ReportsSectionCard>
-        ) : null}
+      <ReportsSectionCard title="Revenue" hint="Completed job revenue — last 7 months" glass>
+        <View style={styles.chartFlush}>
+          <RevenueBarChart title="Monthly revenue" data={months} flush />
+        </View>
+      </ReportsSectionCard>
 
-        {a ? (
-          <ReportsSectionCard title="Reviews, offers & payments" hint="Customer satisfaction and catalog health">
-            <ReportsInsightGrid
-              items={[
-                {
-                  key: 'reviews',
-                  label: 'Total reviews',
-                  value: String(a.reviews.total),
-                  hint: `${a.reviews.periodCount} new this period`,
-                },
-                {
-                  key: 'rating',
-                  label: 'Average rating',
-                  value: `${a.reviews.averageRating}★`,
-                  accent: colors.amberInk,
-                },
-                {
-                  key: 'offers',
-                  label: 'Active offers',
-                  value: `${a.offers.active}/${a.offers.total}`,
-                  hint: `${a.offers.totalRedemptions} total redemptions`,
-                },
-                {
-                  key: 'services',
-                  label: 'Active services',
-                  value: `${a.catalog.activeServices}/${a.catalog.totalServices}`,
-                },
-                {
-                  key: 'coupons',
-                  label: 'Coupon bookings',
-                  value: String(a.performance.couponBookings),
-                  hint: `In ${period.toLowerCase()}`,
-                },
-                {
-                  key: 'cancel',
-                  label: 'Cancellation rate',
-                  value: `${a.performance.cancellationRate}%`,
-                  accent: a.performance.cancellationRate > 10 ? colors.amberInk : colors.forest,
-                },
-                {
-                  key: 'upi',
-                  label: 'Pay now (UPI/card)',
-                  value: paymentTotal > 0 ? `${Math.round((a.paymentSplit.upi_card / paymentTotal) * 100)}%` : '—',
-                  hint: `${a.paymentSplit.upi_card} bookings`,
-                },
-                {
-                  key: 'later',
-                  label: 'Pay after service',
-                  value: paymentTotal > 0 ? `${Math.round((a.paymentSplit.pay_after / paymentTotal) * 100)}%` : '—',
-                  hint: `${a.paymentSplit.pay_after} bookings`,
-                },
-              ]}
-            />
-          </ReportsSectionCard>
-        ) : null}
-      </ScrollView>
-    </AdminListShell>
+      {a?.bookingsTrend && a.bookingsTrend.length > 0 ? (
+        <ReportsSectionCard title="Daily bookings" hint="New bookings created each day" glass>
+          <BookingsTrendChart data={a.bookingsTrend} flush />
+        </ReportsSectionCard>
+      ) : null}
+
+      {teamAttendance ? (
+        <ReportsSectionCard
+          title="Team attendance"
+          hint={`Field team performance · ${period.toLowerCase()}`}
+          actionLabel="Team"
+          onAction={() => appPush(adminRoutes.technicians)}
+          glass
+        >
+          <ReportsTeamCard
+            checkedInToday={teamAttendance.checkedInToday}
+            totalTechnicians={teamAttendance.totalTechnicians}
+            averageRate={teamAttendance.averageAttendanceRate}
+            lowAttendance={teamAttendance.lowAttendance}
+            onTechPress={(id) => appPush(adminRoutes.technician(id))}
+            flush
+          />
+        </ReportsSectionCard>
+      ) : null}
+
+      {a && a.topTechnicians.length > 0 ? (
+        <ReportsSectionCard title="Top technicians" hint={`Completed jobs in ${period.toLowerCase()}`} glass>
+          <ReportsRankList
+            flush
+            items={a.topTechnicians.map((t) => ({
+              key: t.id,
+              title: t.name,
+              subtitle: `${t.jobs} jobs · ${formatRupee(t.revenue)}`,
+              value: t.jobs,
+              onPress: () => appPush(adminRoutes.technician(t.id)),
+            }))}
+          />
+        </ReportsSectionCard>
+      ) : null}
+
+      <ReportsSectionCard
+        title="Top services"
+        hint={`Most booked in ${period.toLowerCase()}`}
+        actionLabel="Catalog"
+        onAction={() => appPush(adminRoutes.services)}
+        glass
+      >
+        <ReportsRankList
+          flush
+          items={stats.topServices.map((s) => ({
+            key: String(s.serviceId),
+            title: s.name,
+            subtitle: `${s.count} bookings`,
+            value: s.count,
+            onPress: () => appPush(adminRoutes.bookingsFiltered({ serviceId: s.serviceId })),
+          }))}
+          emptyMessage="No bookings in this period yet."
+        />
+      </ReportsSectionCard>
+
+      {a && a.topCustomers.length > 0 ? (
+        <ReportsSectionCard title="Top customers" hint={`Highest spend in ${period.toLowerCase()}`} glass>
+          <ReportsRankList
+            flush
+            items={a.topCustomers.map((c) => ({
+              key: c.id,
+              title: c.name,
+              subtitle: `${c.bookings} bookings · ${formatRupee(c.spend)}`,
+              value: c.spend,
+              onPress: () => appPush(adminRoutes.customer(c.id)),
+            }))}
+          />
+        </ReportsSectionCard>
+      ) : null}
+
+      <ReportsSectionCard title="Quick links" hint="Jump into people, catalog & reviews" glass>
+        <AnalyticsStatGrid items={analyticsGrid} glass />
+      </ReportsSectionCard>
+
+      {a ? (
+        <ReportsSectionCard title="Reviews, offers & payments" hint="Satisfaction, offers & how customers pay" glass>
+          <ReportsInsightGrid
+            glass
+            items={[
+              {
+                key: 'reviews',
+                label: 'Total reviews',
+                value: String(a.reviews.total),
+                hint: `${a.reviews.periodCount} new this period`,
+              },
+              {
+                key: 'rating',
+                label: 'Average rating',
+                value: `${a.reviews.averageRating}★`,
+                accent: colors.forest,
+              },
+              {
+                key: 'offers',
+                label: 'Active offers',
+                value: `${a.offers.active}/${a.offers.total}`,
+                hint: `${a.offers.totalRedemptions} total redemptions`,
+              },
+              {
+                key: 'services',
+                label: 'Active services',
+                value: `${a.catalog.activeServices}/${a.catalog.totalServices}`,
+              },
+              {
+                key: 'coupons',
+                label: 'Coupon bookings',
+                value: String(a.performance.couponBookings),
+                hint: `In ${period.toLowerCase()}`,
+              },
+              {
+                key: 'cancel',
+                label: 'Cancellation rate',
+                value: `${a.performance.cancellationRate}%`,
+                accent: a.performance.cancellationRate > 10 ? '#C15B31' : colors.forest,
+              },
+              {
+                key: 'upi',
+                label: 'Pay now (UPI/card)',
+                value: paymentTotal > 0 ? `${Math.round((a.paymentSplit.upi_card / paymentTotal) * 100)}%` : '—',
+                hint: `${a.paymentSplit.upi_card} bookings`,
+              },
+              {
+                key: 'later',
+                label: 'Pay after service',
+                value: paymentTotal > 0 ? `${Math.round((a.paymentSplit.pay_after / paymentTotal) * 100)}%` : '—',
+                hint: `${a.paymentSplit.pay_after} bookings`,
+              },
+            ]}
+          />
+        </ReportsSectionCard>
+      ) : null}
+    </AdminTabScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  content: { ...adminStyles.content, paddingTop: spacing.sm },
-  dl: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.forest,
+  periodWrap: { paddingHorizontal: spacing.md, marginTop: spacing.sm },
+  periodGlass: { borderColor: surfaces.glassBorderStrong },
+  periodInner: { paddingTop: spacing.md, paddingBottom: spacing.sm, gap: spacing.sm },
+  periodHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    gap: 12,
+  },
+  periodText: { flex: 1, minWidth: 0 },
+  periodEyebrow: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 10,
+    letterSpacing: 1.3,
+    color: colors.forest,
+    textTransform: 'uppercase',
+  },
+  periodTitle: {
+    fontFamily: fonts.display,
+    fontSize: 16,
+    letterSpacing: -0.3,
+    color: colors.ink,
+    marginTop: 2,
+  },
+  exportBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.72)',
+    borderWidth: 1.5,
+    borderColor: '#8FD03C',
   },
-  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+  pressed: { opacity: 0.88, transform: [{ scale: 0.97 }] },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+  },
   loadingText: { fontFamily: fonts.body, fontSize: 13, color: colors.muted },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: spacing.md, marginTop: spacing.sm, width: '100%' },
-  chartFlush: { marginHorizontal: -spacing.md },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    width: '100%',
+  },
+  chartFlush: { marginHorizontal: -spacing.sm },
 });

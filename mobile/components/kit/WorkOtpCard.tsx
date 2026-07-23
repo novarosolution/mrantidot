@@ -2,12 +2,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Copy, KeyRound } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { AppIcons } from '@/constants/appIcons';
 import { appToast } from '@/lib/toast';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import type { WorkOtpView } from '@/types/api';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { adminType, colors, gradients, premium, spacing, surfaces } from '@/constants/theme';
 
 export function WorkOtpCard({
   title,
@@ -44,46 +45,47 @@ export function WorkOtpCard({
   }
 
   return (
-    <Card variant="premium" style={styles.card}>
-      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
-      <View style={styles.head}>
-        <View style={styles.iconWrap}>
-          <KeyRound size={20} color={colors.white} />
-        </View>
-        <View style={styles.headText}>
-          <Text style={styles.title}>{title}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-        </View>
-      </View>
-
-      <View style={styles.codeRow}>
-        {otp.code.split('').map((digit, i) => (
-          <View key={`${digit}-${i}`} style={styles.digitBox}>
-            <Text style={styles.digit}>{digit}</Text>
+    <GlassPanel style={styles.shell} padded={false} tone="light" goldEdge intensity={40}>
+      <View style={styles.card}>
+        <View style={styles.head}>
+          <LinearGradient colors={[...gradients.headerDark]} style={styles.iconWrap} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <PremiumIcon icon={AppIcons.ui.key} variant="plain" size="md" color={colors.lime} />
+          </LinearGradient>
+          <View style={styles.headText}>
+            <Text style={styles.title}>{title}</Text>
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
           </View>
-        ))}
-      </View>
+        </View>
 
-      <Text style={[styles.timer, expired && styles.timerExpired]}>
-        {expired ? 'Code expired' : `Expires in ${mins}:${String(secs).padStart(2, '0')}`}
-      </Text>
+        <View style={styles.codeRow}>
+          {otp.code.split('').map((digit, i) => (
+            <View key={`${digit}-${i}`} style={styles.digitBox}>
+              <Text style={styles.digit}>{digit}</Text>
+            </View>
+          ))}
+        </View>
 
-      <View style={styles.actions}>
-        <Pressable style={styles.copyBtn} onPress={() => void copyCode()}>
-          <Copy size={16} color={colors.green} />
-          <Text style={styles.copyText}>Copy code</Text>
-        </Pressable>
-        {onRegenerate ? (
-          <Button
-            title={regenerating ? 'Refreshing…' : 'Get new code'}
-            variant="secondary"
-            onPress={onRegenerate}
-            disabled={regenerating}
-            style={styles.regenBtn}
-          />
-        ) : null}
+        <Text style={[styles.timer, expired && styles.timerExpired]}>
+          {expired ? 'Code expired' : `Expires in ${mins}:${String(secs).padStart(2, '0')}`}
+        </Text>
+
+        <View style={styles.actions}>
+          <Pressable style={styles.copyBtn} onPress={() => void copyCode()}>
+            <PremiumIcon icon={AppIcons.ui.copy} variant="plain" size="sm" color={colors.forest} />
+            <Text style={styles.copyText}>Copy code</Text>
+          </Pressable>
+          {onRegenerate ? (
+            <Button
+              title={regenerating ? 'Refreshing…' : 'Get new code'}
+              variant="secondary"
+              onPress={onRegenerate}
+              disabled={regenerating}
+              style={styles.regenBtn}
+            />
+          ) : null}
+        </View>
       </View>
-    </Card>
+    </GlassPanel>
   );
 }
 
@@ -97,38 +99,37 @@ export function getActiveCustomerOtp(
 }
 
 const styles = StyleSheet.create({
-  card: { marginBottom: spacing.md, overflow: 'hidden', paddingTop: spacing.sm },
-  goldBar: { height: 3, marginHorizontal: -spacing.md, marginTop: -spacing.sm, marginBottom: spacing.sm },
+  shell: { marginBottom: spacing.md, borderRadius: 20 },
+  card: { padding: spacing.md, paddingTop: spacing.sm + 10 },
   head: { flexDirection: 'row', gap: 12, marginBottom: spacing.md },
   iconWrap: {
     width: 44,
     height: 44,
-    borderRadius: 14,
-    backgroundColor: colors.forest,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
   },
-  headText: { flex: 1 },
-  title: { fontFamily: fonts.display, fontSize: 16, color: colors.ink },
-  subtitle: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 4, lineHeight: 18 },
+  headText: { flex: 1, gap: 2 },
+  title: { ...adminType.formTitle, fontSize: 16 },
+  subtitle: { ...adminType.formSub, marginTop: 0 },
   codeRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: spacing.sm },
   digitBox: {
     width: 44,
     height: 52,
-    borderRadius: 12,
-    backgroundColor: colors.soft,
+    borderRadius: 14,
+    backgroundColor: surfaces.glassSoft,
     borderWidth: 1.5,
-    borderColor: colors.green,
+    borderColor: surfaces.glassBorderStrong,
     alignItems: 'center',
     justifyContent: 'center',
     ...premium.shadowSoft,
   },
-  digit: { fontFamily: fonts.displayExtra, fontSize: 22, color: colors.forest, letterSpacing: 1 },
+  digit: { ...adminType.statValue, fontSize: 22, letterSpacing: 1 },
   timer: {
     textAlign: 'center',
-    fontFamily: fonts.bodySemi,
-    fontSize: 12,
-    color: colors.muted,
+    ...adminType.formSub,
     marginBottom: spacing.md,
   },
   timerExpired: { color: colors.error },
@@ -140,9 +141,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: colors.soft,
+    borderRadius: 16,
+    backgroundColor: 'rgba(238,248,230,0.65)',
+    borderWidth: 1,
+    borderColor: surfaces.glassBorderStrong,
   },
-  copyText: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.green },
+  copyText: { ...adminType.chipText },
   regenBtn: { flex: 1 },
 });

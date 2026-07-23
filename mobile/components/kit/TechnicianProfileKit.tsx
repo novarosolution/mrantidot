@@ -1,6 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { type LucideIcon, Calendar, ClipboardList, BarChart3, Phone, Pencil, Clock, UserPlus } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { formatRupee } from '@/components/kit/format';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { technicianDisplayRating, technicianRealRating } from '@/lib/ratings';
@@ -37,9 +39,9 @@ export function TechnicianIdentityCard({
 
   return (
     <View style={styles.identityCard}>
-      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <View style={styles.identityRow}>
-        <LinearGradient colors={['#14532D', '#1E8E4E']} style={styles.avatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+        <LinearGradient colors={['#30B84F', '#0A6423']} style={styles.avatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <Text style={styles.avatarText}>{initials}</Text>
         </LinearGradient>
         <View style={styles.identityText}>
@@ -109,6 +111,9 @@ export function TechnicianMetricGrid({
 
   return (
     <View style={styles.metricGrid}>
+      {stats.paySummary ? (
+        <Text style={styles.paySummary}>Pay rule: {stats.paySummary}</Text>
+      ) : null}
       {tiles.map((tile) => {
         const inner = (
           <>
@@ -167,7 +172,7 @@ type ActionItem = {
 export function TechnicianActionBar({ actions }: { actions: ActionItem[] }) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.actionRow}>
-      {actions.map(({ key, label, icon: Icon, onPress, primary }) => (
+      {actions.map(({ key, label, icon, onPress, primary }) => (
         <Pressable
           key={key}
           style={({ pressed }) => [
@@ -177,7 +182,13 @@ export function TechnicianActionBar({ actions }: { actions: ActionItem[] }) {
           ]}
           onPress={onPress}
         >
-          <Icon size={15} color={primary ? colors.white : colors.forest} strokeWidth={2.2} />
+          <PremiumIcon
+            icon={icon}
+            variant="plain"
+            size="sm"
+            color={primary ? colors.white : colors.forest}
+            strokeWidth={2.2}
+          />
           <Text style={[styles.actionLabel, primary && styles.actionLabelPrimary]}>{label}</Text>
         </Pressable>
       ))}
@@ -186,9 +197,9 @@ export function TechnicianActionBar({ actions }: { actions: ActionItem[] }) {
 }
 
 const VIEW_TABS: { key: TechnicianViewMode; label: string; icon: LucideIcon }[] = [
-  { key: 'calendar', label: 'Calendar', icon: Calendar },
-  { key: 'list', label: 'List', icon: ClipboardList },
-  { key: 'analytics', label: 'Analytics', icon: BarChart3 },
+  { key: 'calendar', label: 'Calendar', icon: AppIcons.ui.calendar },
+  { key: 'list', label: 'List', icon: AppIcons.adminQuick.bookings },
+  { key: 'analytics', label: 'Analytics', icon: AppIcons.adminTab.reports },
 ];
 
 export function TechnicianViewTabs({
@@ -200,9 +211,9 @@ export function TechnicianViewTabs({
 }) {
   return (
     <View style={styles.tabsWrap}>
-      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.tabsGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.tabsGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <View style={styles.tabsRow}>
-        {VIEW_TABS.map(({ key, label, icon: Icon }) => {
+        {VIEW_TABS.map(({ key, label, icon }) => {
           const selected = active === key;
           return (
             <Pressable
@@ -210,7 +221,13 @@ export function TechnicianViewTabs({
               onPress={() => onChange(key)}
               style={[styles.tab, selected && styles.tabActive]}
             >
-              <Icon size={14} color={selected ? colors.white : colors.forest} strokeWidth={2.2} />
+              <PremiumIcon
+                icon={icon}
+                variant="plain"
+                size="sm"
+                color={selected ? colors.white : colors.forest}
+                strokeWidth={2.2}
+              />
               <Text style={[styles.tabLabel, selected && styles.tabLabelActive]}>{label}</Text>
             </Pressable>
           );
@@ -255,10 +272,10 @@ export function TechnicianProfileHeader({
   compact?: boolean;
 }) {
   const actions: ActionItem[] = [
-    ...(onCall ? [{ key: 'call', label: 'Call', icon: Phone, onPress: onCall, primary: true }] : []),
-    { key: 'edit', label: 'Edit account', icon: Pencil, onPress: onEdit },
-    { key: 'pending', label: 'Pending', icon: Clock, onPress: onPending },
-    { key: 'assign', label: 'Assign job', icon: UserPlus, onPress: onAssign },
+    ...(onCall ? [{ key: 'call', label: 'Call', icon: AppIcons.ui.phone, onPress: onCall, primary: true }] : []),
+    { key: 'edit', label: 'Edit account', icon: AppIcons.ui.edit, onPress: onEdit },
+    { key: 'pending', label: 'Pending', icon: AppIcons.ui.clock, onPress: onPending },
+    { key: 'assign', label: 'Assign job', icon: AppIcons.adminQuick.addTech, onPress: onAssign },
   ];
 
   return (
@@ -294,7 +311,7 @@ export function TechnicianProfileHeader({
 export function TechnicianReviewCard({ stars, comment, tags }: { stars: number; comment?: string; tags: string[] }) {
   return (
     <View style={styles.reviewCard}>
-      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.reviewGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.reviewGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <Text style={styles.reviewStars}>{'★'.repeat(stars)}{'☆'.repeat(5 - stars)}</Text>
       {comment ? <Text style={styles.reviewComment}>{comment}</Text> : null}
       {tags.length > 0 ? <Text style={styles.reviewTags}>{tags.join(' · ')}</Text> : null}
@@ -306,9 +323,9 @@ const styles = StyleSheet.create({
   header: { gap: spacing.sm },
   identityCard: {
     borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glass,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: surfaces.glassBorderStrong,
     padding: spacing.md,
     paddingTop: spacing.sm + 4,
     overflow: 'hidden',
@@ -331,17 +348,25 @@ const styles = StyleSheet.create({
   contactBlock: { marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   contactLine: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, lineHeight: 18 },
   metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  paySummary: {
+    width: '100%',
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.muted,
+    marginBottom: 4,
+    paddingHorizontal: 2,
+  },
   metricTile: {
     width: '31%',
     flexGrow: 1,
     minWidth: '30%',
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glass,
     borderRadius: 14,
     paddingVertical: spacing.sm + 2,
     paddingHorizontal: spacing.sm,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: surfaces.glassBorderStrong,
     ...shadows.card,
   },
   metricTileWide: { width: '100%', minWidth: '100%' },
@@ -358,16 +383,16 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.1)',
+    borderColor: '#E2F0D8',
   },
   actionBtnPrimary: { backgroundColor: colors.forest, borderColor: colors.forest },
   actionLabel: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
   actionLabelPrimary: { color: colors.white },
   tabsWrap: {
     borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glass,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: surfaces.glassBorderStrong,
     overflow: 'hidden',
     ...shadows.card,
   },
@@ -388,12 +413,12 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.88 },
   reviewCard: {
     borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glass,
     padding: spacing.md,
     paddingTop: spacing.sm + 4,
     marginBottom: spacing.sm,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: surfaces.glassBorderStrong,
     overflow: 'hidden',
     ...shadows.card,
   },

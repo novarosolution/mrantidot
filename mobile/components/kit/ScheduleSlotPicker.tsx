@@ -1,11 +1,15 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { CloudSun, Sun } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { BOOKING_SLOT_GROUPS, formatSlotLabel } from '@/lib/dates';
 import { colors, fonts, spacing } from '@/constants/theme';
 
-const GROUP_ICONS: Record<string, typeof Sun> = {
-  Morning: Sun,
-  Afternoon: CloudSun,
+const GROUP_ICONS: Record<string, LucideIcon> = {
+  Night: AppIcons.ui.clock,
+  Morning: AppIcons.ui.sun,
+  Afternoon: AppIcons.ui.cloudSun,
+  Evening: AppIcons.ui.clock,
 };
 
 export function ScheduleSlotPicker({
@@ -18,12 +22,12 @@ export function ScheduleSlotPicker({
   return (
     <View style={styles.wrap}>
       {BOOKING_SLOT_GROUPS.map((group, gi) => {
-        const Icon = GROUP_ICONS[group.title] ?? Sun;
+        const icon = GROUP_ICONS[group.title] ?? AppIcons.ui.sun;
         return (
           <View key={group.title} style={[styles.group, gi > 0 && styles.groupGap]}>
             <View style={styles.groupHead}>
               <View style={styles.groupIcon}>
-                <Icon size={15} color={colors.forest} strokeWidth={2.2} />
+                <PremiumIcon icon={icon} variant="plain" size={15} color={colors.forest} strokeWidth={2.2} />
               </View>
               <Text style={styles.groupTitle}>{group.title}</Text>
             </View>

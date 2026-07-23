@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { nextBookableDays } from '@/lib/dates';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
 
 export function ScheduleDayPicker({
   selectedDate,
@@ -56,18 +56,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     alignItems: 'center',
     borderRadius: 16,
-    backgroundColor: colors.bg,
+    backgroundColor: surfaces.glass,
     borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderColor: surfaces.glassBorderStrong,
   },
   cardOn: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.soft,
     borderColor: colors.forest,
-    shadowColor: '#0E3A20',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    ...premium.shadowSoft,
   },
   pressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
   week: {
@@ -79,16 +75,15 @@ const styles = StyleSheet.create({
   },
   num: {
     fontFamily: fonts.displayExtra,
-    fontSize: 21,
+    fontSize: 20,
     color: colors.ink,
     marginTop: 2,
-    lineHeight: 24,
   },
   month: {
     fontFamily: fonts.body,
     fontSize: 10,
     color: colors.muted,
-    marginTop: 1,
+    marginTop: 2,
   },
   monthOn: { color: colors.forest },
   textOn: { color: colors.forest },
@@ -96,9 +91,9 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 3,
-    backgroundColor: colors.green,
+    backgroundColor: '#8FD03C',
     marginTop: 6,
   },
-  todayDotOn: { backgroundColor: colors.lime },
-  todaySpacer: { height: 11 },
+  todayDotOn: { backgroundColor: colors.forest },
+  todaySpacer: { height: 5, marginTop: 6 },
 });

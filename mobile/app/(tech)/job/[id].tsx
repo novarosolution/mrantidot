@@ -1,29 +1,30 @@
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActionSheetIOS,
-  Alert,
   Image,
-  Platform,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Camera, Check, ImageIcon } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import Toast from 'react-native-toast-message';
+import { paramString } from '@/lib/routeParams';
+import { AddressPhotoGrid } from '@/components/kit/AddressPhotoGrid';
 import { BookingFactsCard } from '@/components/kit/BookingFactsCard';
 import { BookingStatusBanner } from '@/components/kit/BookingStatusBanner';
 import { BookingTrackingTimeline } from '@/components/kit/BookingTrackingTimeline';
 import { JobProgressCard } from '@/components/kit/JobProgressCard';
 import { OtpEntrySheet } from '@/components/kit/OtpEntrySheet';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
+import { GlassBackdrop, GlassPanel } from '@/components/kit/GlassScreenKit';
+import { homeShadow } from '@/components/kit/homeUi';
 import { TechScreenScroll } from '@/components/kit/TechScreenKit';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { Input } from '@/components/ui/Input';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
@@ -50,24 +51,29 @@ import {
 import { useTechCopy } from '@/lib/tech-copy';
 import { localDateKey } from '@/lib/dates';
 import { mediaUrl } from '@/lib/images';
-import { uploadImage } from '@/lib/upload';
+import { MAX_STEP_PHOTOS, stepPhotoUrls } from '@/lib/stepPhotos';
+import { uploadImages, type PickedImage } from '@/lib/upload';
 import type { Booking, BookingStep } from '@/types/api';
-import { colors, design, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, spacing, surfaces } from '@/constants/theme';
 
 export default function TechJobScreen() {
   const copy = useTechCopy();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [otpSheet, setOtpSheet] = useState<'start' | 'end' | null>(null);
   const [otpErrorTrigger, setOtpErrorTrigger] = useState(0);
+  const [stepDrafts, setStepDrafts] = useState<Record<number, PickedImage[]>>({});
   const focusedRef = useRef(true);
   const lastPoll = useRef(0);
   const { loading, error, runLoad } = useScreenLoad();
 
   const load = useCallback(async (opts?: { skipCache?: boolean }) => {
+    if (!id) {
+      throw new Error('Job not found');
+    }
     const cacheOpts = opts?.skipCache
       ? { skipCache: true as const }
       : { cacheTtlMs: CACHE_TTL.bookingDetail };
@@ -149,101 +155,64 @@ export default function TechJobScreen() {
     }
   }
 
-  async function pickPhoto(source: 'camera' | 'library') {
-    if (source === 'camera') {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Toast.show({ type: 'error', text1: 'Camera permission required' });
-        return null;
-      }
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        quality: 0.55,
-        allowsEditing: true,
+  async function readJobGeo(): Promise<{ lat: number; lng: number; address: string } | null> {
+    if (!booking) return null;
+    const { status: loc } = await Location.requestForegroundPermissionsAsync();
+    if (loc !== 'granted') {
+      Toast.show({
+        type: 'error',
+        text1: 'Location permission required',
+        text2: 'Enable GPS to capture geotagged step photos',
       });
-      if (result.canceled || !result.assets[0]) return null;
-      return result.assets[0];
-    }
-
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Toast.show({ type: 'error', text1: 'Photo library permission required' });
       return null;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.55,
-      allowsEditing: true,
-    });
-    if (result.canceled || !result.assets[0]) return null;
-    return result.assets[0];
+
+    const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+    let address = note.trim() || booking.address?.trim() || 'On-site location';
+    try {
+      const [place] = await Location.reverseGeocodeAsync({
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+      });
+      if (place) {
+        address = [place.street, place.city, place.region].filter(Boolean).join(', ') || address;
+      }
+    } catch {
+      /* use fallback address */
+    }
+    return { lat: pos.coords.latitude, lng: pos.coords.longitude, address };
   }
 
-  function showPhotoOptions(index: number, step: BookingStep) {
-    const run = (source: 'camera' | 'library') => void captureStep(index, step, source);
-
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'Take photo', 'Choose from gallery'],
-          cancelButtonIndex: 0,
-        },
-        (i) => {
-          if (i === 1) void run('camera');
-          if (i === 2) void run('library');
-        },
-      );
+  async function completeStep(index: number, step: BookingStep) {
+    if (!booking) return;
+    const drafts = stepDrafts[index] ?? [];
+    if (drafts.length === 0) {
+      Toast.show({ type: 'error', text1: 'Add at least one photo' });
       return;
     }
-
-    Alert.alert('Add step photo', 'Capture proof of treatment at this step', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Take photo', onPress: () => void run('camera') },
-      { text: 'Gallery', onPress: () => void run('library') },
-    ]);
-  }
-
-  async function captureStep(index: number, step: BookingStep, source: 'camera' | 'library') {
-    if (!booking) return;
     setBusy(`step-${index}`);
     try {
-      const asset = await pickPhoto(source);
-      if (!asset) return;
+      const geo = await readJobGeo();
+      if (!geo) return;
 
-      let geo: { lat: number; lng: number; address: string } | undefined;
-      const { status: loc } = await Location.requestForegroundPermissionsAsync();
-      if (loc !== 'granted') {
-        Toast.show({
-          type: 'error',
-          text1: 'Location permission required',
-          text2: 'Enable GPS to capture geotagged step photos',
-        });
-        return;
-      }
-
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      let address = note.trim() || booking.address?.trim() || 'On-site location';
-      try {
-        const [place] = await Location.reverseGeocodeAsync({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-        });
-        if (place) {
-          address = [place.street, place.city, place.region].filter(Boolean).join(', ') || address;
-        }
-      } catch {
-        /* use fallback address */
-      }
-      geo = { lat: pos.coords.latitude, lng: pos.coords.longitude, address };
-
-      const photoUrl = await uploadImage(asset.uri, undefined, asset.mimeType);
+      const photoUrls = await uploadImages(drafts);
       await api.patch(`/bookings/${id}/steps/${index}`, {
         status: 'done',
-        photoUrl,
+        photoUrls,
+        photoUrl: photoUrls[0],
         geo,
       });
+      setStepDrafts((prev) => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
       await load({ skipCache: true });
-      Toast.show({ type: 'success', text1: `${step.title} completed` });
+      Toast.show({
+        type: 'success',
+        text1: `${step.title} completed`,
+        text2: `${photoUrls.length} photo${photoUrls.length === 1 ? '' : 's'} saved`,
+      });
     } catch (err) {
       Toast.show({
         type: 'error',
@@ -259,10 +228,13 @@ export default function TechJobScreen() {
 
   if (error || !booking) {
     return (
-      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-        <CustomerPageHeader variant="premium" title="Job" showBack />
-        <ListEmptyRetry message={error ?? 'Job not found'} onRetry={() => void runLoad(load)} />
-      </SafeAreaView>
+      <View style={styles.root}>
+        <GlassBackdrop />
+        <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+          <CustomerPageHeader variant="premium" title="Job" showBack />
+          <ListEmptyRetry message={error ?? 'Job not found'} onRetry={() => void runLoad(load)} />
+        </SafeAreaView>
+      </View>
     );
   }
 
@@ -284,11 +256,13 @@ export default function TechJobScreen() {
   const headerLive = booking.status === 'in_progress';
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+    <View style={styles.root}>
+      <GlassBackdrop />
+      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
       <CustomerPageHeader
         variant="premium"
         title={bookingServiceName(booking)}
-        subtitle={bookingScheduleDisplay(booking)}
+        subtitle={`Field job · ${bookingScheduleDisplay(booking)}`}
         showBack
         rightAction={headerLive ? <StatusBadge label="● Live" tone="success" /> : null}
       />
@@ -301,11 +275,42 @@ export default function TechJobScreen() {
         <FadeSlideIn>
           <BookingStatusBanner status={booking.status} audience="technician" />
 
-          {booking.jobValue != null ? (
-            <Card variant="premium" style={styles.jobValueCard}>
-              <Text style={styles.jobValueLabel}>{copy.techJobValueLabel}</Text>
-              <Text style={styles.jobValueAmount}>₹{booking.jobValue}</Text>
-            </Card>
+          {needsStartCode ? (
+            <View style={styles.calloutOuter}>
+              <View style={styles.surfaceShell}>
+                <GlassPanel style={styles.startCallout} padded={false} tone="mint" intensity={42} goldEdge>
+                  <View style={styles.calloutInner}>
+                    <Text style={styles.startCalloutTitle}>Ready to start</Text>
+                    <Text style={styles.startCalloutBody}>
+                      Ask the customer for their start code, then enter it below to begin the visit.
+                    </Text>
+                  </View>
+                </GlassPanel>
+              </View>
+            </View>
+          ) : null}
+
+          {booking.techEarning != null || booking.jobValue != null ? (
+            <View style={styles.calloutOuter}>
+              <View style={styles.surfaceShell}>
+                <GlassPanel style={styles.jobValueCard} padded={false} tone="light" intensity={42} goldEdge>
+                  <View style={styles.jobValueInner}>
+                    {booking.techEarning != null ? (
+                      <>
+                        <Text style={styles.jobValueLabel}>{copy.techEarningLabel}</Text>
+                        <Text style={styles.jobValueAmount}>₹{booking.techEarning}</Text>
+                      </>
+                    ) : null}
+                    {booking.jobValue != null ? (
+                      <Text style={styles.jobValueHint}>
+                        {copy.techJobValueLabel}: ₹{booking.jobValue}
+                        {booking.status !== 'completed' ? ' · estimate until complete' : ''}
+                      </Text>
+                    ) : null}
+                  </View>
+                </GlassPanel>
+              </View>
+            </View>
           ) : null}
 
           {showProgress ? (
@@ -319,38 +324,161 @@ export default function TechJobScreen() {
             </View>
           ) : null}
 
-          <PremiumSectionHeader title={copy.techVisitTimesTitle} style={styles.sectionHeader} />
-          <Card variant="premium" style={styles.visitCard}>
-            <View style={styles.visitHead}>
-              <StatusBadge label={visitStatusLabel(visitStatus)} tone={visitTone} />
-            </View>
-            <View style={styles.visitRow}>
-              <Text style={styles.visitLabel}>Started</Text>
-              <Text style={styles.visitVal}>
-                {booking.workStartedAt ? formatVisitTime(booking.workStartedAt) : 'Not started'}
-              </Text>
-            </View>
-            <View style={styles.visitRow}>
-              <Text style={styles.visitLabel}>Completed</Text>
-              <Text style={styles.visitVal}>
-                {booking.workCompletedAt
-                  ? formatVisitTime(booking.workCompletedAt)
-                  : visitStatus === 'in_progress'
-                    ? 'In progress'
-                    : '—'}
-              </Text>
-            </View>
-            {visitDuration ? (
-              <View style={styles.visitRow}>
-                <Text style={styles.visitLabel}>Duration</Text>
-                <Text style={styles.visitVal}>{visitDuration}</Text>
+          {steps.length > 0 ? (
+            <>
+              <PremiumSectionHeader title={copy.techTreatmentStepsTitle} style={styles.sectionHeader} />
+              {steps.map((step, index) => {
+                const isActive = index === activeIndex && step.status !== 'done';
+                const isDone = step.status === 'done';
+                const photos = stepPhotoUrls(step);
+                const drafts = stepDrafts[index] ?? [];
+                return (
+                  <View key={`${step.title}-${index}`} style={styles.stepOuter}>
+                    <View style={[styles.surfaceShell, isActive && styles.stepActiveShell]}>
+                      <GlassPanel
+                        style={isActive ? styles.stepActive : styles.step}
+                        padded={false}
+                        tone={isActive ? 'mint' : 'light'}
+                        intensity={42}
+                        goldEdge={isActive}
+                      >
+                        <View style={styles.stepInner}>
+                          <View style={styles.stepRow}>
+                            {isDone && photos[0] ? (
+                              <View>
+                                <Image source={{ uri: mediaUrl(photos[0]) }} style={styles.thumb} />
+                                <View style={styles.checkOverlay}>
+                                  <PremiumIcon icon={AppIcons.ui.check} variant="plain" size="sm" color="#fff" strokeWidth={3} />
+                                </View>
+                                {photos.length > 1 ? (
+                                  <View style={styles.photoCountBadge}>
+                                    <Text style={styles.photoCountText}>{photos.length}</Text>
+                                  </View>
+                                ) : null}
+                              </View>
+                            ) : isActive ? (
+                              <View style={styles.camThumb}>
+                                <PremiumIcon icon={AppIcons.ui.camera} variant="plain" size="xl" color="#fff" />
+                              </View>
+                            ) : (
+                              <View style={styles.numThumb}>
+                                <Text style={styles.num}>{index + 1}</Text>
+                              </View>
+                            )}
+                            <View style={styles.stepBody}>
+                              <Text style={[styles.stepTitle, !isDone && !isActive && styles.muted]}>{step.title}</Text>
+                              {isDone ? (
+                                <Text style={styles.doneTag}>
+                                  Done · {photos.length} photo{photos.length === 1 ? '' : 's'}
+                                </Text>
+                              ) : null}
+                              {isActive ? (
+                                <Text style={styles.activeTag}>
+                                  Add up to {MAX_STEP_PHOTOS} photos
+                                </Text>
+                              ) : null}
+                              {step.geo?.address ? <Text style={styles.geo}>{step.geo.address}</Text> : null}
+                            </View>
+                          </View>
+
+                          {isDone && photos.length > 0 ? (
+                            <ScrollView
+                              horizontal
+                              showsHorizontalScrollIndicator={false}
+                              contentContainerStyle={styles.donePhotoRow}
+                            >
+                              {photos.map((url, i) => (
+                                <Image
+                                  key={`${url}-${i}`}
+                                  source={{ uri: mediaUrl(url) }}
+                                  style={styles.donePhoto}
+                                />
+                              ))}
+                            </ScrollView>
+                          ) : null}
+
+                          {isActive && booking.status === 'in_progress' && canWork ? (
+                            <View style={styles.captureBlock}>
+                              <AddressPhotoGrid
+                                photos={drafts}
+                                onChange={(next) =>
+                                  setStepDrafts((prev) => ({ ...prev, [index]: next }))
+                                }
+                                max={MAX_STEP_PHOTOS}
+                              />
+                              <Button
+                                title={
+                                  drafts.length === 0
+                                    ? 'Add photos to complete'
+                                    : `Complete with ${drafts.length} photo${drafts.length === 1 ? '' : 's'}`
+                                }
+                                variant="premium"
+                                onPress={() => void completeStep(index, step)}
+                                loading={busy === `step-${index}`}
+                                disabled={drafts.length === 0 || busy === `step-${index}`}
+                                style={styles.captureBtnFull}
+                              />
+                            </View>
+                          ) : null}
+                        </View>
+                      </GlassPanel>
+                    </View>
+                  </View>
+                );
+              })}
+            </>
+          ) : canWork && booking.status === 'in_progress' ? (
+            <View style={styles.calloutOuter}>
+              <View style={styles.surfaceShell}>
+                <GlassPanel style={styles.emptySteps} padded={false} tone="light" intensity={42}>
+                  <View style={styles.emptyStepsInner}>
+                    <PremiumIcon icon={AppIcons.ui.image} variant="mint" size="md" color={colors.forest} boxSize={44} />
+                    <Text style={styles.emptyStepsText}>{copy.techNoStepsHint}</Text>
+                  </View>
+                </GlassPanel>
               </View>
-            ) : null}
-          </Card>
+            </View>
+          ) : null}
+
+          <PremiumSectionHeader title={copy.techVisitTimesTitle} style={styles.sectionHeader} />
+          <View style={styles.calloutOuter}>
+            <View style={styles.surfaceShell}>
+              <GlassPanel style={styles.visitCard} padded={false} tone="light" intensity={42} goldEdge>
+                <View style={styles.visitInner}>
+                  <View style={styles.visitHead}>
+                    <Text style={styles.visitHeadLabel}>Visit status</Text>
+                    <StatusBadge label={visitStatusLabel(visitStatus)} tone={visitTone} />
+                  </View>
+                  <View style={styles.visitRow}>
+                    <Text style={styles.visitLabel}>Started</Text>
+                    <Text style={styles.visitVal}>
+                      {booking.workStartedAt ? formatVisitTime(booking.workStartedAt) : 'Not started'}
+                    </Text>
+                  </View>
+                  <View style={styles.visitRow}>
+                    <Text style={styles.visitLabel}>Completed</Text>
+                    <Text style={styles.visitVal}>
+                      {booking.workCompletedAt
+                        ? formatVisitTime(booking.workCompletedAt)
+                        : visitStatus === 'in_progress'
+                          ? 'In progress'
+                          : '—'}
+                    </Text>
+                  </View>
+                  {visitDuration ? (
+                    <View style={styles.visitRow}>
+                      <Text style={styles.visitLabel}>Duration</Text>
+                      <Text style={styles.visitVal}>{visitDuration}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              </GlassPanel>
+            </View>
+          </View>
 
           <PremiumSectionHeader title={copy.techJobDetailsTitle} style={styles.sectionHeader} />
           <View style={styles.inset}>
-            <BookingFactsCard booking={booking} audience="technician" showCustomer showPayment={false} />
+            <BookingFactsCard booking={booking} audience="technician" showCustomer showPayment={false} hideHead />
           </View>
 
           {canWork && booking.status === 'in_progress' ? (
@@ -363,75 +491,12 @@ export default function TechJobScreen() {
             />
           ) : null}
 
-          {steps.length > 0 ? (
-            <>
-              <PremiumSectionHeader title={copy.techTreatmentStepsTitle} style={styles.sectionHeader} />
-              {steps.map((step, index) => {
-                const isActive = index === activeIndex && step.status !== 'done';
-                const isDone = step.status === 'done';
-                return (
-                  <Card
-                    key={`${step.title}-${index}`}
-                    variant="premium"
-                    style={isActive ? { ...styles.step, ...styles.stepActive } : styles.step}
-                  >
-                    <View style={styles.stepRow}>
-                      {isDone && step.photoUrl ? (
-                        <View>
-                          <Image source={{ uri: mediaUrl(step.photoUrl) }} style={styles.thumb} />
-                          <View style={styles.checkOverlay}>
-                            <Check color="#fff" size={16} strokeWidth={3} />
-                          </View>
-                        </View>
-                      ) : isActive ? (
-                        <View style={styles.camThumb}>
-                          <Camera color="#fff" size={24} />
-                        </View>
-                      ) : (
-                        <View style={styles.numThumb}>
-                          <Text style={styles.num}>{index + 1}</Text>
-                        </View>
-                      )}
-                      <View style={styles.stepBody}>
-                        <Text style={[styles.stepTitle, !isDone && !isActive && styles.muted]}>{step.title}</Text>
-                        {isDone ? <Text style={styles.doneTag}>Done</Text> : null}
-                        {isActive ? <Text style={styles.activeTag}>Add photo</Text> : null}
-                        {step.geo?.address ? <Text style={styles.geo}>{step.geo.address}</Text> : null}
-                      </View>
-                    </View>
-                    {isActive && booking.status === 'in_progress' && canWork ? (
-                      <View style={styles.captureRow}>
-                        <Button
-                          title="Take photo"
-                          variant="premium"
-                          onPress={() => showPhotoOptions(index, step)}
-                          loading={busy === `step-${index}`}
-                          style={styles.captureBtn}
-                        />
-                        <Button
-                          title="Gallery"
-                          variant="secondary"
-                          onPress={() => void captureStep(index, step, 'library')}
-                          disabled={busy === `step-${index}`}
-                          style={styles.captureBtn}
-                        />
-                      </View>
-                    ) : null}
-                  </Card>
-                );
-              })}
-            </>
-          ) : canWork && booking.status === 'in_progress' ? (
-            <Card variant="premium" style={styles.emptySteps}>
-              <ImageIcon size={22} color={colors.forest} />
-              <Text style={styles.emptyStepsText}>{copy.techNoStepsHint}</Text>
-            </Card>
-          ) : null}
-
           {(booking.tracking?.length ?? 0) > 0 ? (
             <>
               <PremiumSectionHeader title={copy.techActivityTitle} style={styles.sectionHeader} />
-              <BookingTrackingTimeline events={booking.tracking ?? []} />
+              <View style={styles.inset}>
+                <BookingTrackingTimeline events={booking.tracking ?? []} />
+              </View>
             </>
           ) : null}
         </FadeSlideIn>
@@ -469,33 +534,47 @@ export default function TechJobScreen() {
         onClose={() => setOtpSheet(null)}
         onSubmit={(otp) => void submitOtp(otp)}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: design.screenBg },
+  root: { flex: 1, backgroundColor: surfaces.glassScreenBase },
+  safe: { flex: 1, backgroundColor: 'transparent' },
   container: { paddingBottom: 120 },
   inset: { marginHorizontal: spacing.md },
   sectionHeader: { marginTop: spacing.sm },
-  jobValueCard: {
-    marginHorizontal: spacing.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    backgroundColor: colors.soft,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  calloutOuter: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
+  surfaceShell: {
+    borderRadius: 20,
+    ...homeShadow.card,
   },
+  startCallout: { borderRadius: 20 },
+  calloutInner: { padding: spacing.md },
+  startCalloutTitle: { fontFamily: fonts.displayExtra, fontSize: 16, color: colors.ink, letterSpacing: -0.3 },
+  startCalloutBody: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, marginTop: 6, lineHeight: 19 },
+  jobValueCard: { borderRadius: 20 },
+  jobValueInner: { padding: spacing.md },
   jobValueLabel: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.muted },
-  jobValueAmount: { fontFamily: fonts.displayExtra, fontSize: 20, color: colors.green },
-  visitCard: { marginHorizontal: spacing.md, marginBottom: spacing.sm, padding: spacing.md },
-  visitHead: { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: spacing.sm },
+  jobValueAmount: { fontFamily: fonts.displayExtra, fontSize: 22, color: colors.forest },
+  jobValueHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 4 },
+  visitCard: { borderRadius: 20 },
+  visitInner: { padding: spacing.md },
+  visitHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
+  visitHeadLabel: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted },
   visitRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginTop: 6 },
   visitLabel: { fontFamily: fonts.body, fontSize: 13, color: colors.muted },
   visitVal: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink, flex: 1, textAlign: 'right' },
-  step: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
-  stepActive: { borderWidth: 1.6, borderColor: colors.green },
+  stepOuter: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
+  step: { borderRadius: 20 },
+  stepActive: { borderRadius: 20 },
+  stepActiveShell: {
+    borderRadius: 20,
+    borderWidth: 1.6,
+    borderColor: '#27A747',
+  },
+  stepInner: { padding: spacing.md },
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   thumb: { width: 58, height: 58, borderRadius: 13 },
   checkOverlay: {
@@ -534,21 +613,31 @@ const styles = StyleSheet.create({
   doneTag: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.green, marginTop: 4 },
   activeTag: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.forest, marginTop: 4 },
   geo: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
-  captureRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  captureBtn: { flex: 1, minHeight: 44 },
-  emptySteps: {
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.md,
+  photoCountBadge: {
+    position: 'absolute',
+    left: -4,
+    top: -4,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    backgroundColor: colors.forest,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.white,
+  },
+  photoCountText: { fontFamily: fonts.bodyBold, fontSize: 10, color: colors.white },
+  donePhotoRow: { gap: 8, marginTop: spacing.md, paddingRight: 4 },
+  donePhoto: { width: 88, height: 88, borderRadius: 12, backgroundColor: colors.card },
+  captureBlock: { marginTop: spacing.md, gap: spacing.sm },
+  captureBtnFull: { minHeight: 46 },
+  emptySteps: { borderRadius: 20 },
+  emptyStepsInner: {
     padding: spacing.md,
     gap: spacing.sm,
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.soft,
   },
-  emptyStepsText: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.forest,
-    lineHeight: 19,
-    textAlign: 'center',
-  },
+  emptyStepsText: { flex: 1, fontFamily: fonts.body, fontSize: 13, color: colors.muted, lineHeight: 18 },
 });

@@ -1,5 +1,6 @@
-import { Star } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { colors, fonts } from '@/constants/theme';
 
 /** Read-only star rating row. Shows 5 stars filled up to `rating`, with an optional numeric value and review count. */
@@ -18,8 +19,10 @@ export function StarRating({
   return (
     <View style={styles.row}>
       {[1, 2, 3, 4, 5].map((i) => (
-        <Star
+        <PremiumIcon
           key={i}
+          icon={AppIcons.ui.star}
+          variant="plain"
           size={size}
           color={colors.amber}
           fill={i <= rounded ? colors.amber : 'transparent'}

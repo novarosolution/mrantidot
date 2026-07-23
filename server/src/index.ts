@@ -6,11 +6,12 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'path';
 import rateLimit from 'express-rate-limit';
-import { connectDb, disconnectDb, isDbConnected } from './config/db';
+import { connectDb, disconnectDb, isDbConnected, isUsingMemoryMongo } from './config/db';
 import { env } from './config/env';
 import { assertDistBuilt, validateProductionEnv } from './config/validateEnv';
 import { errorHandler } from './middleware/error';
 import { apiRouter } from './routes';
+import { runSeedDatabase } from './seed/seed';
 import { getAdminConfig, upsertAdminUser } from './utils/adminUser';
 
 function ensureUploadDir(): void {
@@ -25,10 +26,28 @@ async function main(): Promise<void> {
   ensureUploadDir();
   await connectDb();
 
-  if (env.ensureAdminOnStartup) {
+  const seedOnStart =
+    process.env.SEED_ON_START?.trim().toLowerCase() === 'true' ||
+    process.env.SEED_ON_START?.trim() === '1';
+
+  if (seedOnStart) {
+    console.log('[seed] SEED_ON_START=true — loading seed data into connected database…');
+    await runSeedDatabase();
+  } else if (isUsingMemoryMongo()) {
+    console.warn(
+      '[db] In-memory MongoDB is empty. Set MONGO_URI to your Atlas/local DB in server/.env, ' +
+        'or set SEED_ON_START=true only if you intentionally want demo data.',
+    );
+  }
+
+  if (env.ensureAdminOnStartup && !seedOnStart) {
     await upsertAdminUser();
     const admin = getAdminConfig();
     console.log(`[admin] Synced to database — ${admin.email} (phone ${admin.phone})`);
+  } else if (env.ensureAdminOnStartup && seedOnStart) {
+    // Seed already upserts admin
+    const admin = getAdminConfig();
+    console.log(`[admin] Present from seed — ${admin.email} (phone ${admin.phone})`);
   }
 
   const app = express();
@@ -61,9 +80,11 @@ async function main(): Promise<void> {
   app.use('/api/auth', authLimiter);
 
   app.get('/api/health', (_req, res) => {
-    res.json({
-      ok: true,
-      db: isDbConnected() ? 'connected' : 'disconnected',
+    const connected = isDbConnected();
+    res.status(connected ? 200 : 503).json({
+      ok: connected,
+      db: connected ? 'connected' : 'disconnected',
+      dbMode: isUsingMemoryMongo() ? 'memory' : 'atlas',
       time: new Date().toISOString(),
     });
   });

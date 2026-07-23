@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ArrowRight } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { BrandLogo } from '@/components/BrandLogo';
 import type { HomePromo } from '@/types/api';
 import { colors, fonts, gradients, premium, shadows, spacing } from '@/constants/theme';
@@ -36,9 +37,7 @@ export function PromoBanner({
           {p.ctaLabel ? (
             <View style={styles.ctaRow}>
               <Text style={styles.ctaLabel}>{p.ctaLabel}</Text>
-              <View style={styles.ctaIcon}>
-                <ArrowRight size={14} color={colors.forest} strokeWidth={2.5} />
-              </View>
+              <PremiumIcon icon={AppIcons.ui.arrowRight} variant="chevron" size={14} color={colors.forest} strokeWidth={2.5} />
             </View>
           ) : null}
         </View>

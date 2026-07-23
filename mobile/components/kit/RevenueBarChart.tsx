@@ -1,20 +1,23 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
 import { Card } from '@/components/ui/Card';
-import { colors, fonts, gradients, spacing } from '@/constants/theme';
+import { colors, fonts, spacing } from '@/constants/theme';
 
 export function RevenueBarChart({
   title = 'Revenue',
   data = [],
+  flush = false,
 }: {
   title?: string;
   data?: { label: string; amount: number }[];
+  /** Skip outer card when already inside a glass panel. */
+  flush?: boolean;
 }) {
   const buckets = data.length > 0 ? data : [{ label: '-', amount: 0 }];
   const max = Math.max(...buckets.map((b) => b.amount), 1);
 
-  return (
-    <Card variant="premium" style={styles.card}>
+  const body = (
+    <>
       <View style={styles.head}>
         <Text style={styles.title}>{title}</Text>
         <View style={styles.chip}>
@@ -25,20 +28,27 @@ export function RevenueBarChart({
         {buckets.map((b, i) => {
           const pct = Math.max(8, Math.round((b.amount / max) * 100));
           const isLast = i === buckets.length - 1;
-          const Bar = (
-            <LinearGradient
-              colors={isLast ? [colors.lime, colors.green] : [gradients.primary[0], gradients.primary[1]]}
-              style={[styles.bar, { height: `${pct}%` }]}
-            />
-          );
           return (
             <View key={`${b.label}-${i}`} style={styles.col}>
-              {Bar}
+              <LinearGradient
+                colors={isLast ? ['#8FD03C', '#27A747'] : ['#1B873E', '#0A6423']}
+                style={[styles.bar, { height: `${pct}%` }]}
+              />
               <Text style={styles.month}>{b.label}</Text>
             </View>
           );
         })}
       </View>
+    </>
+  );
+
+  if (flush) {
+    return <View>{body}</View>;
+  }
+
+  return (
+    <Card variant="glass" style={styles.card}>
+      {body}
     </Card>
   );
 }
@@ -47,8 +57,15 @@ const styles = StyleSheet.create({
   card: { marginHorizontal: spacing.md, marginBottom: spacing.md, padding: spacing.md },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   title: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
-  chip: { backgroundColor: colors.secondarySoft, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  chipText: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.secondaryInk },
+  chip: {
+    backgroundColor: '#EEF8E6',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#D8EDC8',
+  },
+  chipText: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.forest },
   bars: {
     flexDirection: 'row',
     alignItems: 'flex-end',

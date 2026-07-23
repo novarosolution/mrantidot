@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { router } from 'expo-router';
 import { FlatList, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
@@ -11,7 +10,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { api, screenLoadConfig } from '@/lib/api';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
-import { adminRoutes } from '@/lib/routes';
+import { adminRoutes, appPush } from '@/lib/routes';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { technicianDisplayRating, technicianRealRating } from '@/lib/ratings';
 import { useScreenLoad } from '@/lib/useScreenLoad';
@@ -68,7 +67,7 @@ export default function AdminTechniciansScreen() {
   const addBtn = (
     <AdminAddButton
       onPress={() =>
-        router.push({
+        appPush({
           pathname: adminRoutes.userEdit,
           params: { role: 'technician', returnTo: adminRoutes.technicians },
         })
@@ -79,6 +78,7 @@ export default function AdminTechniciansScreen() {
   const listHeader = (
     <View>
       <AdminStatStrip
+        flush
         items={[
           { label: 'Team', value: techs.length },
           { label: 'Available', value: availableCount, color: colors.green },
@@ -95,7 +95,7 @@ export default function AdminTechniciansScreen() {
   return (
     <AdminListShell
       title="Technicians"
-      subtitle={`${techs.length} on the team`}
+      subtitle={`${availableCount} available · ${techs.length} total`}
       rightAction={addBtn}
       backFallback={adminRoutes.team}
     >
@@ -114,7 +114,7 @@ export default function AdminTechniciansScreen() {
           const st = techStatus(item);
           return (
             <View style={styles.card}>
-              <Pressable onPress={() => router.push(adminRoutes.technician(item.id))}>
+              <Pressable onPress={() => appPush(adminRoutes.technician(item.id))}>
                 <View style={styles.head}>
                   <View style={styles.avatar}>
                     <Text style={styles.init}>
@@ -156,14 +156,14 @@ export default function AdminTechniciansScreen() {
                 </View>
                 <Pressable
                   style={[styles.stat, styles.actionPrimary]}
-                  onPress={() => router.push(adminRoutes.technician(item.id))}
+                  onPress={() => appPush(adminRoutes.technician(item.id))}
                 >
                   <Text style={styles.actionPrimaryText}>Profile</Text>
                 </Pressable>
                 <Pressable
                   style={styles.stat}
                   onPress={() =>
-                    router.push({
+                    appPush({
                       pathname: adminRoutes.userEdit,
                       params: { id: item.id, returnTo: adminRoutes.technicians },
                     })
@@ -190,10 +190,13 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: spacing.sm,
     padding: spacing.md,
+    paddingTop: spacing.md + 4,
     borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
+    backgroundColor: 'rgba(255,255,255,0.82)',
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: 'rgba(226,240,216,0.95)',
+    borderTopWidth: 3,
+    borderTopColor: '#27A747',
     ...shadows.card,
   },
   head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -201,23 +204,27 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: colors.forest,
+    backgroundColor: '#0A6423',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#8FD03C',
   },
   init: { fontFamily: fonts.displayExtra, fontSize: 15, color: colors.white },
   flex: { flex: 1 },
-  name: { fontFamily: fonts.display, fontSize: 14, color: colors.ink },
+  name: { fontFamily: fonts.displayExtra, fontSize: 15, color: '#0B2213', letterSpacing: -0.2 },
   meta: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
   jobHint: { fontFamily: fonts.body, fontSize: 10, color: colors.green, marginTop: 3 },
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: spacing.sm },
   stat: {
     flexGrow: 1,
     minWidth: '28%',
-    backgroundColor: colors.soft,
+    backgroundColor: '#F6FAF2',
     borderRadius: 12,
     padding: 10,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(226,240,216,0.95)',
   },
   statVal: { fontFamily: fonts.displayExtra, fontSize: 14, color: colors.forest },
   statLabel: { fontFamily: fonts.body, fontSize: 9, color: colors.muted, marginTop: 2, textTransform: 'uppercase' },

@@ -43,26 +43,17 @@ function isDevRuntime(): boolean {
   return process.argv.some((arg) => /tsx|ts-node-dev|ts-node/.test(arg));
 }
 
-/** In production, replace missing or dev-placeholder JWT so the API can start on Render. */
+/** In production, JWT_SECRET must be set explicitly (Render generateValue is fine). */
 export function ensureProductionJwt(): void {
   if (process.env.NODE_ENV !== 'production') return;
 
   const jwt = process.env.JWT_SECRET?.trim();
-  if (jwt && jwt !== 'supersecret_change_me') return;
+  if (jwt && jwt !== 'supersecret_change_me' && jwt.length >= 16) return;
 
-  const seed = [
-    process.env.RENDER_SERVICE_ID,
-    process.env.RENDER_GIT_COMMIT,
-    process.env.RENDER_EXTERNAL_HOSTNAME,
-    process.env.HOSTNAME,
-  ]
-    .filter(Boolean)
-    .join('_');
-
-  process.env.JWT_SECRET = `jwt_${seed || 'mrantidot_prod'}`;
-  console.warn(
-    '[env] JWT_SECRET was unset or placeholder — using auto-generated production secret. ' +
-      'Set JWT_SECRET in Render → Environment for a stable value.',
+  throw new Error(
+    'JWT_SECRET is required in production (min 16 chars). ' +
+      'Set it in Render → Environment (or use generateValue: true in render.yaml).' +
+      RENDER_DEPLOY_HELP,
   );
 }
 
@@ -108,12 +99,10 @@ export function assertDistBuilt(): void {
   if (process.env.NODE_ENV !== 'production') return;
 
   const entry = path.join(process.cwd(), 'dist', 'index.js');
-  if (!fs.existsSync(entry) && isOnRender()) {
-    return;
-  }
   if (!fs.existsSync(entry)) {
     throw new Error(
-      `Missing ${entry}. Run "npm run build" before "npm start" (Render buildCommand: bash render-build.sh).`,
+      `Missing ${entry}. Run "npm run build" before "npm start" (Render buildCommand: bash render-build.sh).` +
+        RENDER_DEPLOY_HELP,
     );
   }
 }

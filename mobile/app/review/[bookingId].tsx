@@ -1,4 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -10,7 +11,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
+import { paramString } from '@/lib/routeParams';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
+import { GlassBackdrop } from '@/components/kit/GlassScreenKit';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
@@ -21,7 +24,7 @@ import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
-import { api, screenLoadConfig } from '@/lib/api';
+import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
 import {
   bookingScheduleDisplay,
   bookingServiceIconKey,
@@ -29,14 +32,15 @@ import {
 } from '@/lib/booking-helpers';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { Booking } from '@/types/api';
-import { colors, design, fonts, premium, spacing } from '@/constants/theme';
+import { colors, design, fonts, gradients, premium, spacing, surfaces } from '@/constants/theme';
+import { customerRoutes, appReplace } from '@/lib/routes';
 
 const TAGS = ['On time', 'Professional', 'No smell', 'Thorough', 'Polite'];
 
 const STAR_LABELS = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'] as const;
 
 export default function ReviewScreen() {
-  const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
+  const bookingId = paramString(useLocalSearchParams<{ bookingId: string | string[] }>().bookingId);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [stars, setStars] = useState(0);
   const [tags, setTags] = useState<string[]>([]);
@@ -45,6 +49,9 @@ export default function ReviewScreen() {
   const { loading, error, runLoad } = useScreenLoad();
 
   const load = useCallback(async () => {
+    if (!bookingId) {
+      throw new Error('Booking not found');
+    }
     const { data } = await api.get<{ booking: Booking }>(`/bookings/${bookingId}`, screenLoadConfig);
     setBooking(data.booking);
   }, [bookingId]);
@@ -58,6 +65,10 @@ export default function ReviewScreen() {
   }
 
   async function submit() {
+    if (!bookingId) {
+      Toast.show({ type: 'error', text1: 'Booking not found' });
+      return;
+    }
     if (stars < 1) {
       Toast.show({ type: 'error', text1: 'Please select a star rating' });
       return;
@@ -66,7 +77,9 @@ export default function ReviewScreen() {
     try {
       await api.post('/reviews', { bookingId, stars, tags, comment });
       Toast.show({ type: 'success', text1: 'Review submitted!' });
-      router.replace('/(customer)/bookings');
+      appReplace(customerRoutes.bookings);
+    } catch (err) {
+      Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not submit review') });
     } finally {
       setSubmitting(false);
     }
@@ -76,10 +89,13 @@ export default function ReviewScreen() {
 
   if (error || !booking) {
     return (
-      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-        <CustomerPageHeader variant="premium" title="Rate & Review" showBack />
-        <ListEmptyRetry message={error ?? 'Booking not found'} onRetry={() => void runLoad(load)} />
-      </SafeAreaView>
+      <View style={styles.root}>
+        <GlassBackdrop />
+        <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+          <CustomerPageHeader variant="premium" title="Rate & Review" showBack />
+          <ListEmptyRetry message={error ?? 'Booking not found'} onRetry={() => void runLoad(load)} />
+        </SafeAreaView>
+      </View>
     );
   }
 
@@ -89,7 +105,9 @@ export default function ReviewScreen() {
   const rated = stars > 0;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+    <View style={styles.root}>
+      <GlassBackdrop />
+      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
       <CustomerPageHeader variant="premium" title="Rate & Review" showBack />
       <KeyboardAvoidingView
         style={styles.flex}
@@ -102,21 +120,25 @@ export default function ReviewScreen() {
           showsVerticalScrollIndicator={false}
         >
           <FadeSlideIn>
-            <View style={styles.serviceStrip}>
-              <View style={styles.serviceIcon}>
-                <ServiceIcon iconKey={iconKey} size={20} color={colors.lime} />
+            <Card variant="premium" style={styles.serviceCard}>
+              <LinearGradient colors={[...gradients.goldBar]} style={styles.accent} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+              <View style={styles.serviceStrip}>
+                <View style={styles.serviceIcon}>
+                  <ServiceIcon iconKey={iconKey} size={20} color={colors.lime} />
+                </View>
+                <View style={styles.serviceText}>
+                  <Text style={styles.serviceName} numberOfLines={1}>
+                    {serviceName}
+                  </Text>
+                  <Text style={styles.serviceDate} numberOfLines={1}>
+                    {schedule}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.serviceText}>
-                <Text style={styles.serviceName} numberOfLines={1}>
-                  {serviceName}
-                </Text>
-                <Text style={styles.serviceDate} numberOfLines={1}>
-                  {schedule}
-                </Text>
-              </View>
-            </View>
+            </Card>
 
             <Card variant="premium" style={styles.formCard}>
+              <LinearGradient colors={[...gradients.goldBar]} style={styles.accent} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
               <Text style={styles.heading}>How was your visit?</Text>
 
               <View style={styles.starsWrap}>
@@ -165,20 +187,23 @@ export default function ReviewScreen() {
           disabled={stars < 1}
         />
       </StickyActionBar>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: design.screenBg },
+  root: { flex: 1, backgroundColor: surfaces.glassScreenBase },
+  safe: { flex: 1, backgroundColor: 'transparent' },
   flex: { flex: 1 },
   container: { padding: spacing.md, paddingBottom: 120, gap: spacing.sm },
+  serviceCard: { padding: 0, overflow: 'hidden', marginBottom: spacing.xs },
+  accent: { height: 3, width: '100%' },
   serviceStrip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.xs,
+    padding: spacing.md,
   },
   serviceIcon: {
     width: 44,
@@ -191,12 +216,13 @@ const styles = StyleSheet.create({
   serviceText: { flex: 1 },
   serviceName: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
   serviceDate: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 2 },
-  formCard: { padding: spacing.lg },
+  formCard: { padding: spacing.lg, paddingTop: spacing.md + 4, overflow: 'hidden' },
   heading: {
     fontFamily: fonts.displayExtra,
     fontSize: 20,
     textAlign: 'center',
     color: colors.ink,
+    marginTop: spacing.sm,
   },
   starsWrap: { alignItems: 'center', marginTop: spacing.lg },
   starLabel: {

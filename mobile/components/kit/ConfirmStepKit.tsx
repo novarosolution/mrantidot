@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { type LucideIcon } from 'lucide-react-native';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ShieldCheck, SprayCan } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import type { BookingAmount } from '@/types/api';
 import type { PickedImage } from '@/lib/upload';
 import { colors, fonts, gradients, premium, spacing } from '@/constants/theme';
@@ -31,7 +32,7 @@ function ConfirmDetailRow({
   return (
     <View style={[styles.row, !isLast && styles.rowBorder]}>
       <View style={styles.rowIcon}>
-        <Icon size={18} color={colors.forest} strokeWidth={2.2} />
+        <PremiumIcon icon={Icon} variant="mint" size={18} color={colors.forest} boxSize={42} />
       </View>
       <View style={styles.rowBody}>
         <Text style={styles.rowLabel}>{label}</Text>
@@ -82,7 +83,7 @@ export function ConfirmTotalCard({
         </View>
         {amount.coupon > 0 ? (
           <View style={styles.saveChip}>
-            <SprayCan size={11} color={colors.lime} />
+            <PremiumIcon icon={AppIcons.ui.brand} variant="plain" size={11} color={colors.lime} />
             <Text style={styles.saveChipText}>-₹{amount.coupon}</Text>
           </View>
         ) : null}
@@ -109,7 +110,7 @@ export function ConfirmTrustBanner({ message }: { message: string }) {
       end={{ x: 1, y: 1 }}
     >
       <LinearGradient colors={[gradients.primary[0], gradients.primary[1]]} style={styles.trustIcon}>
-        <ShieldCheck size={18} color={colors.white} strokeWidth={2.2} />
+        <PremiumIcon icon={AppIcons.ui.shieldCheck} variant="plain" size={18} color={colors.white} strokeWidth={2.2} />
       </LinearGradient>
       <View style={styles.trustBody}>
         <Text style={styles.trustTitle}>You're almost done</Text>

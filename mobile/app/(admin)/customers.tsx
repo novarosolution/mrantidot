@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
@@ -13,7 +12,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { formatRupee } from '@/components/kit/format';
 import { api, screenLoadConfig } from '@/lib/api';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
-import { adminRoutes } from '@/lib/routes';
+import { adminRoutes, appPush } from '@/lib/routes';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { isAccountDisabled } from '@/lib/user-helpers';
@@ -24,7 +23,7 @@ type CustomerFilter = 'all' | 'active' | 'disabled' | 'vip';
 
 function customerBadge(c: AdminCustomer): { label: string; tone: BadgeTone } {
   if (isAccountDisabled(c)) return { label: 'Disabled', tone: 'danger' };
-  if (c.statusTag === 'vip') return { label: 'VIP', tone: 'gold' };
+  if (c.statusTag === 'vip') return { label: 'VIP', tone: 'success' };
   if (c.statusTag === 'inactive') return { label: 'Inactive', tone: 'neutral' };
   return { label: 'Active', tone: 'success' };
 }
@@ -67,10 +66,11 @@ export default function AdminCustomersScreen() {
   const listHeader = (
     <View>
       <AdminStatStrip
+        flush
         items={[
           { label: 'Total', value: summary.total, color: colors.forest },
-          { label: 'New', value: summary.new, color: colors.blue },
-          { label: 'VIP', value: summary.vip, color: colors.amberInk },
+          { label: 'New', value: summary.new, color: '#27A747' },
+          { label: 'VIP', value: summary.vip, color: colors.forest },
         ]}
       />
       <View style={styles.searchWrap}>
@@ -102,7 +102,7 @@ export default function AdminCustomersScreen() {
   const addBtn = (
     <AdminAddButton
       onPress={() =>
-        router.push({
+        appPush({
           pathname: adminRoutes.userEdit,
           params: { role: 'customer', returnTo: adminRoutes.customers },
         })
@@ -113,7 +113,7 @@ export default function AdminCustomersScreen() {
   return (
     <AdminListShell
       title="Customers"
-      subtitle={`${summary.total} registered`}
+      subtitle={`${summary.total} accounts · search & filter`}
       rightAction={addBtn}
       backFallback={adminRoutes.team}
     >
@@ -127,7 +127,7 @@ export default function AdminCustomersScreen() {
         contentContainerStyle={visibleCustomers.length === 0 ? adminListShellStyles.empty : adminListShellStyles.list}
         ListEmptyComponent={<EmptyState title="No customers" message="Try another filter or add a customer" />}
         renderItem={({ item }) => (
-          <Pressable onPress={() => router.push(adminRoutes.customer(item.id))}>
+          <Pressable onPress={() => appPush(adminRoutes.customer(item.id))}>
             <Card variant="premium" style={{ ...styles.card, ...(isAccountDisabled(item) ? styles.cardDisabled : {}) }}>
               <View style={styles.avatar}>
                 <Text style={styles.initial}>
@@ -159,19 +159,28 @@ export default function AdminCustomersScreen() {
 
 const styles = StyleSheet.create({
   searchWrap: { paddingBottom: spacing.sm },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: spacing.sm, padding: 13 },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: spacing.sm,
+    padding: 13,
+    borderTopWidth: 3,
+    borderTopColor: '#8FD03C',
+    borderColor: '#E2F0D8',
+  },
   cardDisabled: { opacity: 0.65 },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 11,
-    backgroundColor: colors.soft,
+    backgroundColor: '#EEF8E6',
     alignItems: 'center',
     justifyContent: 'center',
   },
   initial: { fontFamily: fonts.displayExtra, fontSize: 12, color: colors.green },
   flex: { flex: 1 },
-  name: { fontFamily: fonts.display, fontSize: 13.5, color: colors.ink },
+  name: { fontFamily: fonts.displayExtra, fontSize: 14, color: '#0B2213' },
   meta: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
   right: { alignItems: 'flex-end', gap: 6 },
   spend: { fontFamily: fonts.displayExtra, fontSize: 13 },

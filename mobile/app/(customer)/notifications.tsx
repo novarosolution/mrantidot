@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text } from 'react-native';
 import { CustomerListShell, listShellStyles } from '@/components/kit/CustomerListShell';
@@ -7,13 +6,16 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { CACHE_TTL } from '@/lib/apiCache';
 import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
-import { bookingDetailPath } from '@/lib/routes';
+import { bookingDetailPath, appPush } from '@/lib/routes';
 import { useAuth } from '@/context/AuthContext';
 import type { AppNotification } from '@/types/api';
 import { colors, fonts, spacing } from '@/constants/theme';
 
 export default function NotificationsScreen() {
+  const ui = useCustomerUiCopy();
   const { user } = useAuth();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,7 +25,10 @@ export default function NotificationsScreen() {
 
   const load = useCallback(async () => {
     setLoadError(null);
-    const { data } = await api.get<{ notifications: AppNotification[] }>('/notifications', screenLoadConfig);
+    const { data } = await api.get<{ notifications: AppNotification[] }>('/notifications', {
+      ...screenLoadConfig,
+      cacheTtlMs: CACHE_TTL.notifications,
+    });
     setItems(data.notifications);
   }, []);
 
@@ -70,7 +75,7 @@ export default function NotificationsScreen() {
       });
     }
     if (n.bookingId) {
-      router.push(bookingDetailPath(user?.role, n.bookingId) as never);
+      appPush(bookingDetailPath(user?.role, n.bookingId));
     }
   }
 
@@ -78,7 +83,7 @@ export default function NotificationsScreen() {
 
   return (
     <CustomerListShell
-      title="Notifications"
+      title={ui.notificationsScreenTitle}
       rightAction={
         hasUnread ? (
           <Pressable onPress={markAllRead} disabled={markingAll} style={styles.markAll}>
@@ -90,7 +95,10 @@ export default function NotificationsScreen() {
       {loading ? (
         <Spinner />
       ) : loadError && items.length === 0 ? (
-        <ListEmptyRetry message={loadError} onRetry={() => safeAsync(load)} />
+        <ListEmptyRetry
+          message={loadError}
+          onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
+        />
       ) : (
         <FlatList
           data={items}

@@ -1,14 +1,18 @@
-import { ChevronRight, LucideIcon } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import type { LucideIcon } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { adminSurfaces, adminType, colors, gradients, premium, shadows, spacing } from '@/constants/theme';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { adminShadow } from '@/components/kit/homeUi';
+import { AppIcons } from '@/constants/appIcons';
+import { adminType, colors, spacing } from '@/constants/theme';
 
 export function AdminHubLink({
-  icon: Icon,
+  icon,
   label,
   desc,
   accent = colors.forest,
   accentBg = colors.soft,
+  featured = false,
   onPress,
 }: {
   icon: LucideIcon;
@@ -16,69 +20,60 @@ export function AdminHubLink({
   desc?: string;
   accent?: string;
   accentBg?: string;
+  /** Emphasize primary hub entries (e.g. Content). */
+  featured?: boolean;
   onPress: () => void;
 }) {
   return (
-    <Pressable style={({ pressed }) => [styles.card, pressed && styles.pressed]} onPress={onPress}>
-      <LinearGradient colors={[...gradients.goldBar]} style={styles.goldEdge} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
-      <View style={[styles.icon, { backgroundColor: accentBg }]}>
-        <Icon size={20} color={accent} strokeWidth={2.2} />
-      </View>
-      <View style={styles.body}>
-        <Text style={styles.label}>{label}</Text>
-        {desc ? (
-          <Text style={styles.desc} numberOfLines={1}>
-            {desc}
-          </Text>
-        ) : null}
-      </View>
-      <View style={styles.chevron}>
-        <ChevronRight size={16} color={colors.forest} strokeWidth={2.5} />
+    <Pressable style={({ pressed }) => [styles.wrap, pressed && styles.pressed]} onPress={onPress}>
+      <View style={[styles.shell, featured && styles.shellFeatured]}>
+        <GlassPanel style={styles.card} padded={false} tone="light" goldEdge intensity={40}>
+          <View style={styles.inner}>
+            <PremiumIcon
+              icon={icon}
+              variant={featured ? 'premium' : 'mint'}
+              size="lg"
+              color={featured ? '#FFFFFF' : accent}
+              bg={accentBg}
+              bgTo="#FFFFFF"
+              boxSize={46}
+            />
+            <View style={styles.body}>
+              <Text style={[styles.label, featured && styles.labelFeatured]}>{label}</Text>
+              {desc ? (
+                <Text style={styles.desc} numberOfLines={2}>
+                  {desc}
+                </Text>
+              ) : null}
+            </View>
+            <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size="sm" color={colors.forest} />
+          </View>
+        </GlassPanel>
       </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
+  wrap: { marginBottom: spacing.sm },
+  shell: {
+    borderRadius: 20,
+    ...adminShadow.card,
+  },
+  shellFeatured: {
+    ...adminShadow.hero,
+  },
+  card: { borderRadius: 20 },
+  pressed: { opacity: 0.92, transform: [{ scale: 0.995 }] },
+  inner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
+    gap: 14,
+    paddingVertical: 15,
     paddingHorizontal: spacing.md,
-    paddingLeft: spacing.md + 4,
-    borderRadius: premium.radiusCard,
-    backgroundColor: adminSurfaces.panelTint,
-    borderWidth: 1,
-    borderColor: adminSurfaces.cardBorder,
-    overflow: 'hidden',
-    ...shadows.card,
   },
-  goldEdge: {
-    position: 'absolute',
-    left: 0,
-    top: 10,
-    bottom: 10,
-    width: 3,
-    borderRadius: 2,
-  },
-  pressed: { opacity: 0.92, transform: [{ scale: 0.995 }] },
-  icon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  body: { flex: 1, minWidth: 0 },
-  label: { ...adminType.hubLabel },
-  desc: { ...adminType.hubDesc },
-  chevron: {
-    width: 28,
-    height: 28,
-    borderRadius: 999,
-    backgroundColor: colors.soft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  body: { flex: 1, minWidth: 0, gap: 2 },
+  label: { ...adminType.hubLabel, color: colors.ink },
+  labelFeatured: { color: colors.forest },
+  desc: { ...adminType.hubDesc, marginTop: 0, color: colors.muted },
 });

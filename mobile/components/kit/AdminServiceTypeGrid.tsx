@@ -1,11 +1,11 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronRight, Plus } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SERVICE_TYPE_KEYS, type ServiceTypeKey } from '@/constants/serviceTypes';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import type { Service } from '@/types/api';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { adminSurfaces, colors, fonts, premium, spacing } from '@/constants/theme';
 
 function countForType(services: Service[], type: ServiceTypeKey): number {
   return services.filter((s) => s.serviceTypes?.includes(type)).length;
@@ -24,12 +24,12 @@ export function AdminServiceTypeGrid({
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-      <LinearGradient colors={['#14532D', '#1A6B3C']} style={styles.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+      <LinearGradient colors={['#1B873E', '#0A6423', '#043813']} locations={[0, 0.55, 1]} style={styles.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
         <Text style={styles.heroKicker}>Service catalog</Text>
         <Text style={styles.heroTitle}>{activeCount} active services</Text>
         <Text style={styles.heroSub}>{services.length} total · tap a pest type</Text>
         <Pressable style={({ pressed }) => [styles.addBtn, pressed && styles.pressed]} onPress={onAddService}>
-          <Plus size={16} color={colors.forest} />
+          <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size="sm" color={colors.forest} />
           <Text style={styles.addBtnText}>Add service</Text>
         </Pressable>
       </LinearGradient>
@@ -39,13 +39,13 @@ export function AdminServiceTypeGrid({
         onPress={() => onSelectType('all')}
       >
         <View style={styles.allIcon}>
-          <AppIcons.brand size={22} color={colors.forest} />
+          <PremiumIcon icon={AppIcons.brand} variant="mint" size="lg" color={colors.forest} boxSize={46} />
         </View>
         <View style={styles.allBody}>
           <Text style={styles.allTitle}>All services</Text>
           <Text style={styles.allCount}>{services.length} in catalog</Text>
         </View>
-        <ChevronRight size={18} color={colors.muted} />
+        <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size="md" color={colors.muted} />
       </Pressable>
 
       <Text style={styles.sectionTitle}>Pest control types</Text>
@@ -124,9 +124,9 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 14,
     borderRadius: 18,
-    backgroundColor: colors.white,
+    backgroundColor: adminSurfaces.card,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: adminSurfaces.cardBorder,
     ...premium.shadowSoft,
   },
   allIcon: {
@@ -154,9 +154,9 @@ const styles = StyleSheet.create({
     minHeight: 118,
     padding: 12,
     borderRadius: 16,
-    backgroundColor: colors.white,
+    backgroundColor: adminSurfaces.card,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: adminSurfaces.cardBorder,
     alignItems: 'center',
     ...premium.shadowSoft,
   },

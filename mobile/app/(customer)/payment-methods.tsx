@@ -9,7 +9,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Plus } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import Toast from 'react-native-toast-message';
 import { CustomerListShell, listShellStyles } from '@/components/kit/CustomerListShell';
 import { PaymentMethodCard } from '@/components/kit/PaymentMethodCard';
@@ -20,12 +21,14 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { PaymentMethodRecord } from '@/types/api';
 import { colors, design, fonts, premium, radius, spacing } from '@/constants/theme';
 
 export default function PaymentMethodsScreen() {
+  const ui = useCustomerUiCopy();
   const { loading, error, refreshing, runLoad, reload, refresh } = useScreenLoad();
   const [methods, setMethods] = useState<PaymentMethodRecord[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -99,11 +102,11 @@ export default function PaymentMethodsScreen() {
 
   return (
     <CustomerListShell
-      title="Payment Methods"
+      title={ui.paymentsScreenTitle}
       accountStrip
       rightAction={
         <Pressable style={styles.fab} onPress={openAdd}>
-          <Plus size={22} color={colors.white} />
+          <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size={22} color={colors.white} />
         </Pressable>
       }
     >
@@ -178,7 +181,7 @@ const styles = StyleSheet.create({
   actionText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.green },
   deleteText: { color: colors.error },
   defaultHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(11, 34, 19, 0.48)', justifyContent: 'flex-end' },
   modal: {
     ...design.modalCard,
     borderTopLeftRadius: premium.radiusCard,
@@ -190,9 +193,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.border,
+    backgroundColor: '#C8E0BE',
     marginBottom: spacing.md,
   },
-  modalTitle: { fontFamily: fonts.display, fontSize: 18, marginBottom: spacing.md },
+  modalTitle: { fontFamily: fonts.display, fontSize: 18, marginBottom: spacing.md, color: colors.ink },
   chips: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md },
 });

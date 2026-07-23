@@ -1,15 +1,15 @@
-import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons, IconGradients } from '@/constants/appIcons';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+import { customerRoutes, appPush } from '@/lib/routes';
 
 const ACTIONS = [
-  { key: 'book', label: 'Book', icon: AppIcons.quick.book, route: '/(customer)/services' as const, grad: IconGradients.forest },
-  { key: 'bookings', label: 'Bookings', icon: AppIcons.quick.bookings, route: '/(customer)/bookings' as const, grad: IconGradients.teal },
-  { key: 'offers', label: 'Offers', icon: AppIcons.quick.offers, route: '/(customer)/offers' as const, grad: IconGradients.gold },
-  { key: 'help', label: 'Support', icon: AppIcons.quick.support, route: '/(customer)/help' as const, grad: IconGradients.blue },
+  { key: 'book', label: 'Book', icon: AppIcons.quick.book, route: customerRoutes.services, grad: IconGradients.forest },
+  { key: 'bookings', label: 'Bookings', icon: AppIcons.quick.bookings, route: customerRoutes.bookings, grad: IconGradients.teal },
+  { key: 'offers', label: 'Offers', icon: AppIcons.quick.offers, route: customerRoutes.offers, grad: IconGradients.gold },
+  { key: 'help', label: 'Support', icon: AppIcons.quick.support, route: customerRoutes.help, grad: IconGradients.teal },
 ];
 
 export function ProfileQuickActions() {
@@ -21,9 +21,9 @@ export function ProfileQuickActions() {
           <Pressable
             key={a.key}
             style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
-            onPress={() => router.push(a.route)}
+            onPress={() => appPush(a.route)}
           >
-            <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldEdge} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+            <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.goldEdge} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
             <PremiumIcon icon={a.icon} variant="gradient" gradient={a.grad} size="xl" boxSize={50} />
             <Text style={styles.label}>{a.label}</Text>
           </Pressable>
@@ -53,15 +53,15 @@ const styles = StyleSheet.create({
   tile: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glass,
     borderRadius: premium.radiusCard,
     paddingVertical: spacing.sm + 4,
     paddingTop: spacing.sm + 6,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.06)',
+    borderColor: surfaces.glassBorderStrong,
     overflow: 'hidden',
     gap: 9,
-    ...shadows.card,
+    ...premium.shadowSoft,
   },
   pressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
   goldEdge: {

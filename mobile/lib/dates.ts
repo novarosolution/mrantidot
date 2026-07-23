@@ -40,11 +40,29 @@ export function nextBookableDays(count = 6): {
   return days;
 }
 
-export const BOOKING_SLOTS = ['09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'] as const;
+export const BOOKING_SLOTS = [
+  '00:00-02:00',
+  '02:00-04:00',
+  '04:00-06:00',
+  '06:00-08:00',
+  '08:00-10:00',
+  '10:00-12:00',
+  '12:00-14:00',
+  '14:00-16:00',
+  '16:00-18:00',
+  '18:00-20:00',
+  '20:00-22:00',
+  '22:00-00:00',
+] as const;
+
+/** Sensible default for new bookings (daytime). */
+export const DEFAULT_BOOKING_SLOT: (typeof BOOKING_SLOTS)[number] = '10:00-12:00';
 
 export const BOOKING_SLOT_GROUPS = [
-  { title: 'Morning', slots: ['09:00-11:00', '11:00-13:00'] as const },
-  { title: 'Afternoon', slots: ['14:00-16:00', '16:00-18:00'] as const },
+  { title: 'Night', slots: ['00:00-02:00', '02:00-04:00', '04:00-06:00'] as const },
+  { title: 'Morning', slots: ['06:00-08:00', '08:00-10:00', '10:00-12:00'] as const },
+  { title: 'Afternoon', slots: ['12:00-14:00', '14:00-16:00', '16:00-18:00'] as const },
+  { title: 'Evening', slots: ['18:00-20:00', '20:00-22:00', '22:00-00:00'] as const },
 ] as const;
 
 export function formatSlotLabel(slot: string): string {
@@ -52,7 +70,8 @@ export function formatSlotLabel(slot: string): string {
   return slot.replace('-', ' – ');
 }
 
-export const BOOKING_HOURS = Array.from({ length: 13 }, (_, i) => i + 8);
+/** Custom preferred time — every hour, 24/7. */
+export const BOOKING_HOURS = Array.from({ length: 24 }, (_, i) => i);
 export const BOOKING_MINUTES = [0, 30] as const;
 
 export function formatTime12h(time: string): string {

@@ -8,7 +8,7 @@ This repo is a **monorepo** (server + mobile). If Render installs from the works
 
 - **Root Directory** must be `server`
 - `.renderignore` excludes `mobile/` from the upload
-- `server/.npmrc` sets `workspaces=false` — **server-only** ~70MB install
+- `render-build.sh` uses `npm ci --workspaces=false` — **server-only** ~70MB install
 - `render-build.sh` prunes devDependencies after compile
 
 ## 2GB RAM tuning (free tier)
@@ -123,7 +123,7 @@ npm run deploy:check
 curl https://YOUR-SERVICE-NAME.onrender.com/api/health
 ```
 
-3. Build APK (URL is baked in at build time via `mobile/app.config.ts`):
+3. Build APK (URL is baked in at build time via `mobile/app.config.js`):
 
 ```bash
 cd mobile

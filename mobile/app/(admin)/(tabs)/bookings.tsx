@@ -1,15 +1,19 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { AdminBookingListCard } from '@/components/kit/AdminBookingListCard';
-import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/AdminActionSheet';
 import { AdminFilterChips, AdminStatStrip } from '@/components/kit/AdminPageKit';
+import { AdminScreenHeader } from '@/components/kit/AdminScreenHeader';
+import { GlassBackdrop, TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
+import { useAuth } from '@/context/AuthContext';
 import { api, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { bookingServiceName } from '@/lib/booking-helpers';
@@ -18,8 +22,11 @@ import { ADMIN_LIST_PERF } from '@/lib/listConfig';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
+import { useUnreadNotifications } from '@/lib/useUnreadNotifications';
+import { userInitial } from '@/lib/userInitials';
 import type { Booking, BookingStatusCounts, User } from '@/types/api';
-import { colors, design, spacing } from '@/constants/theme';
+import { colors, spacing, surfaces } from '@/constants/theme';
+import { adminRoutes, appPush } from '@/lib/routes';
 
 const FILTERS = [
   { key: 'all', label: 'All' },
@@ -33,6 +40,8 @@ const FILTERS = [
 ] as const;
 
 export default function AdminBookingsScreen() {
+  const { user } = useAuth();
+  const { unreadCount } = useUnreadNotifications();
   const { status: statusParam, serviceId: serviceIdParam } = useLocalSearchParams<{
     status?: string;
     serviceId?: string;
@@ -80,12 +89,22 @@ export default function AdminBookingsScreen() {
     });
     const techsReq = techsLoaded.current
       ? Promise.resolve(null)
-      : api.get<{ technicians: User[] }>('/admin/technicians', {
-          ...screenLoadConfig,
-          params: { available: 'true' },
-          cacheTtlMs: CACHE_TTL.profile,
-        }).catch(() => null);
-    const countsReq = countsLoaded.current ? Promise.resolve(null) : loadCounts(skipCache).catch(() => null);
+      : api
+          .get<{ technicians: User[] }>('/admin/technicians', {
+            ...screenLoadConfig,
+            params: { available: 'true' },
+            cacheTtlMs: CACHE_TTL.profile,
+          })
+          .catch(() => {
+            Toast.show({ type: 'info', text1: 'Could not load technicians for assign' });
+            return null;
+          });
+    const countsReq = countsLoaded.current
+      ? Promise.resolve(null)
+      : loadCounts(skipCache).catch(() => {
+          Toast.show({ type: 'info', text1: 'Could not load booking counts' });
+          return null;
+        });
 
     const [listRes, techsRes] = await Promise.all([listReq, techsReq, countsReq]);
     setBookings(listRes.data.bookings);
@@ -133,96 +152,131 @@ export default function AdminBookingsScreen() {
   }, [assignTarget, techs, load, loadCounts]);
 
   const count = useCallback(
-    (s: string) => (s === 'all' ? statusCounts?.total : statusCounts?.byStatus[s]) ?? 0,
+    (s: string) => {
+      if (!statusCounts) return 0;
+      if (s === 'all') return statusCounts.total;
+      if (s === 'active') {
+        const b = statusCounts.byStatus;
+        return (
+          (b.pending ?? 0) +
+          (b.confirmed ?? 0) +
+          (b.in_progress ?? 0) +
+          (b.awaiting_verification ?? 0)
+        );
+      }
+      return statusCounts.byStatus[s] ?? 0;
+    },
     [statusCounts],
   );
 
   const openBooking = useCallback((id: string) => {
-    router.push(`/(admin)/booking/${id}`);
+    appPush(adminRoutes.booking(id));
   }, []);
 
-  const headerExtra = useMemo(
-    () => (
-      <View style={styles.headerExtra}>
-        {statusCounts ? (
-          <AdminStatStrip
-            items={[
-              { label: 'Total', value: statusCounts.total },
-              { label: 'Pending', value: statusCounts.byStatus.pending ?? 0, color: colors.amberInk },
-              { label: 'Active', value: (statusCounts.byStatus.in_progress ?? 0) + (statusCounts.byStatus.confirmed ?? 0) },
-            ]}
-          />
-        ) : null}
-        <View style={styles.searchWrap}>
-          <Input label="Search" value={search} onChangeText={setSearch} placeholder="Ref, customer, or service" />
-        </View>
-        <AdminFilterChips
-          chips={FILTERS.map((f) => ({ key: f.key, label: `${f.label} (${count(f.key)})` }))}
-          selected={filter}
-          onSelect={setFilter}
+  const header = (
+    <AdminScreenHeader
+      title="Bookings"
+      subtitle={`${statusCounts?.total ?? bookings.length} total · assign & track`}
+      eyebrow="BOOKINGS"
+      userInitial={userInitial(user?.name)}
+      unreadCount={unreadCount}
+    />
+  );
+
+  const listHeader = (
+    <View style={styles.headerExtra}>
+      {statusCounts ? (
+        <AdminStatStrip
+          items={[
+            { label: 'Total', value: statusCounts.total },
+            { label: 'Pending', value: statusCounts.byStatus.pending ?? 0, color: colors.forest },
+            {
+              label: 'Active',
+              value:
+                (statusCounts.byStatus.pending ?? 0) +
+                (statusCounts.byStatus.confirmed ?? 0) +
+                (statusCounts.byStatus.in_progress ?? 0) +
+                (statusCounts.byStatus.awaiting_verification ?? 0),
+            },
+            {
+              label: 'Verify',
+              value: statusCounts.byStatus.awaiting_verification ?? 0,
+              color: colors.forest,
+            },
+          ]}
         />
+      ) : null}
+      <View style={styles.searchWrap}>
+        <Input label="Search" value={search} onChangeText={setSearch} placeholder="Ref, customer, or service" />
       </View>
-    ),
-    [count, filter, search, statusCounts],
+      <AdminFilterChips
+        chips={FILTERS.map((f) => ({ key: f.key, label: `${f.label} (${count(f.key)})` }))}
+        selected={filter}
+        onSelect={setFilter}
+      />
+    </View>
   );
 
   if (loading) return <Spinner fullScreen />;
 
   if (error) {
     return (
-      <AdminListShell title="Bookings" showBack={false}>
-        <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
-      </AdminListShell>
+      <View style={styles.root}>
+        <GlassBackdrop />
+        <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+          {header}
+          <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
+        </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <AdminListShell
-      title="Bookings"
-      subtitle={`${statusCounts?.total ?? bookings.length} total`}
-      showBack={false}
-      headerExtra={headerExtra}
-    >
-      <FlatList
-        data={bookings}
-        keyExtractor={(b) => b.id}
-        {...ADMIN_LIST_PERF}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() =>
-              void refresh(async () => {
-                await Promise.all([load(true), loadCounts(true)]);
-              })
-            }
-            tintColor={colors.green}
-          />
-        }
-        contentContainerStyle={bookings.length === 0 ? adminListShellStyles.empty : adminListShellStyles.list}
-        ListEmptyComponent={<EmptyState title="No bookings" message="Try another filter or search" />}
-        renderItem={({ item }) => (
-          <AdminBookingListCard item={item} onOpen={openBooking} onAssign={assign} />
-        )}
-      />
-      <AdminActionSheet
-        visible={assignTarget !== null}
-        title="Assign technician"
-        message={assignTarget ? bookingServiceName(assignTarget) : undefined}
-        options={assignOptions}
-        onClose={() => setAssignTarget(null)}
-      />
-    </AdminListShell>
+    <View style={styles.root}>
+      <GlassBackdrop />
+      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+        {header}
+        <FlatList
+          data={bookings}
+          keyExtractor={(b) => b.id}
+          {...ADMIN_LIST_PERF}
+          keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={listHeader}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() =>
+                void refresh(async () => {
+                  await Promise.all([load(true), loadCounts(true)]);
+                })
+              }
+              tintColor={colors.green}
+            />
+          }
+          contentContainerStyle={[
+            bookings.length === 0 ? adminListShellStyles.empty : adminListShellStyles.list,
+            { paddingBottom: TAB_BAR_SCROLL_PAD },
+          ]}
+          ListEmptyComponent={<EmptyState title="No bookings" message="Try another filter or search" />}
+          renderItem={({ item }) => (
+            <AdminBookingListCard item={item} onOpen={openBooking} onAssign={assign} />
+          )}
+        />
+        <AdminActionSheet
+          visible={assignTarget !== null}
+          title="Assign technician"
+          message={assignTarget ? bookingServiceName(assignTarget) : undefined}
+          options={assignOptions}
+          onClose={() => setAssignTarget(null)}
+        />
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  headerExtra: { backgroundColor: design.screenBg, borderBottomWidth: 1, borderBottomColor: colors.border },
-  searchWrap: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
-  chips: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
+  root: { flex: 1, overflow: 'hidden', backgroundColor: surfaces.glassScreenBase },
+  safe: { flex: 1 },
+  headerExtra: { paddingBottom: spacing.sm, gap: spacing.sm },
+  searchWrap: { paddingHorizontal: spacing.md, paddingTop: spacing.xs },
 });

@@ -1,11 +1,14 @@
-import { type LucideIcon, ChevronDown } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { AdminGoldBar } from '@/components/kit/AdminScreenKit';
-import { customerScrollProps } from '@/components/kit/GlassScreenKit';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { adminShadow } from '@/components/kit/homeUi';
 import { ADMIN_QUICK_COLS, adminGridCellWidth } from '@/lib/adminGrid';
-import { adminSurfaces, adminType, colors, premium, shadows, spacing } from '@/constants/theme';
+import { adminSurfaces, adminType, colors, premium, spacing } from '@/constants/theme';
 
 export function AdminQuickGrid({
   items,
@@ -21,16 +24,19 @@ export function AdminQuickGrid({
       {items.map(({ key, icon: Icon, label }) => (
         <Pressable
           key={key}
-          style={({ pressed }) => [styles.quickTile, { width: tileWidth }, pressed && styles.pressed]}
+          style={({ pressed }) => [{ width: tileWidth }, pressed && styles.pressed]}
           onPress={() => onPress(key)}
         >
-          <AdminGoldBar height={2} style={styles.quickGold} />
-          <View style={styles.quickIcon}>
-            <Icon size={20} color={colors.forest} strokeWidth={2.2} />
+          <View style={styles.quickShell}>
+            <GlassPanel style={styles.quickTile} padded={false} tone="clear" intensity={40} goldEdge>
+              <View style={styles.quickInner}>
+                <PremiumIcon icon={Icon} variant="premium" size={18} color="#FFFFFF" boxSize={44} />
+                <Text style={styles.quickLabel} numberOfLines={1}>
+                  {label}
+                </Text>
+              </View>
+            </GlassPanel>
           </View>
-          <Text style={styles.quickLabel} numberOfLines={1}>
-            {label}
-          </Text>
         </Pressable>
       ))}
     </View>
@@ -47,39 +53,61 @@ export function AdminFilterChips({
   onSelect: (key: string) => void;
 }) {
   return (
-    <ScrollView horizontal contentContainerStyle={styles.chipsRow} {...customerScrollProps}>
+    <View style={styles.chipsWrap}>
       {chips.map((c) => {
         const active = selected === c.key;
         return (
           <Pressable
             key={c.key}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
             onPress={() => onSelect(c.key)}
-            style={[styles.chip, active && styles.chipActive]}
+            style={({ pressed }) => [pressed && styles.chipPressed]}
           >
-            <Text style={[styles.chipText, active && styles.chipTextActive]}>{c.label}</Text>
+            {active ? (
+              <View style={styles.chipActiveShell}>
+                <LinearGradient
+                  colors={['#8FD03C', '#1A8734', '#0A6423']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[styles.chip, styles.chipActive]}
+                >
+                  <Text style={[styles.chipText, styles.chipTextActive]}>{c.label}</Text>
+                </LinearGradient>
+              </View>
+            ) : (
+              <View style={styles.chip}>
+                <Text style={styles.chipText}>{c.label}</Text>
+              </View>
+            )}
           </Pressable>
         );
       })}
-    </ScrollView>
+    </View>
   );
 }
 
 /** Unified stats row for admin list screens. */
 export function AdminStatStrip({
   items,
+  flush,
 }: {
   items: { label: string; value: string | number; color?: string }[];
+  flush?: boolean;
 }) {
   return (
-    <View style={styles.stripWrap}>
-      <AdminGoldBar />
-      <View style={styles.stripRow}>
-        {items.map((item, index) => (
-          <View key={item.label} style={[styles.stripCell, index < items.length - 1 && styles.stripBorder]}>
-            <Text style={[styles.stripValue, { color: item.color ?? colors.forest }]}>{item.value}</Text>
-            <Text style={styles.stripLabel}>{item.label}</Text>
+    <View style={[styles.stripOuter, flush && styles.stripFlush]}>
+      <View style={styles.stripShell}>
+        <GlassPanel style={styles.stripWrap} padded={false} tone="clear" intensity={40} goldEdge>
+          <View style={styles.stripRow}>
+            {items.map((item, index) => (
+              <View key={item.label} style={[styles.stripCell, index < items.length - 1 && styles.stripBorder]}>
+                <Text style={[styles.stripValue, { color: item.color ?? colors.forest }]}>{item.value}</Text>
+                <Text style={styles.stripLabel}>{item.label}</Text>
+              </View>
+            ))}
           </View>
-        ))}
+        </GlassPanel>
       </View>
     </View>
   );
@@ -94,63 +122,56 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     width: '100%',
   },
+  quickShell: {
+    borderRadius: 18,
+    ...adminShadow.tile,
+  },
   quickTile: {
+    borderRadius: 18,
+  },
+  quickInner: {
     alignItems: 'center',
     paddingVertical: spacing.sm + 2,
-    paddingTop: spacing.sm + 6,
-    borderRadius: 16,
-    backgroundColor: adminSurfaces.panelTint,
-    borderWidth: 1,
-    borderColor: adminSurfaces.cardBorder,
-    overflow: 'hidden',
-    ...shadows.card,
-  },
-  quickGold: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+    paddingTop: spacing.sm + 8,
+    gap: 8,
   },
   pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
-  quickIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: colors.soft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-  },
-  quickLabel: { ...adminType.quickLabel },
-  chipsRow: {
-    paddingHorizontal: spacing.md,
+  quickLabel: { ...adminType.quickLabel, color: colors.ink },
+  chipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
-    alignItems: 'center',
-    paddingBottom: 2,
+    marginBottom: spacing.sm,
   },
   chip: {
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: 999,
     backgroundColor: adminSurfaces.chipBg,
     borderWidth: 1,
     borderColor: adminSurfaces.chipBorder,
   },
-  chipActive: {
-    backgroundColor: colors.forest,
-    borderColor: colors.forest,
+  chipActiveShell: {
+    borderRadius: 999,
+    ...adminShadow.soft,
   },
-  chipText: { ...adminType.chipText },
+  chipActive: {
+    borderWidth: 0,
+  },
+  chipPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
+  chipText: { ...adminType.chipText, color: colors.ink },
   chipTextActive: { color: colors.white },
-  stripWrap: {
+  stripOuter: {
     marginHorizontal: spacing.md,
     marginBottom: spacing.sm,
+  },
+  stripFlush: { marginHorizontal: 0 },
+  stripShell: {
     borderRadius: premium.radiusCard,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: adminSurfaces.cardBorder,
-    backgroundColor: adminSurfaces.panelTint,
-    ...shadows.card,
+    ...adminShadow.card,
+  },
+  stripWrap: {
+    borderRadius: premium.radiusCard,
   },
   stripRow: {
     flexDirection: 'row',
@@ -164,46 +185,55 @@ const styles = StyleSheet.create({
   },
   stripBorder: {
     borderRightWidth: StyleSheet.hairlineWidth,
-    borderRightColor: 'rgba(20,83,45,0.1)',
+    borderRightColor: adminSurfaces.cardBorder,
   },
-  stripValue: { ...adminType.statValue },
-  stripLabel: { ...adminType.statLabel, marginTop: 2 },
+  stripValue: { ...adminType.statValue, color: colors.ink },
+  stripLabel: { ...adminType.statLabel, marginTop: 2, color: colors.muted },
 });
 
-/** White form surface with gold top accent — used on content & edit screens. */
+/** Glass form surface with gold top accent — used on content & edit screens. */
 export function AdminFormCard({ children, style }: { children: ReactNode; style?: object }) {
   return (
-    <View style={[formStyles.card, style]}>
-      <AdminGoldBar style={formStyles.goldBar} />
-      {children}
+    <View style={formStyles.shell}>
+      <GlassPanel style={[formStyles.card, style]} padded={false} tone="clear" intensity={42} goldEdge>
+        <View style={formStyles.inner}>{children}</View>
+      </GlassPanel>
     </View>
   );
 }
 
 const formStyles = StyleSheet.create({
-  card: {
+  shell: {
     marginTop: spacing.sm,
     marginHorizontal: spacing.md,
-    padding: spacing.md,
     borderRadius: premium.radiusCard,
-    backgroundColor: adminSurfaces.panelTint,
-    borderWidth: 1,
-    borderColor: adminSurfaces.cardBorder,
-    overflow: 'hidden',
-    ...shadows.card,
+    ...adminShadow.card,
   },
-  goldBar: { marginBottom: spacing.sm, marginTop: -spacing.md, marginHorizontal: -spacing.md },
+  card: {
+    borderRadius: premium.radiusCard,
+  },
+  inner: {
+    padding: spacing.md,
+  },
 });
 
 /** Hint banner shown under content tabs. */
 export function AdminTabHint({ title, body }: { title: string; body: string }) {
   return (
     <View style={hintStyles.wrap}>
-      <LinearGradient colors={['#F6FAF7', '#FFFFFF']} style={hintStyles.card} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        <AdminGoldBar style={hintStyles.gold} />
-        <Text style={hintStyles.title}>{title}</Text>
-        <Text style={hintStyles.body}>{body}</Text>
-      </LinearGradient>
+      <View style={hintStyles.shell}>
+        <GlassPanel style={hintStyles.card} padded={false} tone="mint" intensity={40} goldEdge>
+          <View style={hintStyles.inner}>
+            <View style={hintStyles.iconWrap}>
+              <PremiumIcon icon={AppIcons.ui.info} variant="plain" size={14} color={colors.forest} strokeWidth={2.4} />
+            </View>
+            <View style={hintStyles.textCol}>
+              <Text style={hintStyles.title}>{title}</Text>
+              <Text style={hintStyles.body}>{body}</Text>
+            </View>
+          </View>
+        </GlassPanel>
+      </View>
     </View>
   );
 }
@@ -223,56 +253,67 @@ export function AdminCollapsibleCard({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <View style={collapseStyles.wrap}>
-      <Pressable
-        onPress={() => setOpen((v) => !v)}
-        style={({ pressed }) => [collapseStyles.head, pressed && collapseStyles.pressed]}
-      >
-        <View style={collapseStyles.headText}>
-          <Text style={collapseStyles.title}>{title}</Text>
-          {subtitle ? <Text style={collapseStyles.sub}>{subtitle}</Text> : null}
-        </View>
-        <ChevronDown
-          size={18}
-          color={colors.forest}
-          style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}
-        />
-      </Pressable>
-      {open ? (
-        <View style={collapseStyles.body}>
-          <AdminGoldBar height={2} style={collapseStyles.gold} />
-          {children}
-        </View>
-      ) : null}
+    <View style={collapseStyles.shell}>
+      <GlassPanel style={collapseStyles.wrap} padded={false} tone="clear" intensity={40}>
+        <Pressable
+          onPress={() => setOpen((v) => !v)}
+          style={({ pressed }) => [collapseStyles.head, pressed && collapseStyles.pressed]}
+        >
+          <View style={collapseStyles.headText}>
+            <Text style={collapseStyles.title}>{title}</Text>
+            {subtitle ? <Text style={collapseStyles.sub}>{subtitle}</Text> : null}
+          </View>
+          <View style={collapseStyles.chevron}>
+            <PremiumIcon
+              icon={AppIcons.ui.chevronDown}
+              variant="plain"
+              size={16}
+              color={colors.forest}
+              strokeWidth={2.5}
+              style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}
+            />
+          </View>
+        </Pressable>
+        {open ? (
+          <View style={collapseStyles.body}>
+            <AdminGoldBar height={2} style={collapseStyles.gold} />
+            {children}
+          </View>
+        ) : null}
+      </GlassPanel>
     </View>
   );
 }
 
 const hintStyles = StyleSheet.create({
   wrap: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xs },
-  card: {
-    borderRadius: premium.radiusCard,
-    padding: spacing.md,
-    paddingTop: spacing.sm + 4,
+  shell: { borderRadius: premium.radiusCard, ...adminShadow.soft },
+  card: { borderRadius: premium.radiusCard },
+  inner: { padding: spacing.md, flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  iconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.08)',
-    overflow: 'hidden',
+    borderColor: adminSurfaces.chipBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  gold: { marginHorizontal: -spacing.md, marginTop: -spacing.sm - 4, marginBottom: spacing.sm },
-  title: { ...adminType.formTitle, fontSize: 13, color: colors.forest },
-  body: { ...adminType.formSub, marginTop: 4, lineHeight: 17 },
+  textCol: { flex: 1, minWidth: 0 },
+  title: { ...adminType.formTitle, fontSize: 13.5, color: colors.ink },
+  body: { ...adminType.formSub, marginTop: 4, lineHeight: 18, color: colors.muted },
 });
 
 const collapseStyles = StyleSheet.create({
-  wrap: {
+  shell: {
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,
     borderRadius: premium.radiusCard,
-    backgroundColor: adminSurfaces.panelTint,
-    borderWidth: 1,
-    borderColor: adminSurfaces.cardBorder,
-    overflow: 'hidden',
-    ...shadows.card,
+    ...adminShadow.card,
+  },
+  wrap: {
+    borderRadius: premium.radiusCard,
   },
   head: {
     flexDirection: 'row',
@@ -282,8 +323,18 @@ const collapseStyles = StyleSheet.create({
   },
   pressed: { opacity: 0.92 },
   headText: { flex: 1 },
-  title: { ...adminType.formTitle },
-  sub: { ...adminType.formSub },
+  title: { ...adminType.formTitle, color: colors.ink },
+  sub: { ...adminType.formSub, color: colors.muted },
+  chevron: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#F3FAEF',
+    borderWidth: 1,
+    borderColor: adminSurfaces.chipBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   body: {
     padding: spacing.md,
     paddingTop: spacing.sm,

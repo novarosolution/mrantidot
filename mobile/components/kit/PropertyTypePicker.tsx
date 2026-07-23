@@ -1,5 +1,7 @@
-import { Building2, Check, Factory, Home, Hotel, Store, Warehouse } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import type { LucideIcon } from 'lucide-react-native';
+import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import {
   PROPERTY_TYPE_GROUPS,
   PROPERTY_TYPE_LABELS,
@@ -7,26 +9,39 @@ import {
 } from '@/constants/propertyTypes';
 import { colors, fonts, premium, spacing } from '@/constants/theme';
 
-const PROPERTY_ICONS: Record<PropertyTypeKey, typeof Home> = {
-  '1bhk': Home,
-  '2bhk': Home,
-  '3bhk': Home,
-  '4bhk': Home,
-  bungalow: Home,
-  office: Building2,
-  cafe_restaurant: Store,
-  hotel: Hotel,
-  warehouse: Warehouse,
-  factory: Factory,
+const PROPERTY_ICONS: Record<PropertyTypeKey, LucideIcon> = {
+  '1bhk': AppIcons.property.home,
+  '2bhk': AppIcons.property.home,
+  '3bhk': AppIcons.property.home,
+  '4bhk': AppIcons.property.home,
+  bungalow: AppIcons.property.home,
+  office: AppIcons.property.apartment,
+  cafe_restaurant: AppIcons.property.store,
+  hotel: AppIcons.property.hotel,
+  warehouse: AppIcons.property.warehouse,
+  factory: AppIcons.property.factory,
 };
+
+const COLS = 3;
+const GAP = 10;
+
+function tileWidth(containerPad = 0) {
+  const usable = Dimensions.get('window').width - containerPad - GAP * (COLS - 1);
+  return Math.floor(usable / COLS);
+}
 
 export function PropertyTypePicker({
   value,
   onChange,
+  /** Horizontal inset already applied by parent (panel padding). */
+  contentInset = 48,
 }: {
   value: PropertyTypeKey | null;
   onChange: (next: PropertyTypeKey) => void;
+  contentInset?: number;
 }) {
+  const width = tileWidth(contentInset);
+
   return (
     <View style={styles.wrap}>
       {PROPERTY_TYPE_GROUPS.map((group) => (
@@ -34,27 +49,35 @@ export function PropertyTypePicker({
           <Text style={styles.groupTitle}>{group.title}</Text>
           <View style={styles.grid}>
             {group.keys.map((key) => {
-              const Icon = PROPERTY_ICONS[key];
+              const icon = PROPERTY_ICONS[key] ?? AppIcons.property.home;
               const selected = value === key;
               return (
                 <Pressable
                   key={key}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
                   style={({ pressed }) => [
                     styles.tile,
+                    { width },
                     selected && styles.tileSelected,
                     pressed && styles.pressed,
                   ]}
                   onPress={() => onChange(key)}
                 >
                   <View style={[styles.iconWrap, selected && styles.iconWrapSelected]}>
-                    <Icon size={20} color={selected ? colors.forest : colors.secondaryDark} />
+                    <PremiumIcon
+                      icon={icon}
+                      variant="plain"
+                      size={20}
+                      color={selected ? colors.forest : colors.secondaryDark}
+                    />
                   </View>
                   <Text style={[styles.label, selected && styles.labelSelected]} numberOfLines={2}>
                     {PROPERTY_TYPE_LABELS[key]}
                   </Text>
                   {selected ? (
                     <View style={styles.check}>
-                      <Check size={12} color={colors.white} strokeWidth={3} />
+                      <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={12} color={colors.white} strokeWidth={3} />
                     </View>
                   ) : null}
                 </Pressable>
@@ -68,8 +91,8 @@ export function PropertyTypePicker({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.lg },
-  group: { gap: spacing.sm },
+  wrap: { gap: spacing.lg, width: '100%' },
+  group: { gap: spacing.sm, width: '100%' },
   groupTitle: {
     fontFamily: fonts.bodySemi,
     fontSize: 12,
@@ -77,9 +100,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: GAP,
+    width: '100%',
+  },
   tile: {
-    width: '31%',
     minHeight: 96,
     padding: 12,
     borderRadius: 16,

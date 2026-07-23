@@ -27,4 +27,6 @@ const reviewSchema = new Schema<IReview>(
   { timestamps: true },
 );
 
+reviewSchema.index({ bookingId: 1 }, { unique: true });
+
 export const Review = mongoose.model<IReview>('Review', reviewSchema);

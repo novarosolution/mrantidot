@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
-import { ShieldCheck } from 'lucide-react-native';
-import { colors, fonts, premium, premiumType, shadows, spacing } from '@/constants/theme';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
+import {  colors, fonts, premium, premiumType, shadows, spacing , gradients } from '@/constants/theme';
 
 export function ProfileTrustBanner({ guaranteeText, badges }: { guaranteeText: string; badges?: string[] }) {
   const chips = badges?.slice(0, 3) ?? [];
@@ -9,11 +10,9 @@ export function ProfileTrustBanner({ guaranteeText, badges }: { guaranteeText: s
   return (
     <View style={styles.wrap}>
       <LinearGradient colors={['#FFFFFF', '#F4FAF6']} style={styles.card} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+        <LinearGradient colors={[...gradients.goldBar]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
         <View style={styles.row}>
-          <LinearGradient colors={['#14532D', '#1E8E4E']} style={styles.icon} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-            <ShieldCheck size={22} color={colors.white} strokeWidth={2} />
-          </LinearGradient>
+          <PremiumIcon icon={AppIcons.ui.shieldCheck} variant="gradient" size={22} color={colors.white} strokeWidth={2} boxSize={48} />
           <View style={styles.body}>
             <Text style={styles.title}>Protected by our guarantee</Text>
             <Text style={styles.text}>{guaranteeText}</Text>

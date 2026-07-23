@@ -5,10 +5,13 @@ import { IBooking } from '../models/Booking';
 import { IReview } from '../models/Review';
 import { PROPERTY_TYPE_LABELS } from '../constants/propertyTypes';
 import {
+  decryptCode,
   getCustomerOtpCode,
   getOtpExpiresIn,
   otpRequiredForBooking,
 } from './workOtp';
+import { payConfigFromUser, resolveTechEarning, type TechPayConfig } from './techPay';
+import { normalizeStepPhotoUrls } from './stepPhotos';
 
 function oid(value: unknown): string | undefined {
   if (!value) return undefined;
@@ -39,15 +42,29 @@ export function formatService(service: IService) {
 
 function sanitizeStepsForCustomer(
   steps: unknown[],
-): Array<{ title: string; status: string; photoUrl?: string; capturedAt?: string }> {
+): Array<{
+  title: string;
+  status: string;
+  photoUrl?: string;
+  photoUrls?: string[];
+  capturedAt?: string;
+}> {
   if (!Array.isArray(steps)) return [];
   return steps.map((raw) => {
     const s = raw as Record<string, unknown>;
+    const photoUrls = Array.isArray(s.photoUrls)
+      ? (s.photoUrls as unknown[]).filter((u): u is string => typeof u === 'string')
+      : undefined;
+    const photoUrl =
+      typeof s.photoUrl === 'string'
+        ? s.photoUrl
+        : photoUrls?.[0];
     return {
       title: String(s.title ?? 'Step'),
       status: String(s.status ?? 'pending'),
-      photoUrl: typeof s.photoUrl === 'string' ? s.photoUrl : undefined,
-      capturedAt: typeof s.capturedAt === 'string' ? s.capturedAt : undefined,
+      photoUrl,
+      ...(photoUrls?.length ? { photoUrls } : photoUrl ? { photoUrls: [photoUrl] } : {}),
+      capturedAt: isoDate(s.capturedAt),
     };
   });
 }
@@ -83,10 +100,13 @@ function formatWorkOtpForCustomer(booking: IBooking) {
 function formatWorkOtpForAdmin(booking: IBooking) {
   const start = booking.workOtp?.start;
   const end = booking.workOtp?.end;
+  const startCode = start?.codeEnc && !start.verifiedAt ? decryptCode(start.codeEnc) : undefined;
+  const endCode = end?.codeEnc && !end.verifiedAt ? decryptCode(end.codeEnc) : undefined;
   return {
     start: start
       ? {
           masked: `••••${start.codeSuffix}`,
+          code: startCode,
           verifiedAt: isoDate(start.verifiedAt),
           expiresAt: isoDate(start.expiresAt),
         }
@@ -94,6 +114,7 @@ function formatWorkOtpForAdmin(booking: IBooking) {
     end: end
       ? {
           masked: `••••${end.codeSuffix}`,
+          code: endCode,
           verifiedAt: isoDate(end.verifiedAt),
           expiresAt: isoDate(end.expiresAt),
         }
@@ -110,7 +131,19 @@ function formatBookingForTechnician(
   );
   const status = String(base.status ?? '');
   const amount = base.amount as { total?: number } | undefined;
-  const showJobValue = ['completed', 'in_progress', 'awaiting_verification'].includes(status);
+  const showPay =
+    ['confirmed', 'completed', 'in_progress', 'awaiting_verification'].includes(status) &&
+    amount?.total != null;
+  const techPay =
+    base.technician && typeof base.technician === 'object'
+      ? payConfigFromUser(base.technician as TechPayConfig)
+      : undefined;
+  const techEarning = showPay
+    ? resolveTechEarning(
+        { technicianEarning: booking.technicianEarning, amount },
+        techPay,
+      )
+    : undefined;
   return {
     id: base.id,
     serviceId: base.serviceId,
@@ -130,7 +163,8 @@ function formatBookingForTechnician(
     workStartedAt: base.workStartedAt,
     workCompletedAt: base.workCompletedAt,
     tracking: formatTracking(booking),
-    ...(showJobValue && amount?.total != null ? { jobValue: amount.total } : {}),
+    ...(showPay && amount?.total != null ? { jobValue: amount.total } : {}),
+    ...(techEarning != null ? { techEarning } : {}),
     ...(customer ? { customer } : {}),
     createdAt: base.createdAt,
     updatedAt: base.updatedAt,
@@ -193,6 +227,21 @@ export function formatBooking(booking: IBooking & { populate?: unknown }) {
   const doc = booking.toObject ? booking.toObject() : (booking as unknown as Record<string, unknown>);
   const id = String(doc._id ?? (doc as { id?: string }).id ?? '');
 
+  const rawSteps = Array.isArray(doc.steps) ? doc.steps : [];
+  const steps = rawSteps.map((raw: unknown) => {
+    const s = raw as Record<string, unknown>;
+    const photoUrls = normalizeStepPhotoUrls({
+      photoUrl: typeof s.photoUrl === 'string' ? s.photoUrl : undefined,
+      photoUrls: Array.isArray(s.photoUrls) ? (s.photoUrls as string[]) : undefined,
+    });
+    return {
+      ...s,
+      photoUrls,
+      photoUrl: photoUrls[0],
+      capturedAt: isoDate(s.capturedAt) ?? s.capturedAt,
+    };
+  });
+
   return {
     id,
     customerId: oid(doc.customerId),
@@ -211,10 +260,12 @@ export function formatBooking(booking: IBooking & { populate?: unknown }) {
       : undefined,
     address: doc.address,
     amount: doc.amount,
+    technicianEarning:
+      typeof doc.technicianEarning === 'number' ? doc.technicianEarning : undefined,
     paymentMethod: doc.paymentMethod,
     status: doc.status,
     assignmentMode: doc.assignmentMode ?? 'auto',
-    steps: Array.isArray(doc.steps) ? doc.steps : [],
+    steps,
     problemPhotos: Array.isArray(doc.problemPhotos) ? doc.problemPhotos : [],
     couponCode: doc.couponCode,
     workStartedAt: isoDate(doc.workStartedAt),

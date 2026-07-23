@@ -1,26 +1,21 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
-import {
-  Check,
-  Circle,
-  KeyRound,
-  MapPin,
-  SprayCan,
-  UserCheck,
-} from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { trackingEventLabel } from '@/lib/booking-helpers';
 import type { TrackingEvent } from '@/types/api';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
 
-const EVENT_ICONS: Record<string, typeof Check> = {
-  assigned: UserCheck,
-  start_otp_sent: KeyRound,
-  work_started: SprayCan,
-  step_done: MapPin,
-  end_otp_sent: KeyRound,
-  work_completed: Check,
-  cancelled: Circle,
-  admin_override: Check,
+const EVENT_ICONS: Record<string, LucideIcon> = {
+  assigned: AppIcons.ui.shieldCheck,
+  start_otp_sent: AppIcons.ui.key,
+  work_started: AppIcons.ui.brand,
+  step_done: AppIcons.ui.mapPin,
+  end_otp_sent: AppIcons.ui.key,
+  work_completed: AppIcons.ui.check,
+  cancelled: AppIcons.ui.alert,
+  admin_override: AppIcons.ui.check,
 };
 
 function formatTime(iso: string): string {
@@ -50,9 +45,9 @@ export function BookingTrackingTimeline({ events }: { events: TrackingEvent[] })
 
   return (
     <View style={styles.wrap}>
-      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       {sorted.map((item, i) => {
-        const Icon = EVENT_ICONS[item.event] ?? Circle;
+        const icon = EVENT_ICONS[item.event] ?? AppIcons.ui.activity;
         const isLast = i === sorted.length - 1;
         const stepTitle =
           item.event === 'step_done' && item.meta?.title
@@ -63,7 +58,12 @@ export function BookingTrackingTimeline({ events }: { events: TrackingEvent[] })
           <View key={`${item.event}-${item.at}-${i}`} style={styles.row}>
             <View style={styles.col}>
               <View style={[styles.dot, isLast && styles.dotActive]}>
-                <Icon size={12} color={isLast ? colors.white : colors.green} />
+                <PremiumIcon
+                  icon={icon}
+                  variant="plain"
+                  size={12}
+                  color={isLast ? colors.white : colors.green}
+                />
               </View>
               {!isLast ? <View style={styles.line} /> : null}
             </View>
@@ -80,12 +80,12 @@ export function BookingTrackingTimeline({ events }: { events: TrackingEvent[] })
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glass,
     borderRadius: premium.radiusCard,
     padding: spacing.md,
     paddingTop: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: surfaces.glassBorderStrong,
     overflow: 'hidden',
     ...premium.shadowSoft,
   },
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   dotActive: { backgroundColor: colors.forest, borderColor: colors.forest },
   line: { flex: 1, width: 2, minHeight: 24, backgroundColor: colors.border, marginTop: 4 },
   body: { flex: 1, paddingBottom: spacing.md },
-  label: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink },
-  labelActive: { fontFamily: fonts.display, color: colors.forest },
+  label: { fontFamily: fonts.display, fontSize: 13, color: colors.ink },
+  labelActive: { fontFamily: fonts.displayExtra, color: colors.forest },
   time: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 3 },
 });

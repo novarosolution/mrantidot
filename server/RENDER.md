@@ -29,7 +29,7 @@ Do **not** set `PORT` — Render sets it automatically.
 
 | Setting | Why |
 |---------|-----|
-| Server-only install (~27MB) | `.renderignore` + `workspaces=false` — no mobile/Expo |
+| Server-only install (~27MB) | `.renderignore` + `render-build.sh --workspaces=false` — no mobile/Expo |
 | `npm prune --omit=dev` after build | No TypeScript/tsx in runtime |
 | `--max-old-space-size=512` | Node heap cap — avoids OOM on 2GB |
 | Mongo `maxPoolSize: 5` | Small connection pool |

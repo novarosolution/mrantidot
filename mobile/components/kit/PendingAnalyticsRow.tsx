@@ -1,5 +1,7 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ChevronRight, Clock } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import {
   bookingCustomerName,
   bookingScheduleDisplay,
@@ -7,7 +9,7 @@ import {
 } from '@/lib/booking-helpers';
 import { formatTimeAgo } from '@/lib/time-ago';
 import type { Booking } from '@/types/api';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { adminSurfaces, colors, fonts, premium, spacing } from '@/constants/theme';
 
 export function PendingAnalyticsRow({
   booking,
@@ -20,8 +22,9 @@ export function PendingAnalyticsRow({
 
   return (
     <Pressable style={({ pressed }) => [styles.row, pressed && styles.pressed]} onPress={onPress}>
+      <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.edge} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
       <View style={styles.icon}>
-        <Clock size={16} color={colors.amberInk} />
+        <PremiumIcon icon={AppIcons.ui.clock} variant="mint" size="sm" color={colors.forest} boxSize={40} />
       </View>
       <View style={styles.body}>
         <View style={styles.head}>
@@ -35,7 +38,7 @@ export function PendingAnalyticsRow({
         </Text>
         <Text style={styles.badge}>Needs confirmation</Text>
       </View>
-      <ChevronRight size={18} color={colors.muted} />
+      <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size="md" color={colors.muted} />
     </Pressable>
   );
 }
@@ -46,33 +49,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: spacing.md,
-    backgroundColor: colors.white,
+    paddingLeft: spacing.md + 4,
+    backgroundColor: adminSurfaces.card,
     borderRadius: premium.radiusCard,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: adminSurfaces.cardBorder,
     marginBottom: spacing.sm,
-    ...shadows.card,
+    overflow: 'hidden',
+    shadowColor: '#03170B',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.14,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  edge: {
+    position: 'absolute',
+    left: 0,
+    top: 10,
+    bottom: 10,
+    width: 3,
+    borderRadius: 2,
   },
   pressed: { opacity: 0.88 },
   icon: {
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: colors.amberBg,
+    backgroundColor: '#EEF8E6',
+    borderWidth: 1,
+    borderColor: adminSurfaces.cardBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   body: { flex: 1, minWidth: 0 },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  service: { fontFamily: fonts.display, fontSize: 14, color: colors.ink, flex: 1 },
+  service: { fontFamily: fonts.displayExtra, fontSize: 14, color: '#0B2213', flex: 1, letterSpacing: -0.2 },
   age: { fontFamily: fonts.body, fontSize: 10, color: colors.muted },
   meta: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 4 },
   badge: {
     alignSelf: 'flex-start',
     fontFamily: fonts.bodySemi,
     fontSize: 10,
-    color: colors.amberInk,
-    backgroundColor: colors.amberBg,
+    color: colors.forest,
+    backgroundColor: '#EEF8E6',
+    borderWidth: 1,
+    borderColor: '#D8EDC8',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 999,

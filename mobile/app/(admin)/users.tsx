@@ -1,18 +1,19 @@
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
-import { AdminFilterChips } from '@/components/kit/AdminPageKit';
+import { AdminFilterChips, AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
+import { CACHE_TTL } from '@/lib/apiCache';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
-import { adminRoutes } from '@/lib/routes';
+import { adminRoutes, appPush } from '@/lib/routes';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useScreenLoad } from '@/lib/useScreenLoad';
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import type { User, UserRole } from '@/types/api';
 import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
 import { Input } from '@/components/ui/Input';
@@ -27,8 +28,8 @@ const ROLE_LABEL: Record<UserRole, string> = {
 
 const ROLE_TONE: Record<UserRole, BadgeTone> = {
   customer: 'success',
-  technician: 'info',
-  admin: 'gold',
+  technician: 'success',
+  admin: 'success',
 };
 
 export default function AdminUsersScreen() {
@@ -41,21 +42,28 @@ export default function AdminUsersScreen() {
   const load = useCallback(async () => {
     const params: Record<string, string> = {};
     if (filter !== 'all') params.role = filter;
-    const { data } = await api.get<{ users: User[] }>('/admin/users', { ...screenLoadConfig, params });
+    const { data } = await api.get<{ users: User[] }>('/admin/users', {
+      ...screenLoadConfig,
+      params,
+      cacheTtlMs: CACHE_TTL.adminLists,
+    });
     setUsers(data.users);
   }, [filter]);
 
-  const focusedOnce = useRef(false);
-  useFocusEffect(
-    useCallback(() => {
-      if (!focusedOnce.current) {
-        focusedOnce.current = true;
-        void runLoad(load, 'Could not load users');
-        return;
-      }
-      void refresh(load);
-    }, [load, runLoad, refresh]),
-  );
+  useEffect(() => {
+    void runLoad(load, 'Could not load users');
+  }, [load, runLoad]);
+
+  useStaleFocusRefresh(() => refresh(async () => {
+    const params: Record<string, string> = {};
+    if (filter !== 'all') params.role = filter;
+    const { data } = await api.get<{ users: User[] }>('/admin/users', {
+      ...screenLoadConfig,
+      params,
+      skipCache: true,
+    });
+    setUsers(data.users);
+  }), 45_000);
 
   const visible = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();
@@ -68,9 +76,32 @@ export default function AdminUsersScreen() {
     );
   }, [users, debouncedSearch]);
 
+  const roleCounts = useMemo(() => {
+    let customer = 0, technician = 0, admin = 0;
+    for (const u of users) {
+      if (u.role === 'customer') customer += 1;
+      else if (u.role === 'technician') technician += 1;
+      else if (u.role === 'admin') admin += 1;
+    }
+    return { customer, technician, admin, total: users.length };
+  }, [users]);
+
   const header = useMemo(
     () => (
       <View style={styles.header}>
+        <AdminStatStrip
+          flush
+          items={
+            filter === 'all'
+              ? [
+                  { label: 'Total', value: roleCounts.total },
+                  { label: 'Customers', value: roleCounts.customer },
+                  { label: 'Techs', value: roleCounts.technician },
+                  { label: 'Admins', value: roleCounts.admin },
+                ]
+              : [{ label: 'Showing', value: users.length, color: colors.forest }]
+          }
+        />
         <AdminFilterChips
           chips={[
             { key: 'all', label: 'All' },
@@ -86,7 +117,7 @@ export default function AdminUsersScreen() {
         </View>
       </View>
     ),
-    [filter, search],
+    [filter, search, roleCounts, users.length],
   );
 
   if (loading) return <Spinner fullScreen />;
@@ -102,7 +133,7 @@ export default function AdminUsersScreen() {
   const addBtn = (
     <AdminAddButton
       onPress={() =>
-        router.push({ pathname: adminRoutes.userEdit, params: { returnTo: adminRoutes.users } })
+        appPush({ pathname: adminRoutes.userEdit, params: { returnTo: adminRoutes.users } })
       }
     />
   );
@@ -110,7 +141,7 @@ export default function AdminUsersScreen() {
   return (
     <AdminListShell
       title="Users & roles"
-      subtitle={`${users.length} accounts`}
+      subtitle={`${users.length} accounts · roles & access`}
       rightAction={addBtn}
       backFallback={adminRoutes.team}
     >
@@ -129,7 +160,7 @@ export default function AdminUsersScreen() {
           <Pressable
             style={({ pressed }) => [styles.card, pressed && styles.pressed]}
             onPress={() =>
-              router.push({
+              appPush({
                 pathname: adminRoutes.userEdit,
                 params: { id: item.id, returnTo: adminRoutes.users },
               })
@@ -169,11 +200,14 @@ const styles = StyleSheet.create({
   search: { paddingHorizontal: spacing.md, marginTop: spacing.sm },
   card: {
     padding: spacing.md,
+    paddingTop: spacing.md + 2,
     marginBottom: spacing.sm,
     borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
+    backgroundColor: 'rgba(255,255,255,0.82)',
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: 'rgba(226,240,216,0.95)',
+    borderTopWidth: 3,
+    borderTopColor: '#8FD03C',
     ...shadows.card,
   },
   pressed: { opacity: 0.92 },
@@ -182,7 +216,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: colors.soft,
+    backgroundColor: '#EEF8E6',
     alignItems: 'center',
     justifyContent: 'center',
   },

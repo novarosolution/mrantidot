@@ -1,6 +1,7 @@
 import { forwardRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
-import { Eye, EyeOff } from 'lucide-react-native';
+import { AppIcons } from '@/constants/appIcons';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { colors, fonts, formField, spacing } from '@/constants/theme';
 import { stripConflictingInputProps, textInputDefaults, textInputStyles } from '@/components/ui/textInputDefaults';
 
@@ -75,7 +76,12 @@ export const IconInput = forwardRef<
         />
         {isSecureField ? (
           <Pressable onPress={() => setShow((s) => !s)} style={styles.eye} hitSlop={12}>
-            {show ? <EyeOff size={18} color={colors.muted} /> : <Eye size={18} color={colors.muted} />}
+            <PremiumIcon
+              icon={show ? AppIcons.ui.eyeOff : AppIcons.ui.eye}
+              variant="plain"
+              size="md"
+              color={colors.muted}
+            />
           </Pressable>
         ) : null}
       </View>

@@ -1,6 +1,7 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { adminGoBack, adminRoutes } from '@/lib/routes';
+import { adminGoBack, adminRoutes, appPush } from '@/lib/routes';
+import { paramString } from '@/lib/routeParams';
 import {
   Alert,
   Image,
@@ -12,9 +13,11 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Check } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import Toast from 'react-native-toast-message';
 import { AdminBookingActions } from '@/components/kit/AdminBookingActions';
+import { AdminProcessTracker } from '@/components/kit/AdminProcessTracker';
 import { PendingScheduleCard } from '@/components/kit/PendingScheduleCard';
 import { ScheduleEditorForm } from '@/components/kit/ScheduleEditorForm';
 import { BookingFactsCard } from '@/components/kit/BookingFactsCard';
@@ -32,7 +35,8 @@ import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
-import { BOOKING_SLOTS } from '@/lib/dates';
+import { stepPhotoUrls } from '@/lib/stepPhotos';
+import { DEFAULT_BOOKING_SLOT } from '@/lib/dates';
 import {
   bookingCustomerName,
   bookingRequestedScheduleDisplay,
@@ -48,10 +52,10 @@ import { assignableTechnicians } from '@/lib/user-helpers';
 import { useBookingCopy } from '@/lib/schedule-copy';
 import { mediaUrl } from '@/lib/images';
 import type { Booking, ScheduleMode, User, WorkOtpAdminView } from '@/types/api';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
 
 export default function AdminBookingDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
   const bookingCopy = useBookingCopy();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [techs, setTechs] = useState<User[]>([]);
@@ -62,7 +66,7 @@ export default function AdminBookingDetailScreen() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<ScheduleMode>('standard');
   const [editorDate, setEditorDate] = useState('');
-  const [editorSlot, setEditorSlot] = useState<string>(BOOKING_SLOTS[0]);
+  const [editorSlot, setEditorSlot] = useState<string>(DEFAULT_BOOKING_SLOT);
   const [editorHour, setEditorHour] = useState(10);
   const [editorMinute, setEditorMinute] = useState(0);
   const [rescheduleAddress, setRescheduleAddress] = useState('');
@@ -70,6 +74,10 @@ export default function AdminBookingDetailScreen() {
   const [cancelOpen, setCancelOpen] = useState(false);
 
   const load = useCallback(async () => {
+    if (!id) {
+      setLoadError('Booking not found');
+      return;
+    }
     setLoadError(null);
     const [bookingRes, techsRes] = await Promise.allSettled([
       api.get<{ booking: Booking }>(`/bookings/${id}`, screenLoadConfig),
@@ -145,7 +153,7 @@ export default function AdminBookingDetailScreen() {
       setEditorMinute(m);
       setEditorSlot('custom');
     } else {
-      setEditorSlot(req.slot ?? b.schedule.slot ?? BOOKING_SLOTS[0]);
+      setEditorSlot(req.slot ?? b.schedule.slot ?? DEFAULT_BOOKING_SLOT);
     }
     setRescheduleAddress(b.address);
   }
@@ -219,7 +227,10 @@ export default function AdminBookingDetailScreen() {
   if (loadError) {
     return (
       <AdminListShell title="Booking" subtitle="Error">
-        <ListEmptyRetry message={loadError} onRetry={() => safeAsync(load)} />
+        <ListEmptyRetry
+          message={loadError}
+          onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
+        />
       </AdminListShell>
     );
   }
@@ -268,13 +279,21 @@ export default function AdminBookingDetailScreen() {
         !terminal ? (
           <StickyActionBar>
             {isSchedulePending(booking) ? (
-              <Button
-                title="Confirm schedule"
-                variant="premium"
-                onPress={openConfirmSchedule}
-                loading={busy === 'confirm'}
-                style={styles.footerBtn}
-              />
+              <>
+                <Button
+                  title="Confirm schedule"
+                  variant="premium"
+                  onPress={openConfirmSchedule}
+                  loading={busy === 'confirm'}
+                  style={styles.footerBtn}
+                />
+                <Button
+                  title="Cancel booking"
+                  variant="secondary"
+                  onPress={() => setCancelOpen(true)}
+                  style={styles.footerBtn}
+                />
+              </>
             ) : (
               <Button
                 title="Cancel booking"
@@ -302,6 +321,16 @@ export default function AdminBookingDetailScreen() {
         }
       >
         <BookingStatusBanner status={booking.status} />
+
+        <AdminProcessTracker
+          status={booking.status}
+          assigned={Boolean(
+            booking.technician &&
+              (typeof booking.technician === 'string'
+                ? booking.technician
+                : booking.technician.id),
+          )}
+        />
 
         {isSchedulePending(booking) ? (
           <PendingScheduleCard
@@ -342,13 +371,28 @@ export default function AdminBookingDetailScreen() {
           <BookingPriceBreakdown amount={booking.amount} />
         </Card>
 
-        <OtpStatusCard workOtp={adminOtp} />
+        <OtpStatusCard workOtp={adminOtp} bookingId={booking.id} onUpdated={load} />
 
         {(booking.tracking?.length ?? 0) > 0 ? (
           <>
             <Text style={styles.section}>Live tracking</Text>
             <BookingTrackingTimeline events={booking.tracking ?? []} />
           </>
+        ) : null}
+
+        {isSchedulePending(booking) ? (
+          <Card variant="premium" style={styles.opsCard}>
+            <Text style={styles.section}>Update process</Text>
+            <Text style={styles.opsHint}>Confirm the visit schedule to unlock technician assignment.</Text>
+            <Button
+              title="Confirm schedule"
+              variant="premium"
+              onPress={openConfirmSchedule}
+              loading={busy === 'confirm'}
+              style={{ marginTop: spacing.md }}
+            />
+            <AdminBookingActions booking={booking} onUpdated={load} busy={busy} setBusy={setBusy} />
+          </Card>
         ) : null}
 
         {isOperationsPhase(booking.status) && booking.status !== 'pending' && (
@@ -364,12 +408,17 @@ export default function AdminBookingDetailScreen() {
               Customer: {bookingCustomerName(booking)}
             </Text>
             {customerId ? (
-              <Pressable onPress={() => router.push(`/(admin)/customer/${customerId}`)}>
+              <Pressable onPress={() => appPush(adminRoutes.customer(customerId))}>
                 <Text style={styles.link}>View customer profile →</Text>
               </Pressable>
             ) : null}
-            <Button title="Assign technician" onPress={assignTech} style={{ marginTop: spacing.md }} />
-            <AdminBookingActions booking={booking} onUpdated={load} busy={busy} setBusy={setBusy} />
+            <AdminBookingActions
+              booking={booking}
+              onUpdated={load}
+              busy={busy}
+              setBusy={setBusy}
+              onAssign={assignTech}
+            />
           </Card>
         )}
 
@@ -387,10 +436,10 @@ export default function AdminBookingDetailScreen() {
         )}
 
         {isVerificationPhase(booking.status) && (
-          <Card style={styles.infoCard}>
+          <Card variant="glass" style={styles.infoCard}>
             <Text style={styles.infoTitle}>Awaiting completion code</Text>
             <Text style={styles.infoBody}>
-              Treatment steps are done. Customer and technician must verify with the end code.
+              Treatment steps are done. Reveal or regenerate the end code, or force-complete if needed.
             </Text>
             <AdminBookingActions booking={booking} onUpdated={load} busy={busy} setBusy={setBusy} />
           </Card>
@@ -404,24 +453,53 @@ export default function AdminBookingDetailScreen() {
           <>
             <Text style={styles.section}>Step photos</Text>
             <View style={styles.grid}>
-              {steps.map((step, i) => (
-                <Card key={`${step.title}-${i}`} variant="premium" style={styles.photoCard}>
-                  <View style={styles.thumb}>
-                    {step.photoUrl ? (
-                      <>
-                        <Image source={{ uri: mediaUrl(step.photoUrl) }} style={styles.img} />
-                        <View style={styles.ok}>
-                          <Check size={12} color="#fff" strokeWidth={3} />
-                        </View>
-                      </>
-                    ) : (
-                      <Text style={styles.pending}>Pending</Text>
-                    )}
-                  </View>
-                  <Text style={styles.stepTitle}>{step.title}</Text>
-                  <Text style={styles.stepMeta}>{step.status === 'done' ? 'Captured' : 'Pending'}</Text>
-                </Card>
-              ))}
+              {steps.map((step, i) => {
+                const photos = stepPhotoUrls(step);
+                return (
+                  <Card key={`${step.title}-${i}`} variant="premium" style={styles.photoCard}>
+                    <View style={styles.thumb}>
+                      {photos[0] ? (
+                        <>
+                          <Image source={{ uri: mediaUrl(photos[0]) }} style={styles.img} />
+                          <View style={styles.ok}>
+                            <PremiumIcon icon={AppIcons.ui.check} variant="plain" size="xs" color="#fff" strokeWidth={3} />
+                          </View>
+                          {photos.length > 1 ? (
+                            <View style={styles.countBadge}>
+                              <Text style={styles.countBadgeText}>{photos.length}</Text>
+                            </View>
+                          ) : null}
+                        </>
+                      ) : (
+                        <Text style={styles.pending}>Pending</Text>
+                      )}
+                    </View>
+                    <Text style={styles.stepTitle}>{step.title}</Text>
+                    <Text style={styles.stepMeta}>
+                      {step.status === 'done'
+                        ? photos.length > 1
+                          ? `${photos.length} photos`
+                          : 'Captured'
+                        : 'Pending'}
+                    </Text>
+                    {photos.length > 1 ? (
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.stepPhotoRow}
+                      >
+                        {photos.map((url, pi) => (
+                          <Image
+                            key={`${url}-${pi}`}
+                            source={{ uri: mediaUrl(url) }}
+                            style={styles.stepPhotoThumb}
+                          />
+                        ))}
+                      </ScrollView>
+                    ) : null}
+                  </Card>
+                );
+              })}
             </View>
           </>
         )}
@@ -515,11 +593,17 @@ const styles = StyleSheet.create({
   opsCard: { marginTop: spacing.md, padding: spacing.md },
   opsHint: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, lineHeight: 20 },
   link: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.secondaryDark, marginTop: spacing.sm },
-  infoCard: { marginTop: spacing.md, padding: spacing.md, backgroundColor: colors.skySoft },
-  infoTitle: { fontFamily: fonts.display, fontSize: 14, color: colors.skyInk },
-  infoBody: { fontFamily: fonts.body, fontSize: 12, color: colors.skyInk, marginTop: 6, lineHeight: 18 },
+  infoCard: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    backgroundColor: surfaces.glass,
+    borderWidth: 1,
+    borderColor: surfaces.glassBorderStrong,
+  },
+  infoTitle: { fontFamily: fonts.display, fontSize: 14, color: colors.forest },
+  infoBody: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 6, lineHeight: 18 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  photoCard: { width: '47%', padding: 8 },
+  photoCard: { width: '100%', padding: 8 },
   thumb: {
     height: 96,
     borderRadius: 12,
@@ -542,15 +626,32 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.white,
   },
+  countBadge: {
+    position: 'absolute',
+    top: 5,
+    left: 5,
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    backgroundColor: 'rgba(11,34,19,0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countBadgeText: { fontFamily: fonts.bodyBold, fontSize: 11, color: colors.white },
+  stepPhotoRow: { gap: 8, marginTop: 8 },
+  stepPhotoThumb: { width: 72, height: 72, borderRadius: 10, backgroundColor: colors.soft },
   pending: { fontFamily: fonts.body, color: colors.white, fontSize: 12 },
   stepTitle: { fontFamily: fonts.display, fontSize: 11.5, marginTop: 8 },
   stepMeta: { fontFamily: fonts.body, fontSize: 10, color: colors.muted },
   footerBtn: { width: '100%' },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glass,
     borderTopLeftRadius: premium.radiusCard,
     borderTopRightRadius: premium.radiusCard,
+    borderTopWidth: 1.5,
+    borderColor: '#8FD03C',
     padding: spacing.lg,
     paddingBottom: spacing.xl,
     ...premium.shadowSoft,

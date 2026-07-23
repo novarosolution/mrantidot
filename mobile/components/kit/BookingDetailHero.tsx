@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
-import { IndianRupee, MapPin } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import { StatusPill } from '@/components/ui/StatusPill';
 import {
@@ -12,7 +13,8 @@ import {
   bookingStatusLabel,
 } from '@/lib/booking-helpers';
 import type { Booking } from '@/types/api';
-import { colors, fonts, premium, shadows, spacing, typography } from '@/constants/theme';
+import {  colors, fonts, premium, spacing, typography , gradients } from '@/constants/theme';
+import { homeShadow } from '@/components/kit/homeUi';
 
 export function BookingDetailHero({
   booking,
@@ -91,7 +93,12 @@ export function BookingDetailHero({
       </View>
       {booking.amount?.total ? (
         <View style={[styles.amountChip, !isDark && styles.amountChipLight]}>
-          <IndianRupee size={12} color={isDark ? colors.lime : colors.forest} />
+          <PremiumIcon
+            icon={AppIcons.ui.rupee}
+            variant="plain"
+            size={12}
+            color={isDark ? colors.lime : colors.forest}
+          />
           <Text style={[styles.amount, !isDark && styles.amountLight]}>{booking.amount.total}</Text>
         </View>
       ) : null}
@@ -100,7 +107,12 @@ export function BookingDetailHero({
 
   const addressRow = (
     <View style={styles.addressRow}>
-      <MapPin size={13} color={isDark ? 'rgba(255,255,255,0.55)' : colors.muted} />
+      <PremiumIcon
+        icon={AppIcons.ui.mapPin}
+        variant="plain"
+        size={13}
+        color={isDark ? 'rgba(255,255,255,0.9)' : colors.muted}
+      />
       <Text style={[styles.address, !isDark && styles.addressLight]} numberOfLines={2}>
         {booking.address}
       </Text>
@@ -138,7 +150,7 @@ export function BookingDetailHero({
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
           >
-            <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+            <LinearGradient colors={[...gradients.goldBar]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
             {topRow}
             {detailRow}
             {addressRow}
@@ -163,12 +175,12 @@ const styles = StyleSheet.create({
     borderRadius: premium.radiusCard,
     padding: spacing.md,
     overflow: 'hidden',
-    ...shadows.hero,
+    ...homeShadow.promo,
   },
   cardLight: {
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.08)',
-    ...shadows.floating,
+    borderColor: 'rgba(180,220,165,0.95)',
+    ...homeShadow.card,
   },
   goldBar: {
     height: 3,
@@ -226,7 +238,7 @@ const styles = StyleSheet.create({
   ref: {
     fontFamily: fonts.body,
     fontSize: 11,
-    color: 'rgba(255,255,255,0.65)',
+    color: 'rgba(255,255,255,0.86)',
     marginTop: 4,
   },
   refLight: { color: colors.muted },
@@ -237,9 +249,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: 'rgba(168,224,78,0.2)',
+    backgroundColor: 'rgba(168,224,78,0.22)',
     borderWidth: 1,
-    borderColor: 'rgba(168,224,78,0.35)',
+    borderColor: 'rgba(168,224,78,0.42)',
   },
   liveDot: {
     width: 6,
@@ -269,7 +281,7 @@ const styles = StyleSheet.create({
   detailLabel: {
     fontFamily: fonts.bodySemi,
     fontSize: 10,
-    color: 'rgba(255,255,255,0.55)',
+    color: 'rgba(255,255,255,0.88)',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -312,7 +324,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: fonts.body,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.75)',
+    color: 'rgba(255,255,255,0.9)',
     lineHeight: 17,
   },
   addressLight: { color: colors.muted },

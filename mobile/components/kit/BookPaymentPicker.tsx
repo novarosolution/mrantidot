@@ -1,14 +1,17 @@
-import { router } from 'expo-router';
-import { Check, ChevronRight, CreditCard, Smartphone, Wallet } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { PAYMENT_TYPE_META } from '@/lib/bookingPayment';
 import type { PaymentMethodRecord } from '@/types/api';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+import { customerRoutes, appPush } from '@/lib/routes';
 
 function PaymentIcon({ type, selected }: { type: 'upi_card' | 'pay_after'; selected: boolean }) {
   const color = selected ? colors.forest : colors.green;
-  if (type === 'pay_after') return <Wallet size={22} color={color} strokeWidth={2.2} />;
-  return <Smartphone size={22} color={color} strokeWidth={2.2} />;
+  if (type === 'pay_after') {
+    return <PremiumIcon icon={AppIcons.payment.wallet} variant="plain" size={22} color={color} strokeWidth={2.2} />;
+  }
+  return <PremiumIcon icon={AppIcons.payment.upi} variant="plain" size={22} color={color} strokeWidth={2.2} />;
 }
 
 export function BookPaymentPicker({
@@ -44,13 +47,15 @@ export function BookPaymentPicker({
               <Text style={[styles.title, on && styles.titleOn]}>{method?.label ?? meta.title}</Text>
               {method?.details ? (
                 <View style={styles.detailsRow}>
-                  <CreditCard size={11} color={colors.muted} />
+                  <PremiumIcon icon={AppIcons.payment.card} variant="plain" size={11} color={colors.muted} />
                   <Text style={styles.details}>{method.details}</Text>
                 </View>
               ) : null}
             </View>
             <View style={[styles.radio, on && styles.radioOn]}>
-              {on ? <Check size={14} color={colors.white} strokeWidth={3} /> : null}
+              {on ? (
+                <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={14} color={colors.white} strokeWidth={3} />
+              ) : null}
             </View>
           </Pressable>
         );
@@ -59,10 +64,10 @@ export function BookPaymentPicker({
       {showManageLink ? (
         <Pressable
           style={({ pressed }) => [styles.manage, pressed && styles.pressed]}
-          onPress={() => router.push('/(customer)/payment-methods')}
+          onPress={() => appPush(customerRoutes.paymentMethods)}
         >
           <Text style={styles.manageText}>Manage saved payment methods</Text>
-          <ChevronRight size={16} color={colors.green} />
+          <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={16} color={colors.green} />
         </Pressable>
       ) : null}
     </View>
@@ -76,40 +81,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 14,
-    borderRadius: 16,
-    backgroundColor: colors.bg,
+    borderRadius: premium.radiusCard,
+    backgroundColor: surfaces.glass,
     borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderColor: surfaces.glassBorderStrong,
   },
   tileOn: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.soft,
     borderColor: colors.forest,
-    shadowColor: '#0E3A20',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
+    ...premium.shadowSoft,
   },
   pressed: { opacity: 0.92 },
   iconWrap: {
     width: 46,
     height: 46,
     borderRadius: 14,
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glass,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: surfaces.glassBorderStrong,
   },
   iconWrapOn: {
     backgroundColor: colors.soft,
-    borderColor: 'rgba(30,142,78,0.2)',
+    borderColor: 'rgba(143,208,60,0.45)',
   },
   body: { flex: 1, minWidth: 0 },
   title: { fontFamily: fonts.bodySemi, fontSize: 14.5, color: colors.ink },
   titleOn: { color: colors.forest },
-  sub: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 3, lineHeight: 17 },
-  subOn: { color: colors.forest, opacity: 0.85 },
   detailsRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
   details: { fontFamily: fonts.body, fontSize: 11, color: colors.muted },
   radio: {
@@ -120,7 +119,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glass,
   },
   radioOn: { backgroundColor: colors.green, borderColor: colors.green },
   manage: {

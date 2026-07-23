@@ -20,6 +20,8 @@ import {
 import { resolveAddressString } from '../utils/addresses';
 import { incrementOfferUse } from '../utils/coupons';
 import { notifyBookingEvent, notifyAdminsForBooking, notifyWorkOtpEvent } from '../utils/notifications';
+import { computeTechEarning, payConfigFromUser } from '../utils/techPay';
+import { applyStepPhotos, MAX_STEP_PHOTOS, normalizeStepPhotoUrls } from '../utils/stepPhotos';
 import {
   appendTracking,
   incrementTechnicianJobsDone,
@@ -168,13 +170,17 @@ bookingsRouter.post(
       await incrementOfferUse(req.body.couponCode);
     }
 
-    await notifyBookingEvent(booking, 'schedule_requested', { notifyAdmin: true });
-    await notifyAdminsForBooking(
-      booking._id,
-      'Confirm schedule',
-      'A customer requested a visit — review and confirm the schedule.',
-      'admin_schedule_pending',
-    );
+    try {
+      await notifyBookingEvent(booking, 'schedule_requested', { notifyAdmin: true });
+      await notifyAdminsForBooking(
+        booking._id,
+        'Confirm schedule',
+        'A customer requested a visit — review and confirm the schedule.',
+        'admin_schedule_pending',
+      );
+    } catch (err) {
+      console.error('[bookings] notify after create failed', err);
+    }
 
     const populated = await loadBooking(booking._id.toString());
     res.status(201).json({ booking: formatBookingForRole(populated, req.user!.role) });
@@ -195,7 +201,7 @@ bookingsRouter.get(
 
     if (typeof req.query.status === 'string' && req.query.status) {
       if (role === 'admin' && req.query.status === 'active') {
-        filter.status = { $in: ['pending', 'confirmed', 'in_progress'] };
+        filter.status = { $in: ['pending', 'confirmed', 'in_progress', 'awaiting_verification'] };
       } else {
         filter.status = req.query.status;
       }
@@ -307,6 +313,34 @@ bookingsRouter.patch(
     if (booking.status === 'pending') {
       throw new AppError(400, 'Confirm the schedule before assigning a technician');
     }
+    if (booking.status !== 'confirmed') {
+      throw new AppError(400, 'Can only assign a technician while the booking is confirmed');
+    }
+
+    const visitDate = booking.schedule?.date;
+    if (visitDate) {
+      const { LeaveRequest } = await import('../models/LeaveRequest');
+      const onLeave = await LeaveRequest.findOne({
+        technicianId: technician._id,
+        status: 'approved',
+        from: { $lte: visitDate },
+        to: { $gte: visitDate },
+      });
+      if (onLeave) {
+        throw new AppError(400, 'Technician is on approved leave for this date');
+      }
+
+      const sameDay = await Booking.findOne({
+        technicianId: technician._id,
+        'schedule.date': visitDate,
+        status: { $in: ['confirmed', 'in_progress', 'awaiting_verification'] },
+        _id: { $ne: booking._id },
+      });
+      if (sameDay && sameDay.schedule?.slot && booking.schedule?.slot
+        && sameDay.schedule.slot === booking.schedule.slot) {
+        throw new AppError(400, 'Technician already has a job in this time slot');
+      }
+    }
 
     booking.technicianId = technician._id;
     await setupStartOtp(booking);
@@ -329,6 +363,7 @@ bookingsRouter.post(
     try {
       verifyStartOtp(booking, req.body.otp);
     } catch (e) {
+      await booking.save(); // persist failed-attempt / lockout state
       throw new AppError(400, e instanceof Error ? e.message : 'Invalid start code');
     }
     const noSteps = booking.steps.length === 0;
@@ -367,9 +402,11 @@ bookingsRouter.post(
     try {
       verifyEndOtp(booking, req.body.otp);
     } catch (e) {
+      await booking.save(); // persist failed-attempt / lockout state
       throw new AppError(400, e instanceof Error ? e.message : 'Invalid end code');
     }
     await booking.save();
+    await incrementTechnicianJobsDone(booking.technicianId);
     await notifyWorkOtpEvent(booking, 'work_completed');
     const populated = await loadBooking(booking._id.toString());
     res.json({ booking: formatBookingForRole(populated, req.user!.role) });
@@ -378,14 +415,16 @@ bookingsRouter.post(
 
 bookingsRouter.post(
   '/:id/regenerate-otp',
-  requireRole('customer'),
+  requireRole('customer', 'admin'),
   param('id').isMongoId(),
   body('type').isIn(['start', 'end']),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
     const booking = await Booking.findById(req.params.id);
     if (!booking) throw new AppError(404, 'Booking not found');
-    if (refId(booking.customerId) !== req.user!.id) throw new AppError(403, 'Access denied');
+    if (req.user!.role === 'customer' && refId(booking.customerId) !== req.user!.id) {
+      throw new AppError(403, 'Access denied');
+    }
     const type = req.body.type as 'start' | 'end';
     try {
       regenerateOtp(booking, type);
@@ -424,20 +463,32 @@ bookingsRouter.patch(
       ) {
         throw new AppError(400, 'Complete all treatment steps before requesting the completion code');
       }
-      try {
-        assertStatusTransition(booking.status, nextStatus);
-      } catch (e) {
-        throw new AppError(400, e instanceof Error ? e.message : 'Invalid transition');
-      }
     } else if (req.user!.role !== 'admin') {
       throw new AppError(403, 'Access denied');
+    }
+
+    try {
+      assertStatusTransition(booking.status, nextStatus);
+    } catch (e) {
+      throw new AppError(400, e instanceof Error ? e.message : 'Invalid transition');
     }
 
     const enteringVerification = nextStatus === 'awaiting_verification' && booking.status !== 'awaiting_verification';
 
     booking.status = nextStatus;
+    if (nextStatus === 'in_progress' && !booking.workStartedAt) {
+      booking.workStartedAt = new Date();
+      if (booking.workOtp?.start && !booking.workOtp.start.verifiedAt) {
+        booking.workOtp.start.verifiedAt = new Date();
+        booking.markModified('workOtp');
+      }
+      appendTracking(booking, 'work_started');
+    }
     if (enteringVerification && !booking.workOtp?.end) {
       issueEndOtp(booking);
+    }
+    if (nextStatus === 'cancelled') {
+      appendTracking(booking, 'cancelled');
     }
     await booking.save();
 
@@ -447,8 +498,6 @@ bookingsRouter.patch(
       await notifyWorkOtpEvent(booking, 'end_otp_ready');
     }
     if (nextStatus === 'cancelled') {
-      appendTracking(booking, 'cancelled');
-      await booking.save();
       await notifyBookingEvent(booking, 'cancelled');
     }
 
@@ -464,6 +513,8 @@ bookingsRouter.patch(
   param('index').isNumeric(),
   body('status').isIn(['pending', 'active', 'done']),
   body('photoUrl').optional().isString(),
+  body('photoUrls').optional().isArray({ min: 1, max: MAX_STEP_PHOTOS }),
+  body('photoUrls.*').optional().isString().trim().notEmpty(),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
     const booking = await Booking.findById(req.params.id);
@@ -491,15 +542,22 @@ bookingsRouter.patch(
       throw new AppError(400, 'Complete the current active step first');
     }
 
+    const incomingUrls = normalizeStepPhotoUrls({
+      photoUrl: typeof req.body.photoUrl === 'string' ? req.body.photoUrl : undefined,
+      photoUrls: Array.isArray(req.body.photoUrls) ? req.body.photoUrls : undefined,
+    });
+
     step.status = req.body.status;
     if (req.body.status === 'done' && req.user!.role === 'technician') {
-      const photoUrl = req.body.photoUrl ?? step.photoUrl;
-      if (!photoUrl) {
-        throw new AppError(400, 'Photo is required to complete this step');
+      const photoUrls = incomingUrls.length
+        ? incomingUrls
+        : normalizeStepPhotoUrls(step);
+      if (photoUrls.length === 0) {
+        throw new AppError(400, 'At least one photo is required to complete this step');
       }
-      step.photoUrl = photoUrl;
-    } else if (req.body.photoUrl) {
-      step.photoUrl = req.body.photoUrl;
+      applyStepPhotos(step, photoUrls);
+    } else if (incomingUrls.length > 0) {
+      applyStepPhotos(step, incomingUrls);
     }
     if (req.body.geo) {
       const { lat, lng, address } = req.body.geo as {
@@ -519,7 +577,11 @@ bookingsRouter.patch(
     }
     if (req.body.status === 'done') {
       step.capturedAt = new Date();
-      appendTracking(booking, 'step_done', { stepIndex: index, title: step.title });
+      appendTracking(booking, 'step_done', {
+        stepIndex: index,
+        title: step.title,
+        photoCount: normalizeStepPhotoUrls(step).length,
+      });
     }
 
     booking.steps[index] = step;
@@ -551,6 +613,13 @@ async function completeBooking(booking: IBooking, override = false): Promise<IBo
   if (booking.status !== 'awaiting_verification') {
     throw new AppError(400, 'Booking is not awaiting verification');
   }
+  const tech = booking.technicianId
+    ? await User.findById(booking.technicianId).select('payMode payPercent payFlat')
+    : null;
+  booking.technicianEarning = computeTechEarning(
+    booking.amount?.total ?? 0,
+    payConfigFromUser(tech),
+  );
   booking.status = 'completed';
   booking.workCompletedAt = new Date();
   if (override) {
@@ -709,9 +778,11 @@ bookingsRouter.patch(
       try {
         verifyEndOtp(booking, req.body.otp);
       } catch (e) {
+        await booking.save();
         throw new AppError(400, e instanceof Error ? e.message : 'Invalid end code');
       }
       await booking.save();
+      await incrementTechnicianJobsDone(booking.technicianId);
       await notifyWorkOtpEvent(booking, 'work_completed');
       const populated = await loadBooking(booking._id.toString());
       res.json({ booking: formatBookingForRole(populated, req.user!.role) });
@@ -745,11 +816,16 @@ bookingsRouter.patch(
       if (['in_progress', 'awaiting_verification', 'completed', 'cancelled'].includes(booking.status)) {
         throw new AppError(400, 'Cannot cancel after work has started');
       }
-    } else if (role !== 'admin') {
+    } else if (role === 'admin') {
+      if (['completed', 'cancelled'].includes(booking.status)) {
+        throw new AppError(400, 'Cannot cancel a completed or already cancelled booking');
+      }
+    } else {
       throw new AppError(403, 'Access denied');
     }
 
     booking.status = 'cancelled';
+    appendTracking(booking, 'cancelled');
     await booking.save();
     await notifyBookingEvent(booking, 'cancelled');
 

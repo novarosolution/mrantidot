@@ -1,83 +1,65 @@
-import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeHero } from '@/components/kit/HomeHero';
-import { TAB_BAR_SCROLL_PAD, customerScrollProps } from '@/components/kit/GlassScreenKit';
+import { HomePromoCarousel } from '@/components/kit/HomePromoCarousel';
+import { GlassBackdrop, TAB_BAR_SCROLL_PAD, customerScrollProps } from '@/components/kit/GlassScreenKit';
 import { HomeQuickActions } from '@/components/kit/HomeQuickActions';
 import { HomeServicesEmpty } from '@/components/kit/HomeServicesEmpty';
 import { HomeServicesSection } from '@/components/kit/HomeServicesSection';
-import { PopularServiceCard } from '@/components/kit/PopularServiceCard';
+import { PopularServicesCarousel } from '@/components/kit/PopularServicesCarousel';
+import { HomeTrustStrip } from '@/components/kit/HomeTrustStrip';
 import { ServiceGrid } from '@/components/kit/ServiceGrid';
 import { CustomerServiceTypeSection } from '@/components/kit/CustomerServiceTypeSection';
-import { PromoBanner } from '@/components/ui/PromoBanner';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { useAuth } from '@/context/AuthContext';
+import { useAppContent } from '@/context/AppContentContext';
 import axios from 'axios';
 import { api, checkHealth, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { config } from '@/lib/config';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
-import type { HomeConfig, HomePromo, Service, ServiceStats } from '@/types/api';
-import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
-import { colors, design, spacing } from '@/constants/theme';
-
-const DEFAULT_HOME_CONFIG: HomeConfig = {
-  sectionTitles: { services: 'Our Services', popular: 'Popular Now' },
-  searchPlaceholder: 'Search services…',
-  servicesActionLabel: 'View all',
-  popularActionLabel: 'See more',
-  categoryChips: [
-    { label: 'All' },
-    { label: 'Residential', category: 'residential' },
-    { label: 'Commercial', category: 'commercial' },
-    { label: 'Cleaning', category: 'cleaning' },
-  ],
-};
+import { afterInteractions } from '@/lib/useScreenLoad';
+import { HOME_SECTION } from '@/constants/homeContent';
+import type { Service } from '@/types/api';
+import { colors, spacing, surfaces } from '@/constants/theme';
+import { customerRoutes, sharedRoutes, appPush } from '@/lib/routes';
 
 export default function CustomerHome() {
   const { user } = useAuth();
+  const { content, homeConfig, homePromo, refreshHome } = useAppContent();
   const insets = useSafeAreaInsets();
   const [services, setServices] = useState<Service[]>([]);
-  const [homePromo, setHomePromo] = useState<HomePromo | null>(null);
-  const [homeConfig, setHomeConfig] = useState<HomeConfig>(DEFAULT_HOME_CONFIG);
-  const [popularStats, setPopularStats] = useState<ServiceStats | null>(null);
   const [unread, setUnread] = useState(0);
   const [q, setQ] = useState('');
   const debouncedQ = useDebouncedValue(q, 300);
-  const [cat, setCat] = useState(DEFAULT_HOME_CONFIG.categoryChips[0]?.label ?? 'All');
+  const [cat, setCat] = useState(homeConfig.categoryChips[0]?.label ?? 'All');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [metaLoaded, setMetaLoaded] = useState(false);
 
-  const loadMeta = useCallback(async (skipCache = false) => {
+  const brandName = content.branding.name?.trim() || 'Mr Antidot';
+
+  useEffect(() => {
+    setCat((prev) => {
+      if (homeConfig.categoryChips.some((c) => c.label === prev)) return prev;
+      return homeConfig.categoryChips[0]?.label ?? 'All';
+    });
+  }, [homeConfig.categoryChips]);
+
+  const loadUnread = useCallback(async (skipCache = false) => {
     if (!user) return;
-    const cache = skipCache ? { skipCache: true as const } : { cacheTtlMs: CACHE_TTL.content };
-    const notifCache = skipCache ? { skipCache: true as const } : { cacheTtlMs: CACHE_TTL.notifications };
-    const [promoRes, notifRes] = await Promise.allSettled([
-      api.get<{ promo: HomePromo; homeConfig: HomeConfig }>('/content/home', {
+    try {
+      const { data } = await api.get<{ unreadCount: number }>('/notifications', {
         ...screenLoadConfig,
-        ...cache,
-      }),
-      api.get<{ unreadCount: number }>('/notifications', {
-        ...screenLoadConfig,
-        ...notifCache,
-      }),
-    ]);
-
-    if (promoRes.status === 'fulfilled') {
-      setHomePromo(promoRes.value.data.promo);
-      setHomeConfig(promoRes.value.data.homeConfig ?? DEFAULT_HOME_CONFIG);
-    }
-    if (notifRes.status === 'fulfilled') {
-      setUnread(notifRes.value.data.unreadCount);
-    } else {
+        ...(skipCache ? { skipCache: true as const } : { cacheTtlMs: CACHE_TTL.notifications }),
+      });
+      setUnread(data.unreadCount);
+    } catch {
       setUnread(0);
     }
-    setMetaLoaded(true);
   }, [user]);
 
   const loadServices = useCallback(async (skipCache = false) => {
@@ -94,20 +76,16 @@ export default function CustomerHome() {
       cacheTtlMs: CACHE_TTL.services,
       ...(skipCache ? { skipCache: true } : {}),
     });
-    const list = data.services;
-    setServices(list);
-    const featuredId = homeConfig.featuredServiceId;
-    const featured = featuredId ? list.find((s) => s.id === featuredId) : undefined;
-    setPopularStats((featured ?? list[0])?.stats ?? null);
-  }, [debouncedQ, cat, homeConfig.categoryChips, homeConfig.featuredServiceId, user]);
+    setServices(data.services);
+  }, [debouncedQ, cat, homeConfig.categoryChips, user]);
 
   useEffect(() => {
     if (!user) return;
-    void loadMeta();
-  }, [loadMeta, user]);
+    void afterInteractions(() => loadUnread());
+  }, [loadUnread, user]);
 
   useEffect(() => {
-    if (!user || !metaLoaded) return;
+    if (!user) return;
     setLoading(true);
     safeAsync(async () => {
       try {
@@ -127,22 +105,37 @@ export default function CustomerHome() {
         setLoading(false);
       }
     });
-  }, [loadServices, metaLoaded, user]);
+  }, [loadServices, user]);
 
-  const popular =
-    (homeConfig.featuredServiceId
-      ? services.find((s) => s.id === homeConfig.featuredServiceId)
-      : undefined) ?? services[0];
+  const featured = useMemo(() => {
+    if (homeConfig.featuredServiceId) {
+      const hit = services.find((s) => s.id === homeConfig.featuredServiceId);
+      if (hit) return hit;
+    }
+    return services[0];
+  }, [homeConfig.featuredServiceId, services]);
+
+  const popularList = useMemo(() => {
+    const ranked = [...services].sort((a, b) => {
+      const bookDiff = (b.stats?.bookingCount ?? 0) - (a.stats?.bookingCount ?? 0);
+      if (bookDiff !== 0) return bookDiff;
+      return (b.rating ?? 0) - (a.rating ?? 0);
+    });
+    if (featured) {
+      return [featured, ...ranked.filter((s) => s.id !== featured.id)].slice(0, 6);
+    }
+    return ranked.slice(0, 6);
+  }, [featured, services]);
 
   const promoServiceId =
     homePromo?.serviceId && services.some((s) => s.id === homePromo.serviceId)
       ? homePromo.serviceId
-      : popular?.id;
+      : featured?.id;
 
   async function onRefresh() {
     setRefreshing(true);
     try {
-      await Promise.all([loadMeta(true), loadServices(true)]);
+      await Promise.all([refreshHome(), loadUnread(true), loadServices(true)]);
       setLoadError(null);
     } catch (err) {
       setLoadError(getApiErrorMessage(err, 'Could not refresh'));
@@ -154,7 +147,7 @@ export default function CustomerHome() {
   async function retryLoad() {
     setLoading(true);
     try {
-      await Promise.all([loadMeta(true), loadServices(true)]);
+      await Promise.all([refreshHome(), loadUnread(true), loadServices(true)]);
       setLoadError(null);
     } catch (err) {
       setLoadError(getApiErrorMessage(err, 'Could not load services'));
@@ -167,14 +160,19 @@ export default function CustomerHome() {
 
   if (loadError && services.length === 0 && !loading) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-        <ListEmptyRetry message={loadError} onRetry={() => safeAsync(retryLoad)} />
-      </SafeAreaView>
+      <View style={styles.rootShell}>
+        <GlassBackdrop />
+        <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+          <ListEmptyRetry message={loadError} onRetry={() => safeAsync(retryLoad)} />
+        </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+    <View style={styles.rootShell}>
+      <GlassBackdrop />
+      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
       <ScrollView
         style={styles.root}
         contentContainerStyle={styles.content}
@@ -184,9 +182,11 @@ export default function CustomerHome() {
         showsVerticalScrollIndicator={false}
         {...customerScrollProps}
       >
-        {/* —— Hero + search —— */}
         <HomeHero
           topInset={insets.top}
+          brandName={brandName}
+          heroEyebrow={homeConfig.heroEyebrow}
+          heroSubtitle={homeConfig.heroSubtitle}
           searchPlaceholder={homeConfig.searchPlaceholder}
           query={q}
           onChangeQuery={setQ}
@@ -194,30 +194,35 @@ export default function CustomerHome() {
           unread={unread}
         />
 
-        <FadeSlideIn delay={60}>
-          <PromoBanner
+        <FadeSlideIn disabled delay={40}>
+          <HomePromoCarousel
             promo={homePromo}
-            onPress={() => {
-              if (promoServiceId) router.push(`/service/${promoServiceId}`);
+            homeConfig={homeConfig}
+            onBook={() => appPush(customerRoutes.services)}
+            onClaimOffer={() => {
+              if (promoServiceId) {
+                appPush(sharedRoutes.service(promoServiceId));
+                return;
+              }
+              appPush(customerRoutes.offers);
             }}
           />
         </FadeSlideIn>
 
-        <FadeSlideIn delay={90}>
+        <FadeSlideIn disabled delay={80}>
           <HomeQuickActions />
         </FadeSlideIn>
 
-        {/* —— Pest types —— */}
-        <FadeSlideIn delay={120}>
-          <CustomerServiceTypeSection />
+        <FadeSlideIn disabled delay={110}>
+          <CustomerServiceTypeSection
+            title={homeConfig.serviceTypesTitle || HOME_SECTION.serviceTypes}
+          />
         </FadeSlideIn>
 
-        {/* —— Services + category filter —— */}
-        <FadeSlideIn delay={150} trigger={`${cat}-${debouncedQ}`}>
+        <FadeSlideIn disabled delay={140} trigger={`${cat}-${debouncedQ}`}>
           <HomeServicesSection
             title={homeConfig.sectionTitles.services}
-            actionLabel={homeConfig.servicesActionLabel}
-            onAction={() => router.push('/(customer)/services')}
+            onAction={() => appPush(customerRoutes.services)}
             chips={homeConfig.categoryChips}
             selectedCategory={cat}
             onSelectCategory={setCat}
@@ -229,41 +234,43 @@ export default function CustomerHome() {
             ) : services.length === 0 ? (
               <HomeServicesEmpty filtered={Boolean(debouncedQ) || cat !== 'All'} />
             ) : (
-              <ServiceGrid services={services} onPressItem={(s) => router.push(`/service/${s.id}`)} />
+              <ServiceGrid services={services} onPressItem={(s) => appPush(sharedRoutes.service(s.id))} />
             )}
           </HomeServicesSection>
         </FadeSlideIn>
 
-        {/* —— Popular pick —— */}
-        <FadeSlideIn delay={180}>
-          <PremiumSectionHeader
-            title={homeConfig.sectionTitles.popular}
-            actionLabel={homeConfig.popularActionLabel}
-            onAction={() => router.push('/(customer)/services')}
-            compact
-          />
-          {loading && !popular ? (
+        <FadeSlideIn disabled delay={180}>
+          {loading && popularList.length === 0 ? (
             <View style={styles.loadingBox}>
               <Spinner />
             </View>
-          ) : popular ? (
-            <PopularServiceCard
-              service={popular}
-              bookingCount={popularStats?.bookingCount}
-              onPress={() => router.push(`/service/${popular.id}`)}
+          ) : popularList.length > 0 ? (
+            <PopularServicesCarousel
+              title={homeConfig.sectionTitles.popular}
+              onAction={() => appPush(customerRoutes.services)}
+              services={popularList}
+              onPressItem={(s) => appPush(sharedRoutes.service(s.id))}
             />
-          ) : (
-            <HomeServicesEmpty />
-          )}
+          ) : null}
+        </FadeSlideIn>
+
+        <FadeSlideIn disabled delay={220}>
+          <HomeTrustStrip guaranteeText={content.trust.guaranteeText} />
         </FadeSlideIn>
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: design.screenBg, overflow: 'hidden' },
+  rootShell: { flex: 1, backgroundColor: surfaces.glassScreenBase, overflow: 'hidden' },
+  safe: { flex: 1, backgroundColor: 'transparent', overflow: 'hidden' },
   root: { flex: 1 },
-  content: { paddingBottom: TAB_BAR_SCROLL_PAD, flexGrow: 1 },
+  content: {
+    paddingBottom: TAB_BAR_SCROLL_PAD + 16,
+    flexGrow: 1,
+    gap: 6,
+  },
   loadingBox: { paddingVertical: spacing.lg, alignItems: 'center' },
 });

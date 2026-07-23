@@ -29,13 +29,28 @@ export async function couponValue(code: string | undefined, orderAmount: number)
     }
     return computeOfferDiscount(offer, orderAmount);
   }
-  const fallback = FALLBACK[normalized];
-  if (fallback != null) return Math.min(orderAmount, fallback);
-  return 0;
+  // Built-in demo coupons only when explicitly allowed (never for real env DB by default)
+  const allowDemo =
+    process.env.ALLOW_DEMO_COUPONS?.trim().toLowerCase() === 'true' ||
+    process.env.ALLOW_DEMO_COUPONS?.trim() === '1';
+  if (allowDemo && process.env.NODE_ENV !== 'production') {
+    const fallback = FALLBACK[normalized];
+    if (fallback != null) return Math.min(orderAmount, fallback);
+  }
+  throw new AppError(400, 'Invalid coupon code');
 }
 
 export async function incrementOfferUse(code?: string): Promise<void> {
   if (!code?.trim()) return;
   const normalized = code.trim().toUpperCase();
-  await Offer.updateOne({ code: normalized }, { $inc: { useCount: 1 } });
+  const offer = await Offer.findOne({ code: normalized });
+  if (!offer) return;
+  if (offer.maxUses != null) {
+    await Offer.updateOne(
+      { _id: offer._id, useCount: { $lt: offer.maxUses } },
+      { $inc: { useCount: 1 } },
+    );
+  } else {
+    await Offer.updateOne({ _id: offer._id }, { $inc: { useCount: 1 } });
+  }
 }

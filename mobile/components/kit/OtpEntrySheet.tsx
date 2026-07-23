@@ -8,7 +8,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { KeyRound, X } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { Button } from '@/components/ui/Button';
 import { colors, fonts, premium, spacing } from '@/constants/theme';
 import { textInputDefaults } from '@/components/ui/textInputDefaults';
@@ -72,11 +73,11 @@ export function OtpEntrySheet({
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
           <View style={styles.handle} />
           <Pressable style={styles.close} onPress={onClose} hitSlop={8}>
-            <X size={20} color={colors.muted} />
+            <PremiumIcon icon={AppIcons.ui.close} variant="plain" size="lg" color={colors.muted} />
           </Pressable>
 
           <View style={styles.iconWrap}>
-            <KeyRound size={24} color={colors.white} />
+            <PremiumIcon icon={AppIcons.ui.key} variant="plain" size="xl" color={colors.white} />
           </View>
           <Text style={styles.title}>{title}</Text>
 

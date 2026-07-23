@@ -1,8 +1,3 @@
-import type { UserRole } from '@/types/api';
+import { homeRouteForRole } from '@/lib/routes';
 
-/** Role-based home route after sign-in. */
-export function homeRouteForRole(role: UserRole | string): string {
-  if (role === 'admin') return '/(admin)';
-  if (role === 'technician') return '/(tech)';
-  return '/(customer)';
-}
+export { homeRouteForRole };

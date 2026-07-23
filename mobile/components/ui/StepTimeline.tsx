@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { Check } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { colors, fonts, spacing } from '@/constants/theme';
 
 export interface TimelineStep {
@@ -14,7 +15,9 @@ export function StepTimeline({ steps }: { steps: TimelineStep[] }) {
         <View key={step.title} style={styles.row}>
           <View style={styles.col}>
             <View style={[styles.dot, step.done && styles.dotDone]}>
-              {step.done ? <Check size={10} color="#fff" strokeWidth={3} /> : null}
+              {step.done ? (
+                <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={10} color="#fff" strokeWidth={3} />
+              ) : null}
             </View>
             {i < steps.length - 1 ? (
               <View style={[styles.line, step.done && steps[i + 1]?.done && styles.lineDone]} />

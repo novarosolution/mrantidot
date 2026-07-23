@@ -1,10 +1,12 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Clipboard from 'expo-clipboard';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ArrowRight, Calendar, Copy, Tag } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
+import { homeShadow } from '@/components/kit/homeUi';
 import { appToast } from '@/lib/toast';
 import type { Offer } from '@/types/api';
-import { colors, customerType, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, customerType, premium, spacing, surfaces } from '@/constants/theme';
 
 function discountLabel(offer: Offer): string {
   if (offer.discountType === 'percent') return `${offer.discount}% OFF`;
@@ -35,13 +37,14 @@ export function OfferCouponCard({
   }
 
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={({ pressed }) => [styles.wrap, disabled && styles.disabled, pressed && !disabled && styles.pressed]}
-    >
+    <View style={[styles.outer, disabled && styles.disabled]}>
+      <Pressable
+        onPress={onPress}
+        disabled={disabled}
+        style={({ pressed }) => [styles.wrap, pressed && !disabled && styles.pressed]}
+      >
       <LinearGradient
-        colors={['#14532D', '#0E3A20']}
+        colors={['#1A8734', '#0A6423']}
         style={styles.leftPanel}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
@@ -52,54 +55,68 @@ export function OfferCouponCard({
       </LinearGradient>
 
       <View style={styles.rightPanel}>
-        <View style={styles.top}>
-          <View style={styles.codeRow}>
-            <Tag size={14} color={colors.forest} />
-            <Text style={styles.code}>{offer.code}</Text>
-            <Pressable onPress={() => void copyCode()} hitSlop={8} style={styles.copyBtn}>
-              <Copy size={14} color={colors.muted} />
-            </Pressable>
-          </View>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>Coupon</Text>
-          </View>
-        </View>
-
-        <Text style={styles.desc}>{offer.description}</Text>
-
-        <View style={styles.metaRow}>
-          {offer.minOrderAmount ? (
-            <Text style={styles.meta}>Min order ₹{offer.minOrderAmount}</Text>
-          ) : null}
-          {expiry ? (
-            <View style={styles.expiryRow}>
-              <Calendar size={11} color={colors.muted} />
-              <Text style={styles.meta}>{expiry}</Text>
+        <LinearGradient
+          colors={['rgba(255,255,255,0.92)', 'rgba(246,250,242,0.78)', 'rgba(234,246,227,0.55)']}
+          locations={[0, 0.55, 1]}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          pointerEvents="none"
+        />
+        <View style={styles.rightInner}>
+          <View style={styles.top}>
+            <View style={styles.codeRow}>
+              <PremiumIcon icon={AppIcons.ui.tag} variant="mint" size={14} color={colors.forest} boxSize={28} />
+              <Text style={styles.code}>{offer.code}</Text>
+              <Pressable onPress={() => void copyCode()} hitSlop={8} style={styles.copyBtn}>
+                <PremiumIcon icon={AppIcons.ui.copy} variant="plain" size={14} color={colors.forest} strokeWidth={2.3} />
+              </Pressable>
             </View>
-          ) : null}
-        </View>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>Coupon</Text>
+            </View>
+          </View>
 
-        <View style={styles.ctaRow}>
-          <Text style={styles.cta}>Apply & book</Text>
-          <View style={styles.ctaIcon}>
-            <ArrowRight size={14} color={colors.forest} strokeWidth={2.5} />
+          <Text style={styles.desc}>{offer.description}</Text>
+
+          <View style={styles.metaRow}>
+            {offer.minOrderAmount ? (
+              <Text style={styles.meta}>Min order ₹{offer.minOrderAmount}</Text>
+            ) : null}
+            {expiry ? (
+              <View style={styles.expiryRow}>
+                <PremiumIcon icon={AppIcons.ui.calendar} variant="plain" size={11} color={colors.muted} />
+                <Text style={styles.meta}>{expiry}</Text>
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.ctaRow}>
+            <Text style={styles.cta}>Apply & book</Text>
+            <View style={styles.ctaIcon}>
+              <PremiumIcon icon={AppIcons.ui.arrowRight} variant="chevron" size={14} color={colors.forest} strokeWidth={2.5} />
+            </View>
           </View>
         </View>
       </View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    flexDirection: 'row',
+  outer: {
     marginBottom: spacing.md,
     borderRadius: premium.radiusCard,
+    ...homeShadow.card,
+  },
+  wrap: {
+    flexDirection: 'row',
+    borderRadius: premium.radiusCard,
     overflow: 'hidden',
-    backgroundColor: colors.white,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.08)',
-    ...shadows.floating,
+    borderColor: surfaces.glassBorderStrong,
   },
   pressed: { opacity: 0.96, transform: [{ scale: 0.995 }] },
   disabled: { opacity: 0.5 },
@@ -122,10 +139,16 @@ const styles = StyleSheet.create({
     bottom: '15%',
     width: 12,
     borderRightWidth: 2,
-    borderRightColor: 'rgba(255,255,255,0.15)',
+    borderRightColor: 'rgba(255,255,255,0.2)',
     borderStyle: 'dashed',
   },
   rightPanel: {
+    flex: 1,
+    overflow: 'hidden',
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderLeftColor: surfaces.glassBorderStrong,
+  },
+  rightInner: {
     flex: 1,
     padding: spacing.md,
     paddingLeft: spacing.sm + 4,
@@ -142,12 +165,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  code: { ...customerType.offerCode },
+  code: { ...customerType.offerCode, color: colors.ink },
   copyBtn: {
     width: 28,
     height: 28,
-    borderRadius: 8,
-    backgroundColor: colors.soft,
+    borderRadius: 9,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: surfaces.glassBorderStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -155,33 +180,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: premium.accentGoldBg,
+    backgroundColor: '#EAF6E3',
     borderWidth: 1,
-    borderColor: 'rgba(182,132,28,0.25)',
+    borderColor: 'rgba(143,208,60,0.5)',
   },
-  badgeText: { ...customerType.kicker, color: premium.accentGold },
+  badgeText: { ...customerType.pillLabel, color: colors.forest },
   desc: {
     ...customerType.offerDesc,
     marginTop: spacing.sm,
+    color: colors.ink,
   },
   metaRow: { marginTop: spacing.sm, gap: 4 },
   expiryRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  meta: { ...customerType.listMetaMuted },
+  meta: { ...customerType.listMetaMuted, color: colors.muted },
   ctaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: surfaces.glassBorderStrong,
   },
-  cta: { ...customerType.listMeta, fontSize: 13 },
+  cta: { ...customerType.sectionLink, fontSize: 13, color: colors.forest },
   ctaIcon: {
-    width: 26,
-    height: 26,
+    width: 28,
+    height: 28,
     borderRadius: 999,
-    backgroundColor: colors.soft,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: surfaces.glassBorderStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },

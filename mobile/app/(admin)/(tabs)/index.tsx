@@ -24,7 +24,8 @@ import { colors, spacing } from '@/constants/theme';
 const QUICK_ACTIONS = [
   { key: 'bookings', icon: AppIcons.adminQuick.bookings, label: 'Bookings' },
   { key: 'services', icon: AppIcons.adminQuick.services, label: 'Services' },
-  { key: 'tech', icon: AppIcons.adminQuick.addTech, label: 'Add tech' },
+  { key: 'content', icon: AppIcons.adminHub.homeContent, label: 'Content' },
+  { key: 'offers', icon: AppIcons.adminHub.offers, label: 'Offers' },
 ];
 
 function quickRoute(key: string) {
@@ -77,7 +78,7 @@ export default function AdminDashboard() {
     return (
       <AdminTabScreen
         header={
-          <AdminScreenHeader title={`Hi, ${firstName}`} subtitle="Dashboard" userInitial={initial} unreadCount={unreadCount} />
+          <AdminScreenHeader title={`Hi, ${firstName}`} subtitle="Today’s command center" eyebrow="DASHBOARD" userInitial={initial} unreadCount={unreadCount} />
         }
       >
         <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
@@ -101,43 +102,44 @@ export default function AdminDashboard() {
       header={
         <AdminScreenHeader
           title={`Hi, ${firstName}`}
-          subtitle="Dashboard"
+          subtitle="Today’s command center"
+          eyebrow="DASHBOARD"
           userInitial={initial}
           unreadCount={unreadCount}
         />
       }
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />}
     >
-        <AdminSectionTitle title="Quick actions" hint="Common tasks · see Manage tab for more" />
+        <AdminSectionTitle title="Quick actions" hint="Jump into daily ops — Content for app copy" />
         <AdminQuickGrid items={QUICK_ACTIONS} onPress={quickRoute} />
 
-        <AdminSectionTitle title="Overview" hint="Tap a card to drill into bookings or customers" />
+        <AdminSectionTitle title="Overview" hint="This month at a glance" />
         <View style={styles.grid}>
           <KpiCard
             icon={AppIcons.adminKpi.pending}
             value={String(stats.byStatus.pending ?? 0)}
             label="Pending"
-            iconBg={colors.amberBg}
-            iconColor={colors.amberInk}
-            onPress={() => appPush('/(admin)/bookings?status=pending')}
+            iconBg="#EEF8E6"
+            iconColor={colors.forest}
+            onPress={() => appPush(adminRoutes.bookingsFiltered({ status: 'pending' }))}
           />
           <KpiCard
             icon={AppIcons.adminKpi.bookings}
             value={String(stats.periodBookings ?? stats.totalBookings)}
             label="Bookings"
             delta={stats.deltas?.bookings}
-            iconBg={colors.blueBg}
-            iconColor={colors.blue}
-            onPress={() => appPush('/(admin)/bookings')}
+            iconBg={colors.soft}
+            iconColor={colors.forest}
+            onPress={() => appPush(adminRoutes.bookings)}
           />
           <KpiCard
             icon={AppIcons.adminKpi.active}
             value={String(activeJobs)}
             label="Active"
             delta={stats.deltas?.activeJobs}
-            iconBg={colors.secondarySoft}
-            iconColor={colors.secondaryDark}
-            onPress={() => appPush('/(admin)/bookings?status=active')}
+            iconBg="#E8F5EC"
+            iconColor={colors.forest}
+            onPress={() => appPush(adminRoutes.bookingsFiltered({ status: 'active' }))}
           />
           <KpiCard
             icon={AppIcons.adminKpi.customers}
@@ -146,7 +148,7 @@ export default function AdminDashboard() {
             delta={stats.deltas?.customers}
             iconBg={colors.soft}
             iconColor={colors.green}
-            onPress={() => appPush('/(admin)/customers')}
+            onPress={() => appPush(adminRoutes.customers)}
           />
         </View>
 
@@ -155,7 +157,7 @@ export default function AdminDashboard() {
             <AdminFilterChips
               chips={statusChips}
               selected=""
-              onSelect={(key) => appPush(`/(admin)/bookings?status=${key}`)}
+              onSelect={(key) => appPush(adminRoutes.bookingsFiltered({ status: key }))}
             />
           </View>
         ) : null}
@@ -166,21 +168,21 @@ export default function AdminDashboard() {
               title="Pending queue"
               hint="Needs your attention"
               actionLabel="All"
-              onAction={() => appPush('/(admin)/bookings?status=pending')}
+              onAction={() => appPush(adminRoutes.bookingsFiltered({ status: 'pending' }))}
             />
             <View style={styles.bookingWrap}>
               {stats.pendingBookings!.slice(0, 5).map((b) => (
                 <PendingAnalyticsRow
                   key={b.id}
                   booking={b}
-                  onPress={() => appPush(`/(admin)/booking/${b.id}`)}
+                  onPress={() => appPush(adminRoutes.booking(b.id))}
                 />
               ))}
             </View>
           </>
         ) : null}
 
-        <AdminSectionTitle title="Recent" hint="Latest bookings across all statuses" actionLabel="All" onAction={() => appPush('/(admin)/bookings')} />
+        <AdminSectionTitle title="Recent" hint="Latest bookings across all statuses" actionLabel="All" onAction={() => appPush(adminRoutes.bookings)} />
 
         {stats.recentBookings.length === 0 ? (
           <View style={styles.bookingWrap}>
@@ -189,7 +191,7 @@ export default function AdminDashboard() {
         ) : (
           stats.recentBookings.slice(0, 3).map((b) => (
             <View key={b.id} style={styles.bookingWrap}>
-              <AdminBookingRow booking={b} onPress={() => appPush(`/(admin)/booking/${b.id}`)} />
+              <AdminBookingRow booking={b} onPress={() => appPush(adminRoutes.booking(b.id))} />
             </View>
           ))
         )}
@@ -206,6 +208,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     width: '100%',
   },
-  statusWrap: { marginTop: spacing.sm, marginBottom: spacing.xs },
+  statusWrap: { marginTop: spacing.sm, marginBottom: spacing.xs, paddingHorizontal: spacing.md },
   bookingWrap: { paddingHorizontal: spacing.md },
 });

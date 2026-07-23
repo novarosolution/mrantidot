@@ -2,8 +2,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { type LucideIcon } from 'lucide-react-native';
 import { type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
-import { colors, classic, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
 
 export function BookWizardStepPanel({
   icon: Icon,
@@ -23,15 +24,21 @@ export function BookWizardStepPanel({
   return (
     <FadeSlideIn trigger={animTrigger}>
       <View style={styles.root}>
+        <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
         <LinearGradient
-          colors={['#FFFFFF', '#FAFCF9']}
+          colors={['rgba(255,255,255,0.94)', 'rgba(244,250,238,0.88)', 'rgba(234,246,227,0.72)']}
+          locations={[0, 0.55, 1]}
           style={[styles.header, compactHeader && styles.headerCompact]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-          <View style={[styles.headerIcon, compactHeader && styles.headerIconCompact]}>
-            <Icon size={compactHeader ? 18 : 22} color={colors.forest} strokeWidth={2.2} />
-          </View>
+          <PremiumIcon
+            icon={Icon}
+            variant="premium"
+            size={compactHeader ? 18 : 22}
+            color={colors.forest}
+            boxSize={compactHeader ? 42 : 50}
+          />
           <View style={styles.headerText}>
             <Text style={[styles.title, compactHeader && styles.titleCompact]}>{title}</Text>
             {subtitle ? (
@@ -61,9 +68,14 @@ export function BookWizardSection({
   return (
     <View style={styles.section}>
       <View style={styles.sectionHead}>
-        <View style={[styles.stepBadge, compact && styles.stepBadgeCompact]}>
+        <LinearGradient
+          colors={['#1A8734', '#0A6423']}
+          style={[styles.stepBadge, compact && styles.stepBadgeCompact]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
           <Text style={styles.stepNum}>{step}</Text>
-        </View>
+        </LinearGradient>
         <View style={styles.sectionTitles}>
           <Text style={[styles.sectionTitle, compact && styles.sectionTitleCompact]}>{title}</Text>
           {hint ? <Text style={styles.sectionHint}>{hint}</Text> : null}
@@ -76,13 +88,15 @@ export function BookWizardSection({
 
 const styles = StyleSheet.create({
   root: {
-    borderRadius: 22,
-    backgroundColor: colors.white,
+    borderRadius: premium.radiusCard,
+    backgroundColor: 'rgba(255,255,255,0.38)',
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: surfaces.glassBorderStrong,
     overflow: 'hidden',
     marginBottom: spacing.md,
+    ...premium.shadowSoft,
   },
+  goldBar: { height: 3, width: '100%' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -90,27 +104,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(20,83,45,0.06)',
+    borderBottomColor: surfaces.glassBorder,
   },
   headerCompact: {
-    gap: 10,
+    gap: 12,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-  },
-  headerIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: colors.soft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(30,142,78,0.12)',
-  },
-  headerIconCompact: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
   },
   headerText: { flex: 1 },
   title: {
@@ -139,7 +138,7 @@ const styles = StyleSheet.create({
   body: {
     padding: spacing.md,
     gap: spacing.lg,
-    backgroundColor: classic.screenBg,
+    backgroundColor: 'rgba(244,248,241,0.42)',
   },
   bodyCompact: {
     gap: spacing.md,
@@ -157,7 +156,6 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 8,
-    backgroundColor: colors.forest,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -188,11 +186,13 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   panel: {
-    backgroundColor: colors.white,
+    backgroundColor: 'rgba(255,255,255,0.52)',
     borderRadius: 18,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.06)',
+    borderColor: surfaces.glassBorderStrong,
+    ...premium.shadowSoft,
+    shadowOpacity: 0.06,
   },
   panelCompact: {
     padding: spacing.sm,

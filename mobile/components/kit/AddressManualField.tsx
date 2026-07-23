@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
-import { MapPin } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { textInputDefaults } from '@/components/ui/textInputDefaults';
 import { colors, fonts, formField, spacing } from '@/constants/theme';
 
@@ -19,7 +20,7 @@ export function AddressManualField({
     <View style={styles.wrap}>
       <View style={[styles.fieldRow, focused && styles.fieldRowFocused]}>
         <View style={styles.iconWrap}>
-          <MapPin size={18} color={focused ? colors.forest : colors.muted} />
+          <PremiumIcon icon={AppIcons.ui.mapPin} variant="plain" size={18} color={focused ? colors.forest : colors.muted} />
         </View>
         <TextInput
           {...textInputDefaults}

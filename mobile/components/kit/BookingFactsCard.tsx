@@ -1,6 +1,8 @@
 import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Phone } from 'lucide-react-native';
-import { Card } from '@/components/ui/Card';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { homeShadow } from '@/components/kit/homeUi';
+import { AppIcons } from '@/constants/appIcons';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import {
   bookingCustomerName,
@@ -81,9 +83,7 @@ export function BookingFactsCard({
       {!hideHead ? (
         <>
           <View style={styles.head}>
-            <View style={styles.icon}>
-              <ServiceIcon iconKey={iconKey} size={22} color={colors.lime} />
-            </View>
+            <ServiceIcon iconKey={iconKey} size={22} variant="premium" boxSize={48} color="#FFFFFF" />
             <View style={styles.flex}>
               <Text style={styles.service}>{bookingServiceName(booking)}</Text>
               <Text style={styles.ref}>{bookingRef(booking.id)}</Text>
@@ -128,7 +128,7 @@ export function BookingFactsCard({
                 else void Linking.openURL(`tel:${person.phone}`);
               }}
             >
-              <Phone size={16} color={colors.secondaryDark} />
+              <PremiumIcon icon={AppIcons.ui.phone} variant="plain" size={16} color={colors.forest} />
             </Pressable>
           ) : null}
         </View>
@@ -167,9 +167,11 @@ export function BookingFactsCard({
   }
 
   return (
-    <Card variant="premium" style={hideHead ? { ...styles.card, ...styles.cardCompact } : styles.card}>
-      {body}
-    </Card>
+    <View style={[styles.shell, hideHead && styles.shellCompact]}>
+      <GlassPanel style={styles.panel} padded={false} tone="light" intensity={42} goldEdge>
+        <View style={[styles.card, hideHead && styles.cardCompact]}>{body}</View>
+      </GlassPanel>
+    </View>
   );
 }
 
@@ -184,25 +186,24 @@ function FactRow({ label, value, subtitle }: { label: string; value: string; sub
 }
 
 const styles = StyleSheet.create({
-  card: { marginBottom: spacing.sm, padding: spacing.md },
+  shell: {
+    marginBottom: spacing.sm,
+    borderRadius: premium.radiusCard,
+    ...homeShadow.card,
+  },
+  shellCompact: { marginBottom: 0 },
+  panel: { borderRadius: premium.radiusCard },
+  card: { padding: spacing.md },
   cardCompact: { marginBottom: 0, paddingVertical: spacing.sm },
   embedded: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
   head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  icon: {
-    width: 48,
-    height: 48,
-    borderRadius: premium.radiusCard,
-    backgroundColor: colors.forest,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   flex: { flex: 1 },
   service: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
   ref: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
-  price: { ...typography.price, fontSize: 17 },
+  price: { ...typography.price, fontSize: 17, color: colors.forest },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
   fact: { marginTop: 8 },
-  factLabel: { ...typography.overline, textTransform: 'none', letterSpacing: 0.3 },
+  factLabel: { ...typography.overline, textTransform: 'none', letterSpacing: 0.3, color: colors.muted },
   factValue: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink, marginTop: 4 },
   factSubtitle: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
   personRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
@@ -210,7 +211,9 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: colors.secondarySoft,
+    backgroundColor: '#EEF8E6',
+    borderWidth: 1,
+    borderColor: 'rgba(180,220,165,0.95)',
     alignItems: 'center',
     justifyContent: 'center',
   },

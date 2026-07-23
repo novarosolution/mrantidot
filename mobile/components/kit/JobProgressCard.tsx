@@ -1,8 +1,11 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
-import { Activity } from 'lucide-react-native';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { homeShadow } from '@/components/kit/homeUi';
+import { AppIcons } from '@/constants/appIcons';
+import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
 
 export function JobProgressCard({
   done,
@@ -43,51 +46,58 @@ export function JobProgressCard({
   });
 
   return (
-    <Animated.View style={[styles.card, { opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }]}>
-      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
-      <View style={styles.head}>
-        <Text style={styles.title}>{label}</Text>
-        {live ? (
-          <View style={styles.liveBadge}>
-            <Activity size={12} color={colors.green} />
-            <Text style={styles.liveText}>Live</Text>
+    <Animated.View
+      style={[
+        styles.shell,
+        { opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] },
+      ]}
+    >
+      <GlassPanel style={styles.card} padded={false} tone="light" intensity={42} goldEdge>
+        <View style={styles.inner}>
+          <View style={styles.head}>
+            <Text style={styles.title}>{label}</Text>
+            {live ? (
+              <View style={styles.liveBadge}>
+                <PremiumIcon icon={AppIcons.ui.activity} variant="plain" size="xs" color={colors.forest} />
+                <Text style={styles.liveText}>Live</Text>
+              </View>
+            ) : null}
           </View>
-        ) : null}
-      </View>
 
-      <View style={styles.track}>
-        <Animated.View style={[styles.fillWrap, { width: fillWidth }]}>
-          <LinearGradient
-            colors={['#2BB563', '#1E8E4E', '#14532D']}
-            style={styles.fill}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          />
-        </Animated.View>
-      </View>
+          <View style={styles.track}>
+            <Animated.View style={[styles.fillWrap, { width: fillWidth }]}>
+              <LinearGradient
+                colors={['#8FD03C', '#1A8734', '#0A6423']}
+                style={styles.fill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              />
+            </Animated.View>
+          </View>
 
-      <View style={styles.metaRow}>
-        <Text style={styles.meta}>
-          {done} of {total} steps
-        </Text>
-        <Text style={styles.pct}>{pct}%</Text>
-      </View>
+          <View style={styles.metaRow}>
+            <Text style={styles.meta}>
+              {done} of {total} steps
+            </Text>
+            <Text style={styles.pct}>{pct}%</Text>
+          </View>
+        </View>
+      </GlassPanel>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.white,
+  shell: {
     borderRadius: premium.radiusCard,
-    padding: spacing.md,
-    paddingTop: spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.06)',
-    overflow: 'hidden',
-    ...shadows.card,
+    ...homeShadow.card,
   },
-  goldBar: { height: 3, marginHorizontal: -spacing.md, marginTop: -spacing.sm, marginBottom: spacing.sm },
+  card: {
+    borderRadius: premium.radiusCard,
+  },
+  inner: {
+    padding: spacing.md,
+  },
   head: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -103,12 +113,14 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 999,
     backgroundColor: colors.soft,
+    borderWidth: 1,
+    borderColor: surfaces.glassBorderStrong,
   },
-  liveText: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.green },
+  liveText: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.forest },
   track: {
     height: 10,
     borderRadius: 5,
-    backgroundColor: colors.border,
+    backgroundColor: '#EAF6E3',
     overflow: 'hidden',
   },
   fillWrap: { height: '100%' },

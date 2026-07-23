@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
-import { colors, premium, premiumType, shadows, spacing } from '@/constants/theme';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { colors, premiumType, spacing } from '@/constants/theme';
 
 export function ProfileMenuSection({
   title,
@@ -15,14 +16,13 @@ export function ProfileMenuSection({
     <View style={[styles.wrap, style]}>
       {title ? (
         <View style={styles.titleRow}>
-          <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.titleAccent} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+          <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.titleAccent} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
           <Text style={styles.title}>{title}</Text>
         </View>
       ) : null}
-      <View style={styles.card}>
-        <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <GlassPanel padded={false} goldEdge tone="clear" intensity={40} style={styles.card}>
         {children}
-      </View>
+      </GlassPanel>
     </View>
   );
 }
@@ -49,15 +49,6 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
   card: {
-    backgroundColor: colors.white,
-    borderRadius: premium.radiusCard,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.06)',
-    ...shadows.card,
-  },
-  goldBar: {
-    height: 3,
-    width: '100%',
+    borderRadius: 22,
   },
 });

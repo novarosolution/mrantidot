@@ -24,6 +24,18 @@ function runValidation(
   next();
 }
 
+async function recomputeTechnicianRating(technicianId: unknown): Promise<void> {
+  if (!technicianId) return;
+  const agg = await Review.aggregate([
+    { $match: { technicianId, hidden: { $ne: true } } },
+    { $group: { _id: null, avg: { $avg: '$stars' }, count: { $sum: 1 } } },
+  ]);
+  const avg = agg[0]?.avg ?? 0;
+  await User.findByIdAndUpdate(technicianId, {
+    rating: Math.round(avg * 10) / 10,
+  });
+}
+
 reviewsRouter.post(
   '/',
   requireAuth,
@@ -57,25 +69,26 @@ reviewsRouter.post(
       throw new AppError(400, 'Review already exists for this booking');
     }
 
-    const review = await Review.create({
-      bookingId: booking._id,
-      technicianId: booking.technicianId,
-      customerId: booking.customerId,
-      stars: req.body.stars,
-      tags: req.body.tags ?? [],
-      comment: req.body.comment,
-      photos: req.body.photos ?? [],
-    });
+    let review;
+    try {
+      review = await Review.create({
+        bookingId: booking._id,
+        technicianId: booking.technicianId,
+        customerId: booking.customerId,
+        stars: req.body.stars,
+        tags: req.body.tags ?? [],
+        comment: req.body.comment,
+        photos: req.body.photos ?? [],
+      });
+    } catch (err: unknown) {
+      const code = (err as { code?: number })?.code;
+      if (code === 11000) {
+        throw new AppError(400, 'Review already exists for this booking');
+      }
+      throw err;
+    }
 
-    const agg = await Review.aggregate([
-      { $match: { technicianId: booking.technicianId } },
-      { $group: { _id: null, avg: { $avg: '$stars' }, count: { $sum: 1 } } },
-    ]);
-
-    const avg = agg[0]?.avg ?? req.body.stars;
-    await User.findByIdAndUpdate(booking.technicianId, {
-      rating: Math.round(avg * 10) / 10,
-    });
+    await recomputeTechnicianRating(booking.technicianId);
 
     res.status(201).json({ review: formatReview(review) });
   }),
@@ -86,17 +99,40 @@ reviewsRouter.get(
   param('id').isMongoId(),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
-    const reviews = await Review.find({ technicianId: req.params.id }).sort({ createdAt: -1 });
+    const reviews = await Review.find({
+      technicianId: req.params.id,
+      hidden: { $ne: true },
+    }).sort({ createdAt: -1 });
     res.json({ reviews: reviews.map((r) => formatReview(r)) });
   }),
 );
 
 reviewsRouter.get(
   '/booking/:id',
+  requireAuth,
   param('id').isMongoId(),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
-    const review = await Review.findOne({ bookingId: req.params.id });
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      throw new AppError(404, 'Booking not found');
+    }
+
+    const { role, id } = req.user!;
+    const customerId = booking.customerId.toString();
+    const techId = booking.technicianId?.toString();
+    const allowed =
+      role === 'admin' ||
+      customerId === id ||
+      (role === 'technician' && techId === id);
+    if (!allowed) {
+      throw new AppError(403, 'Access denied');
+    }
+
+    const review = await Review.findOne({
+      bookingId: req.params.id,
+      ...(role === 'admin' ? {} : { hidden: { $ne: true } }),
+    });
     if (!review) {
       throw new AppError(404, 'Review not found');
     }

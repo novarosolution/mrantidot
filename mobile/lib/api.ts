@@ -4,7 +4,7 @@ import {
   apiCacheKey,
   clearApiCache,
   invalidateAfterMutation,
-  readApiCache,
+  readApiCacheEntry,
   writeApiCache,
 } from '@/lib/apiCache';
 import { config } from './config';
@@ -19,6 +19,16 @@ export const api = axios.create({
 
 const nativeGet = api.get.bind(api);
 
+function cachedResponse<T>(data: T, config?: AxiosRequestConfig): AxiosResponse<T> {
+  return {
+    data,
+    status: 200,
+    statusText: 'OK',
+    headers: {},
+    config: config ?? {},
+  } as AxiosResponse<T>;
+}
+
 const getWithCache = async function getWithCache<T = unknown>(
   url: string,
   config?: AxiosRequestConfig,
@@ -26,15 +36,15 @@ const getWithCache = async function getWithCache<T = unknown>(
   const ttl = config?.cacheTtlMs;
   if (ttl && !config?.skipCache) {
     const key = apiCacheKey('GET', url, config?.params);
-    const cached = readApiCache<T>(key, ttl);
-    if (cached !== null) {
-      return {
-        data: cached,
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: config ?? {},
-      } as AxiosResponse<T>;
+    const entry = readApiCacheEntry<T>(key, ttl);
+    if (entry && !entry.stale) {
+      return cachedResponse(entry.data, config);
+    }
+    if (entry?.stale) {
+      void nativeGet<T>(url, config)
+        .then((response) => writeApiCache(key, response.data))
+        .catch(() => undefined);
+      return cachedResponse(entry.data, config);
     }
   }
 
@@ -77,6 +87,12 @@ function shouldShowToast(error: AxiosError, silent401: boolean, skipToast: boole
   return true;
 }
 
+function looksLikeHtml(body: unknown): boolean {
+  if (typeof body !== 'string') return false;
+  const sample = body.slice(0, 200).toLowerCase();
+  return sample.includes('<!doctype') || sample.includes('<html') || sample.includes('service suspended');
+}
+
 export function getApiErrorMessage(error: unknown, fallback = 'Something went wrong'): string {
   if (!axios.isAxiosError(error)) {
     return error instanceof Error ? error.message : fallback;
@@ -88,6 +104,10 @@ export function getApiErrorMessage(error: unknown, fallback = 'Something went wr
     if (typeof msg === 'string' && msg.trim()) return msg;
   }
 
+  if (looksLikeHtml(body)) {
+    return `API host is down or suspended. Use local server (${config.apiUrl}) or update deploy.config.json.`;
+  }
+
   if (!error.response) {
     if (error.code === 'ECONNABORTED') return 'Request timed out. Please try again.';
     return `Cannot reach server. Check API at ${config.apiUrl}`;
@@ -97,6 +117,7 @@ export function getApiErrorMessage(error: unknown, fallback = 'Something went wr
   if (status === 404) return 'The requested item was not found.';
   if (status === 403) return 'You do not have permission to do that.';
   if (status === 422) return 'Please check your input and try again.';
+  if (status === 503) return 'Database or API temporarily unavailable. Try again.';
   if (status >= 500) return 'Server error. Please try again later.';
 
   return error.message || fallback;
@@ -115,6 +136,18 @@ api.interceptors.request.use(async (req) => {
     req.headers.Authorization = `Bearer ${token}`;
   } else {
     delete req.headers.Authorization;
+  }
+
+  // Default JSON Content-Type breaks multipart uploads (missing boundary).
+  if (typeof FormData !== 'undefined' && req.data instanceof FormData) {
+    const headers = req.headers as { delete?: (name: string) => void } & Record<string, unknown>;
+    if (typeof headers.delete === 'function') {
+      headers.delete('Content-Type');
+      headers.delete('content-type');
+    } else {
+      delete headers['Content-Type'];
+      delete headers['content-type'];
+    }
   }
 
   return req;
@@ -176,8 +209,15 @@ api.interceptors.response.use(
   },
 );
 
-export async function checkHealth(): Promise<{ ok: boolean; db: string }> {
+export async function checkHealth(): Promise<{
+  ok: boolean;
+  db: string;
+  dbMode?: string;
+}> {
   const { data } = await axios.get(`${config.apiUrl}/api/health`, { timeout: 10000 });
+  if (looksLikeHtml(data)) {
+    throw new Error(`API host is down or suspended (${config.apiUrl})`);
+  }
   return data;
 }
 

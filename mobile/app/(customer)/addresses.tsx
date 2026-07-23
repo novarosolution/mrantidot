@@ -9,7 +9,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Plus } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import Toast from 'react-native-toast-message';
 import { AddressCard } from '@/components/kit/AddressCard';
 import { AddressLocateButton } from '@/components/kit/AddressLocateButton';
@@ -22,6 +23,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
 import { useLocation } from '@/context/LocationContext';
 import { useScreenLoad } from '@/lib/useScreenLoad';
@@ -29,6 +31,7 @@ import type { SavedAddress } from '@/types/api';
 import { colors, design, fonts, premium, radius, spacing } from '@/constants/theme';
 
 export default function AddressesScreen() {
+  const ui = useCustomerUiCopy();
   const { loading, error, refreshing, runLoad, reload, refresh } = useScreenLoad();
   const { displayLabel, locating, detectAddress } = useLocation();
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
@@ -135,12 +138,12 @@ export default function AddressesScreen() {
 
   const addFab = (
     <Pressable style={styles.fab} onPress={openAdd}>
-      <Plus size={22} color={colors.white} />
+      <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size={22} color={colors.white} />
     </Pressable>
   );
 
   return (
-    <CustomerListShell title="Saved Addresses" accountStrip rightAction={addFab}>
+    <CustomerListShell title={ui.addressesScreenTitle} accountStrip rightAction={addFab}>
       {loading ? (
         <Spinner />
       ) : error ? (
@@ -218,7 +221,7 @@ const styles = StyleSheet.create({
   deleteText: { color: colors.error },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(11, 34, 19, 0.48)',
     justifyContent: 'flex-end',
   },
   modal: {
@@ -232,7 +235,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.border,
+    backgroundColor: '#C8E0BE',
     marginBottom: spacing.md,
   },
   modalTitle: { fontFamily: fonts.display, fontSize: 18, marginBottom: spacing.md, color: colors.ink },

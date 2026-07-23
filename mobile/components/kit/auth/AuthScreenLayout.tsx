@@ -1,22 +1,19 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import { safeGoBack } from '@/lib/routes';
 import { type ReactNode, type RefObject, useState } from 'react';
 import {
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
   type KeyboardTypeOptions,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Eye, EyeOff } from 'lucide-react-native';
-import { BrandLogo } from '@/components/BrandLogo';
-import { colors, fonts, formField, gradients, spacing } from '@/constants/theme';
+import { type LucideIcon } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
+import { AuthLoginShell, AuthFormSection, AuthFooterText } from '@/components/kit/auth/AuthScreenKit';
+import { colors, fonts, premium, premiumType, spacing } from '@/constants/theme';
 import { textInputDefaults, textInputStyles } from '@/components/ui/textInputDefaults';
 
 export type AuthFieldProps = {
@@ -27,6 +24,7 @@ export type AuthFieldProps = {
   error?: string;
   secure?: boolean;
   optional?: boolean;
+  icon?: LucideIcon;
   inputRef?: RefObject<TextInput | null>;
   onSubmitEditing?: () => void;
   returnKeyType?: 'next' | 'go' | 'done';
@@ -34,6 +32,7 @@ export type AuthFieldProps = {
   autoCapitalize?: 'none' | 'words' | 'sentences';
 };
 
+/** Field card: micro-label, soft icon tile, tick when filled, lime focus line. */
 export function AuthField({
   label,
   value,
@@ -42,6 +41,7 @@ export function AuthField({
   error,
   secure,
   optional,
+  icon: Icon,
   inputRef,
   onSubmitEditing,
   returnKeyType = 'next',
@@ -50,36 +50,74 @@ export function AuthField({
 }: AuthFieldProps) {
   const [focused, setFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const filled = value.trim().length > 0;
 
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>
-        {label}
-        {optional ? <Text style={styles.optional}> (optional)</Text> : null}
-      </Text>
-      <View style={[styles.fieldRow, focused && styles.fieldRowFocused, error && styles.fieldRowError]}>
-        <TextInput
-          ref={inputRef}
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={colors.muted}
-          style={[textInputStyles.flex, styles.fieldInput]}
-          editable
-          {...textInputDefaults}
-          autoCapitalize={secure ? 'none' : autoCapitalize}
-          keyboardType={keyboardType}
-          secureTextEntry={secure === true && !showPassword}
-          returnKeyType={returnKeyType}
-          blurOnSubmit={returnKeyType !== 'next'}
-          onSubmitEditing={onSubmitEditing}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-        />
-        {secure ? (
-          <Pressable onPress={() => setShowPassword((v) => !v)} style={styles.eyeBtn} hitSlop={12}>
-            {showPassword ? <EyeOff size={18} color={colors.muted} /> : <Eye size={18} color={colors.muted} />}
-          </Pressable>
+      <View
+        style={[
+          styles.fieldCard,
+          focused && styles.fieldCardFocused,
+          !focused && filled && !error && styles.fieldCardFilled,
+          error && styles.fieldCardError,
+        ]}
+      >
+        <Text style={[styles.fieldLabel, focused && styles.fieldLabelFocused]}>
+          {label.toUpperCase()}
+          {optional ? <Text style={styles.optional}>  ·  OPTIONAL</Text> : null}
+        </Text>
+        <View style={styles.fieldBody}>
+          {Icon ? (
+            <View style={[styles.iconTile, focused && styles.iconTileFocused]}>
+              <PremiumIcon
+                icon={Icon}
+                variant="plain"
+                size={15}
+                color={focused ? '#1A8734' : '#25A443'}
+                strokeWidth={2.15}
+              />
+            </View>
+          ) : null}
+          <TextInput
+            {...textInputDefaults}
+            ref={inputRef}
+            value={value}
+            onChangeText={onChangeText}
+            placeholder={placeholder}
+            placeholderTextColor="#86AC80"
+            style={[textInputStyles.flex, styles.fieldInput]}
+            editable
+            autoCapitalize={secure ? 'none' : autoCapitalize}
+            keyboardType={keyboardType}
+            secureTextEntry={secure === true && !showPassword}
+            returnKeyType={returnKeyType}
+            blurOnSubmit={returnKeyType !== 'next'}
+            onSubmitEditing={onSubmitEditing}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+          />
+          {secure ? (
+            <Pressable onPress={() => setShowPassword((v) => !v)} style={styles.eyeBtn} hitSlop={12}>
+              {showPassword ? (
+                <PremiumIcon icon={AppIcons.ui.eyeOff} variant="plain" size={17} color="#5C8A63" />
+              ) : (
+                <PremiumIcon icon={AppIcons.ui.eye} variant="plain" size={17} color="#5C8A63" />
+              )}
+            </Pressable>
+          ) : filled && !error ? (
+            <View style={styles.tick}>
+              <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={10} color="#FFFFFF" strokeWidth={3.5} />
+            </View>
+          ) : null}
+        </View>
+        {focused ? (
+          <LinearGradient
+            colors={['#8FD03C', '#1A8734']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.fieldLine}
+            pointerEvents="none"
+          />
         ) : null}
       </View>
       {error ? <Text style={styles.fieldError}>{error}</Text> : null}
@@ -89,84 +127,47 @@ export function AuthField({
 
 export function AuthScreenLayout({
   brandName,
+  brandTag,
   heading,
+  subtitle,
   showBack,
-  scroll,
   children,
   footer,
 }: {
   brandName: string;
+  brandTag?: string;
   heading?: string;
+  subtitle?: string;
   showBack?: boolean;
   scroll?: boolean;
   children: ReactNode;
   footer?: ReactNode;
 }) {
-  const insets = useSafeAreaInsets();
-
-  const body = (
-    <>
-      {children}
-      {footer}
-    </>
-  );
-
   return (
-    <View style={styles.root}>
-      <LinearGradient
-        colors={[...gradients.premiumHero]}
-        style={[styles.hero, { paddingTop: insets.top + (showBack ? spacing.sm : spacing.lg) }]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        {showBack ? (
-          <Pressable style={styles.backBtn} onPress={() => safeGoBack('/(auth)/login')} hitSlop={12}>
-            <ChevronLeft size={22} color={colors.white} />
-          </Pressable>
-        ) : null}
-        <View style={styles.heroInner} pointerEvents="none">
-          <BrandLogo size={showBack ? 48 : 56} />
-          <Text style={styles.brandName}>{brandName}</Text>
-          {heading ? <Text style={styles.heading}>{heading}</Text> : null}
-        </View>
-      </LinearGradient>
-
-      <KeyboardAvoidingView
-        style={styles.formArea}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 4 : 0}
-      >
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[
-            styles.formInner,
-            { paddingBottom: insets.bottom + spacing.xl },
-            !scroll && styles.formInnerStatic,
-          ]}
-          keyboardShouldPersistTaps="always"
-          keyboardDismissMode="on-drag"
-          showsVerticalScrollIndicator={false}
-          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-          scrollEnabled={scroll !== false}
-        >
-          {body}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+    <AuthLoginShell
+      brandName={brandName?.trim() || 'Mr Antidot'}
+      brandTag={brandTag?.trim() || 'Trusted pest control & home services'}
+      title={heading?.trim() || 'Welcome'}
+      subtitle={subtitle}
+      showBack={showBack}
+    >
+      <AuthFormSection>{children}</AuthFormSection>
+      {footer ? <AuthFooterText>{footer}</AuthFooterText> : null}
+    </AuthLoginShell>
   );
 }
 
 export const authScreenStyles = StyleSheet.create({
   footer: {
     textAlign: 'center',
-    marginTop: spacing.xl,
-    fontFamily: fonts.body,
-    fontSize: 14,
-    color: colors.muted,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13.5,
+    color: '#5C8A63',
   },
   footerLink: {
-    color: colors.forest,
-    fontFamily: fonts.bodySemi,
+    color: '#1A8734',
+    fontFamily: fonts.bodyBold,
+    fontSize: 13.5,
   },
   textLink: {
     alignSelf: 'center',
@@ -176,107 +177,107 @@ export const authScreenStyles = StyleSheet.create({
   textLinkLabel: {
     fontFamily: fonts.bodySemi,
     fontSize: 14,
-    color: colors.forest,
+    color: '#1A8734',
   },
 });
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
-  hero: {
-    paddingBottom: spacing.xl + 8,
-    paddingHorizontal: spacing.lg,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-  },
-  heroInner: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  brandName: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 22,
-    color: colors.white,
-    letterSpacing: -0.3,
-  },
-  heading: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.85)',
-    marginTop: 2,
-  },
-  formArea: {
-    flex: 1,
-    marginTop: -20,
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  scroll: { flex: 1 },
-  formInner: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-  },
-  formInnerStatic: {
-    flexGrow: 1,
-  },
   field: {
     marginBottom: spacing.md,
   },
-  fieldLabel: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 13,
-    color: colors.ink,
-    marginBottom: 6,
-  },
-  optional: {
-    fontFamily: fonts.body,
-    color: colors.muted,
-    fontSize: 12,
-  },
-  fieldRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: formField.minHeight,
+  fieldCard: {
+    backgroundColor: 'rgba(255,255,255,0.86)',
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bg,
-    borderRadius: formField.radius,
-    paddingHorizontal: spacing.md,
+    borderColor: 'rgba(219,241,209,0.98)',
+    borderRadius: 22,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 11,
+    gap: 4,
+    overflow: 'hidden',
   },
-  fieldRowFocused: {
-    borderColor: colors.forest,
-    backgroundColor: colors.white,
+  fieldCardFocused: {
+    borderColor: 'rgba(143,208,60,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.98)',
+    ...premium.shadowFocus,
   },
-  fieldRowError: {
+  fieldCardFilled: {
+    borderColor: 'rgba(48,184,79,0.48)',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+  },
+  fieldCardError: {
     borderColor: colors.error,
     backgroundColor: colors.errorBg,
   },
+  fieldLabel: {
+    ...premiumType.kicker,
+    fontSize: 10,
+    letterSpacing: 0.95,
+    color: '#7EA484',
+    lineHeight: 12,
+  },
+  fieldLabelFocused: {
+    color: colors.forest,
+  },
+  optional: {
+    fontFamily: fonts.bodyMedium,
+    color: '#B5CFC0',
+    fontSize: 9,
+  },
+  fieldBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  iconTile: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#EAF6E3',
+    borderWidth: 1,
+    borderColor: '#DBF1D1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconTileFocused: {
+    backgroundColor: '#D8EEC8',
+    borderColor: 'rgba(143,208,60,0.7)',
+  },
   fieldInput: {
+    ...premiumType.input,
     flex: 1,
+    minHeight: 42,
+    paddingVertical: Platform.OS === 'ios' ? 9 : 7,
+  },
+  fieldLine: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 2.5,
+  },
+  tick: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.green,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   eyeBtn: {
     width: 36,
     height: 36,
+    borderRadius: 12,
+    backgroundColor: '#EAF6E3',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: -4,
   },
   fieldError: {
     fontFamily: fonts.bodySemi,
     fontSize: 12,
     color: colors.error,
-    marginTop: 4,
+    marginTop: 5,
   },
 });

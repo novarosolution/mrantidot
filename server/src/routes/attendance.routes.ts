@@ -8,12 +8,12 @@ import { User } from '../models/User';
 import { formatAttendance } from '../models/TechnicianAttendance';
 import {
   buildAttendanceCalendar,
-  computeAttendanceAnalytics,
+  checkOutAttendance,
+  loadAttendanceForRange,
   monthRange,
   parseMonthParam,
   todayDateKey,
   upsertAttendance,
-  loadAttendanceForRange,
 } from '../utils/attendance';
 
 export const attendanceRouter = Router();
@@ -33,6 +33,7 @@ function runValidation(
   next();
 }
 
+/** Start of day — present + on duty. Keeps first checkedInAt. */
 attendanceRouter.post(
   '/check-in',
   requireRole('technician'),
@@ -46,13 +47,57 @@ attendanceRouter.post(
     }
 
     const date = todayDateKey();
-    const record = await upsertAttendance(tech._id, date, 'present', 'technician');
-    tech.available = true;
-    await tech.save();
-    res.json({ attendance: formatAttendance(record), date, status: 'came', available: true });
+    try {
+      const record = await upsertAttendance(tech._id, date, 'present', 'technician');
+      tech.available = true;
+      await tech.save();
+      res.json({
+        attendance: formatAttendance(record),
+        date,
+        status: 'came',
+        available: true,
+        checkedInAt: formatAttendance(record).checkedInAt,
+        checkedOutAt: formatAttendance(record).checkedOutAt,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.message === 'On approved leave') {
+        throw new AppError(400, 'You are on approved leave today. Contact admin to return early.');
+      }
+      throw err;
+    }
   }),
 );
 
+/** End of day — still present for attendance, but off duty. */
+attendanceRouter.post(
+  '/check-out',
+  requireRole('technician'),
+  asyncHandler(async (req, res) => {
+    const tech = await User.findById(req.user!.id);
+    if (!tech || tech.role !== 'technician') {
+      throw new AppError(404, 'Technician not found');
+    }
+
+    const date = todayDateKey();
+    let record;
+    try {
+      record = await checkOutAttendance(tech._id, date);
+    } catch {
+      throw new AppError(400, 'Check in before checking out');
+    }
+    tech.available = false;
+    await tech.save();
+    res.json({
+      attendance: formatAttendance(record),
+      date,
+      status: 'came',
+      available: false,
+      checkedOutAt: formatAttendance(record).checkedOutAt,
+    });
+  }),
+);
+
+/** Full day absent (sick / no show) — not the same as check-out. */
 attendanceRouter.post(
   '/mark-absent',
   requireRole('technician'),
@@ -65,16 +110,23 @@ attendanceRouter.post(
     }
 
     const date = todayDateKey();
-    const record = await upsertAttendance(
-      tech._id,
-      date,
-      'absent',
-      'technician',
-      req.body.note,
-    );
-    tech.available = false;
-    await tech.save();
-    res.json({ attendance: formatAttendance(record), date, status: 'not_came', available: false });
+    try {
+      const record = await upsertAttendance(
+        tech._id,
+        date,
+        'absent',
+        'technician',
+        req.body.note,
+      );
+      tech.available = false;
+      await tech.save();
+      res.json({ attendance: formatAttendance(record), date, status: 'not_came', available: false });
+    } catch (err) {
+      if (err instanceof Error && err.message === 'On approved leave') {
+        throw new AppError(400, 'You are on approved leave today. Contact admin to change it.');
+      }
+      throw err;
+    }
   }),
 );
 
@@ -97,6 +149,12 @@ attendanceRouter.get(
     const records = await loadAttendanceForRange(req.user!.id, range.from, range.to);
     const today = todayDateKey();
     const attendance = buildAttendanceCalendar(records, range.from, range.to, today);
+    const todayRecord = records.find((r) => r.date === today);
+    const tech = await User.findById(req.user!.id).select('available');
+    const onDuty =
+      attendance[today] === 'came' &&
+      !todayRecord?.checkedOutAt &&
+      tech?.available !== false;
 
     res.json({
       records: records.map((r) => formatAttendance(r)),
@@ -105,6 +163,9 @@ attendanceRouter.get(
       from: range.from,
       to: range.to,
       todayStatus: attendance[today] ?? 'pending',
+      todayRecord: todayRecord ? formatAttendance(todayRecord) : null,
+      onDuty,
+      available: tech?.available !== false,
     });
   }),
 );

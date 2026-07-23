@@ -1,10 +1,11 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Check, CheckCircle2, Lock, SprayCan, Tag, X } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { textInputDefaults } from '@/components/ui/textInputDefaults';
 import type { BookingAmount, Offer } from '@/types/api';
-import { colors, fonts, gradients, premium, spacing } from '@/constants/theme';
+import { colors, fonts, gradients, premium, spacing, surfaces } from '@/constants/theme';
 
 export function PaymentPriceHero({
   amount,
@@ -18,12 +19,19 @@ export function PaymentPriceHero({
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
     >
-      <View style={styles.heroGlow} />
+      <View style={styles.heroGlow} pointerEvents="none">
+        <LinearGradient
+          colors={['rgba(184,232,106,0.4)', 'rgba(143,208,60,0)']}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0.2, y: 0.2 }}
+          end={{ x: 1, y: 1 }}
+        />
+      </View>
       <Text style={styles.heroKicker}>Total payable</Text>
       <Text style={styles.heroTotal}>₹{amount.total}</Text>
       {amount.coupon > 0 ? (
         <View style={styles.savePill}>
-          <SprayCan size={12} color={colors.lime} />
+          <PremiumIcon icon={AppIcons.ui.brand} variant="plain" size={12} color={colors.lime} />
           <Text style={styles.saveText}>You save ₹{amount.coupon}</Text>
         </View>
       ) : null}
@@ -70,11 +78,11 @@ export function PaymentOfferList({
           >
             <View style={styles.offerTop}>
               <View style={[styles.offerIcon, on && styles.offerIconOn]}>
-                <Tag size={14} color={on ? colors.white : colors.forest} />
+                <PremiumIcon icon={AppIcons.ui.tag} variant="plain" size={14} color={on ? colors.white : colors.forest} />
               </View>
               {on ? (
                 <View style={styles.offerApplied}>
-                  <Check size={10} color={colors.forest} strokeWidth={3} />
+                  <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={10} color={colors.forest} strokeWidth={3} />
                 </View>
               ) : null}
             </View>
@@ -117,7 +125,12 @@ export function PaymentCouponField({
           applied && styles.couponRowApplied,
         ]}
       >
-        <Tag size={18} color={applied ? colors.green : invalid ? colors.error : colors.muted} />
+        <PremiumIcon
+          icon={AppIcons.ui.tag}
+          variant="plain"
+          size={18}
+          color={applied ? colors.green : invalid ? colors.error : colors.muted}
+        />
         <TextInput
           {...textInputDefaults}
           style={styles.couponInput}
@@ -131,14 +144,14 @@ export function PaymentCouponField({
         />
         {value.length > 0 ? (
           <Pressable onPress={() => onChangeText('')} hitSlop={8} style={styles.clearBtn}>
-            <X size={16} color={colors.muted} />
+            <PremiumIcon icon={AppIcons.ui.close} variant="plain" size={16} color={colors.muted} />
           </Pressable>
         ) : null}
       </View>
       {invalid ? <Text style={styles.couponError}>This coupon is not valid</Text> : null}
       {applied ? (
         <View style={styles.couponOk}>
-          <CheckCircle2 size={15} color={colors.green} />
+          <PremiumIcon icon={AppIcons.toast.success} variant="plain" size={15} color={colors.green} />
           <Text style={styles.couponOkText}>Applied</Text>
         </View>
       ) : null}
@@ -149,7 +162,7 @@ export function PaymentCouponField({
 export function PaymentSecureNote() {
   return (
     <View style={styles.secure}>
-      <Lock size={14} color={colors.forest} />
+      <PremiumIcon icon={AppIcons.ui.lock} variant="plain" size={14} color={colors.forest} />
       <Text style={styles.secureText}>Secure checkout · Your payment details stay protected</Text>
     </View>
   );
@@ -175,7 +188,7 @@ export function PaymentReadyBanner({
         <Text style={styles.readyTotal}>₹{total} estimated</Text>
       </View>
       <LinearGradient colors={[gradients.primary[0], gradients.primary[1]]} style={styles.readyPill}>
-        <Check size={14} color={colors.white} strokeWidth={3} />
+        <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={14} color={colors.white} strokeWidth={3} />
       </LinearGradient>
     </LinearGradient>
   );
@@ -190,12 +203,12 @@ const styles = StyleSheet.create({
   },
   heroGlow: {
     position: 'absolute',
-    top: -30,
-    right: -20,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(168,224,78,0.15)',
+    top: -36,
+    right: -24,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    overflow: 'hidden',
   },
   heroKicker: {
     fontFamily: fonts.bodySemi,
@@ -239,9 +252,9 @@ const styles = StyleSheet.create({
     width: 140,
     padding: 12,
     borderRadius: 16,
-    backgroundColor: colors.bg,
+    backgroundColor: surfaces.glass,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: surfaces.glassBorderStrong,
   },
   offerCardOn: {
     backgroundColor: colors.soft,
@@ -259,13 +272,12 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glass,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
-  },
-  offerIconOn: { backgroundColor: colors.forest, borderColor: colors.forest },
+    borderColor: surfaces.glassBorderStrong,
+  },  offerIconOn: { backgroundColor: colors.forest, borderColor: colors.forest },
   offerApplied: {
     width: 20,
     height: 20,
@@ -289,11 +301,11 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     minHeight: 52,
     borderRadius: 16,
-    backgroundColor: colors.bg,
+    backgroundColor: surfaces.glass,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: surfaces.glassBorderStrong,
   },
-  couponRowFocused: { backgroundColor: colors.white, borderColor: colors.forest },
+  couponRowFocused: { backgroundColor: colors.soft, borderColor: colors.forest },
   couponRowError: { borderColor: colors.error, backgroundColor: colors.errorBg },
   couponRowApplied: { borderColor: colors.green, backgroundColor: colors.soft },
   couponInput: {

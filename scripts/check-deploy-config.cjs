@@ -13,7 +13,7 @@ if (!url || PLACEHOLDER.test(url)) {
 
 console.log('Deploy API URL:', url);
 console.log('');
-console.log('Mobile: EAS reads this via app.config.ts at build time.');
+console.log('Mobile: EAS reads this via app.config.js at build time.');
 console.log('Test:   curl', url + '/api/health');
 console.log('');
 console.log('Build APK: cd mobile && npm run build:production');

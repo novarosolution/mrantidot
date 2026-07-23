@@ -33,6 +33,11 @@ import {
   computeTechStatusBreakdown,
   monthDateRange,
 } from '../utils/technicianAnalytics';
+import {
+  formatPaySummary,
+  payConfigFromUser,
+  resolveTechEarning,
+} from '../utils/techPay';
 
 export const adminRouter = Router();
 
@@ -88,6 +93,9 @@ adminRouter.post(
   body('email').isEmail().normalizeEmail(),
   body('password').isLength({ min: 8 }),
   body('city').optional().trim(),
+  body('payMode').optional().isIn(['percent', 'flat']),
+  body('payPercent').optional().isFloat({ min: 0, max: 100 }),
+  body('payFlat').optional().isFloat({ min: 0 }),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
     const phone = normalizePhone(req.body.phone);
@@ -96,6 +104,7 @@ adminRouter.post(
       throw new AppError(400, 'Phone or email already in use');
     }
     const passwordHash = await bcrypt.hash(String(req.body.password).trim(), 12);
+    const isTech = req.body.role === 'technician';
     const user = await User.create({
       role: req.body.role,
       name: req.body.name.trim(),
@@ -105,7 +114,20 @@ adminRouter.post(
       city: req.body.city?.trim(),
       rating: 0,
       jobsDone: 0,
-      available: req.body.role !== 'customer',
+      available: true,
+      ...(isTech
+        ? {
+            payMode: req.body.payMode === 'flat' ? 'flat' : 'percent',
+            payPercent:
+              req.body.payPercent !== undefined
+                ? Math.min(100, Math.max(0, Number(req.body.payPercent)))
+                : 100,
+            payFlat:
+              req.body.payFlat !== undefined
+                ? Math.max(0, Math.round(Number(req.body.payFlat)))
+                : 0,
+          }
+        : {}),
     });
     res.status(201).json({ user: sanitizeUser(user) });
   }),
@@ -122,14 +144,28 @@ adminRouter.patch(
   body('available').optional().isBoolean(),
   body('disabled').optional().isBoolean(),
   body('displayRating').optional({ nullable: true }).isFloat({ min: 0, max: 5 }),
+  body('payMode').optional().isIn(['percent', 'flat']),
+  body('payPercent').optional().isFloat({ min: 0, max: 100 }),
+  body('payFlat').optional().isFloat({ min: 0 }),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
     const user = await User.findById(req.params.id);
     if (!user) {
       throw new AppError(404, 'User not found');
     }
-    if (isEnvAdmin(user) && req.body.role && req.body.role !== 'admin') {
-      throw new AppError(400, 'Cannot change role of primary admin');
+    if (isEnvAdmin(user)) {
+      if (req.body.role && req.body.role !== 'admin') {
+        throw new AppError(400, 'Cannot change role of primary admin');
+      }
+      if (typeof req.body.disabled === 'boolean' && req.body.disabled) {
+        throw new AppError(400, 'Cannot disable primary admin account');
+      }
+      if (req.body.phone && normalizePhone(req.body.phone) !== normalizePhone(user.phone)) {
+        throw new AppError(400, 'Cannot change phone of primary admin');
+      }
+      if (req.body.email && req.body.email !== user.email) {
+        throw new AppError(400, 'Cannot change email of primary admin');
+      }
     }
     if (req.body.role && req.body.role !== user.role) {
       if (isEnvAdmin(user)) {
@@ -147,7 +183,7 @@ adminRouter.patch(
       }
     }
     if (req.body.name) user.name = req.body.name;
-    if (req.body.email) {
+    if (req.body.email && !isEnvAdmin(user)) {
       const dupEmail = await User.findOne({ email: req.body.email, _id: { $ne: user._id } });
       if (dupEmail) throw new AppError(400, 'Email already in use');
       user.email = req.body.email;
@@ -155,6 +191,12 @@ adminRouter.patch(
     if (req.body.city !== undefined) user.city = req.body.city;
     if (typeof req.body.available === 'boolean') user.available = req.body.available;
     if (typeof req.body.disabled === 'boolean') {
+      if (req.body.disabled && user.role === 'admin') {
+        const adminCount = await User.countDocuments({ role: 'admin', disabled: { $ne: true } });
+        if (adminCount <= 1) {
+          throw new AppError(400, 'Cannot disable the last active admin');
+        }
+      }
       user.disabled = req.body.disabled;
       if (req.body.disabled) user.available = false;
     }
@@ -162,7 +204,18 @@ adminRouter.patch(
       const v = req.body.displayRating;
       user.displayRating = v === null || v === '' ? null : Number(v);
     }
-    if (req.body.phone) {
+    if (user.role === 'technician' || req.body.role === 'technician') {
+      if (req.body.payMode === 'percent' || req.body.payMode === 'flat') {
+        user.payMode = req.body.payMode;
+      }
+      if (req.body.payPercent !== undefined) {
+        user.payPercent = Math.min(100, Math.max(0, Number(req.body.payPercent)));
+      }
+      if (req.body.payFlat !== undefined) {
+        user.payFlat = Math.max(0, Math.round(Number(req.body.payFlat)));
+      }
+    }
+    if (req.body.phone && !isEnvAdmin(user)) {
       const phone = normalizePhone(req.body.phone);
       const dup = await User.findOne({ phone, _id: { $ne: user._id } });
       if (dup) throw new AppError(400, 'Phone already in use');
@@ -296,6 +349,7 @@ adminRouter.get(
     let cancelledJobs = 0;
     let earnings = 0;
     let lastJobDate: string | undefined;
+    const techPay = payConfigFromUser(technician);
 
     for (const b of bookings) {
       const date = b.schedule?.date;
@@ -307,7 +361,7 @@ adminRouter.get(
         activeJobs += 1;
       } else if (b.status === 'completed') {
         completedJobs += 1;
-        earnings += b.amount?.total ?? 0;
+        earnings += resolveTechEarning(b, techPay);
       } else if (b.status === 'cancelled') {
         cancelledJobs += 1;
       }
@@ -354,7 +408,7 @@ adminRouter.get(
 
     const statusBreakdown = computeTechStatusBreakdown(bookings, month);
     const attendanceTrend = buildAttendanceTrend(attendance, month, today);
-    const jobsTrend = buildJobsTrend(bookings, month);
+    const jobsTrend = buildJobsTrend(bookings, month, techPay);
 
     res.json({
       technician: sanitizeUser(technician),
@@ -367,11 +421,13 @@ adminRouter.get(
         earnings,
         lastJobDate,
         reviewCount,
+        paySummary: formatPaySummary(techPay),
       },
       reviews: reviews.map((r) => formatReview(r)),
       calendar,
       month,
       attendance,
+      attendanceRecords: attendanceRecords.map((r) => formatAttendance(r)),
       jobVisits,
       analytics: {
         ...attendanceStats,
@@ -394,7 +450,7 @@ adminRouter.put(
   '/technicians/:id/attendance/:date',
   param('id').isMongoId(),
   param('date').matches(/^\d{4}-\d{2}-\d{2}$/),
-  body('status').isIn(['present', 'absent']),
+  body('status').isIn(['present', 'absent', 'leave']),
   body('note').optional().trim(),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
@@ -411,8 +467,58 @@ adminRouter.put(
       req.body.note,
     );
 
-    const status = req.body.status === 'present' ? 'came' : 'not_came';
+    const status =
+      req.body.status === 'present' ? 'came' : req.body.status === 'leave' ? 'leave' : 'not_came';
     res.json({ attendance: formatAttendance(record), date: req.params.date, status });
+  }),
+);
+
+/** Team payroll for a date range — sum of locked/computed job earnings. */
+adminRouter.get(
+  '/payroll',
+  asyncHandler(async (req, res) => {
+    const month = parseMonthParam(
+      typeof req.query.month === 'string' ? req.query.month : undefined,
+    );
+    const { from, to } =
+      typeof req.query.from === 'string' && typeof req.query.to === 'string'
+        ? { from: req.query.from, to: req.query.to }
+        : monthRange(month);
+
+    const techs = await User.find({ role: 'technician' }).sort({ name: 1 });
+    const completed = await Booking.find({
+      status: 'completed',
+      technicianId: { $in: techs.map((t) => t._id) },
+      'schedule.date': { $gte: from, $lte: to },
+    }).select('technicianId amount technicianEarning schedule.status schedule.date');
+
+    const rows = techs.map((tech) => {
+      const pay = payConfigFromUser(tech);
+      const jobs = completed.filter((b) => String(b.technicianId) === String(tech._id));
+      const earnings = jobs.reduce((sum, b) => sum + resolveTechEarning(b, pay), 0);
+      return {
+        technicianId: String(tech._id),
+        name: tech.name,
+        phone: tech.phone,
+        available: tech.available !== false,
+        disabled: tech.disabled === true,
+        paySummary: formatPaySummary(pay),
+        jobsCompleted: jobs.length,
+        earnings,
+      };
+    });
+
+    const totalEarnings = rows.reduce((s, r) => s + r.earnings, 0);
+    const totalJobs = rows.reduce((s, r) => s + r.jobsCompleted, 0);
+
+    res.json({
+      from,
+      to,
+      month,
+      totalEarnings,
+      totalJobs,
+      technicians: rows.sort((a, b) => b.earnings - a.earnings),
+    });
   }),
 );
 
@@ -679,6 +785,15 @@ adminRouter.patch(
     if (!review) {
       throw new AppError(404, 'Review not found');
     }
+
+    const agg = await Review.aggregate([
+      { $match: { technicianId: review.technicianId, hidden: { $ne: true } } },
+      { $group: { _id: null, avg: { $avg: '$stars' } } },
+    ]);
+    await User.findByIdAndUpdate(review.technicianId, {
+      rating: Math.round((agg[0]?.avg ?? 0) * 10) / 10,
+    });
+
     res.json({ review: formatReview(review) });
   }),
 );

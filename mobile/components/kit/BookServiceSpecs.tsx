@@ -1,10 +1,11 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { Check, ChevronDown, Clock, ListChecks, ShieldCheck, Star } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { serviceDisplayRating } from '@/lib/ratings';
 import type { Service } from '@/types/api';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import {  colors, fonts, premium, shadows, spacing , gradients } from '@/constants/theme';
 
 export function BookServiceSpecs({
   service,
@@ -28,7 +29,7 @@ export function BookServiceSpecs({
         end={{ x: 1, y: 1 }}
       >
         <LinearGradient
-          colors={['#D4A017', '#B6841C']}
+          colors={[...gradients.goldBar]}
           style={styles.goldBar}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
@@ -50,34 +51,39 @@ export function BookServiceSpecs({
           >
             <Text style={styles.compactHeading}>What's included</Text>
             {steps.length > 0 ? (
-              <ChevronDown
-                size={16}
-                color={colors.muted}
-                style={{ transform: [{ rotate: expanded ? '180deg' : '0deg' }] }}
-              />
+              <View style={{ transform: [{ rotate: expanded ? '180deg' : '0deg' }] }}>
+                <PremiumIcon icon={AppIcons.ui.chevronDown} variant="plain" size={16} color={colors.muted} />
+              </View>
             ) : null}
           </Pressable>
         )}
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
           <View style={styles.chip}>
-            <Clock size={13} color={colors.forest} strokeWidth={2.2} />
+            <PremiumIcon icon={AppIcons.ui.clock} variant="plain" size={13} color={colors.forest} strokeWidth={2.2} />
             <Text style={styles.chipText}>{durationLabel}</Text>
           </View>
           {rating > 0 ? (
             <View style={styles.chip}>
-              <Star size={13} color={colors.amberInk} fill={colors.amberInk} strokeWidth={2} />
+              <PremiumIcon
+                icon={AppIcons.ui.star}
+                variant="plain"
+                size={13}
+                color={colors.amberInk}
+                fill={colors.amberInk}
+                strokeWidth={2}
+              />
               <Text style={styles.chipText}>{rating.toFixed(1)} rating</Text>
             </View>
           ) : null}
           {steps.length > 0 ? (
             <View style={styles.chip}>
-              <ListChecks size={13} color={colors.forest} strokeWidth={2.2} />
+              <PremiumIcon icon={AppIcons.ui.listChecks} variant="plain" size={13} color={colors.forest} strokeWidth={2.2} />
               <Text style={styles.chipText}>{steps.length} steps</Text>
             </View>
           ) : null}
           <View style={styles.chip}>
-            <ShieldCheck size={13} color={colors.forest} strokeWidth={2.2} />
+            <PremiumIcon icon={AppIcons.ui.shieldCheck} variant="plain" size={13} color={colors.forest} strokeWidth={2.2} />
             <Text style={styles.chipText}>Eco-safe</Text>
           </View>
         </ScrollView>
@@ -87,7 +93,7 @@ export function BookServiceSpecs({
             {steps.map((step, index) => (
               <View key={`${step}-${index}`} style={styles.stepRow}>
                 <View style={styles.stepIcon}>
-                  <Check size={12} color={colors.forest} strokeWidth={3} />
+                  <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={12} color={colors.forest} strokeWidth={3} />
                 </View>
                 <Text style={styles.stepText}>{step}</Text>
               </View>

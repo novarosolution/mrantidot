@@ -295,7 +295,9 @@ const styles = StyleSheet.create({
   secondary: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.soft,
+    backgroundColor: 'rgba(234,246,227,0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(198,236,180,0.95)',
   },
   secondaryPressed: {
     backgroundColor: '#DCEEDE',
@@ -303,7 +305,9 @@ const styles = StyleSheet.create({
   outline: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderWidth: buttonTokens.borderWidth,
+    borderColor: colors.forest,
   },
   outlinePressed: {
     backgroundColor: colors.soft,
@@ -322,8 +326,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.error,
   },
   pressed: {
-    opacity: 0.92,
-    transform: [{ scale: 0.98 }],
+    opacity: 0.94,
+    transform: [{ scale: 0.985 }],
   },
   disabled: {
     opacity: 0.5,

@@ -1,10 +1,22 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { adminGoBack, safeGoBack } from '@/lib/routes';
-import { ChevronLeft } from 'lucide-react-native';
+import { HeroDarkSlice } from '@/components/kit/HeroDarkSlice';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, classic, customerType, gradients, headerTopPad, premium, radius, shadows, spacing, surfaces } from '@/constants/theme';
+import {
+  colors,
+  classic,
+  customerType,
+  gradients,
+  headerTopPad,
+  premium,
+  radius,
+  spacing,
+  surfaces,
+} from '@/constants/theme';
 
 type Variant = 'gradient' | 'light' | 'premium';
 
@@ -12,7 +24,7 @@ export function CustomerPageHeader({
   title,
   subtitle,
   showBack,
-  variant = 'light',
+  variant = 'premium',
   rightAction,
   overlapReserve,
   backFallback,
@@ -33,6 +45,7 @@ export function CustomerPageHeader({
 }) {
   const insets = useSafeAreaInsets();
   const padTop = headerTopPad(insets.top);
+  const onDark = variant === 'gradient' || variant === 'premium';
 
   function handleBack() {
     if (onBack) {
@@ -51,101 +64,161 @@ export function CustomerPageHeader({
       {showBack ? (
         <Pressable
           onPress={handleBack}
-          style={[styles.backBtn, (variant === 'gradient' || variant === 'premium') && styles.backBtnOnGradient]}
+          style={({ pressed }) => [
+            styles.backBtn,
+            onDark ? styles.backBtnOnDark : styles.backBtnLight,
+            pressed && styles.pressed,
+          ]}
+          hitSlop={8}
         >
-          <ChevronLeft color={variant === 'gradient' || variant === 'premium' ? colors.white : colors.ink} size={20} />
+          <PremiumIcon
+            icon={AppIcons.ui.chevronLeft}
+            variant="plain"
+            color={onDark ? colors.white : colors.forest}
+            size={20}
+            strokeWidth={2.4}
+          />
         </Pressable>
       ) : (
         <View style={styles.backSpacer} />
       )}
       <View style={styles.textCol}>
-        <Text style={[styles.title, (variant === 'gradient' || variant === 'premium') && styles.titleOnGradient, variant === 'premium' && styles.titlePremium]}>{title}</Text>
+        <Text
+          style={[styles.title, onDark ? styles.titleOnDark : styles.titleLight]}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
         {subtitle ? (
-          <Text style={[styles.sub, (variant === 'gradient' || variant === 'premium') && styles.subOnGradient]}>{subtitle}</Text>
+          <Text
+            style={[styles.sub, onDark ? styles.subOnDark : styles.subLight]}
+            numberOfLines={2}
+          >
+            {subtitle}
+          </Text>
         ) : null}
       </View>
       {rightAction ?? <View style={styles.backSpacer} />}
     </View>
   );
 
-  if (variant === 'gradient' || variant === 'premium') {
+  if (variant === 'premium') {
     return (
-      <LinearGradient
-        colors={variant === 'premium' ? [...gradients.premiumHero] : [...gradients.header]}
-        style={[
-          styles.gradientWrap,
-          variant === 'premium' && styles.premiumWrap,
-          { paddingBottom: overlapReserve ? spacing.xl + 24 : spacing.md },
+      <HeroDarkSlice
+        style={styles.premiumShell}
+        contentStyle={[
+          styles.premiumContent,
+          { paddingBottom: overlapReserve ? spacing.xl + 28 : spacing.md + 10 },
         ]}
+        sliceHeight={22}
       >
-        {variant === 'premium' ? <View style={styles.heroGlow} /> : null}
         {content}
         {children}
-        {variant === 'premium' ? <View style={styles.classicRule}><View style={styles.classicRuleGold} /><View style={styles.classicRuleLine} /></View> : null}
+        <View style={styles.classicRule}>
+          <View style={styles.classicRuleGold} />
+          <View style={styles.classicRuleLine} />
+        </View>
+      </HeroDarkSlice>
+    );
+  }
+
+  if (variant === 'gradient') {
+    return (
+      <LinearGradient
+        colors={[...gradients.header]}
+        style={[
+          styles.gradientWrap,
+          { paddingBottom: overlapReserve ? spacing.xl + 28 : spacing.md + 6 },
+        ]}
+        start={{ x: 0.12, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
+      >
+        {content}
+        {children}
+        <View style={styles.classicRule}>
+          <View style={styles.classicRuleGold} />
+          <View style={styles.classicRuleLine} />
+        </View>
       </LinearGradient>
     );
   }
 
   return (
-    <View style={styles.lightWrap}>
+    <View
+      style={[
+        styles.lightWrap,
+        { paddingBottom: overlapReserve ? spacing.xl + 20 : spacing.sm + 4 },
+      ]}
+    >
+      <LinearGradient
+        colors={['rgba(255,255,255,0.86)', 'rgba(247,250,244,0.62)']}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
       {content}
       {children}
+      <LinearGradient
+        colors={['#8FD03C', '#27A747']}
+        style={styles.lightEdge}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  premiumShell: {
+    overflow: 'hidden',
+  },
+  premiumContent: {
+    paddingHorizontal: spacing.md,
+  },
   gradientWrap: {
     borderBottomLeftRadius: radius.xl,
     borderBottomRightRadius: radius.xl,
     paddingHorizontal: spacing.md,
-  },
-  premiumWrap: {
-    borderBottomLeftRadius: radius.xl,
-    borderBottomRightRadius: radius.xl,
-    ...shadows.hero,
-  },
-  heroGlow: {
-    position: 'absolute',
-    top: -30,
-    right: 20,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(168,224,78,0.1)',
+    overflow: 'hidden',
   },
   lightWrap: {
-    backgroundColor: colors.white,
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    ...shadows.card,
+    borderBottomWidth: 0,
+    overflow: 'hidden',
+    backgroundColor: surfaces.glass,
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 44 },
+  lightEdge: {
+    height: 2.5,
+    marginTop: spacing.sm,
+    borderRadius: 2,
+    marginHorizontal: 2,
+  },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 48 },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.white,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.card,
   },
-  backBtnOnGradient: {
-    backgroundColor: surfaces.glassDark,
+  backBtnLight: {
+    backgroundColor: 'rgba(255,255,255,0.82)',
     borderWidth: 1,
-    borderColor: surfaces.glassBorder,
-    shadowOpacity: 0,
-    elevation: 0,
+    borderColor: surfaces.glassBorderStrong,
   },
-  backSpacer: { width: 40 },
+  backBtnOnDark: {
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+  },
+  backSpacer: { width: 42 },
   textCol: { flex: 1, minWidth: 0 },
-  title: { ...customerType.cardTitle, fontSize: 20, letterSpacing: -0.35, color: colors.ink },
-  titlePremium: { ...customerType.pageTitleCompact },
-  titleOnGradient: { ...customerType.pageTitleCompact, fontSize: 20, letterSpacing: -0.4 },
-  sub: { ...customerType.pageSubtitleMuted },
-  subOnGradient: { ...customerType.pageSubtitle },
+  title: { ...customerType.pageTitleCompact },
+  titleLight: { color: colors.ink, fontSize: 22 },
+  titleOnDark: { color: colors.white, fontSize: 22, letterSpacing: -0.45 },
+  sub: { marginTop: 2 },
+  subLight: { ...customerType.pageSubtitleMuted },
+  subOnDark: { ...customerType.pageSubtitle },
   classicRule: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -155,13 +228,14 @@ const styles = StyleSheet.create({
   },
   classicRuleGold: {
     width: 28,
-    height: 2,
-    borderRadius: 1,
+    height: 2.5,
+    borderRadius: 2,
     backgroundColor: premium.accentGold,
   },
   classicRuleLine: {
     flex: 1,
-    height: 1,
+    height: StyleSheet.hairlineWidth,
     backgroundColor: classic.headerGoldLine,
   },
+  pressed: { opacity: 0.88, transform: [{ scale: 0.96 }] },
 });

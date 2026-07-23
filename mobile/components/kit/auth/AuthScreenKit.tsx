@@ -13,32 +13,42 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Lock } from 'lucide-react-native';
-import { router } from 'expo-router';
-import { safeGoBack } from '@/lib/routes';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
+import { safeGoBack, authRoutes } from '@/lib/routes';
 import { BrandLogo } from '@/components/BrandLogo';
-import { colors, fonts, gradients, premium, premiumType, shadows, spacing } from '@/constants/theme';
+import { colors, fonts, premium, premiumType, spacing, surfaces } from '@/constants/theme';
 
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
+const H = SCREEN_H;
+const W = SCREEN_W;
 
 function useSplashEnter() {
   const logo = useRef(new Animated.Value(0)).current;
   const title = useRef(new Animated.Value(0)).current;
   const meta = useRef(new Animated.Value(0)).current;
-  const pulse = useRef(new Animated.Value(1)).current;
+  const pulse = useRef(new Animated.Value(0)).current;
   const progress = useRef(new Animated.Value(0)).current;
+  const drift = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.stagger(100, [
-      Animated.timing(logo, { toValue: 1, duration: 750, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      Animated.timing(title, { toValue: 1, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      Animated.timing(meta, { toValue: 1, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+    Animated.stagger(110, [
+      Animated.timing(logo, { toValue: 1, duration: 780, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(title, { toValue: 1, duration: 640, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(meta, { toValue: 1, duration: 520, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
     ]).start();
 
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.05, duration: 1400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 2100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 2100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+    ).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(drift, { toValue: 1, duration: 5000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(drift, { toValue: 0, duration: 5000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
       ]),
     ).start();
 
@@ -48,38 +58,32 @@ function useSplashEnter() {
         Animated.timing(progress, { toValue: 0.15, duration: 0, useNativeDriver: false }),
       ]),
     ).start();
-  }, [logo, title, meta, pulse, progress]);
+  }, [drift, logo, title, meta, pulse, progress]);
 
   const fadeUp = (v: Animated.Value) => ({
     opacity: v,
-    transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [22, 0] }) }],
+    transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }],
   });
 
   const progressWidth = progress.interpolate({ inputRange: [0, 1], outputRange: ['15%', '92%'] });
 
-  return { logo: fadeUp(logo), title: fadeUp(title), meta: fadeUp(meta), pulse, progressWidth };
-}
-
-function useLoginEnter() {
-  const hero = useRef(new Animated.Value(0)).current;
-  const sheet = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(hero, { toValue: 1, duration: 650, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      Animated.spring(sheet, { toValue: 1, friction: 9, tension: 55, useNativeDriver: true }),
-    ]).start();
-  }, [hero, sheet]);
-
   return {
-    hero: {
-      opacity: hero,
+    logo: fadeUp(logo),
+    title: fadeUp(title),
+    meta: fadeUp(meta),
+    pulse,
+    progressWidth,
+    driftA: {
       transform: [
-        { scale: hero.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1] }) },
+        { translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [0, 16] }) },
+        { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [0, -12] }) },
       ],
     },
-    sheet: {
-      opacity: sheet,
+    driftB: {
+      transform: [
+        { translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [0, -14] }) },
+        { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [0, 10] }) },
+      ],
     },
   };
 }
@@ -95,7 +99,7 @@ export function AuthSplashLayout({
   tagline,
   trustBadges,
   footer,
-  logoSize = 112,
+  logoSize = 124,
 }: {
   brandName: string;
   tagline?: string;
@@ -105,72 +109,125 @@ export function AuthSplashLayout({
 }) {
   const insets = useSafeAreaInsets();
   const enter = useSplashEnter();
-  const chips = trustBadges?.length ? trustBadges : ['Eco-safe', 'Certified', 'Verified'];
+  const trustLine = (trustBadges?.length ? trustBadges : ['Secure', 'Eco-safe', 'Verified']).slice(0, 3).join(' · ');
 
   return (
     <View style={styles.splashRoot}>
       <LinearGradient
-        colors={['#2BB563', '#14532D', '#0E3A20']}
+        colors={['#1A8734', '#0A6423', '#053A18', '#02180C']}
+        locations={[0, 0.28, 0.62, 1]}
         style={[styles.splashGradient, { paddingTop: insets.top + spacing.lg }]}
-        start={{ x: 0.2, y: 0 }}
+        start={{ x: 0.15, y: 0 }}
         end={{ x: 0.9, y: 1 }}
       >
-        <View style={styles.splashGlowA} />
-        <View style={styles.splashGlowB} />
-        <View style={[styles.orb, { top: SCREEN_H * 0.18, left: SCREEN_W * 0.08 }]} />
-        <View style={[styles.orb, styles.orbSmall, { top: SCREEN_H * 0.55, right: SCREEN_W * 0.12 }]} />
+        <Animated.View style={[styles.splashGlowA, enter.driftA]} pointerEvents="none" />
+        <Animated.View style={[styles.splashGlowB, enter.driftB]} pointerEvents="none" />
+        <View style={styles.splashBeam} pointerEvents="none" />
+        <LinearGradient
+          colors={['rgba(2,24,12,0)', 'rgba(2,24,12,0.2)', 'rgba(2,24,12,0.55)']}
+          locations={[0.35, 0.7, 1]}
+          style={styles.splashBottomFade}
+          pointerEvents="none"
+        />
 
         <View style={styles.splashCenter}>
           <Animated.View style={enter.logo}>
-            <Animated.View style={{ transform: [{ scale: enter.pulse }] }}>
-              <View style={styles.logoRing}>
+            <Animated.View
+              style={{
+                transform: [
+                  { scale: enter.pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.03] }) },
+                ],
+              }}
+            >
+              <View style={styles.logoHalo} />
+              <LinearGradient
+                colors={['rgba(255,255,255,0.42)', 'rgba(143,208,60,0.55)', 'rgba(48,184,79,0.18)']}
+                locations={[0, 0.45, 1]}
+                start={{ x: 0.15, y: 0 }}
+                end={{ x: 0.9, y: 1 }}
+                style={styles.logoRing}
+              >
                 <View style={styles.logoRingInner}>
-                  <BrandLogo size={logoSize} />
+                  <BrandLogo size={logoSize} animate={false} />
                 </View>
-              </View>
+              </LinearGradient>
             </Animated.View>
           </Animated.View>
 
-          <Animated.View style={enter.title}>
+          <Animated.View style={[styles.splashTitleBlock, enter.title]}>
             <Text style={styles.splashBrand}>{brandName}</Text>
+            <View style={styles.splashBrandRule} />
             {tagline ? <Text style={styles.splashTag}>{tagline}</Text> : null}
-          </Animated.View>
-
-          <Animated.View style={[styles.trustRow, enter.meta]}>
-            {chips.slice(0, 4).map((t) => (
-              <View key={t} style={styles.trustChip}>
-                <View style={styles.trustDot} />
-                <Text style={styles.trustText}>{t}</Text>
-              </View>
-            ))}
           </Animated.View>
         </View>
 
-        {footer ? (
-          <Animated.View style={[styles.splashFooter, enter.meta, { paddingBottom: insets.bottom + spacing.lg }]}>
+        <Animated.View style={[styles.splashFooter, enter.meta, { paddingBottom: insets.bottom + spacing.lg }]}>
+          {footer ? (
+            footer
+          ) : (
             <View style={styles.progressTrack}>
               <Animated.View style={[styles.progressFill, { width: enter.progressWidth }]} />
             </View>
-            {footer}
-          </Animated.View>
-        ) : null}
+          )}
+          <Text style={styles.splashTrustLine}>{trustLine}</Text>
+        </Animated.View>
       </LinearGradient>
     </View>
   );
 }
 
-/** Login / register / OTP — gradient hero + animated bottom sheet. */
+function useLoginEnter() {
+  const hero = useRef(new Animated.Value(0)).current;
+  const drift = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(hero, { toValue: 1, duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(drift, { toValue: 1, duration: 3600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(drift, { toValue: 0, duration: 3600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ]),
+    ).start();
+  }, [hero, drift]);
+
+  return {
+    hero: {
+      opacity: hero,
+      transform: [{ translateY: hero.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+    },
+    driftA: {
+      transform: [
+        { translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [0, 16] }) },
+        { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [0, -12] }) },
+      ],
+    },
+    driftB: {
+      transform: [
+        { translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [0, -12] }) },
+        { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [0, 10] }) },
+      ],
+    },
+  };
+}
+
+/**
+ * Auth hero — brand-first forest gradient + mint glass sheet.
+ * The sheet is intentionally a plain View: animated ancestors break TextInput focus.
+ */
 export function AuthLoginShell({
   title,
   subtitle,
-  tagline,
-  trustBadges,
-  guaranteeText,
+  brandName = 'Mr Antidot',
+  brandTag = 'Pest control & care',
   showBack,
   children,
 }: {
   title: string;
   subtitle?: string;
+  brandName?: string;
+  brandTag?: string;
+  /** Unused legacy props kept for compatibility. */
   tagline?: string;
   trustBadges?: string[];
   guaranteeText?: string;
@@ -179,7 +236,6 @@ export function AuthLoginShell({
 }) {
   const insets = useSafeAreaInsets();
   const enter = useLoginEnter();
-  const chips = trustBadges?.length ? trustBadges.slice(0, 3) : ['Verified pros', 'Secure login', '24/7 support'];
 
   return (
     <KeyboardAvoidingView
@@ -187,55 +243,102 @@ export function AuthLoginShell({
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <LinearGradient
-        colors={[...gradients.premiumHero]}
+        colors={['#1F9A42', '#0A6423', '#043A16', '#02180C']}
+        locations={[0, 0.38, 0.72, 1]}
         style={[styles.loginHeroBlock, { paddingTop: insets.top + spacing.sm }]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{ x: 0.12, y: 0 }}
+        end={{ x: 0.88, y: 1 }}
       >
-        <View style={styles.loginGlow} pointerEvents="none" />
-        <View style={styles.loginGlowB} pointerEvents="none" />
-        {showBack ? (
-          <Pressable style={styles.backBtn} onPress={() => safeGoBack('/(auth)/login')} hitSlop={12}>
-            <ChevronLeft size={22} color={colors.white} />
-          </Pressable>
-        ) : null}
-        <Animated.View style={[styles.loginHeroInner, enter.hero]} pointerEvents="box-none">
-          <View style={styles.loginLogoWrap}>
-            <BrandLogo size={56} />
-          </View>
-          <Text style={styles.loginTitle}>{title}</Text>
-          {subtitle ? <Text style={styles.loginSub}>{subtitle}</Text> : null}
-          {tagline ? <Text style={styles.loginTagline}>{tagline}</Text> : null}
-          <View style={styles.loginTrustRow}>
-            {chips.map((t) => (
-              <View key={t} style={styles.loginTrustChip}>
-                <Text style={styles.loginTrustText}>{t}</Text>
-              </View>
-            ))}
-          </View>
+        <Animated.View style={[styles.heroGlowA, enter.driftA]} pointerEvents="none">
+          <LinearGradient
+            colors={['rgba(184,232,106,0.42)', 'rgba(143,208,60,0)']}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0.2, y: 0.2 }}
+            end={{ x: 1, y: 1 }}
+          />
         </Animated.View>
+        <Animated.View style={[styles.heroGlowB, enter.driftB]} pointerEvents="none">
+          <LinearGradient
+            colors={['rgba(255,255,255,0.18)', 'rgba(255,255,255,0)']}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+        </Animated.View>
+        <View style={styles.heroRay} pointerEvents="none" />
+        <LinearGradient
+          colors={['rgba(255,255,255,0.16)', 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0)']}
+          style={styles.heroSheen}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          pointerEvents="none"
+        />
+
+        {showBack ? (
+          <Pressable style={styles.backBtn} onPress={() => safeGoBack(authRoutes.login)} hitSlop={12}>
+            <PremiumIcon icon={AppIcons.ui.chevronLeft} variant="plain" size={22} color={colors.white} />
+          </Pressable>
+        ) : (
+          <View style={styles.backSpacer} />
+        )}
+
+        <Animated.View style={[styles.heroInner, enter.hero]} pointerEvents="box-none">
+          <View style={styles.brandRow}>
+            <LinearGradient
+              colors={['#FFFFFF', '#F4FBF0']}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.brandTile}
+            >
+              <BrandLogo size={36} animate={false} />
+            </LinearGradient>
+            <View style={styles.brandInfo}>
+              <Text style={styles.brandName} numberOfLines={1}>
+                {brandName}
+              </Text>
+              <View style={styles.brandRule} />
+              <Text style={styles.brandSub} numberOfLines={1}>
+                {brandTag}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.heroTitle}>{title}</Text>
+          {subtitle ? <Text style={styles.heroDesc}>{subtitle}</Text> : null}
+        </Animated.View>
+
+        <LinearGradient
+          colors={['#B8E86A', '#8FD03C', '#27A747', 'transparent']}
+          locations={[0, 0.35, 0.7, 1]}
+          style={styles.heroEdgeBar}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          pointerEvents="none"
+        />
       </LinearGradient>
 
       <View style={styles.sheetWrap}>
-        <Animated.View style={[styles.sheet, enter.sheet]}>
-          <View style={styles.sheetGoldLine} pointerEvents="none" />
+        <View style={styles.sheet}>
+          <LinearGradient
+            colors={['#FBFEF9', '#F4FAEF', '#EAF6E3']}
+            locations={[0, 0.55, 1]}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            pointerEvents="none"
+          />
           <View style={styles.sheetHandle} pointerEvents="none" />
           <ScrollView
             style={styles.sheetScrollView}
-            contentContainerStyle={[styles.sheetScroll, { paddingBottom: insets.bottom + spacing.xl }]}
-            keyboardShouldPersistTaps="always"
-            keyboardDismissMode="on-drag"
-            automaticallyAdjustKeyboardInsets
+            contentContainerStyle={[styles.sheetScroll, { paddingBottom: insets.bottom + spacing.xl + 4 }]}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="none"
             showsVerticalScrollIndicator={false}
+            bounces={false}
           >
             {children}
-            {guaranteeText ? (
-              <View style={styles.guaranteeBox}>
-                <Text style={styles.guaranteeText}>{guaranteeText}</Text>
-              </View>
-            ) : null}
           </ScrollView>
-        </Animated.View>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -249,7 +352,7 @@ export function AuthSecureNote({ text = '256-bit secure sign-in' }: { text?: str
   return (
     <View style={styles.secureRow}>
       <View style={styles.secureIcon}>
-        <Lock size={12} color={colors.forest} />
+        <PremiumIcon icon={AppIcons.ui.lock} variant="plain" size={12} color="#1A8734" />
       </View>
       <Text style={styles.secureText}>{text}</Text>
     </View>
@@ -261,7 +364,7 @@ export function AuthLinkRow({ children }: { children: ReactNode }) {
 }
 
 export function AuthFooterText({ children }: { children: ReactNode }) {
-  return <Text style={styles.footerText}>{children}</Text>;
+  return <View style={styles.footerText}>{children}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -269,254 +372,343 @@ const styles = StyleSheet.create({
   splashGradient: { flex: 1 },
   splashGlowA: {
     position: 'absolute',
-    top: -80,
-    right: -50,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: 'rgba(168,224,78,0.12)',
+    top: -H * 0.12,
+    right: -W * 0.28,
+    width: W * 0.9,
+    height: W * 0.9,
+    borderRadius: W * 0.45,
+    backgroundColor: 'rgba(143,208,60,0.22)',
   },
   splashGlowB: {
     position: 'absolute',
-    bottom: 80,
-    left: -70,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    bottom: -H * 0.05,
+    left: -W * 0.2,
+    width: W * 0.78,
+    height: W * 0.78,
+    borderRadius: W * 0.39,
+    backgroundColor: 'rgba(8,90,34,0.5)',
   },
-  orb: {
+  splashBeam: {
     position: 'absolute',
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(168,224,78,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(168,224,78,0.15)',
+    top: H * 0.08,
+    left: W * 0.05,
+    width: W * 0.48,
+    height: H * 0.55,
+    borderRadius: 120,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    transform: [{ rotate: '22deg' }],
   },
-  orbSmall: { width: 40, height: 40, borderRadius: 20 },
+  splashBottomFade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: H * 0.42,
+  },
   splashCenter: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    gap: spacing.xl,
+  },
+  logoHalo: {
+    position: 'absolute',
+    alignSelf: 'center',
+    top: -15,
+    width: 188,
+    height: 188,
+    borderRadius: 94,
+    backgroundColor: 'rgba(143,208,60,0.16)',
   },
   logoRing: {
+    width: 158,
+    height: 158,
+    borderRadius: 46,
     padding: 4,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: 'rgba(182,132,28,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoRingInner: {
-    padding: 8,
-    borderRadius: 999,
+    width: 150,
+    height: 150,
+    borderRadius: 42,
     borderWidth: 1,
-    borderColor: 'rgba(168,224,78,0.35)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 22 },
+    shadowOpacity: 0.38,
+    shadowRadius: 32,
+    elevation: 16,
+  },
+  splashTitleBlock: {
+    alignItems: 'center',
+    gap: 14,
   },
   splashBrand: {
-    ...premiumType.brandHero,
+    fontFamily: fonts.brand,
+    fontSize: 46,
+    lineHeight: 50,
+    letterSpacing: -1.6,
     color: colors.white,
-    marginTop: spacing.lg,
     textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.28)',
+    textShadowOffset: { width: 0, height: 8 },
+    textShadowRadius: 18,
+  },
+  splashBrandRule: {
+    width: 42,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#8FD03C',
   },
   splashTag: {
-    ...premiumType.brandSub,
-    color: 'rgba(255,255,255,0.82)',
-    marginTop: spacing.sm,
+    fontFamily: fonts.body,
+    fontSize: 15.5,
+    lineHeight: 23,
+    color: 'rgba(255,255,255,0.74)',
     textAlign: 'center',
-    maxWidth: 300,
+    maxWidth: 290,
+  },
+  splashTrustLine: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 12,
+    letterSpacing: 0.35,
+    color: 'rgba(255,255,255,0.48)',
+    textAlign: 'center',
   },
   trustRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 8,
-    marginTop: spacing.lg,
+    marginTop: spacing.sm,
   },
   trustChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 999,
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
   },
-  trustDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.lime },
-  trustText: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.white },
+  trustDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#8FD03C' },
+  trustText: { fontFamily: fonts.bodySemi, fontSize: 11.5, color: colors.white },
   splashFooter: { alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.xl },
   progressTrack: {
     width: '100%',
     height: 3,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.14)',
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     borderRadius: 2,
-    backgroundColor: premium.accentGold,
+    backgroundColor: '#8FD03C',
   },
 
-  loginRoot: { flex: 1, backgroundColor: colors.bg },
+  loginRoot: { flex: 1, backgroundColor: '#02180C' },
   loginHeroBlock: {
     overflow: 'hidden',
-    paddingBottom: spacing.lg + 4,
+    paddingBottom: spacing.xl + 36,
   },
-  loginGlow: {
+  heroGlowA: {
     position: 'absolute',
-    top: -30,
-    right: -20,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(168,224,78,0.1)',
+    top: -100,
+    right: -70,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    overflow: 'hidden',
   },
-  loginGlowB: {
+  heroGlowB: {
     position: 'absolute',
-    bottom: 40,
-    left: -40,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(182,132,28,0.08)',
+    bottom: -40,
+    left: -80,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    overflow: 'hidden',
+  },
+  heroRay: {
+    position: 'absolute',
+    top: -20,
+    left: W * 0.08,
+    width: W * 0.42,
+    height: 220,
+    borderRadius: 80,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    transform: [{ rotate: '18deg' }],
+  },
+  heroSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 150,
   },
   backBtn: {
     alignSelf: 'flex-start',
-    marginLeft: spacing.md,
-    marginBottom: spacing.sm,
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    marginLeft: spacing.lg,
+    marginBottom: spacing.xs,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
+    borderColor: 'rgba(255,255,255,0.2)',
   },
-  loginHeroInner: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xs,
+  backSpacer: {
+    height: 8,
   },
-  loginLogoWrap: {
-    padding: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(168,224,78,0.25)',
+  heroInner: {
+    paddingHorizontal: spacing.lg + 6,
+    paddingTop: spacing.sm,
   },
-  loginTitle: {
-    ...premiumType.brandTitle,
-    color: colors.white,
-    marginTop: spacing.sm,
-  },
-  loginSub: {
-    ...premiumType.buttonAlt,
-    fontSize: 15,
-    color: colors.lime,
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  loginTagline: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.72)',
-    marginTop: 6,
-    textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 280,
-  },
-  loginTrustRow: {
+  brandRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: spacing.lg + 6,
+  },
+  brandTile: {
+    width: 58,
+    height: 58,
+    borderRadius: 18,
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    marginTop: spacing.md,
-  },
-  loginTrustChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
-  loginTrustText: { fontFamily: fonts.bodySemi, fontSize: 10, color: 'rgba(255,255,255,0.9)' },
-  sheetWrap: { flex: 1, marginTop: -20 },
-  sheet: {
-    flex: 1,
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderColor: 'rgba(255,255,255,0.65)',
     overflow: 'hidden',
-    ...shadows.floating,
+    shadowColor: '#02180C',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.32,
+    shadowRadius: 16,
+    elevation: 10,
   },
-  sheetGoldLine: {
-    position: 'absolute',
-    top: 0,
-    left: spacing.xl,
-    right: spacing.xl,
+  brandInfo: { flex: 1, minWidth: 0, gap: 5 },
+  brandName: {
+    fontFamily: fonts.brand,
+    fontSize: 27,
+    letterSpacing: -0.7,
+    color: '#FFFFFF',
+    lineHeight: 31,
+  },
+  brandRule: {
+    width: 32,
     height: 3,
     borderRadius: 2,
-    backgroundColor: premium.accentGold,
-    zIndex: 1,
+    backgroundColor: '#8FD03C',
+  },
+  brandSub: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 12.5,
+    letterSpacing: 0.15,
+    color: 'rgba(255,255,255,0.68)',
+  },
+  heroTitle: {
+    fontFamily: fonts.displayExtra,
+    fontSize: 36,
+    lineHeight: 40,
+    letterSpacing: -1.1,
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.22)',
+    textShadowOffset: { width: 0, height: 6 },
+    textShadowRadius: 14,
+  },
+  heroDesc: {
+    fontFamily: fonts.body,
+    fontSize: 14.5,
+    lineHeight: 21,
+    color: 'rgba(255,255,255,0.68)',
+    marginTop: 10,
+    maxWidth: 310,
+  },
+  heroEdge: {
+    position: 'absolute',
+    left: spacing.lg + 4,
+    right: spacing.lg + 4,
+    bottom: 22,
+  },
+  heroEdgeBar: {
+    position: 'absolute',
+    left: spacing.lg + 6,
+    right: spacing.lg + 6,
+    bottom: 28,
+    height: 3,
+    borderRadius: 2,
+  },
+  sheetWrap: { flex: 1, marginTop: -34 },
+  sheet: {
+    flex: 1,
+    borderTopLeftRadius: 36,
+    borderTopRightRadius: 36,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: 'rgba(255,255,255,0.72)',
+    overflow: 'hidden',
+    ...premium.shadowSoft,
+    shadowOffset: { width: 0, height: -14 },
+    shadowOpacity: 0.26,
+    shadowRadius: 28,
+    elevation: 18,
   },
   sheetHandle: {
     alignSelf: 'center',
     width: 44,
     height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    marginTop: spacing.sm + 2,
-    marginBottom: spacing.xs,
+    borderRadius: 999,
+    backgroundColor: 'rgba(26,135,52,0.28)',
+    marginTop: spacing.md + 2,
+    marginBottom: spacing.sm,
   },
   sheetScrollView: { flex: 1 },
   sheetScroll: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.lg + 4,
+    paddingTop: spacing.xs,
   },
-  formSection: { gap: 0 },
-  guaranteeBox: {
-    marginTop: spacing.md,
-    padding: spacing.sm + 4,
-    borderRadius: 14,
-    backgroundColor: premium.accentGoldBg,
-    borderWidth: 1,
-    borderColor: 'rgba(182,132,28,0.2)',
-  },
-  guaranteeText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: premium.accentGold,
-    textAlign: 'center',
-    lineHeight: 17,
-  },
+  formSection: { gap: 2, paddingTop: spacing.xs },
   secureRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: spacing.lg,
+    marginTop: spacing.md + 2,
   },
   secureIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    backgroundColor: colors.soft,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255,255,255,0.78)',
+    borderWidth: 1,
+    borderColor: surfaces.glassBorderStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  secureText: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.muted },
+  secureText: { ...premiumType.caption, fontSize: 11.5, color: colors.muted },
   linkRow: { marginTop: spacing.md, alignItems: 'center' },
   footerText: {
-    textAlign: 'center',
-    marginTop: spacing.lg,
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.muted,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: spacing.lg + 6,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(219,241,209,0.95)',
   },
 });
 

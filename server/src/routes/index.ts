@@ -13,6 +13,7 @@ import { offersRouter } from './offers.routes';
 import { contentRouter } from './content.routes';
 import { techniciansRouter } from './technicians.routes';
 import { attendanceRouter } from './attendance.routes';
+import { leaveRouter } from './leave.routes';
 
 export const apiRouter = Router();
 
@@ -34,3 +35,4 @@ apiRouter.use('/offers', offersRouter);
 apiRouter.use('/content', contentRouter);
 apiRouter.use('/technicians', techniciansRouter);
 apiRouter.use('/attendance', attendanceRouter);
+apiRouter.use('/leave', leaveRouter);

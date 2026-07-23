@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -10,17 +10,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  Building2,
-  Calendar,
-  Camera,
-  CheckCircle2,
-  ChevronLeft,
-  CreditCard,
-  MapPin,
-  Tag,
-} from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import Toast from 'react-native-toast-message';
+import { paramString } from '@/lib/routeParams';
+import { GlassBackdrop } from '@/components/kit/GlassScreenKit';
 import { BookTimePicker } from '@/components/kit/BookTimePicker';
 import { ScheduleDayPicker } from '@/components/kit/ScheduleDayPicker';
 import { ScheduleModeToggle } from '@/components/kit/ScheduleModeToggle';
@@ -61,19 +55,25 @@ import { defaultPaymentType, resolvePaymentMethods } from '@/lib/bookingPayment'
 import { paymentMethodLabel } from '@/lib/booking-helpers';
 import { computePricing, isValidCoupon } from '@/lib/pricing';
 import { useBookingCopy, getWizardStepLabels } from '@/lib/schedule-copy';
-import { safeGoBack } from '@/lib/routes';
+import { safeGoBack, customerRoutes, sharedRoutes, appReplace } from '@/lib/routes';
 import { uploadImages, type PickedImage } from '@/lib/upload';
 import {
-  BOOKING_SLOTS,
+  DEFAULT_BOOKING_SLOT,
   formatScheduleLabel,
   nextBookableDays,
 } from '@/lib/dates';
 import type { Offer, PaymentMethodRecord, PropertyTypeKey, SavedAddress, ScheduleMode, Service } from '@/types/api';
 import { propertyTypeLabel } from '@/constants/propertyTypes';
-import { colors, design, fonts, gradients, headerTopPad, premium, radius, spacing } from '@/constants/theme';
+import { colors, fonts, gradients, headerTopPad, premium, radius, spacing, surfaces } from '@/constants/theme';
 
 const DAY_OPTIONS = nextBookableDays(7);
-const BOOK_STEP_ICONS = [Calendar, Building2, MapPin, CreditCard, CheckCircle2] as const;
+const BOOK_STEP_ICONS = [
+  AppIcons.ui.calendar,
+  AppIcons.property.apartment,
+  AppIcons.ui.mapPin,
+  AppIcons.payment.card,
+  AppIcons.toast.success,
+] as const;
 
 export default function BookWizardScreen() {
   const bookingCopy = useBookingCopy();
@@ -81,13 +81,15 @@ export default function BookWizardScreen() {
   const insets = useSafeAreaInsets();
   const { location, locating, detectAddress, displayLabel } = useLocation();
   const scrollRef = useRef<ScrollView>(null);
-  const { serviceId, coupon: couponParam } = useLocalSearchParams<{ serviceId: string; coupon?: string }>();
+  const params = useLocalSearchParams<{ serviceId: string | string[]; coupon?: string | string[] }>();
+  const serviceId = paramString(params.serviceId);
+  const couponParam = paramString(params.coupon);
   const [service, setService] = useState<Service | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [step, setStep] = useState(0);
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('standard');
   const [date, setDate] = useState(DAY_OPTIONS[0]!.date);
-  const [slot, setSlot] = useState<string>(BOOKING_SLOTS[0]);
+  const [slot, setSlot] = useState<string>(DEFAULT_BOOKING_SLOT);
   const [customHour, setCustomHour] = useState(10);
   const [customMinute, setCustomMinute] = useState(0);
   const [scheduleNotes, setScheduleNotes] = useState('');
@@ -109,6 +111,10 @@ export default function BookWizardScreen() {
   }, [step]);
 
   const loadData = async (skipCache = false) => {
+    if (!serviceId) {
+      setLoadError('Service not found');
+      return;
+    }
     setLoadError(null);
     const cache = skipCache ? { skipCache: true as const } : {};
     const results = await Promise.allSettled([
@@ -317,8 +323,8 @@ export default function BookWizardScreen() {
         problemPhotos,
         assignmentMode: 'auto',
       });
-      router.replace({
-        pathname: '/book/success',
+      appReplace({
+        pathname: sharedRoutes.bookSuccess,
         params: {
           bookingId: data.booking.id,
           serviceName: service.name,
@@ -326,7 +332,7 @@ export default function BookWizardScreen() {
           total: String(pricing?.total ?? 0),
           payment: paymentMethod ? paymentMethodLabel(paymentMethod) : '',
         },
-      } as never);
+      });
     } catch (err) {
       Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not confirm booking') });
     } finally {
@@ -336,18 +342,24 @@ export default function BookWizardScreen() {
 
   if (loadError) {
     return (
-      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-        <LinearGradient
-          colors={[...gradients.bookHero]}
-          style={[styles.errorHeader, { paddingTop: headerTopPad(insets.top) }]}
-        >
-          <Pressable style={styles.errorBack} onPress={() => safeGoBack('/(customer)/services')} hitSlop={8}>
-            <ChevronLeft size={22} color={colors.white} />
-          </Pressable>
-          <Text style={styles.errorTitle}>{bookingCopy.wizardScreenTitle}</Text>
-        </LinearGradient>
-        <ListEmptyRetry message={loadError} onRetry={() => safeAsync(() => loadData(true))} />
-      </SafeAreaView>
+      <View style={styles.root}>
+        <GlassBackdrop />
+        <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+          <LinearGradient
+            colors={[...gradients.bookHero]}
+            style={[styles.errorHeader, { paddingTop: headerTopPad(insets.top) }]}
+          >
+            <Pressable style={styles.errorBack} onPress={() => safeGoBack(customerRoutes.services)} hitSlop={8}>
+              <PremiumIcon icon={AppIcons.ui.chevronLeft} variant="plain" size={22} color={colors.white} />
+            </Pressable>
+            <Text style={styles.errorTitle}>{bookingCopy.wizardScreenTitle}</Text>
+          </LinearGradient>
+          <ListEmptyRetry
+            message={loadError}
+            onRetry={() => safeAsync(() => loadData(true), undefined, (msg) => setLoadError(msg))}
+          />
+        </SafeAreaView>
+      </View>
     );
   }
 
@@ -356,12 +368,14 @@ export default function BookWizardScreen() {
   const activeOffers = offers.filter((o) => o.active);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+    <View style={styles.root}>
+      <GlassBackdrop />
+      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
       <View style={styles.stickyHeader}>
         <BookServiceStrip
           service={service}
           durationLabel={durationLabel}
-          onBack={() => (step > 0 ? setStep((s) => s - 1) : safeGoBack('/(customer)/services'))}
+          onBack={() => (step > 0 ? setStep((s) => s - 1) : safeGoBack(customerRoutes.services))}
           title={step > 0 ? bookStepLabels[step]! : bookingCopy.wizardScreenTitle}
           variant={step === 0 ? 'slim' : 'compact'}
         />
@@ -459,7 +473,7 @@ export default function BookWizardScreen() {
             ) : null}
 
             {step === 1 && (
-              <BookWizardStepPanel icon={Building2} title="Property type" animTrigger={step} compactHeader>
+              <BookWizardStepPanel icon={AppIcons.property.apartment} title="Property type" animTrigger={step} compactHeader>
                 <BookWizardSection step={1} title="What type of premises?" compact>
                   <PropertyTypePicker value={propertyType} onChange={setPropertyType} />
                 </BookWizardSection>
@@ -467,7 +481,7 @@ export default function BookWizardScreen() {
             )}
 
             {step === 2 && (
-              <BookWizardStepPanel icon={MapPin} title="Service address" animTrigger={step} compactHeader>
+              <BookWizardStepPanel icon={AppIcons.ui.mapPin} title="Service address" animTrigger={step} compactHeader>
                 {displayLabel ? (
                   <LocationBanner label={displayLabel} loading={locating} />
                 ) : null}
@@ -510,7 +524,7 @@ export default function BookWizardScreen() {
             )}
 
             {step === 3 && pricing && (
-              <BookWizardStepPanel icon={CreditCard} title="Payment & offers" animTrigger={step} compactHeader>
+              <BookWizardStepPanel icon={AppIcons.payment.card} title="Payment & offers" animTrigger={step} compactHeader>
                 <BookWizardSection step={1} title="Price summary" compact>
                   <PaymentPriceHero amount={pricing} />
                 </BookWizardSection>
@@ -547,7 +561,7 @@ export default function BookWizardScreen() {
 
             {step === 4 && pricing && (
               <BookWizardStepPanel
-                icon={CheckCircle2}
+                icon={AppIcons.toast.success}
                 title={bookingCopy.wizardReviewSectionTitle}
                 subtitle={bookingCopy.pendingReviewNote}
                 animTrigger={step}
@@ -556,23 +570,23 @@ export default function BookWizardScreen() {
                 <BookWizardSection step={1} title="Your booking" compact>
                   <ConfirmDetailsList
                     items={[
-                      { icon: Calendar, label: 'Requested schedule', value: scheduleSummary },
+                      { icon: AppIcons.ui.calendar, label: 'Requested schedule', value: scheduleSummary },
                       {
-                        icon: Building2,
+                        icon: AppIcons.property.apartment,
                         label: 'Property type',
                         value: propertyType ? propertyTypeLabel(propertyType) : '—',
                       },
-                      { icon: MapPin, label: 'Service address', value: addressSummary },
+                      { icon: AppIcons.ui.mapPin, label: 'Service address', value: addressSummary },
                       {
-                        icon: CreditCard,
+                        icon: AppIcons.payment.card,
                         label: 'Payment method',
                         value: paymentMethod ? paymentMethodLabel(paymentMethod) : '—',
                       },
                       ...(coupon.trim()
-                        ? [{ icon: Tag, label: 'Coupon applied', value: coupon.trim().toUpperCase() }]
+                        ? [{ icon: AppIcons.ui.tag, label: 'Coupon applied', value: coupon.trim().toUpperCase() }]
                         : []),
                       {
-                        icon: Camera,
+                        icon: AppIcons.ui.camera,
                         label: 'Photos',
                         value: photoUris.length ? `${photoUris.length} attached` : 'None',
                       },
@@ -605,17 +619,19 @@ export default function BookWizardScreen() {
         secondaryTitle={step > 0 ? bookingCopy.wizardBackButton : undefined}
         onSecondary={step > 0 ? () => setStep((s) => s - 1) : undefined}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: design.screenBg },
+  root: { flex: 1, backgroundColor: surfaces.glassScreenBase },
+  safe: { flex: 1, backgroundColor: 'transparent' },
   stickyHeader: {
     zIndex: 10,
-    backgroundColor: design.screenBg,
+    backgroundColor: 'rgba(246,250,242,0.92)',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    borderBottomColor: surfaces.glassBorderStrong,
     elevation: 4,
     ...premium.shadowSoft,
   },
@@ -651,8 +667,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     borderRadius: premium.radiusCard,
     borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
+    borderColor: surfaces.glassBorderStrong,
+    backgroundColor: surfaces.glass,
   },
   techOptionOn: { borderColor: colors.green, backgroundColor: colors.soft },
   techIcon: {
@@ -675,7 +691,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     alignItems: 'center',
     borderRadius: 18,
-    backgroundColor: colors.white,
+    backgroundColor: 'rgba(255,255,255,0.82)',
     borderWidth: 1.5,
     borderColor: colors.border,
     marginRight: 10,
@@ -707,7 +723,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     alignItems: 'center',
     borderRadius: 16,
-    backgroundColor: colors.white,
+    backgroundColor: 'rgba(255,255,255,0.82)',
     borderWidth: 1.5,
     borderColor: colors.border,
     ...premium.shadowSoft,

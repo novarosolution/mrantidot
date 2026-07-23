@@ -3,7 +3,7 @@ import { KitTabBarButton } from '@/components/kit/KitTabBarButton';
 import { GlassTabBarBackground, glassTabBarStyle } from '@/components/kit/GlassScreenKit';
 import { KitTabBarIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { colors, design, typography } from '@/constants/theme';
+import { fonts, typography } from '@/constants/theme';
 
 const Tab = AppIcons.adminTab;
 
@@ -13,11 +13,17 @@ export default function AdminTabsLayout() {
       screenOptions={{
         headerShown: false,
         lazy: true,
-        tabBarActiveTintColor: design.tabBarActive,
-        tabBarInactiveTintColor: colors.muted,
+        tabBarActiveTintColor: '#0A6423',
+        tabBarInactiveTintColor: '#2F5538',
         tabBarStyle: glassTabBarStyle,
         tabBarBackground: () => <GlassTabBarBackground />,
-        tabBarLabelStyle: typography.tabLabel,
+        tabBarLabelStyle: {
+          ...typography.tabLabel,
+          fontFamily: fonts.bodyBold,
+          fontSize: 10,
+          letterSpacing: 0.2,
+          marginTop: 2,
+        },
         tabBarButton: (props) => <KitTabBarButton {...props} />,
       }}
     >

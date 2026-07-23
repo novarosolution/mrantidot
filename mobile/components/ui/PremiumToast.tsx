@@ -1,8 +1,10 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { AlertTriangle, CheckCircle2, Info, WifiOff, XCircle } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { ToastConfig } from 'react-native-toast-message';
 import Toast from 'react-native-toast-message';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
 
 type ToastVariant = 'success' | 'error' | 'info' | 'warning' | 'offline';
@@ -11,7 +13,7 @@ const VARIANT_META: Record<
   ToastVariant,
   {
     label: string;
-    icon: typeof CheckCircle2;
+    icon: LucideIcon;
     accent: string;
     accentSoft: string;
     iconColor: string;
@@ -20,7 +22,7 @@ const VARIANT_META: Record<
 > = {
   success: {
     label: 'Success',
-    icon: CheckCircle2,
+    icon: AppIcons.toast.success,
     accent: colors.forest,
     accentSoft: colors.soft,
     iconColor: colors.forest,
@@ -28,7 +30,7 @@ const VARIANT_META: Record<
   },
   error: {
     label: 'Error',
-    icon: XCircle,
+    icon: AppIcons.toast.error,
     accent: colors.error,
     accentSoft: colors.errorBg,
     iconColor: colors.error,
@@ -36,7 +38,7 @@ const VARIANT_META: Record<
   },
   info: {
     label: 'Info',
-    icon: Info,
+    icon: AppIcons.toast.info,
     accent: colors.secondaryDark,
     accentSoft: colors.secondarySoft,
     iconColor: colors.secondaryInk,
@@ -44,7 +46,7 @@ const VARIANT_META: Record<
   },
   warning: {
     label: 'Notice',
-    icon: AlertTriangle,
+    icon: AppIcons.toast.warn,
     accent: premium.accentGold,
     accentSoft: premium.accentGoldBg,
     iconColor: premium.accentGold,
@@ -52,7 +54,7 @@ const VARIANT_META: Record<
   },
   offline: {
     label: 'Offline',
-    icon: WifiOff,
+    icon: AppIcons.toast.offline,
     accent: colors.muted,
     accentSoft: colors.greyBg,
     iconColor: colors.ink,
@@ -72,14 +74,13 @@ function PremiumToastCard({
   onPress?: () => void;
 }) {
   const meta = VARIANT_META[variant];
-  const Icon = meta.icon;
 
   return (
     <Pressable onPress={onPress} style={styles.wrap}>
       <View style={styles.card}>
         <LinearGradient colors={[...meta.gradient]} style={styles.accentBar} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
         <View style={[styles.iconWrap, { backgroundColor: meta.accentSoft }]}>
-          <Icon size={20} color={meta.iconColor} strokeWidth={2.2} />
+          <PremiumIcon icon={meta.icon} variant="plain" size={20} color={meta.iconColor} strokeWidth={2.2} />
         </View>
         <View style={styles.body}>
           <Text style={styles.badge}>{meta.label}</Text>

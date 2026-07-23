@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
@@ -12,7 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { AppIcons } from '@/constants/appIcons';
 import { useAuth } from '@/context/AuthContext';
 import { api, getApiErrorMessage } from '@/lib/api';
-import { adminRoutes } from '@/lib/routes';
+import { adminRoutes, authRoutes, appPush, appReplace } from '@/lib/routes';
 import { colors, fonts, premium, premiumType, spacing, surfaces } from '@/constants/theme';
 
 export default function AdminSettingsScreen() {
@@ -101,7 +100,7 @@ export default function AdminSettingsScreen() {
             title="Advanced settings"
             variant="secondary"
             onPress={() =>
-              router.push({
+              appPush({
                 pathname: adminRoutes.userEdit,
                 params: { id: user.id, returnTo: adminRoutes.settings },
               })
@@ -116,7 +115,7 @@ export default function AdminSettingsScreen() {
           style={({ pressed }) => [styles.logoutCard, pressed && styles.pressed]}
           onPress={async () => {
             await logout();
-            router.replace('/(auth)/login');
+            appReplace(authRoutes.login);
           }}
         >
           <PremiumIcon

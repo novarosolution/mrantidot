@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Camera, ImagePlus, X } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { PhotoSourceSheet } from '@/components/kit/PhotoSourceSheet';
 import { mergePickedImages, pickImageFromCamera, pickImagesFromLibrary } from '@/lib/pickImages';
 import type { PickedImage } from '@/lib/upload';
@@ -20,6 +21,8 @@ export function AddressPhotoGrid({
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const photosRef = useRef(photos);
+  photosRef.current = photos;
   const remaining = max - photos.length;
   const slots = remaining;
 
@@ -33,7 +36,7 @@ export function AddressPhotoGrid({
     setBusy(true);
     try {
       const shot = await pickImageFromCamera();
-      if (shot) onChange(mergePickedImages(photos, [shot], max));
+      if (shot) onChange(mergePickedImages(photosRef.current, [shot], max));
     } finally {
       setBusy(false);
     }
@@ -44,7 +47,7 @@ export function AddressPhotoGrid({
     setBusy(true);
     try {
       const picked = await pickImagesFromLibrary(remaining);
-      if (picked.length > 0) onChange(mergePickedImages(photos, picked, max));
+      if (picked.length > 0) onChange(mergePickedImages(photosRef.current, picked, max));
     } finally {
       setBusy(false);
     }
@@ -68,7 +71,7 @@ export function AddressPhotoGrid({
               <ActivityIndicator color={colors.white} size="small" />
             ) : (
               <>
-                <Camera size={22} color={colors.white} />
+                <PremiumIcon icon={AppIcons.ui.camera} variant="plain" size={22} color={colors.white} />
                 <Text style={styles.addLabel}>Add photo</Text>
               </>
             )}
@@ -83,7 +86,7 @@ export function AddressPhotoGrid({
               onPress={() => onChange(photos.filter((p) => p.uri !== photo.uri))}
               hitSlop={6}
             >
-              <X size={12} color={colors.white} strokeWidth={3} />
+              <PremiumIcon icon={AppIcons.ui.close} variant="plain" size={12} color={colors.white} strokeWidth={3} />
             </Pressable>
           </View>
         ))}
@@ -94,7 +97,7 @@ export function AddressPhotoGrid({
             onPress={openSheet}
             disabled={busy}
           >
-            <ImagePlus size={20} color={colors.green} />
+            <PremiumIcon icon={AppIcons.ui.imagePlus} variant="plain" size={20} color={colors.green} />
           </Pressable>
         ) : null}
       </View>

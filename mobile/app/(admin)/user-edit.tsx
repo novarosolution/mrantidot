@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { adminGoBack, adminRoutes } from '@/lib/routes';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -47,6 +47,9 @@ export default function UserEditScreen() {
   const [active, setActive] = useState(true);
   const [displayRating, setDisplayRating] = useState('');
   const [realTechRating, setRealTechRating] = useState<number | null>(null);
+  const [payMode, setPayMode] = useState<'percent' | 'flat'>('percent');
+  const [payPercent, setPayPercent] = useState('100');
+  const [payFlat, setPayFlat] = useState('0');
   const [protectedAccount, setProtectedAccount] = useState(false);
   const [saving, setSaving] = useState(false);
   const { loading, error, runLoad, reload } = useScreenLoad(!!id);
@@ -64,6 +67,9 @@ export default function UserEditScreen() {
     setActive(u.disabled !== true);
     setDisplayRating(u.displayRating != null && u.displayRating > 0 ? String(u.displayRating) : '');
     setRealTechRating(u.role === 'technician' ? technicianRealRating(u) : null);
+    setPayMode(u.payMode === 'flat' ? 'flat' : 'percent');
+    setPayPercent(u.payPercent != null ? String(u.payPercent) : '100');
+    setPayFlat(u.payFlat != null ? String(u.payFlat) : '0');
     setProtectedAccount(u.protected === true);
   }, [id]);
 
@@ -110,6 +116,24 @@ export default function UserEditScreen() {
           } else {
             body.displayRating = null;
           }
+          body.payMode = payMode;
+          if (payMode === 'percent') {
+            const pct = parseFloat(payPercent);
+            if (Number.isNaN(pct) || pct < 0 || pct > 100) {
+              Toast.show({ type: 'error', text1: 'Pay percent must be 0–100' });
+              setSaving(false);
+              return;
+            }
+            body.payPercent = pct;
+          } else {
+            const flat = parseFloat(payFlat);
+            if (Number.isNaN(flat) || flat < 0) {
+              Toast.show({ type: 'error', text1: 'Flat pay must be 0 or more' });
+              setSaving(false);
+              return;
+            }
+            body.payFlat = Math.round(flat);
+          }
         }
         else if (active) body.available = true;
         await api.patch(`/admin/users/${id}`, body);
@@ -118,14 +142,25 @@ export default function UserEditScreen() {
         }
         if (id === me?.id) await refreshMe({ silent: true });
       } else {
-        await api.post('/admin/users', {
+        const createBody: Record<string, string | number> = {
           role,
           name: name.trim(),
           phone: phone.trim(),
           email: email.trim(),
           city: city.trim(),
           password,
-        });
+        };
+        if (role === 'technician') {
+          createBody.payMode = payMode;
+          if (payMode === 'percent') {
+            const pct = parseFloat(payPercent);
+            createBody.payPercent = Number.isNaN(pct) ? 100 : Math.min(100, Math.max(0, pct));
+          } else {
+            const flat = parseFloat(payFlat);
+            createBody.payFlat = Number.isNaN(flat) ? 0 : Math.max(0, Math.round(flat));
+          }
+        }
+        await api.post('/admin/users', createBody);
       }
       Toast.show({ type: 'success', text1: 'Saved' });
       adminGoBack(returnTo);
@@ -192,6 +227,8 @@ export default function UserEditScreen() {
         showsVerticalScrollIndicator={false}
       >
         <AdminFormCard>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <Text style={styles.sectionHint}>Who they are and how they sign in</Text>
           <Text style={styles.label}>Role</Text>
           <AdminFilterChips
             chips={ROLES.map((r) => ({ key: r.key, label: r.label }))}
@@ -212,24 +249,64 @@ export default function UserEditScreen() {
             secure
           />
 
-          {id && role === 'technician' ? (
+          {role === 'technician' ? (
             <>
-              <IconInput
-                label="Public rating"
-                value={displayRating}
-                onChangeText={setDisplayRating}
-                keyboardType="decimal-pad"
-                placeholder="Empty = real average"
-              />
-              {realTechRating != null ? (
-                <Text style={styles.hint}>Real avg: ★ {realTechRating.toFixed(1)}</Text>
+              {id ? (
+                <>
+                  <IconInput
+                    label="Public rating"
+                    value={displayRating}
+                    onChangeText={setDisplayRating}
+                    keyboardType="decimal-pad"
+                    placeholder="Empty = real average"
+                  />
+                  {realTechRating != null ? (
+                    <Text style={styles.hint}>Real avg: ★ {realTechRating.toFixed(1)}</Text>
+                  ) : null}
+                  <View style={styles.toggleRow}>
+                    <View style={styles.flex}>
+                      <Text style={styles.toggleLabel}>On duty</Text>
+                    </View>
+                    <ToggleSwitch value={available} onToggle={() => setAvailable((v) => !v)} />
+                  </View>
+                </>
               ) : null}
-              <View style={styles.toggleRow}>
-                <View style={styles.flex}>
-                  <Text style={styles.toggleLabel}>On duty</Text>
-                </View>
-                <ToggleSwitch value={available} onToggle={() => setAvailable((v) => !v)} />
-              </View>
+
+              <Text style={[styles.sectionTitle, styles.payTitle]}>Technician pay</Text>
+              <Text style={styles.sectionHint}>
+                Take-home per completed job. Locked when the job is marked complete.
+              </Text>
+              <Text style={styles.label}>Pay mode</Text>
+              <AdminFilterChips
+                chips={[
+                  { key: 'percent', label: '% of job' },
+                  { key: 'flat', label: 'Flat ₹' },
+                ]}
+                selected={payMode}
+                onSelect={(key) => setPayMode(key as 'percent' | 'flat')}
+              />
+              {payMode === 'percent' ? (
+                <IconInput
+                  label="Percent of job value"
+                  value={payPercent}
+                  onChangeText={setPayPercent}
+                  keyboardType="decimal-pad"
+                  placeholder="e.g. 70"
+                />
+              ) : (
+                <IconInput
+                  label="Flat pay (₹)"
+                  value={payFlat}
+                  onChangeText={setPayFlat}
+                  keyboardType="number-pad"
+                  placeholder="e.g. 500"
+                />
+              )}
+              <Text style={styles.hint}>
+                {payMode === 'percent'
+                  ? `Tech earns ${payPercent || '0'}% of each completed job total`
+                  : `Tech earns ₹${payFlat || '0'} per completed job`}
+              </Text>
             </>
           ) : null}
 
@@ -248,6 +325,9 @@ export default function UserEditScreen() {
 }
 
 const styles = StyleSheet.create({
+  sectionTitle: { fontFamily: fonts.displayExtra, fontSize: 16, color: '#0B2213', letterSpacing: -0.3 },
+  payTitle: { marginTop: spacing.lg },
+  sectionHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginBottom: spacing.sm, marginTop: 2 },
   label: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, marginBottom: 8 },
   hint: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginBottom: spacing.md },
   toggleRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md, gap: 12 },

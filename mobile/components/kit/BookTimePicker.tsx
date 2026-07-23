@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Clock } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { BOOKING_HOURS, BOOKING_MINUTES, formatTime12h } from '@/lib/dates';
 import { colors, fonts, spacing } from '@/constants/theme';
 
@@ -18,7 +19,7 @@ export function BookTimePicker({
     <View style={styles.wrap}>
       <View style={styles.selectedBar}>
         <View style={styles.selectedLeft}>
-          <Clock size={16} color={colors.forest} strokeWidth={2.2} />
+          <PremiumIcon icon={AppIcons.ui.clock} variant="plain" size={16} color={colors.forest} strokeWidth={2.2} />
           <Text style={styles.selectedLabel}>Selected</Text>
         </View>
         <Text style={styles.selectedValue}>{formatTime12h(timeValue)}</Text>
@@ -70,7 +71,7 @@ export function BookTimePicker({
         })}
       </View>
 
-      <Text style={styles.rangeHint}>Available 8:00 AM – 8:00 PM</Text>
+      <Text style={styles.rangeHint}>Available 24/7 — any time</Text>
     </View>
   );
 }

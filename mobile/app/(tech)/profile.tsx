@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,8 +10,10 @@ import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage, safeAsync } from '@/lib/api';
+import { localDateKey } from '@/lib/dates';
 import { useTechCopy } from '@/lib/tech-copy';
 import type { Booking, DayAttendanceStatus, TechnicianStats } from '@/types/api';
+import { authRoutes, appReplace } from '@/lib/routes';
 import { surfaces } from '@/constants/theme';
 
 export default function TechProfileScreen() {
@@ -22,8 +23,9 @@ export default function TechProfileScreen() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [attendance, setAttendance] = useState<Record<string, DayAttendanceStatus>>({});
   const [calendar, setCalendar] = useState<Record<string, number>>({});
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [month, setMonth] = useState(() => localDateKey().slice(0, 7));
   const [todayStatus, setTodayStatus] = useState<DayAttendanceStatus>('pending');
+  const [onDuty, setOnDuty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -35,6 +37,7 @@ export default function TechProfileScreen() {
     setBookings(data.bookings);
     setAttendance(data.attendance);
     setTodayStatus(data.todayStatus);
+    setOnDuty(data.onDuty);
     setCalendar(data.calendar);
   }, [month]);
 
@@ -54,6 +57,8 @@ export default function TechProfileScreen() {
     setRefreshing(true);
     try {
       await load();
+    } catch (err) {
+      setLoadError(getApiErrorMessage(err, 'Could not refresh profile'));
     } finally {
       setRefreshing(false);
     }
@@ -67,7 +72,7 @@ export default function TechProfileScreen() {
         style: 'destructive',
         onPress: async () => {
           await logout();
-          router.replace('/(auth)/login');
+          appReplace(authRoutes.login);
         },
       },
     ]);
@@ -77,16 +82,17 @@ export default function TechProfileScreen() {
 
   if (loadError) {
     return (
-      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-        <ListEmptyRetry message={loadError} onRetry={() => safeAsync(load)} />
-      </SafeAreaView>
+      <View style={styles.rootShell}><GlassBackdrop /><SafeAreaView style={styles.safe} edges={['left', 'right']}>
+        <ListEmptyRetry
+          message={loadError}
+          onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
+        />
+      </SafeAreaView></View>
     );
   }
 
   return (
-    <View style={styles.root}>
-      <GlassBackdrop />
-      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+    <View style={styles.rootShell}><GlassBackdrop /><SafeAreaView style={styles.safe} edges={['left', 'right']}>
         <TechnicianProfilePanel
         copy={copy}
         user={user}
@@ -96,17 +102,16 @@ export default function TechProfileScreen() {
         calendar={calendar}
         month={month}
         todayStatus={todayStatus}
+        onDuty={onDuty}
         refreshing={refreshing}
         onRefresh={() => void onRefresh()}
         onMonthChange={setMonth}
         onLogout={confirmLogout}
       />
-      </SafeAreaView>
-    </View>
+    </SafeAreaView></View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: surfaces.glassScreenBase },
-  safe: { flex: 1 },
+  rootShell: { flex: 1, backgroundColor: surfaces.glassScreenBase }, safe: { flex: 1, backgroundColor: 'transparent' },
 });

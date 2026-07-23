@@ -2,7 +2,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
-import { CalendarDays, Mail, MapPin, Phone, Pencil, Wallet } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { BookingListCard } from '@/components/kit/BookingListCard';
 import { AdminListShell, AdminSectionTitle, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
@@ -54,8 +55,8 @@ export default function AdminCustomerDetailScreen() {
 
   const summary = (
     <View style={styles.summaryWrap}>
-      <LinearGradient colors={['#FFFFFF', '#F7FAF6']} style={styles.profileCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <View style={styles.profileCard}>
+        <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
         <View style={styles.statusRow}>
           <Text style={[styles.statusBadge, isDisabled && styles.statusDisabled]}>
             {isDisabled ? 'Account disabled' : 'Active account'}
@@ -64,12 +65,12 @@ export default function AdminCustomerDetailScreen() {
 
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Wallet size={16} color={colors.forest} strokeWidth={2.2} />
+            <PremiumIcon icon={AppIcons.ui.wallet} variant="plain" size="sm" color={colors.forest} strokeWidth={2.2} />
             <Text style={styles.statValue}>₹{totalSpend}</Text>
             <Text style={styles.statLabel}>Total spend</Text>
           </View>
           <View style={styles.statCard}>
-            <CalendarDays size={16} color={colors.forest} strokeWidth={2.2} />
+            <PremiumIcon icon={AppIcons.ui.calendar} variant="plain" size="sm" color={colors.forest} strokeWidth={2.2} />
             <Text style={styles.statValue}>{bookings.length}</Text>
             <Text style={styles.statLabel}>Bookings</Text>
           </View>
@@ -77,18 +78,18 @@ export default function AdminCustomerDetailScreen() {
 
         <View style={styles.metaList}>
           <View style={styles.metaRow}>
-            <Mail size={14} color={colors.muted} />
+            <PremiumIcon icon={AppIcons.ui.mail} variant="plain" size="xs" color={colors.muted} />
             <Text style={styles.metaText}>{customer.email}</Text>
           </View>
           {customer.phone ? (
             <View style={styles.metaRow}>
-              <Phone size={14} color={colors.muted} />
+              <PremiumIcon icon={AppIcons.ui.phone} variant="plain" size="xs" color={colors.muted} />
               <Text style={styles.metaText}>{customer.phone}</Text>
             </View>
           ) : null}
           {customer.city ? (
             <View style={styles.metaRow}>
-              <MapPin size={14} color={colors.muted} />
+              <PremiumIcon icon={AppIcons.ui.mapPin} variant="plain" size="xs" color={colors.muted} />
               <Text style={styles.metaText}>{customer.city}</Text>
             </View>
           ) : null}
@@ -97,7 +98,7 @@ export default function AdminCustomerDetailScreen() {
         <View style={styles.actions}>
           {customer.phone ? (
             <Pressable style={styles.actionBtn} onPress={() => void Linking.openURL(`tel:${customer.phone}`)}>
-              <Phone size={15} color={colors.forest} />
+              <PremiumIcon icon={AppIcons.ui.phone} variant="plain" size="sm" color={colors.forest} />
               <Text style={styles.actionText}>Call</Text>
             </Pressable>
           ) : null}
@@ -110,15 +111,15 @@ export default function AdminCustomerDetailScreen() {
               })
             }
           >
-            <Pencil size={15} color={colors.forest} />
+            <PremiumIcon icon={AppIcons.ui.edit} variant="plain" size="sm" color={colors.forest} />
             <Text style={styles.actionText}>Edit</Text>
           </Pressable>
           <Pressable style={styles.actionBtn} onPress={() => appPush(adminRoutes.bookings)}>
-            <CalendarDays size={15} color={colors.forest} />
+            <PremiumIcon icon={AppIcons.ui.calendar} variant="plain" size="sm" color={colors.forest} />
             <Text style={styles.actionText}>Bookings</Text>
           </Pressable>
         </View>
-      </LinearGradient>
+      </View>
     </View>
   );
 
@@ -154,7 +155,8 @@ const styles = StyleSheet.create({
     borderRadius: premium.radiusCard,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: surfaces.glassBorderStrong,
+    backgroundColor: surfaces.glass,
     overflow: 'hidden',
   },
   goldBar: { height: 3, marginHorizontal: -spacing.md, marginTop: -spacing.md, marginBottom: spacing.sm },
@@ -177,7 +179,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: colors.soft,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.06)',
+    borderColor: '#E2F0D8',
     alignItems: 'center',
     gap: 4,
   },
@@ -194,9 +196,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glass,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.1)',
+    borderColor: '#8FD03C',
   },
   actionText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
 });

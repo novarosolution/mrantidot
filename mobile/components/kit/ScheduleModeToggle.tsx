@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { CalendarDays, Check, Clock } from 'lucide-react-native';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
+import { colors, fonts, spacing, surfaces } from '@/constants/theme';
 
 export function ScheduleModeToggle({
   mode,
@@ -20,15 +21,20 @@ export function ScheduleModeToggle({
         onPress={() => onChange('standard')}
       >
         <View style={[styles.iconWrap, mode === 'standard' && styles.iconWrapOn]}>
-          <CalendarDays size={20} color={mode === 'standard' ? colors.forest : colors.muted} />
+          <PremiumIcon
+            icon={AppIcons.ui.calendar}
+            variant="plain"
+            size={20}
+            color={mode === 'standard' ? colors.forest : colors.muted}
+          />
         </View>
         <View style={styles.textCol}>
           <Text style={[styles.label, mode === 'standard' && styles.labelOn]}>{standardLabel}</Text>
-          <Text style={[styles.desc, mode === 'standard' && styles.descOn]}>Pick a 2-hour slot</Text>
+          <Text style={[styles.desc, mode === 'standard' && styles.descOn]}>2-hour slots · 24/7</Text>
         </View>
         {mode === 'standard' ? (
           <View style={styles.check}>
-            <Check size={14} color={colors.white} strokeWidth={3} />
+            <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={14} color={colors.white} strokeWidth={3} />
           </View>
         ) : null}
       </Pressable>
@@ -40,15 +46,20 @@ export function ScheduleModeToggle({
         onPress={() => onChange('custom')}
       >
         <View style={[styles.iconWrap, mode === 'custom' && styles.iconWrapOn]}>
-          <Clock size={20} color={mode === 'custom' ? colors.forest : colors.muted} />
+          <PremiumIcon
+            icon={AppIcons.ui.clock}
+            variant="plain"
+            size={20}
+            color={mode === 'custom' ? colors.forest : colors.muted}
+          />
         </View>
         <View style={styles.textCol}>
           <Text style={[styles.label, mode === 'custom' && styles.labelOn]}>{customLabel}</Text>
-          <Text style={[styles.desc, mode === 'custom' && styles.descOn]}>Choose exact time</Text>
+          <Text style={[styles.desc, mode === 'custom' && styles.descOn]}>Any time · 24/7</Text>
         </View>
         {mode === 'custom' ? (
           <View style={styles.check}>
-            <Check size={14} color={colors.white} strokeWidth={3} />
+            <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={14} color={colors.white} strokeWidth={3} />
           </View>
         ) : null}
       </Pressable>
@@ -61,8 +72,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bg,
+    borderColor: surfaces.glassBorderStrong,
+    backgroundColor: surfaces.glass,
   },
   option: {
     flexDirection: 'row',
@@ -77,22 +88,22 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: surfaces.glassBorder,
     marginHorizontal: 14,
   },
   iconWrap: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glass,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: surfaces.glassBorderStrong,
   },
   iconWrapOn: {
-    borderColor: 'rgba(30,142,78,0.25)',
-    backgroundColor: colors.white,
+    borderColor: 'rgba(143,208,60,0.45)',
+    backgroundColor: colors.soft,
   },
   textCol: { flex: 1 },
   label: {

@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { Plus } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { Card } from '@/components/ui/Card';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import type { Service } from '@/types/api';
@@ -21,7 +22,7 @@ export function ServiceCard({ service, onPress, compact }: { service: Service; o
       </View>
       {!compact ? (
         <View style={styles.plus}>
-          <Plus size={20} color={colors.green} />
+          <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size={20} color={colors.green} />
         </View>
       ) : null}
     </Card>

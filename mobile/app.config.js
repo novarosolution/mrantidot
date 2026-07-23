@@ -31,7 +31,7 @@ const appJson = require('./app.json');
 module.exports = ({ config }) => {
   const apiUrl = resolveDeployApiUrl();
 
-  if (apiUrl) {
+  if (apiUrl && process.env.NODE_ENV === 'production') {
     process.env.EXPO_PUBLIC_API_URL = apiUrl;
   }
 
@@ -43,7 +43,7 @@ module.exports = ({ config }) => {
     extra: {
       ...(base.extra ?? {}),
       ...(config.extra ?? {}),
-      apiUrl: apiUrl ?? null,
+      apiUrl: apiUrl ?? base.extra?.apiUrl ?? null,
     },
   };
 };

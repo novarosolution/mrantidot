@@ -1,5 +1,4 @@
 import { StyleSheet, View } from 'react-native';
-import { Bell, Settings } from 'lucide-react-native';
 import { AdminHubLink } from '@/components/kit/AdminHubLink';
 import { AdminScreenHeader } from '@/components/kit/AdminScreenHeader';
 import { AdminTabScreen } from '@/components/kit/AdminScreenKit';
@@ -10,7 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { adminRoutes, appPush, type RouteInput } from '@/lib/routes';
 import { useUnreadNotifications } from '@/lib/useUnreadNotifications';
 import { userInitial } from '@/lib/userInitials';
-import { colors, spacing } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
 
 const Hub = AppIcons.adminHub;
 const Tab = AppIcons.adminTab;
@@ -20,19 +19,19 @@ const OPERATIONS_LINKS = [
     icon: Tab.bookings,
     label: 'Bookings',
     desc: 'Assign techs, confirm & track jobs',
-    href: '/(admin)/bookings' as const,
+    href: adminRoutes.bookings,
   },
   {
-    icon: Bell,
+    icon: AppIcons.ui.bell,
     label: 'Notifications',
     desc: 'Unread alerts & activity feed',
-    href: '/(admin)/notifications' as const,
+    href: adminRoutes.notifications,
   },
   {
     icon: Tab.reports,
     label: 'Reports',
     desc: 'Revenue, trends & performance',
-    href: '/(admin)/reports' as const,
+    href: adminRoutes.reports,
   },
 ];
 
@@ -41,66 +40,81 @@ const CONTENT_LINKS: Array<{
   label: string;
   desc: string;
   href: RouteInput;
+  featured?: boolean;
 }> = [
   {
     icon: Hub.homeContent,
     label: 'App content',
     desc: 'Promo banner, home screen & brand',
     href: adminRoutes.content,
+    featured: true,
   },
   {
     icon: AppIcons.contentTab.booking,
     label: 'Booking copy',
     desc: 'Wizard steps, lists & status text',
     href: { pathname: adminRoutes.content, params: { tab: 'booking' } },
+    featured: true,
   },
   {
     icon: Hub.services,
     label: 'Services catalog',
     desc: 'Pricing, categories & availability',
-    href: '/(admin)/services' as const,
+    href: adminRoutes.services,
   },
   {
     icon: Hub.offers,
     label: 'Offers & promos',
     desc: 'Discounts and seasonal deals',
-    href: '/(admin)/offers' as const,
+    href: adminRoutes.offers,
   },
   {
     icon: Hub.reviews,
     label: 'Reviews',
     desc: 'Customer feedback & ratings',
-    href: '/(admin)/reviews' as const,
+    href: adminRoutes.reviews,
   },
 ];
 
 const PEOPLE_LINKS = [
   {
-    icon: Hub.users,
-    label: 'Users & roles',
-    desc: 'Admin access & permissions',
-    href: '/(admin)/users' as const,
-  },
-  {
     icon: Hub.technicians,
     label: 'Technicians',
-    desc: 'Field team roster & skills',
-    href: '/(admin)/technicians' as const,
+    desc: 'Roster, attendance, jobs & pay',
+    href: adminRoutes.technicians,
+  },
+  {
+    icon: AppIcons.ui.calendar,
+    label: 'Leave requests',
+    desc: 'Approve or reject tech leave',
+    href: adminRoutes.leave,
+  },
+  {
+    icon: AppIcons.ui.rupee,
+    label: 'Payroll',
+    desc: 'Period earnings by technician',
+    href: adminRoutes.payroll,
   },
   {
     icon: Hub.customers,
     label: 'Customers',
     desc: 'Accounts, history & contact info',
-    href: '/(admin)/customers' as const,
+    href: adminRoutes.customers,
+  },
+  {
+    icon: Hub.users,
+    label: 'Users & roles',
+    desc: 'Admin access & permissions',
+    href: adminRoutes.users,
   },
 ];
 
 const SYSTEM_LINKS = [
   {
-    icon: Settings,
+    icon: AppIcons.ui.settings,
     label: 'Settings',
     desc: 'Profile, password & preferences',
-    href: '/(admin)/settings' as const,
+    href: adminRoutes.settings,
   },
 ];
 
@@ -115,26 +129,34 @@ export default function TeamHubScreen() {
         <AdminScreenHeader
           title="Manage"
           subtitle="Content, people & operations"
+          eyebrow="CONTROL"
           userInitial={initial}
           unreadCount={unreadCount}
         />
       }
     >
-        <AdminSectionTitle title="Operations" hint="Day-to-day jobs and alerts" />
+        <AdminSectionTitle title="Operations" hint="Jobs, alerts & performance" />
         <View style={styles.links}>
           {OPERATIONS_LINKS.map((l) => (
             <AdminHubLink key={l.href} icon={l.icon} label={l.label} desc={l.desc} onPress={() => appPush(l.href)} />
           ))}
         </View>
 
-        <AdminSectionTitle title="Content & catalog" hint="What customers see in the app" />
+        <AdminSectionTitle title="Content & catalog" hint="Promo, home, brand & catalog" />
         <View style={styles.links}>
           {CONTENT_LINKS.map((l) => (
-            <AdminHubLink key={l.label} icon={l.icon} label={l.label} desc={l.desc} onPress={() => appPush(l.href)} />
+            <AdminHubLink
+              key={l.label}
+              icon={l.icon}
+              label={l.label}
+              desc={l.desc}
+              featured={l.featured}
+              onPress={() => appPush(l.href)}
+            />
           ))}
         </View>
 
-        <AdminSectionTitle title="People" hint="Team members and customer accounts" />
+        <AdminSectionTitle title="People" hint="Roster, roles & customer accounts" />
         <View style={styles.links}>
           {PEOPLE_LINKS.map((l) => (
             <AdminHubLink key={l.href} icon={l.icon} label={l.label} desc={l.desc} onPress={() => appPush(l.href)} />

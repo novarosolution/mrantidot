@@ -1,20 +1,36 @@
-import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { Button } from '@/components/ui/Button';
-import { colors, customerType, premium, shadows, spacing } from '@/constants/theme';
+import { colors, customerType, premium, spacing } from '@/constants/theme';
+import { customerRoutes, appPush } from '@/lib/routes';
 
 export function OffersEmpty() {
   return (
     <View style={styles.wrap}>
-      <View style={styles.card}>
-        <View style={styles.icon}>
-          <AppIcons.quick.offers size={32} color={premium.accentGold} strokeWidth={1.8} />
+      <GlassPanel style={styles.card} tone="clear" intensity={44} goldEdge padded={false}>
+        <View style={styles.inner}>
+          <PremiumIcon
+            icon={AppIcons.quick.offers}
+            variant="ring"
+            size={28}
+            color={colors.forest}
+            strokeWidth={1.9}
+            boxSize={72}
+          />
+          <Text style={styles.title}>No offers right now</Text>
+          <Text style={styles.message}>
+            New coupons and seasonal deals will show up here. Book a service anytime at regular pricing.
+          </Text>
+          <Button
+            title="Browse services"
+            variant="premium"
+            onPress={() => appPush(customerRoutes.services)}
+            style={styles.btn}
+          />
         </View>
-        <Text style={styles.title}>No offers right now</Text>
-        <Text style={styles.message}>New coupons and seasonal deals will show up here. Book a service anytime at regular pricing.</Text>
-        <Button title="Browse services" variant="premium" onPress={() => router.push('/(customer)/services')} style={styles.btn} />
-      </View>
+      </GlassPanel>
     </View>
   );
 }
@@ -22,30 +38,20 @@ export function OffersEmpty() {
 const styles = StyleSheet.create({
   wrap: { flex: 1, justifyContent: 'center', padding: spacing.md, paddingTop: spacing.xl },
   card: {
-    backgroundColor: colors.white,
     borderRadius: premium.radiusCard,
+    maxWidth: 340,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  inner: {
     padding: spacing.lg,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.06)',
-    ...shadows.floating,
-  },
-  icon: {
-    width: 72,
-    height: 72,
-    borderRadius: 22,
-    backgroundColor: premium.accentGoldBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: 'rgba(182,132,28,0.2)',
+    gap: 10,
   },
   title: { ...customerType.emptyTitle },
   message: {
     ...customerType.emptyBody,
-    marginTop: spacing.sm,
     maxWidth: 280,
   },
-  btn: { marginTop: spacing.lg, alignSelf: 'stretch' },
+  btn: { marginTop: spacing.sm, alignSelf: 'stretch' },
 });

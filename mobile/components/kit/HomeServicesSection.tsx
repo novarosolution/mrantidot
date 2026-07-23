@@ -1,10 +1,8 @@
 import { type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { HomeCategoryFilter } from '@/components/kit/HomePageKit';
-import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
-import { spacing } from '@/constants/theme';
+import { HomeSectionTitle } from '@/components/kit/HomeSectionTitle';
 
-/** Services block: header, category filter, and grid content as one section. */
 export function HomeServicesSection({
   title,
   actionLabel,
@@ -15,6 +13,7 @@ export function HomeServicesSection({
   children,
 }: {
   title: string;
+  subtitle?: string;
   actionLabel?: string;
   onAction?: () => void;
   chips: { label: string }[];
@@ -24,29 +23,13 @@ export function HomeServicesSection({
 }) {
   return (
     <View style={styles.wrap}>
-      <PremiumSectionHeader
-        title={title}
-        actionLabel={actionLabel}
-        onAction={onAction}
-        compact
-        showRule={false}
-        style={styles.header}
-      />
+      <HomeSectionTitle title={title} onAction={onAction} />
       <HomeCategoryFilter chips={chips} selected={selectedCategory} onSelect={onSelectCategory} />
-      <View style={styles.body}>{children}</View>
+      {children}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    marginTop: spacing.sm,
-  },
-  header: {
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  body: {
-    marginTop: spacing.xs,
-  },
+  wrap: { paddingTop: 26 },
 });

@@ -1,16 +1,19 @@
-import { type ComponentType } from 'react';
+import type { LucideIcon } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AdminGoldBar } from '@/components/kit/AdminScreenKit';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { adminShadow } from '@/components/kit/homeUi';
 import { formatDelta, isMeaningfulDelta } from '@/lib/display';
 import { ADMIN_KPI_COLS, adminGridCellWidth } from '@/lib/adminGrid';
-import { adminSurfaces, adminType, colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { adminType, colors, fonts, spacing } from '@/constants/theme';
 
 export function kpiCardWidth() {
   return adminGridCellWidth(ADMIN_KPI_COLS);
 }
 
 export function KpiCard({
-  icon: Icon,
+  icon,
   value,
   label,
   delta,
@@ -18,8 +21,9 @@ export function KpiCard({
   iconColor,
   onPress,
   width,
+  glass = true,
 }: {
-  icon: ComponentType<{ color?: string; size?: number }>;
+  icon: LucideIcon;
   value: string;
   label: string;
   delta?: string;
@@ -27,6 +31,8 @@ export function KpiCard({
   iconColor: string;
   onPress?: () => void;
   width?: number;
+  /** Frosted glass surface for mint / glass screens (default on). */
+  glass?: boolean;
 }) {
   const cardWidth = width ?? kpiCardWidth();
 
@@ -34,9 +40,7 @@ export function KpiCard({
     <>
       <AdminGoldBar />
       <View style={styles.content}>
-        <View style={[styles.icon, { backgroundColor: iconBg }]}>
-          <Icon size={18} color={iconColor} />
-        </View>
+        <PremiumIcon icon={icon} variant="mint" size="md" color={iconColor} bg={iconBg} bgTo="#FFFFFF" boxSize={40} />
         <Text style={styles.value}>{value}</Text>
         <Text style={styles.label}>{label}</Text>
         {isMeaningfulDelta(delta) ? (
@@ -46,44 +50,62 @@ export function KpiCard({
     </>
   );
 
+  const shellStyle = [styles.panel, { width: cardWidth }];
+
+  if (glass) {
+    const panel = (
+      <View style={[styles.shell, { width: cardWidth }]}>
+        <GlassPanel style={shellStyle} padded={false} tone="light" intensity={40}>
+          {inner}
+        </GlassPanel>
+      </View>
+    );
+    if (onPress) {
+      return (
+        <Pressable style={({ pressed }) => [pressed && styles.pressed]} onPress={onPress}>
+          {panel}
+        </Pressable>
+      );
+    }
+    return panel;
+  }
+
+  const cardStyle = [styles.cardSolid, { width: cardWidth }];
   if (onPress) {
     return (
-      <Pressable
-        style={({ pressed }) => [styles.card, { width: cardWidth }, pressed && styles.pressed]}
-        onPress={onPress}
-      >
+      <Pressable style={({ pressed }) => [...cardStyle, pressed && styles.pressed]} onPress={onPress}>
         {inner}
       </Pressable>
     );
   }
 
-  return <View style={[styles.card, { width: cardWidth }]}>{inner}</View>;
+  return <View style={cardStyle}>{inner}</View>;
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: premium.radiusCard,
+  shell: {
+    borderRadius: 20,
+    ...adminShadow.card,
+  },
+  panel: { borderRadius: 20 },
+  cardSolid: {
+    borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: adminSurfaces.panelTint,
+    backgroundColor: 'rgba(255,255,255,0.78)',
     borderWidth: 1,
-    borderColor: adminSurfaces.cardBorder,
-    ...shadows.card,
+    borderColor: 'rgba(180,220,165,0.95)',
+    ...adminShadow.card,
   },
   pressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
   content: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm + 4,
+    paddingBottom: spacing.md,
     alignItems: 'center',
+    gap: 2,
   },
-  icon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  value: { ...adminType.statValue, textAlign: 'center' },
-  label: { ...adminType.statLabel, color: colors.muted, marginTop: 2, textAlign: 'center' },
-  delta: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.green, marginTop: 4, textAlign: 'center' },
+  value: { ...adminType.statValue, textAlign: 'center', marginTop: 10, color: colors.ink },
+  label: { ...adminType.statLabel, color: colors.muted, marginTop: 3, textAlign: 'center' },
+  delta: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.green, marginTop: 5, textAlign: 'center' },
   deltaDown: { color: colors.error },
 });

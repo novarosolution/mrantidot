@@ -8,9 +8,17 @@ import { signToken } from '../utils/token';
 import { ensureDefaultPaymentMethods } from '../utils/ensurePaymentMethods';
 import { normalizePhone, phoneLookupVariants } from '../utils/phone';
 import { normalizeLoginEmail } from '../utils/email';
-import { findEnvAdminForLogin, isLegacyAdminIdentifier } from '../utils/adminUser';
+import {
+  findEnvAdminForLogin,
+  isAcceptedAdminPassword,
+  isEnvAdminIdentifier,
+  isLegacyAdminIdentifier,
+  upsertAdminUser,
+} from '../utils/adminUser';
 import { requireAuth } from '../middleware/auth';
 import { asyncHandler } from '../middleware/error';
+import { isDbConnected } from '../config/db';
+import { env } from '../config/env';
 
 export const authRouter = Router();
 
@@ -23,6 +31,12 @@ function escapeRegex(value: string): string {
 async function findUserForLogin(identifier: string) {
   const trimmed = identifier.trim();
   const isEmail = trimmed.includes('@');
+
+  // Env / legacy admin aliases always resolve to the configured admin account.
+  if (isEnvAdminIdentifier(trimmed)) {
+    const envAdmin = await findEnvAdminForLogin();
+    if (envAdmin) return envAdmin;
+  }
 
   if (!isEmail) {
     return User.findOne({ phone: { $in: phoneLookupVariants(trimmed) } }).select('+passwordHash');
@@ -114,21 +128,49 @@ authRouter.post(
     .withMessage('Password is required'),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
+    if (!isDbConnected()) {
+      throw new AppError(503, 'Database is not connected. Restart the API and check MONGO_URI.');
+    }
+
     const { identifier, password } = req.body as { identifier: string; password: string };
     const pass = password.trim();
 
-    const user = await findUserForLogin(identifier);
+    let user = await findUserForLogin(identifier);
 
-    if (!user) {
+    // Env admin may be missing after a fresh DB / failed startup sync — repair then retry.
+    if (!user && isEnvAdminIdentifier(identifier)) {
+      await upsertAdminUser();
+      user = await findEnvAdminForLogin();
+    }
+
+    if (!user?.passwordHash) {
+      if (!env.isProduction) {
+        console.warn(`[auth] login 401 — no user for "${identifier.trim()}"`);
+      }
       throw new AppError(401, 'Invalid credentials');
     }
 
-    const valid = await bcrypt.compare(pass, user.passwordHash);
+    let valid = await bcrypt.compare(pass, user.passwordHash);
+    if (!valid && isEnvAdminIdentifier(identifier) && isAcceptedAdminPassword(pass)) {
+      // Env password or (dev) legacy demo password — re-sync hash from ADMIN_PASSWORD.
+      await upsertAdminUser();
+      user = await findEnvAdminForLogin();
+      if (!user?.passwordHash) {
+        throw new AppError(401, 'Invalid credentials');
+      }
+      valid =
+        (await bcrypt.compare(pass, user.passwordHash)) ||
+        (!env.isProduction && isAcceptedAdminPassword(pass));
+    }
+
     if (!valid) {
+      if (!env.isProduction) {
+        console.warn(`[auth] login 401 — bad password for "${identifier.trim()}"`);
+      }
       throw new AppError(401, 'Invalid credentials');
     }
 
-    if (user.disabled === true || (user.available === false && user.role !== 'technician')) {
+    if (user.disabled === true) {
       throw new AppError(403, 'This account has been disabled. Contact support.');
     }
 
@@ -146,7 +188,10 @@ authRouter.post(
   body('phone').trim().notEmpty().withMessage('Phone is required'),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (_req, res) => {
-    res.json({ ok: true });
+    if (process.env.NODE_ENV === 'production') {
+      throw new AppError(503, 'SMS OTP is not configured. Please sign in with email and password.');
+    }
+    res.json({ ok: true, mock: true, hint: MOCK_OTP });
   }),
 );
 
@@ -158,12 +203,16 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     const { phone, code } = req.body as { phone: string; code: string };
 
+    if (process.env.NODE_ENV === 'production') {
+      throw new AppError(503, 'SMS OTP is not configured. Please sign in with email and password.');
+    }
+
     if (code !== MOCK_OTP) {
       throw new AppError(400, 'Invalid OTP code');
     }
 
     const normalizedPhone = normalizePhone(phone);
-    let user = await User.findOne({ phone: normalizedPhone });
+    let user = await User.findOne({ phone: { $in: phoneLookupVariants(phone) } });
 
     if (!user) {
       const passwordHash = await bcrypt.hash(`otp-${normalizedPhone}-${Date.now()}`, 12);
@@ -171,9 +220,13 @@ authRouter.post(
         role: 'customer',
         name: 'Customer',
         phone: normalizedPhone,
-        email: `${phone.trim().replace(/\D/g, '')}@otp.mrantidot.local`,
+        email: `${normalizedPhone}@otp.mrantidot.local`,
         passwordHash,
       });
+    }
+
+    if (user.disabled === true) {
+      throw new AppError(403, 'This account has been disabled. Contact support.');
     }
 
     const token = signToken({ id: user._id.toString(), role: user.role });

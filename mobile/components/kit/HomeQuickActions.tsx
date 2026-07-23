@@ -1,90 +1,92 @@
-import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { AppIcons } from '@/constants/appIcons';
-import { colors, customerType, spacing } from '@/constants/theme';
+import { AppIcons, IconGradients } from '@/constants/appIcons';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { colors, fonts } from '@/constants/theme';
+import { useAppContent } from '@/context/AppContentContext';
+import { customerRoutes, appPush } from '@/lib/routes';
+import { homeShadow } from '@/components/kit/homeUi';
 
-const ACTIONS = [
+const ACTION_META = [
   {
-    key: 'book',
-    label: 'Book',
+    key: 'book' as const,
     icon: AppIcons.quick.book,
-    route: '/(customer)/services' as const,
-    tint: colors.forest,
-    bg: '#E8F5EC',
+    route: customerRoutes.services,
+    grad: IconGradients.forest,
   },
   {
-    key: 'bookings',
-    label: 'Bookings',
+    key: 'bookings' as const,
     icon: AppIcons.quick.bookings,
-    route: '/(customer)/bookings' as const,
-    tint: colors.blue,
-    bg: colors.blueBg,
+    route: customerRoutes.bookings,
+    grad: IconGradients.teal,
   },
   {
-    key: 'offers',
-    label: 'Offers',
+    key: 'offers' as const,
     icon: AppIcons.quick.offers,
-    route: '/(customer)/offers' as const,
-    tint: colors.amberInk,
-    bg: colors.amberBg,
+    route: customerRoutes.offers,
+    grad: IconGradients.gold,
   },
   {
-    key: 'help',
-    label: 'Help',
+    key: 'help' as const,
     icon: AppIcons.quick.support,
-    route: '/(customer)/help' as const,
-    tint: colors.secondaryDark,
-    bg: colors.secondarySoft,
+    route: customerRoutes.help,
+    grad: ['#3A9688', '#2A756A', '#1D5C52'] as const,
   },
 ];
 
 export function HomeQuickActions() {
+  const { homeConfig } = useAppContent();
+  const labels = homeConfig.quickLabels;
+
   return (
     <View style={styles.wrap}>
-      <View style={styles.row}>
-        {ACTIONS.map((a) => {
-          const Icon = a.icon;
-          return (
-            <Pressable
-              key={a.key}
-              style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
-              onPress={() => router.push(a.route)}
-            >
-              <View style={[styles.iconBox, { backgroundColor: a.bg }]}>
-                <Icon size={20} color={a.tint} strokeWidth={2.2} />
+      {ACTION_META.map((a) => {
+        const label = labels?.[a.key] ?? a.key;
+        return (
+          <Pressable
+            key={a.key}
+            style={({ pressed }) => [styles.press, pressed && styles.pressed]}
+            onPress={() => appPush(a.route)}
+          >
+            <GlassPanel style={styles.tile} padded={false} tone="light" intensity={50}>
+              <View style={styles.inner}>
+                <PremiumIcon icon={a.icon} variant="premium" size={22} gradient={a.grad} boxSize={52} />
+                <Text style={styles.label} numberOfLines={1}>
+                  {label}
+                </Text>
               </View>
-              <Text style={styles.label}>{a.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+            </GlassPanel>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingTop: 18,
   },
-  row: { flexDirection: 'row', gap: 8 },
+  press: { flex: 1 },
   tile: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderRadius: 16,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.06)',
+    borderRadius: 22,
+    ...homeShadow.tile,
   },
-  pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
-  iconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+  inner: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
+    gap: 10,
+    paddingTop: 14,
+    paddingBottom: 12,
+    paddingHorizontal: 4,
   },
-  label: { ...customerType.quickActionLabel },
+  pressed: { transform: [{ scale: 0.95 }] },
+  label: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11.5,
+    letterSpacing: -0.2,
+    color: colors.ink,
+  },
 });

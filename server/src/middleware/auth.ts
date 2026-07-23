@@ -1,8 +1,8 @@
 import '../types/express';
 import { NextFunction, Request, Response } from 'express';
+import { User, type UserRole } from '../models/User';
 import { AppError } from '../utils/AppError';
 import { verifyToken } from '../utils/token';
-import type { UserRole } from '../models/User';
 
 export function requireAuth(req: Request, _res: Response, next: NextFunction): void {
   const header = req.headers.authorization;
@@ -11,14 +11,26 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction): v
     return;
   }
 
-  try {
-    const token = header.slice(7);
-    const payload = verifyToken(token);
-    req.user = { id: payload.id, role: payload.role as UserRole };
-    next();
-  } catch {
-    next(new AppError(401, 'Invalid or expired token'));
-  }
+  void (async () => {
+    try {
+      const token = header.slice(7);
+      const payload = verifyToken(token);
+      const user = await User.findById(payload.id).select('role disabled');
+      if (!user || user.disabled === true) {
+        next(new AppError(401, 'Invalid or expired token'));
+        return;
+      }
+      // Always use current role from DB — JWT role can be stale after demotion.
+      req.user = { id: user._id.toString(), role: user.role as UserRole };
+      next();
+    } catch (err) {
+      if (err instanceof AppError) {
+        next(err);
+        return;
+      }
+      next(new AppError(401, 'Invalid or expired token'));
+    }
+  })();
 }
 
 export function requireRole(...roles: UserRole[]) {

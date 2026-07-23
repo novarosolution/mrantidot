@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, customerType, fonts, premium, shadows, spacing } from '@/constants/theme';
+import {  colors, customerType, fonts, premium, shadows, spacing , gradients } from '@/constants/theme';
 
 export type ProfileStatItem = {
   value: string;
@@ -21,7 +21,7 @@ export function ProfileStatsStrip({ items }: { items: ProfileStatItem[] }) {
         end={{ x: 0, y: 1 }}
       />
       <LinearGradient
-        colors={['#D4A017', '#B6841C']}
+        colors={[...gradients.goldBar]}
         style={styles.goldBar}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}

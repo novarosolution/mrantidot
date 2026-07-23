@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Card } from '@/components/ui/Card';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { homeShadow } from '@/components/kit/homeUi';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { StatusPill } from '@/components/ui/StatusPill';
 import {
@@ -17,12 +18,12 @@ import {
 } from '@/lib/job-visit-helpers';
 import { localDateKey } from '@/lib/dates';
 import type { Booking } from '@/types/api';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { adminType, colors, fonts, spacing, surfaces } from '@/constants/theme';
 
 function visitAccent(tone: BadgeTone): string {
   const map: Partial<Record<BadgeTone, string>> = {
     success: colors.green,
-    info: colors.blue,
+    info: colors.forest,
     warning: colors.amberInk,
     danger: colors.error,
     neutral: colors.muted,
@@ -52,48 +53,52 @@ export function JobVisitCard({
       : '—';
 
   const content = (
-    <View style={styles.cardWrap}>
-      <View style={[styles.accent, { backgroundColor: visitAccent(tone) }]} />
-      <Card variant="premium" style={styles.card}>
-      <View style={styles.head}>
-        <Text style={styles.ref}>{bookingRef(booking.id)}</Text>
-        <View style={styles.badges}>
-          <StatusBadge label={visitStatusLabel(visitStatus)} tone={tone} />
-          <StatusPill status={booking.status} />
-        </View>
-      </View>
-      <Text style={styles.svc}>{bookingServiceName(booking)}</Text>
-      <Text style={styles.meta}>
-        {bookingCustomerName(booking)} · {bookingScheduleDisplay(booking)}
-      </Text>
-      <View style={styles.times}>
-        <View style={styles.timeRow}>
-          <Text style={styles.timeLabel}>Came to job</Text>
-          <Text style={styles.timeVal}>{startedLabel}</Text>
-        </View>
-        <View style={styles.timeRow}>
-          <Text style={styles.timeLabel}>Stopped job</Text>
-          <Text style={styles.timeVal}>{stoppedLabel}</Text>
-        </View>
-        {duration ? (
-          <View style={styles.timeRow}>
-            <Text style={styles.timeLabel}>Duration</Text>
-            <Text style={styles.timeVal}>{duration}</Text>
+    <View style={styles.shell}>
+      <View style={styles.cardWrap}>
+        <View style={[styles.accent, { backgroundColor: visitAccent(tone) }]} />
+        <GlassPanel style={styles.panel} padded={false} tone="light" intensity={42}>
+          <View style={styles.card}>
+            <View style={styles.head}>
+              <Text style={styles.ref}>{bookingRef(booking.id)}</Text>
+              <View style={styles.badges}>
+                <StatusBadge label={visitStatusLabel(visitStatus)} tone={tone} />
+                <StatusPill status={booking.status} />
+              </View>
+            </View>
+            <Text style={styles.svc}>{bookingServiceName(booking)}</Text>
+            <Text style={styles.meta}>
+              {bookingCustomerName(booking)} · {bookingScheduleDisplay(booking)}
+            </Text>
+            <View style={styles.times}>
+              <View style={styles.timeRow}>
+                <Text style={styles.timeLabel}>Came to job</Text>
+                <Text style={styles.timeVal}>{startedLabel}</Text>
+              </View>
+              <View style={styles.timeRow}>
+                <Text style={styles.timeLabel}>Stopped job</Text>
+                <Text style={styles.timeVal}>{stoppedLabel}</Text>
+              </View>
+              {duration ? (
+                <View style={styles.timeRow}>
+                  <Text style={styles.timeLabel}>Duration</Text>
+                  <Text style={styles.timeVal}>{duration}</Text>
+                </View>
+              ) : null}
+            </View>
+            {booking.address ? (
+              <Text style={styles.addr} numberOfLines={1}>
+                {booking.address}
+              </Text>
+            ) : null}
           </View>
-        ) : null}
+        </GlassPanel>
       </View>
-      {booking.address ? (
-        <Text style={styles.addr} numberOfLines={1}>
-          {booking.address}
-        </Text>
-      ) : null}
-      </Card>
     </View>
   );
 
   if (onPress) {
     return (
-      <Pressable onPress={onPress} style={styles.wrap}>
+      <Pressable onPress={onPress} style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}>
         {content}
       </Pressable>
     );
@@ -104,17 +109,29 @@ export function JobVisitCard({
 
 const styles = StyleSheet.create({
   wrap: { marginBottom: spacing.sm },
-  cardWrap: { flexDirection: 'row', borderRadius: premium.radiusCard, overflow: 'hidden', ...shadows.floating },
+  pressed: { opacity: 0.94, transform: [{ scale: 0.99 }] },
+  shell: {
+    borderRadius: 20,
+    ...homeShadow.tile,
+  },
+  cardWrap: { flexDirection: 'row', borderRadius: 20, overflow: 'hidden' },
   accent: { width: 4 },
-  card: { flex: 1, padding: spacing.md, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
+  panel: { flex: 1, borderRadius: 0, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 },
+  card: { padding: spacing.md },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 },
   badges: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
-  ref: { fontFamily: fonts.displayExtra, fontSize: 11, color: colors.secondaryDark },
-  svc: { fontFamily: fonts.display, fontSize: 14, marginTop: 6 },
-  meta: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 4 },
-  times: { marginTop: spacing.sm, gap: 6 },
+  ref: { ...adminType.listRef, color: colors.secondaryDark },
+  svc: { ...adminType.listTitle, marginTop: 6, color: colors.ink },
+  meta: { ...adminType.listMeta, marginTop: 4, color: colors.muted },
+  times: {
+    marginTop: spacing.sm,
+    gap: 6,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: surfaces.glassBorderStrong,
+  },
   timeRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
   timeLabel: { fontFamily: fonts.body, fontSize: 12, color: colors.muted },
-  timeVal: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.ink, flex: 1, textAlign: 'right' },
-  addr: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 8 },
+  timeVal: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.ink },
+  addr: { ...adminType.listMeta, marginTop: spacing.sm, color: colors.muted },
 });

@@ -81,8 +81,8 @@ const styles = StyleSheet.create({
   headText: { flex: 1, minWidth: 0 },
   title: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
   sub: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
-  chip: { backgroundColor: colors.secondarySoft, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  chipText: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.secondaryInk },
+  chip: { backgroundColor: '#EEF8E6', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: '#D8EDC8' },
+  chipText: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.forest },
   bars: {
     flexDirection: 'row',
     alignItems: 'flex-end',

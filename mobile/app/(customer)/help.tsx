@@ -1,73 +1,76 @@
-import { router } from 'expo-router';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  ChevronRight,
-  Clock,
-  FileText,
-  HelpCircle,
-  Info,
-  Mail,
-  MessageCircle,
-  Phone,
-  Shield,
-} from 'lucide-react-native';
-import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
-import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
+import type { LucideIcon } from 'lucide-react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { CustomerContentPage } from '@/components/kit/CustomerContentPage';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { Card } from '@/components/ui/Card';
+import { AppIcons } from '@/constants/appIcons';
 import { useAppContent } from '@/context/AppContentContext';
-import { colors, design, fonts, radius, spacing } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { colors, fonts, spacing } from '@/constants/theme';
+import { customerRoutes, appPush } from '@/lib/routes';
 
 export default function HelpScreen() {
   const { content } = useAppContent();
+  const ui = useCustomerUiCopy();
   const { support } = content;
+  const brandName = content.branding.name?.trim() || 'Mr Antidot';
 
   const digits = (v: string) => v.replace(/[^\d+]/g, '');
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <CustomerPageHeader title="Help & support" variant="premium" showBack />
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <PremiumSectionHeader title="Contact us" style={styles.section} />
-        <Card variant="classic" style={styles.card}>
-          {support.phone ? (
-            <ContactRow
-              icon={<Phone size={18} color={colors.green} />}
-              label="Call us"
-              value={support.phone}
-              onPress={() => Linking.openURL(`tel:${digits(support.phone)}`)}
-            />
-          ) : null}
-          {support.whatsapp ? (
-            <ContactRow
-              icon={<MessageCircle size={18} color={colors.green} />}
-              label="WhatsApp"
-              value={support.whatsapp}
-              onPress={() => Linking.openURL(`https://wa.me/${digits(support.whatsapp ?? '')}`)}
-            />
-          ) : null}
-          {support.email ? (
-            <ContactRow
-              icon={<Mail size={18} color={colors.green} />}
-              label="Email"
-              value={support.email}
-              onPress={() => Linking.openURL(`mailto:${support.email}`)}
-            />
-          ) : null}
-          {support.hours ? (
-            <ContactRow icon={<Clock size={18} color={colors.green} />} label="Hours" value={support.hours} />
-          ) : null}
-        </Card>
+    <CustomerContentPage
+      title={ui.helpScreenTitle}
+      subtitle="We're here for you"
+      sectionTitle={ui.helpContactTitle}
+      sectionSubtitle={`Reach the ${brandName} team`}
+    >
+      <Card variant="premium" style={styles.card}>
+        {support.phone ? (
+          <ContactRow
+            icon={AppIcons.ui.phone}
+            label={ui.helpPhoneLabel}
+            value={support.phone}
+            onPress={() => Linking.openURL(`tel:${digits(support.phone)}`)}
+          />
+        ) : null}
+        {support.whatsapp ? (
+          <ContactRow
+            icon={AppIcons.ui.message}
+            label={ui.helpWhatsappLabel}
+            value={support.whatsapp}
+            onPress={() => Linking.openURL(`https://wa.me/${digits(support.whatsapp ?? '')}`)}
+          />
+        ) : null}
+        {support.email ? (
+          <ContactRow
+            icon={AppIcons.ui.mail}
+            label={ui.helpEmailLabel}
+            value={support.email}
+            onPress={() => Linking.openURL(`mailto:${support.email}`)}
+          />
+        ) : null}
+        {support.hours ? (
+          <ContactRow icon={AppIcons.ui.clock} label={ui.helpHoursLabel} value={support.hours} />
+        ) : null}
+        {!support.phone && !support.whatsapp && !support.email && !support.hours ? (
+          <Text style={styles.emptySupport}>Support details will appear here once configured in Content.</Text>
+        ) : null}
+      </Card>
 
-        <PremiumSectionHeader title="Resources" style={styles.section} />
-        <Card variant="classic" style={styles.card}>
-          <LinkRow icon={<HelpCircle size={18} color={colors.green} />} label="FAQ" onPress={() => router.push('/(customer)/faq')} />
-          <LinkRow icon={<Info size={18} color={colors.green} />} label="About us" onPress={() => router.push('/(customer)/about')} />
-          <LinkRow icon={<FileText size={18} color={colors.green} />} label="Terms of Service" onPress={() => router.push('/(customer)/terms')} />
-          <LinkRow icon={<Shield size={18} color={colors.green} />} label="Privacy Policy" onPress={() => router.push('/(customer)/privacy')} last />
-        </Card>
-      </ScrollView>
-    </SafeAreaView>
+      <View style={styles.resourcesHeader}>
+        <Text style={styles.resourcesTitle}>{ui.helpResourcesTitle}</Text>
+        <View style={styles.rule}>
+          <View style={styles.ruleAccent} />
+          <View style={styles.ruleLine} />
+        </View>
+      </View>
+      <Card variant="glass" style={styles.card}>
+        <LinkRow icon={AppIcons.ui.help} label={ui.profileMenuFaq} onPress={() => appPush(customerRoutes.faq)} />
+        <LinkRow icon={AppIcons.ui.info} label={ui.profileMenuAbout} onPress={() => appPush(customerRoutes.about)} />
+        <LinkRow icon={AppIcons.ui.terms} label={ui.profileMenuTerms} onPress={() => appPush(customerRoutes.terms)} />
+        <LinkRow icon={AppIcons.ui.shield} label={ui.profileMenuPrivacy} onPress={() => appPush(customerRoutes.privacy)} last />
+      </Card>
+    </CustomerContentPage>
   );
 }
 
@@ -77,19 +80,19 @@ function ContactRow({
   value,
   onPress,
 }: {
-  icon: React.ReactNode;
+  icon: LucideIcon;
   label: string;
   value: string;
   onPress?: () => void;
 }) {
   return (
     <Pressable style={styles.row} onPress={onPress} disabled={!onPress}>
-      <View style={styles.iconWrap}>{icon}</View>
-      <View style={styles.flex}>
+      <PremiumIcon icon={icon} variant="mint" size={18} color={colors.green} boxSize={36} />
+      <View style={styles.rowBody}>
         <Text style={styles.rowLabel}>{label}</Text>
         <Text style={styles.rowValue}>{value}</Text>
       </View>
-      {onPress ? <ChevronRight size={18} color={colors.muted} /> : null}
+      {onPress ? <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={18} color={colors.muted} /> : null}
     </Pressable>
   );
 }
@@ -100,43 +103,44 @@ function LinkRow({
   onPress,
   last,
 }: {
-  icon: React.ReactNode;
+  icon: LucideIcon;
   label: string;
   onPress: () => void;
   last?: boolean;
 }) {
   return (
-    <Pressable style={[styles.row, last && styles.rowLast]} onPress={onPress}>
-      <View style={styles.iconWrap}>{icon}</View>
-      <Text style={[styles.rowLabel, styles.flex]}>{label}</Text>
-      <ChevronRight size={18} color={colors.muted} />
+    <Pressable style={[styles.row, !last && styles.rowBorder]} onPress={onPress}>
+      <PremiumIcon icon={icon} variant="mint" size={18} color={colors.green} boxSize={36} />
+      <Text style={[styles.rowLabel, styles.linkLabel]}>{label}</Text>
+      <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={18} color={colors.muted} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: design.screenBg },
-  scroll: { paddingBottom: spacing.xxl },
-  section: { marginTop: spacing.md, marginBottom: spacing.xs },
-  card: { padding: spacing.md, marginHorizontal: spacing.md, marginBottom: spacing.sm },
+  card: { marginHorizontal: spacing.md, padding: spacing.sm, marginBottom: spacing.md },
+  emptySupport: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.muted,
+    padding: spacing.md,
+    lineHeight: 19,
+  },
+  resourcesHeader: { paddingHorizontal: spacing.md, marginBottom: spacing.sm },
+  resourcesTitle: { fontFamily: fonts.displayExtra, fontSize: 16, color: colors.ink },
+  rule: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm, gap: spacing.sm },
+  ruleAccent: { width: 24, height: 2, borderRadius: 2, backgroundColor: '#8FD03C' },
+  ruleLine: { flex: 1, height: 1, backgroundColor: colors.border },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingVertical: spacing.sm + 6,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.sm,
   },
-  rowLast: { borderBottomWidth: 0 },
-  iconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.sm,
-    backgroundColor: colors.soft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  flex: { flex: 1, minWidth: 0 },
-  rowLabel: { fontFamily: fonts.bodySemi, fontSize: 14.5, color: colors.ink },
-  rowValue: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, marginTop: 1 },
+  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  rowBody: { flex: 1, minWidth: 0 },
+  rowLabel: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.muted },
+  linkLabel: { flex: 1, color: colors.ink, fontSize: 15 },
+  rowValue: { fontFamily: fonts.body, fontSize: 14, color: colors.ink, marginTop: 2 },
 });

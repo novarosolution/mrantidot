@@ -1,19 +1,19 @@
-import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { ChevronLeft } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminServiceListCard } from '@/components/kit/AdminServiceListCard';
 import { AdminServiceTypeGrid } from '@/components/kit/AdminServiceTypeGrid';
-import { Chip } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
-import { adminRoutes } from '@/lib/routes';
+import { adminRoutes, appPush } from '@/lib/routes';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { SERVICE_TYPE_LABELS } from '@/constants/serviceTypes';
@@ -94,14 +94,14 @@ export default function AdminServicesScreen() {
   }
 
   function openEdit(id?: string) {
-    router.push(id ? { pathname: '/(admin)/service-edit', params: { id } } : '/(admin)/service-edit');
+    appPush(id ? { pathname: adminRoutes.serviceEdit, params: { id } } : adminRoutes.serviceEdit);
   }
 
   if (loading) return <Spinner fullScreen />;
 
   if (error) {
     return (
-      <AdminListShell title="Services" subtitle="Error">
+      <AdminListShell title="Services" subtitle="Could not load">
         <ListEmptyRetry message={error} onRetry={() => void reload(() => load({ skipCache: true }), error)} />
       </AdminListShell>
     );
@@ -144,18 +144,19 @@ export default function AdminServicesScreen() {
       headerExtra={
         <View style={styles.headerExtra}>
           <Pressable style={styles.backTypes} onPress={backToTypes}>
-            <ChevronLeft size={18} color={colors.forest} />
+            <PremiumIcon icon={AppIcons.ui.chevronLeft} variant="plain" size="md" color={colors.forest} />
             <Text style={styles.backTypesText}>Pest types</Text>
           </Pressable>
           <View style={styles.chips}>
-            {(['all', 'active', 'inactive'] as const).map((key) => (
-              <Chip
-                key={key}
-                label={key === 'all' ? 'All' : key === 'active' ? 'Active' : 'Inactive'}
-                selected={listFilter === key}
-                onPress={() => setListFilter(key)}
-              />
-            ))}
+            <AdminFilterChips
+              chips={[
+                { key: 'all', label: 'All' },
+                { key: 'active', label: 'Active' },
+                { key: 'inactive', label: 'Inactive' },
+              ]}
+              selected={listFilter}
+              onSelect={(key) => setListFilter(key as ServiceFilter)}
+            />
           </View>
         </View>
       }
@@ -196,7 +197,14 @@ export default function AdminServicesScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerExtra: { gap: spacing.sm },
+  headerExtra: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: '#F6FAF2',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2F0D8',
+  },
   backTypes: {
     flexDirection: 'row',
     alignItems: 'center',

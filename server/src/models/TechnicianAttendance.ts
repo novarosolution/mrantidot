@@ -1,13 +1,16 @@
 import mongoose, { Document, Schema, Types } from 'mongoose';
 
-export type AttendanceStatus = 'present' | 'absent';
-export type AttendanceSource = 'technician' | 'admin';
+export type AttendanceStatus = 'present' | 'absent' | 'leave';
+export type AttendanceSource = 'technician' | 'admin' | 'system';
 
 export interface ITechnicianAttendance extends Document {
   technicianId: Types.ObjectId;
   date: string;
   status: AttendanceStatus;
+  /** First clock-in of the day (immutable once set for present). */
   checkedInAt: Date;
+  /** End-of-day clock-out (duty off while still “present”). */
+  checkedOutAt?: Date;
   source: AttendanceSource;
   note?: string;
   createdAt: Date;
@@ -18,9 +21,10 @@ const attendanceSchema = new Schema<ITechnicianAttendance>(
   {
     technicianId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     date: { type: String, required: true, trim: true },
-    status: { type: String, enum: ['present', 'absent'], required: true },
+    status: { type: String, enum: ['present', 'absent', 'leave'], required: true },
     checkedInAt: { type: Date, required: true, default: Date.now },
-    source: { type: String, enum: ['technician', 'admin'], required: true },
+    checkedOutAt: { type: Date },
+    source: { type: String, enum: ['technician', 'admin', 'system'], required: true },
     note: { type: String, trim: true },
   },
   {
@@ -52,6 +56,12 @@ export function formatAttendance(record: ITechnicianAttendance) {
     date: doc.date,
     status: doc.status,
     checkedInAt: doc.checkedInAt instanceof Date ? doc.checkedInAt.toISOString() : doc.checkedInAt,
+    checkedOutAt:
+      doc.checkedOutAt instanceof Date
+        ? doc.checkedOutAt.toISOString()
+        : doc.checkedOutAt
+          ? String(doc.checkedOutAt)
+          : undefined,
     source: doc.source,
     note: doc.note,
     createdAt: doc.createdAt,

@@ -1,6 +1,6 @@
-import { useLocalSearchParams } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 import { BookingSuccessScreen } from '@/components/kit/BookingSuccessScreen';
-import { Spinner } from '@/components/ui/Spinner';
+import { customerRoutes, appHref } from '@/lib/routes';
 
 export default function BookSuccessRoute() {
   const params = useLocalSearchParams<{
@@ -17,7 +17,7 @@ export default function BookSuccessRoute() {
   const total = Number(params.total ?? 0);
   const paymentLabel = params.payment?.trim() || undefined;
 
-  if (!bookingId) return <Spinner fullScreen />;
+  if (!bookingId) return <Redirect href={appHref(customerRoutes.bookings)} />;
 
   return (
     <BookingSuccessScreen

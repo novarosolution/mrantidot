@@ -1,55 +1,95 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { colors, customerType, spacing } from '@/constants/theme';
+import { colors, fonts } from '@/constants/theme';
+import { homeShadow } from '@/components/kit/homeUi';
 
-const BADGES = [
-  { icon: AppIcons.trust.verified, label: 'Verified pros' },
-  { icon: AppIcons.trust.sameDay, label: 'Same-day slots' },
-  { icon: AppIcons.trust.eco, label: 'Eco-safe' },
-];
+/** Soft trust line under home content. */
+export function HomeTrustStrip({
+  guaranteeText,
+}: {
+  guaranteeText?: string;
+  badges?: string[];
+}) {
+  const text = guaranteeText?.trim() || 'Verified pros · Satisfaction guaranteed';
 
-export function HomeTrustStrip() {
   return (
-    <View style={styles.row}>
-      {BADGES.map(({ icon: Icon, label }) => (
-        <View key={label} style={styles.chip}>
-          <View style={styles.iconWrap}>
-            <Icon size={11} color={colors.lime} strokeWidth={2.4} />
+    <View style={styles.wrap}>
+      <View style={styles.shell}>
+        <View style={styles.pill}>
+          <LinearGradient
+            colors={['#FFFFFF', '#F5FBF2', '#EAF6E3']}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+          <View style={styles.iconShell}>
+            <LinearGradient colors={['#8FD03C', '#1A8734']} style={styles.icon} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}>
+              <PremiumIcon
+                icon={AppIcons.ui.shieldCheck}
+                variant="plain"
+                size={14}
+                color="#FFFFFF"
+                strokeWidth={2.4}
+                fill="rgba(255,255,255,0.35)"
+              />
+            </LinearGradient>
           </View>
-          <Text style={styles.text}>{label}</Text>
+          <Text style={styles.text} numberOfLines={1}>
+            {text}
+          </Text>
         </View>
-      ))}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-    gap: 8,
-    marginTop: spacing.md,
+  wrap: {
+    marginTop: 24,
+    marginHorizontal: 20,
+    marginBottom: 8,
+    alignItems: 'center',
   },
-  chip: {
+  shell: {
+    maxWidth: '100%',
+    borderRadius: 999,
+    ...homeShadow.card,
+  },
+  pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingRight: 12,
-    paddingLeft: 4,
-    paddingVertical: 5,
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
     borderRadius: 999,
-    backgroundColor: 'rgba(0,0,0,0.18)',
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
+    borderColor: 'rgba(180,220,165,0.95)',
+    backgroundColor: '#FFFFFF',
   },
-  iconWrap: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(168,224,78,0.2)',
+  iconShell: {
+    borderRadius: 15,
+    shadowColor: '#0A6423',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  icon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  text: { ...customerType.trustChip },
+  text: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 13,
+    letterSpacing: -0.1,
+    color: colors.ink,
+    flexShrink: 1,
+    paddingRight: 4,
+  },
 });

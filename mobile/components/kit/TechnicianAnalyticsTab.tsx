@@ -1,8 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { Clock, Download, IndianRupee, SprayCan, Star } from 'lucide-react-native';
-import { AdminStatStrip } from '@/components/kit/AdminPageKit';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
+import { AdminFilterChips, AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { AttendanceAnalyticsCard } from '@/components/kit/AttendanceAnalyticsCard';
 import { AttendanceTrendChart } from '@/components/kit/AttendanceTrendChart';
 import { formatRupee } from '@/components/kit/format';
@@ -13,16 +14,15 @@ import { ReportsSectionCard } from '@/components/kit/ReportsPageKit';
 import { StatusPipelineCard } from '@/components/kit/StatusPipelineCard';
 import { TechnicianReviewCard } from '@/components/kit/TechnicianProfileKit';
 import { WeeklyBarChart } from '@/components/kit/WeeklyBarChart';
-import { Chip } from '@/components/ui/Chip';
 import { formatMonthLabel, statusKeyToMetric } from '@/lib/technician-metrics';
 import { bookingStatusLabel } from '@/lib/booking-helpers';
-import { appPush } from '@/lib/routes';
+import { appPush, adminRoutes } from '@/lib/routes';
 import type {
   BookingStatus,
   TechnicianDetailResponse,
   TechnicianMetricKey,
 } from '@/types/api';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, fonts, premium, shadows, spacing, surfaces } from '@/constants/theme';
 
 function monthOptions(current: string): string[] {
   const [y, m] = current.split('-').map(Number);
@@ -107,21 +107,30 @@ export function TechnicianAnalyticsTab({
   return (
     <View style={styles.wrap}>
       <View style={styles.toolbarCard}>
-        <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.toolbarGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
-        <Text style={styles.toolbarTitle}>Period · {monthLabel}</Text>
+        <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.toolbarGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+        <Text style={styles.toolbarEyebrow}>ANALYTICS</Text>
+        <Text style={styles.toolbarTitle}>{monthLabel}</Text>
+        <Text style={styles.toolbarHint}>Attendance, earnings & job pipeline</Text>
         <View style={styles.monthRow}>
-          {months.map((m) => (
-            <Chip key={m} label={monthChipLabel(m)} selected={m === month} onPress={() => onMonthChange(m)} compact />
-          ))}
+          <AdminFilterChips
+            chips={months.map((m) => ({ key: m, label: monthChipLabel(m) }))}
+            selected={month}
+            onSelect={onMonthChange}
+          />
         </View>
         <Pressable style={styles.exportBtn} onPress={() => void exportReport()} accessibilityLabel="Export report">
-          <Download size={16} color={colors.lime} />
+          <PremiumIcon icon={AppIcons.ui.download} variant="plain" size="sm" color={colors.forest} />
           <Text style={styles.exportText}>Export report</Text>
         </Pressable>
       </View>
 
       <AdminStatStrip
         items={[
+          {
+            label: 'On-time',
+            value: analytics?.onTimeRate != null ? `${analytics.onTimeRate}%` : '—',
+            color: colors.forest,
+          },
           {
             label: 'Attendance',
             value: analytics ? `${analytics.attendanceRate}%` : '—',
@@ -136,13 +145,12 @@ export function TechnicianAnalyticsTab({
             label: 'Earnings',
             value: stats.earnings >= 1000 ? formatRupee(stats.earnings) : `₹${stats.earnings}`,
           },
-          { label: 'Active', value: stats.activeJobs, color: colors.amberInk },
         ]}
       />
 
       <View style={styles.kpiRow}>
         <KpiCard
-          icon={SprayCan}
+          icon={AppIcons.brand}
           value={String(stats.completedJobs)}
           label="Completed"
           iconBg={colors.soft}
@@ -150,26 +158,26 @@ export function TechnicianAnalyticsTab({
           onPress={() => onMetricPress('completed')}
         />
         <KpiCard
-          icon={IndianRupee}
+          icon={AppIcons.ui.rupee}
           value={stats.earnings >= 1000 ? formatRupee(stats.earnings) : `₹${stats.earnings}`}
           label="Total earned"
-          iconBg={colors.blueBg}
-          iconColor={colors.blue}
+          iconBg={colors.soft}
+          iconColor={colors.forest}
           onPress={() => onMetricPress('earnings')}
         />
         <KpiCard
-          icon={Star}
+          icon={AppIcons.ui.star}
           value={stats.reviewCount > 0 ? String(stats.reviewCount) : '—'}
           label="Reviews"
-          iconBg={colors.amberBg}
-          iconColor={colors.amberInk}
+          iconBg={'#EEF8E6'}
+          iconColor={colors.forest}
         />
         <KpiCard
-          icon={Clock}
+          icon={AppIcons.ui.clock}
           value={String(stats.activeJobs)}
           label="Active now"
-          iconBg={colors.secondarySoft}
-          iconColor={colors.secondaryDark}
+          iconBg={colors.soft}
+          iconColor={colors.forest}
           onPress={() => onMetricPress('active')}
         />
       </View>
@@ -252,23 +260,23 @@ export function TechnicianAnalyticsTab({
         title="Pending schedule queue"
         hint="All bookings awaiting admin confirmation (company-wide)"
         actionLabel="View all"
-        onAction={() => appPush('/(admin)/bookings?status=pending')}
+        onAction={() => appPush(adminRoutes.bookingsFiltered({ status: 'pending' }))}
       >
         <View style={styles.pendingKpiRow}>
           <KpiCard
-            icon={Clock}
+            icon={AppIcons.ui.clock}
             value={String(globalPending?.count ?? 0)}
             label="Pending (all)"
-            iconBg={colors.amberBg}
-            iconColor={colors.amberInk}
+            iconBg={'#EEF8E6'}
+            iconColor={colors.forest}
             onPress={() => onMetricPress('pending_global')}
           />
           <KpiCard
-            icon={Clock}
+            icon={AppIcons.ui.clock}
             value={String(globalPending?.periodCount ?? 0)}
             label={`This month`}
-            iconBg={colors.amberBg}
-            iconColor={colors.amberInk}
+            iconBg={'#EEF8E6'}
+            iconColor={colors.forest}
             onPress={() => onMetricPress('pending_global')}
           />
         </View>
@@ -290,17 +298,33 @@ const styles = StyleSheet.create({
   toolbarCard: {
     marginHorizontal: spacing.md,
     borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glass,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: surfaces.glassBorderStrong,
     padding: spacing.md,
     paddingTop: spacing.sm + 4,
     overflow: 'hidden',
     ...shadows.card,
   },
   toolbarGold: { height: 3, marginHorizontal: -spacing.md, marginTop: -spacing.sm - 4, marginBottom: spacing.sm },
-  toolbarTitle: { fontFamily: fonts.display, fontSize: 14, color: colors.ink, marginBottom: spacing.sm },
-  monthRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.sm },
+  toolbarEyebrow: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    color: colors.forest,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  toolbarTitle: { fontFamily: fonts.display, fontSize: 20, color: colors.ink, letterSpacing: -0.3 },
+  toolbarHint: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.muted,
+    marginTop: 4,
+    marginBottom: spacing.md,
+  },
+  monthRow: { marginHorizontal: -spacing.md, marginBottom: spacing.sm },
   exportBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -308,10 +332,12 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 11,
     paddingHorizontal: 16,
-    borderRadius: 999,
-    backgroundColor: colors.forest,
+    borderRadius: premium.radiusButton,
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: '#8FD03C',
   },
-  exportText: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.white },
+  exportText: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest },
   kpiRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

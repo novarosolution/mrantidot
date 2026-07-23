@@ -1,8 +1,11 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { type LucideIcon } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { homeShadow } from '@/components/kit/homeUi';
 import { Button } from '@/components/ui/Button';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { adminType, colors, fonts, spacing, surfaces } from '@/constants/theme';
 
 export function TechSectionTitle({
   title,
@@ -22,18 +25,24 @@ export function TechSectionTitle({
     <View style={[styles.sectionBlock, flush && styles.sectionFlush]}>
       <View style={styles.sectionRow}>
         <View style={styles.sectionText}>
-          <Text style={styles.sectionTitle}>{title}</Text>
-          {hint ? <Text style={styles.sectionHint}>{hint}</Text> : null}
+          <View style={styles.titleCol}>
+            <LinearGradient
+              colors={['#8FD03C', '#27A747']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.sectionAccent}
+            />
+            <View style={styles.sectionCopy}>
+              <Text style={styles.sectionTitle}>{title}</Text>
+              {hint ? <Text style={styles.sectionHint}>{hint}</Text> : null}
+            </View>
+          </View>
         </View>
         {actionLabel && onAction ? (
           <Pressable onPress={onAction} hitSlop={8}>
             <Text style={styles.sectionAction}>{actionLabel}</Text>
           </Pressable>
         ) : null}
-      </View>
-      <View style={styles.sectionRule}>
-        <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.sectionGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
-        <View style={styles.sectionLine} />
       </View>
     </View>
   );
@@ -59,13 +68,55 @@ export function TechCheckInCard({
   flush?: boolean;
 }) {
   return (
-    <View style={[styles.checkInCard, flush && styles.cardFlush]}>
-      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.cardGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
-      <Text style={styles.checkInTitle}>{title}</Text>
-      <Text style={styles.checkInSub}>{subtitle}</Text>
-      <View style={styles.checkInActions}>
-        <Button title={onDutyLabel} variant="premium" onPress={onCheckIn} loading={loading} style={styles.checkInBtn} />
-        <Button title={offDutyLabel} variant="secondary" onPress={onMarkAbsent} loading={loading} style={styles.checkInBtn} />
+    <View style={[styles.cardOuter, flush && styles.cardFlush]}>
+      <View style={styles.cardShell}>
+        <GlassPanel style={styles.checkInShell} padded={false} tone="light" goldEdge intensity={42}>
+          <View style={styles.checkInCard}>
+            <Text style={styles.checkInTitle}>{title}</Text>
+            <Text style={styles.checkInSub}>{subtitle}</Text>
+            <View style={styles.checkInActions}>
+              <Button title={onDutyLabel} variant="premium" onPress={onCheckIn} loading={loading} style={styles.checkInBtn} />
+              <Button title={offDutyLabel} variant="secondary" onPress={onMarkAbsent} loading={loading} style={styles.checkInBtn} />
+            </View>
+          </View>
+        </GlassPanel>
+      </View>
+    </View>
+  );
+}
+
+/** Present today + currently on duty — check out ends duty without marking absent. */
+export function TechOnDutyCard({
+  badgeLabel,
+  checkedInAt,
+  onCheckOut,
+  onMarkAbsent,
+  loading,
+  flush,
+}: {
+  badgeLabel: string;
+  checkedInAt?: string;
+  onCheckOut: () => void;
+  onMarkAbsent: () => void;
+  loading?: boolean;
+  flush?: boolean;
+}) {
+  const inLabel = checkedInAt
+    ? `In since ${new Date(checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+    : 'On duty today';
+  return (
+    <View style={[styles.cardOuter, flush && styles.cardFlush]}>
+      <View style={styles.cardShell}>
+        <GlassPanel style={styles.checkInShell} padded={false} tone="mint" intensity={42}>
+          <View style={styles.checkInCard}>
+            <Text style={styles.checkInTitle}>{badgeLabel}</Text>
+            <Text style={styles.checkInSub}>{inLabel}</Text>
+            <View style={styles.checkInActions}>
+              <Button title="Check out" variant="premium" onPress={onCheckOut} loading={loading} style={styles.checkInBtn} />
+              <Button title="Mark absent" variant="secondary" onPress={onMarkAbsent} loading={loading} style={styles.checkInBtn} />
+            </View>
+          </View>
+        </GlassPanel>
       </View>
     </View>
   );
@@ -78,52 +129,41 @@ export function TechOffDutyCard({
   onGoOnDuty,
   loading,
   flush,
+  showAction = true,
+  tone = 'danger',
 }: {
   badgeLabel: string;
   hint: string;
-  backOnDutyLabel: string;
-  onGoOnDuty: () => void;
+  backOnDutyLabel?: string;
+  onGoOnDuty?: () => void;
   loading?: boolean;
   flush?: boolean;
+  /** When false, only status + hint (e.g. approved leave). */
+  showAction?: boolean;
+  tone?: 'danger' | 'leave';
 }) {
+  const barColors = tone === 'leave' ? (['#93C5FD', '#3B82F6'] as const) : (['#FCA5A5', '#EF4444'] as const);
   return (
-    <View style={[styles.offDutyCard, flush && styles.cardFlush]}>
-      <LinearGradient colors={['#FCA5A5', '#EF4444']} style={styles.cardGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
-      <View style={styles.offDutyBadgeRow}>
-        <Text style={styles.offDutyBadgeText}>{badgeLabel}</Text>
-      </View>
-      <Text style={styles.offDutyHint}>{hint}</Text>
-      <Button title={backOnDutyLabel} variant="premium" onPress={onGoOnDuty} loading={loading} />
-    </View>
-  );
-}
-
-export function TechOnDutyCard({
-  badgeLabel,
-  markOffLabel,
-  onMarkOff,
-  loading,
-  flush,
-}: {
-  badgeLabel: string;
-  markOffLabel: string;
-  onMarkOff: () => void;
-  loading?: boolean;
-  flush?: boolean;
-}) {
-  return (
-    <View style={[styles.onDutyCard, flush && styles.cardFlush]}>
-      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.cardGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
-      <LinearGradient colors={['#E8F5EC', '#FFFFFF']} style={styles.onDutyInner} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        <View style={styles.onDutyRow}>
-          <View style={styles.onDutyBadge}>
-            <Text style={styles.onDutyBadgeText}>{badgeLabel}</Text>
+    <View style={[styles.cardOuter, flush && styles.cardFlush]}>
+      <View style={styles.cardShell}>
+        <GlassPanel
+          style={[styles.offDutyShell, tone === 'leave' && styles.leaveShell]}
+          padded={false}
+          tone="light"
+          intensity={42}
+        >
+          <LinearGradient colors={[...barColors]} style={styles.cardGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+          <View style={styles.offDutyCard}>
+            <View style={[styles.offDutyBadgeRow, tone === 'leave' && styles.leaveBadgeRow]}>
+              <Text style={[styles.offDutyBadgeText, tone === 'leave' && styles.leaveBadgeText]}>{badgeLabel}</Text>
+            </View>
+            <Text style={[styles.offDutyHint, !showAction && styles.offDutyHintSolo]}>{hint}</Text>
+            {showAction && backOnDutyLabel && onGoOnDuty ? (
+              <Button title={backOnDutyLabel} variant="premium" onPress={onGoOnDuty} loading={loading} />
+            ) : null}
           </View>
-          <Pressable onPress={onMarkOff} disabled={loading} hitSlop={8}>
-            <Text style={[styles.markOffLink, loading && styles.markOffDisabled]}>{markOffLabel}</Text>
-          </Pressable>
-        </View>
-      </LinearGradient>
+        </GlassPanel>
+      </View>
     </View>
   );
 }
@@ -137,7 +177,7 @@ export function TechDutyBadge({ label, variant }: { label: string; variant: 'on'
 }
 
 export function TechQuickLink({
-  icon: Icon,
+  icon,
   label,
   onPress,
 }: {
@@ -147,9 +187,7 @@ export function TechQuickLink({
 }) {
   return (
     <Pressable style={({ pressed }) => [styles.quickLink, pressed && styles.pressed]} onPress={onPress}>
-      <View style={styles.quickIcon}>
-        <Icon size={16} color={colors.forest} strokeWidth={2.2} />
-      </View>
+      <PremiumIcon icon={icon} variant="mint" size="sm" color={colors.forest} bg={colors.soft} bgTo="#FFFFFF" boxSize={28} />
       <Text style={styles.quickLabel}>{label}</Text>
     </Pressable>
   );
@@ -160,75 +198,61 @@ const styles = StyleSheet.create({
   sectionFlush: { paddingHorizontal: 0 },
   sectionRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   sectionText: { flex: 1 },
-  sectionTitle: { fontFamily: fonts.displayExtra, fontSize: 17, lineHeight: 22, letterSpacing: -0.35, color: colors.ink },
-  sectionHint: { fontFamily: fonts.body, fontSize: 12, lineHeight: 17, letterSpacing: 0.1, color: colors.muted, marginTop: 3 },
-  sectionAction: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest, paddingTop: 2 },
-  sectionRule: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm, gap: spacing.sm },
-  sectionGold: { width: 28, height: 3, borderRadius: 2 },
-  sectionLine: { flex: 1, height: 1, backgroundColor: colors.border },
-  checkInCard: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
-    borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
-    padding: spacing.md,
-    paddingTop: spacing.sm + 4,
-    overflow: 'hidden',
-    ...shadows.card,
-  },
-  cardGold: { height: 3, marginHorizontal: -spacing.md, marginTop: -spacing.sm - 4, marginBottom: spacing.sm },
-  checkInTitle: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
-  checkInSub: { fontFamily: fonts.body, fontSize: 12, lineHeight: 17, letterSpacing: 0.1, color: colors.muted, marginTop: 4, marginBottom: spacing.md },
+  titleCol: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  sectionAccent: { width: 3, height: 18, borderRadius: 2, marginTop: 2 },
+  sectionCopy: { flex: 1, minWidth: 0 },
+  sectionTitle: { ...adminType.sectionTitle, fontSize: 18, color: colors.ink },
+  sectionHint: { ...adminType.sectionHint, color: colors.muted },
+  sectionAction: { ...adminType.sectionLink, paddingTop: 2 },
+  cardOuter: { marginHorizontal: spacing.md, marginTop: spacing.sm },
+  cardShell: { borderRadius: 20, ...homeShadow.card },
+  checkInShell: { borderRadius: 20 },
+  checkInCard: { padding: spacing.md, paddingTop: spacing.sm + 10 },
+  cardGold: { height: 3, marginBottom: spacing.sm },
+  checkInTitle: { ...adminType.formTitle, color: colors.ink },
+  checkInSub: { ...adminType.formSub, marginTop: 4, marginBottom: spacing.md, color: colors.muted },
   checkInActions: { flexDirection: 'row', gap: spacing.sm },
   checkInBtn: { flex: 1 },
   cardFlush: { marginHorizontal: 0 },
-  offDutyCard: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
-    borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
-    borderWidth: 1,
+  offDutyShell: {
+    borderRadius: 20,
     borderColor: 'rgba(220,38,38,0.12)',
-    padding: spacing.md,
-    paddingTop: spacing.sm + 4,
     overflow: 'hidden',
-    ...shadows.card,
   },
+  offDutyCard: { padding: spacing.md, paddingTop: spacing.sm + 6 },
   offDutyBadgeRow: {
     alignSelf: 'flex-start',
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: 'rgba(254,242,242,0.78)',
     borderWidth: 1,
     borderColor: 'rgba(220,38,38,0.15)',
     marginBottom: spacing.sm,
   },
-  offDutyBadgeText: { fontFamily: fonts.bodySemi, fontSize: 13, color: '#B91C1C' },
-  offDutyHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginBottom: spacing.md, lineHeight: 17 },
-  onDutyCard: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
-    borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
-    overflow: 'hidden',
-    ...shadows.card,
+  offDutyBadgeText: { ...adminType.chipText, color: '#B91C1C' },
+  leaveShell: {
+    borderColor: 'rgba(59,130,246,0.16)',
   },
-  onDutyInner: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 4 },
+  leaveBadgeRow: {
+    backgroundColor: 'rgba(239,246,255,0.9)',
+    borderColor: 'rgba(59,130,246,0.2)',
+  },
+  leaveBadgeText: { color: '#1D4ED8' },
+  offDutyHint: { ...adminType.formSub, marginBottom: spacing.md, color: colors.muted },
+  offDutyHintSolo: { marginBottom: 0 },
+  onDutyShell: { borderRadius: 20, overflow: 'hidden' },
+  onDutyInner: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 6 },
   onDutyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   onDutyBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: colors.soft,
+    backgroundColor: 'rgba(238,248,230,0.72)',
     borderWidth: 1,
-    borderColor: 'rgba(30,142,78,0.15)',
+    borderColor: surfaces.glassBorderStrong,
   },
-  onDutyBadgeText: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest },
+  onDutyBadgeText: { ...adminType.chipText },
   markOffLink: { fontFamily: fonts.bodySemi, fontSize: 12, color: '#B91C1C' },
   markOffDisabled: { opacity: 0.5 },
   dutyBadge: {
@@ -240,30 +264,23 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
-  dutyOn: { backgroundColor: colors.soft, borderColor: 'rgba(20,83,45,0.12)' },
-  dutyOff: { backgroundColor: '#FEF2F2', borderColor: 'rgba(220,38,38,0.15)' },
-  dutyText: { fontFamily: fonts.bodySemi, fontSize: 13 },
+  dutyOn: { backgroundColor: 'rgba(238,248,230,0.72)', borderColor: surfaces.glassBorderStrong },
+  dutyOff: { backgroundColor: 'rgba(254,242,242,0.78)', borderColor: 'rgba(220,38,38,0.15)' },
+  dutyText: { ...adminType.chipText },
   dutyTextOn: { color: colors.forest },
   dutyTextOff: { color: '#B91C1C' },
   quickLink: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glass,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.1)',
+    borderColor: surfaces.glassBorderStrong,
+    ...homeShadow.soft,
   },
   pressed: { opacity: 0.88 },
-  quickIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 10,
-    backgroundColor: colors.soft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickLabel: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
+  quickLabel: { ...adminType.quickLabel, color: colors.ink },
 });

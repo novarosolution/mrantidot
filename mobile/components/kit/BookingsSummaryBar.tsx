@@ -1,9 +1,12 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useBookingCopy } from '@/lib/schedule-copy';
-import { colors, customerType, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { fonts, spacing, surfaces } from '@/constants/theme';
 
 type FilterKey = 'active' | 'completed' | 'cancelled';
+
+const DEEP = '#0A6423';
+const BORDER = '#E2F0D8';
 
 export function BookingsSummaryBar({
   active,
@@ -19,39 +22,38 @@ export function BookingsSummaryBar({
   onSelect: (filter: FilterKey) => void;
 }) {
   const copy = useBookingCopy();
-  const TILES: { key: FilterKey; label: string; color: string; softBg: string }[] = [
-    { key: 'active', label: copy.listFilterActive, color: colors.forest, softBg: '#E8F5EC' },
-    { key: 'completed', label: copy.listFilterCompleted, color: colors.secondaryDark, softBg: colors.secondarySoft },
-    { key: 'cancelled', label: copy.listFilterCancelled, color: colors.muted, softBg: colors.greyBg },
+  const TILES: { key: FilterKey; label: string }[] = [
+    { key: 'active', label: copy.listFilterActive },
+    { key: 'completed', label: copy.listFilterCompleted },
+    { key: 'cancelled', label: copy.listFilterCancelled },
   ];
   const values: Record<FilterKey, number> = { active, completed, cancelled };
 
   return (
     <View style={styles.wrap}>
       <LinearGradient
-        colors={['#FFFFFF', '#F6FAF7']}
-        style={StyleSheet.absoluteFill}
+        colors={['#8FD03C', '#27A747', '#0A6423']}
         start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.topBar}
       />
-      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <View style={styles.row}>
         {TILES.map((tile, index) => {
-          const isSelected = selected === tile.key;
+          const on = selected === tile.key;
           return (
             <Pressable
               key={tile.key}
               onPress={() => onSelect(tile.key)}
               style={({ pressed }) => [
                 styles.cell,
-                index < TILES.length - 1 && styles.cellBorder,
+                index > 0 && styles.cellBorder,
                 pressed && styles.pressed,
               ]}
             >
-              <View style={[styles.valueRing, { backgroundColor: isSelected ? tile.softBg : 'transparent' }]}>
-                <Text style={[styles.value, { color: tile.color }]}>{values[tile.key]}</Text>
+              <View style={[styles.valueBox, on && styles.valueBoxOn]}>
+                <Text style={[styles.value, on && styles.valueOn]}>{values[tile.key]}</Text>
               </View>
-              <Text style={[styles.label, isSelected && styles.labelSelected]}>{tile.label}</Text>
+              <Text style={[styles.label, on && styles.labelOn]}>{tile.label}</Text>
             </Pressable>
           );
         })}
@@ -64,41 +66,60 @@ const styles = StyleSheet.create({
   wrap: {
     marginHorizontal: spacing.md,
     marginBottom: spacing.sm,
-    borderRadius: premium.radiusCard,
+    borderRadius: 22,
     overflow: 'hidden',
+    backgroundColor: surfaces.glass,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
-    ...shadows.card,
+    borderColor: BORDER,
+    shadowColor: '#043813',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 18,
+    elevation: 6,
   },
-  goldBar: { height: 3, width: '100%' },
+  topBar: { height: 4, width: '100%' },
   row: {
     flexDirection: 'row',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xs,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
   },
   cell: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: spacing.xs,
+    paddingVertical: 2,
   },
   cellBorder: {
-    borderRightWidth: StyleSheet.hairlineWidth,
-    borderRightColor: 'rgba(20,83,45,0.1)',
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderLeftColor: '#EEF5E6',
   },
-  pressed: { opacity: 0.88 },
-  valueRing: {
-    minWidth: 40,
-    height: 40,
+  pressed: { opacity: 0.88, transform: [{ scale: 0.97 }] },
+  valueBox: {
+    minWidth: 42,
+    height: 42,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 8,
-    marginBottom: 4,
+    marginBottom: 5,
+    backgroundColor: '#EEF8E6',
+    borderWidth: 1,
+    borderColor: '#D8EDC8',
   },
-  value: { ...customerType.statValue },
-  label: { ...customerType.statLabel },
-  labelSelected: {
-    ...customerType.statLabel,
-    color: colors.forest,
+  valueBoxOn: {
+    backgroundColor: DEEP,
+    borderColor: DEEP,
   },
+  value: {
+    fontFamily: fonts.displayExtra,
+    fontSize: 18,
+    color: DEEP,
+  },
+  valueOn: { color: '#FFFFFF' },
+  label: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    letterSpacing: 0.3,
+    color: '#7A9A7E',
+  },
+  labelOn: { color: DEEP },
 });

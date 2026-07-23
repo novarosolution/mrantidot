@@ -1,12 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Card } from '@/components/ui/Card';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { homeShadow } from '@/components/kit/homeUi';
 import { JobVisitCard } from '@/components/kit/JobVisitCard';
 import { bookingVisitDate } from '@/lib/booking-helpers';
 import type { Booking, DayAttendanceStatus } from '@/types/api';
-import { colors, fonts, premium, shadows, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -15,6 +17,7 @@ const STATUS_LABELS: Record<DayAttendanceStatus, string> = {
   not_came: 'Did not come',
   pending: 'Pending',
   future: 'Upcoming',
+  leave: 'Leave',
 };
 
 export function toDateKey(d: Date): string {
@@ -64,6 +67,8 @@ function cellStyle(status: DayAttendanceStatus | undefined, selected: boolean) {
       return styles.dayCellAbsent;
     case 'pending':
       return styles.dayCellPending;
+    case 'leave':
+      return styles.dayCellLeave;
     default:
       return undefined;
   }
@@ -93,6 +98,14 @@ export function TechnicianDayCalendar({
 
   const [selectedDate, setSelectedDate] = useState(today);
 
+  useEffect(() => {
+    if (!controlledMonth) return;
+    if (!selectedDate.startsWith(`${controlledMonth}-`)) {
+      const pick = controlledMonth === today.slice(0, 7) ? today : `${controlledMonth}-01`;
+      setSelectedDate(pick);
+    }
+  }, [controlledMonth, selectedDate, today]);
+
   const { year, month } = parseMonthKey(`${monthKey}-01`);
   const grid = useMemo(() => buildMonthGrid(year, month), [year, month]);
 
@@ -106,6 +119,8 @@ export function TechnicianDayCalendar({
   function shiftMonth(delta: number) {
     const d = new Date(year, month + delta, 1);
     const next = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const nextSelected = `${next}-01`;
+    setSelectedDate(nextSelected);
     if (onMonthChange) onMonthChange(next);
     else setInternalMonth(next);
   }
@@ -117,79 +132,83 @@ export function TechnicianDayCalendar({
 
   return (
     <View style={styles.wrap}>
-      <Card variant="premium" style={styles.calendarCard}>
-        <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
-        <View style={styles.monthHead}>
-          <Pressable onPress={() => shiftMonth(-1)} style={styles.navBtn} hitSlop={8}>
-            <ChevronLeft size={20} color={colors.forest} />
-          </Pressable>
-          <Text style={styles.monthTitle}>{monthLabel(year, month)}</Text>
-          <Pressable onPress={() => shiftMonth(1)} style={styles.navBtn} hitSlop={8}>
-            <ChevronRight size={20} color={colors.forest} />
-          </Pressable>
-        </View>
-
-        <View style={styles.legend}>
-          {(['came', 'not_came', 'pending'] as DayAttendanceStatus[]).map((s) => (
-            <View key={s} style={styles.legendItem}>
-              <View style={[styles.legendDot, cellStyle(s, false)]} />
-              <Text style={styles.legendText}>{STATUS_LABELS[s]}</Text>
-            </View>
-          ))}
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, styles.jobDot]} />
-            <Text style={styles.legendText}>Jobs</Text>
-          </View>
-        </View>
-
-        <View style={styles.weekRow}>
-          {WEEKDAYS.map((w) => (
-            <Text key={w} style={styles.weekLabel}>
-              {w}
-            </Text>
-          ))}
-        </View>
-
-        <View style={styles.grid}>
-          {grid.map((cell) => {
-            const count = calendar[cell.key] ?? 0;
-            const status = attendance[cell.key];
-            const selected = cell.key === selectedDate;
-            const isToday = cell.key === today;
-            return (
-              <Pressable
-                key={cell.key}
-                style={[
-                  styles.dayCell,
-                  !cell.inMonth && styles.dayCellMuted,
-                  cellStyle(status, selected),
-                  isToday && !selected && styles.dayCellToday,
-                ]}
-                onPress={() => handleDayPress(cell.key)}
-              >
-                <Text
-                  style={[
-                    styles.dayNum,
-                    !cell.inMonth && styles.dayNumMuted,
-                    selected && styles.dayNumSelected,
-                  ]}
-                >
-                  {cell.day}
-                </Text>
-                {count > 0 ? (
-                  <View style={[styles.dot, selected && styles.dotSelected]}>
-                    <Text style={[styles.dotText, selected && styles.dotTextSelected]}>
-                      {count > 9 ? '9+' : count}
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={styles.dotSpacer} />
-                )}
+      <View style={styles.calendarShell}>
+        <GlassPanel style={styles.calendarCard} padded={false} tone="light" intensity={42} goldEdge>
+          <View style={styles.calendarInner}>
+            <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+            <View style={styles.monthHead}>
+              <Pressable onPress={() => shiftMonth(-1)} style={styles.navBtn} hitSlop={8}>
+                <PremiumIcon icon={AppIcons.ui.chevronLeft} variant="plain" size="lg" color={colors.forest} />
               </Pressable>
-            );
-          })}
-        </View>
-      </Card>
+              <Text style={styles.monthTitle}>{monthLabel(year, month)}</Text>
+              <Pressable onPress={() => shiftMonth(1)} style={styles.navBtn} hitSlop={8}>
+                <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size="lg" color={colors.forest} />
+              </Pressable>
+            </View>
+
+            <View style={styles.legend}>
+              {(['came', 'not_came', 'leave', 'pending'] as DayAttendanceStatus[]).map((s) => (
+                <View key={s} style={styles.legendItem}>
+                  <View style={[styles.legendDot, cellStyle(s, false)]} />
+                  <Text style={styles.legendText}>{STATUS_LABELS[s]}</Text>
+                </View>
+              ))}
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, styles.jobDot]} />
+                <Text style={styles.legendText}>Jobs</Text>
+              </View>
+            </View>
+
+            <View style={styles.weekRow}>
+              {WEEKDAYS.map((w) => (
+                <Text key={w} style={styles.weekLabel}>
+                  {w}
+                </Text>
+              ))}
+            </View>
+
+            <View style={styles.grid}>
+              {grid.map((cell) => {
+                const count = calendar[cell.key] ?? 0;
+                const status = attendance[cell.key];
+                const selected = cell.key === selectedDate;
+                const isToday = cell.key === today;
+                return (
+                  <Pressable
+                    key={cell.key}
+                    style={[
+                      styles.dayCell,
+                      !cell.inMonth && styles.dayCellMuted,
+                      cellStyle(status, selected),
+                      isToday && !selected && styles.dayCellToday,
+                    ]}
+                    onPress={() => handleDayPress(cell.key)}
+                  >
+                    <Text
+                      style={[
+                        styles.dayNum,
+                        !cell.inMonth && styles.dayNumMuted,
+                        selected && styles.dayNumSelected,
+                      ]}
+                    >
+                      {cell.day}
+                    </Text>
+                    {count > 0 ? (
+                      <View style={[styles.dot, selected && styles.dotSelected]}>
+                        <Text style={[styles.dotText, selected && styles.dotTextSelected]}>
+                          {count > 9 ? '9+' : count}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.dotSpacer} />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </GlassPanel>
+      </View>
 
       <Text style={styles.dayTitle}>
         {selectedDate === today ? 'Today' : selectedDate}
@@ -199,9 +218,11 @@ export function TechnicianDayCalendar({
       </Text>
 
       {dayJobs.length === 0 ? (
-        <Card variant="premium" style={styles.emptyDay}>
-          <Text style={styles.emptyText}>No jobs on this day</Text>
-        </Card>
+        <View style={styles.emptyShell}>
+          <GlassPanel style={styles.emptyDay} padded={false} tone="light" intensity={38}>
+            <Text style={styles.emptyText}>No jobs on this day</Text>
+          </GlassPanel>
+        </View>
       ) : (
         dayJobs.map((job) => (
           <JobVisitCard
@@ -221,7 +242,12 @@ export const AdminJobCalendar = TechnicianDayCalendar;
 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.sm },
-  calendarCard: { padding: spacing.md, paddingTop: spacing.sm + 4, overflow: 'hidden' },
+  calendarShell: {
+    borderRadius: premium.radiusCard,
+    ...homeShadow.card,
+  },
+  calendarCard: { borderRadius: premium.radiusCard, overflow: 'hidden' },
+  calendarInner: { padding: spacing.md, paddingTop: spacing.sm + 4 },
   goldBar: { height: 3, marginHorizontal: -spacing.md, marginTop: -spacing.sm - 4, marginBottom: spacing.sm },
   monthHead: {
     flexDirection: 'row',
@@ -238,10 +264,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   monthTitle: { fontFamily: fonts.display, fontSize: 16, color: colors.forest },
-  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: spacing.sm },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendText: { fontFamily: fonts.body, fontSize: 10, color: colors.muted },
+  legend: {
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    justifyContent: 'space-between',
+    gap: 6,
+    marginBottom: spacing.sm,
+    paddingHorizontal: 2,
+  },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendText: { fontFamily: fonts.bodySemi, fontSize: 9, color: colors.muted },
   jobDot: { backgroundColor: colors.forest },
   weekRow: { flexDirection: 'row', marginBottom: 6 },
   weekLabel: {
@@ -265,6 +298,7 @@ const styles = StyleSheet.create({
   dayCellCame: { backgroundColor: surfaces.tintSuccess },
   dayCellAbsent: { backgroundColor: surfaces.tintDanger },
   dayCellPending: { backgroundColor: surfaces.tintWarning },
+  dayCellLeave: { backgroundColor: 'rgba(59, 130, 246, 0.18)' },
   dayCellToday: { borderWidth: 1.5, borderColor: colors.green },
   dayNum: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink },
   dayNumMuted: { color: colors.muted },
@@ -290,6 +324,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     marginBottom: 4,
   },
-  emptyDay: { padding: spacing.md, alignItems: 'center' },
+  emptyShell: {
+    borderRadius: 18,
+    ...homeShadow.soft,
+  },
+  emptyDay: {
+    borderRadius: 18,
+    padding: spacing.md,
+    alignItems: 'center',
+  },
   emptyText: { fontFamily: fonts.body, fontSize: 13, color: colors.muted },
 });

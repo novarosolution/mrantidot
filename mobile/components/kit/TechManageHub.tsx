@@ -1,9 +1,9 @@
-import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons, IconGradients } from '@/constants/appIcons';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, fonts, premium, shadows, spacing, surfaces } from '@/constants/theme';
+import { techRoutes, appPush } from '@/lib/routes';
 
 const Hub = AppIcons.techHub;
 
@@ -26,7 +26,7 @@ export function TechManageHub({
       desc: `${jobCount} assigned`,
       icon: Hub.jobs,
       grad: IconGradients.forest,
-      onPress: () => router.push('/(tech)'),
+      onPress: () => appPush(techRoutes.home),
     },
     {
       key: 'active',
@@ -34,7 +34,7 @@ export function TechManageHub({
       desc: activeJobId ? 'Continue work' : 'None now',
       icon: Hub.active,
       grad: IconGradients.gold,
-      onPress: () => activeJobId && router.push(`/(tech)/job/${activeJobId}`),
+      onPress: () => activeJobId && appPush(techRoutes.job(activeJobId)),
       disabled: !activeJobId,
     },
     {
@@ -43,7 +43,7 @@ export function TechManageHub({
       desc: verifyCount > 0 ? `${verifyCount} need code` : 'All clear',
       icon: Hub.verify,
       grad: IconGradients.teal,
-      onPress: () => verifyJobId && router.push(`/(tech)/job/${verifyJobId}`),
+      onPress: () => verifyJobId && appPush(techRoutes.job(verifyJobId)),
       disabled: !verifyJobId,
       badge: verifyCount > 0 ? verifyCount : undefined,
     },
@@ -52,8 +52,8 @@ export function TechManageHub({
       label: 'Calendar',
       desc: 'Schedule view',
       icon: Hub.allJobs,
-      grad: IconGradients.blue,
-      onPress: () => router.push('/(tech)/profile'),
+      grad: IconGradients.forest,
+      onPress: () => appPush(techRoutes.profile),
     },
   ];
 
@@ -68,7 +68,7 @@ export function TechManageHub({
             onPress={item.onPress}
             disabled={item.disabled}
           >
-            <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldEdge} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+            <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.goldEdge} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
             <PremiumIcon icon={item.icon} variant="gradient" gradient={item.grad} size="md" boxSize={42} />
             <View style={styles.labelRow}>
               <Text style={styles.label}>{item.label}</Text>
@@ -105,12 +105,12 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexShrink: 1,
     minWidth: 140,
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glass,
     borderRadius: premium.radiusCard,
     padding: spacing.sm + 4,
     paddingTop: spacing.sm + 8,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.06)',
+    borderColor: surfaces.glassBorderStrong,
     overflow: 'hidden',
     minHeight: 108,
     gap: 8,

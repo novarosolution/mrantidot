@@ -53,6 +53,10 @@ export interface User {
   jobsDone?: number;
   available?: boolean;
   disabled?: boolean;
+  /** Technician pay: percent of job total, or flat ₹ per completed job. */
+  payMode?: 'percent' | 'flat';
+  payPercent?: number;
+  payFlat?: number;
   /** Primary env-configured admin; role cannot be changed */
   protected?: boolean;
   createdAt?: string;
@@ -85,15 +89,33 @@ export interface HomeCategoryChip {
   category?: string;
 }
 
+export interface HomeQuickLabels {
+  book: string;
+  bookings: string;
+  offers: string;
+  help: string;
+}
+
 export interface HomeConfig {
   featuredServiceId?: string;
   sectionTitles: { services: string; popular: string };
-  /** Subtitle on the Our Services tab (falls back to branding tagline). */
+  /** Subtitle under Our Services on home. */
   servicesSubtitle?: string;
   searchPlaceholder: string;
   servicesActionLabel: string;
   popularActionLabel: string;
   categoryChips: HomeCategoryChip[];
+  serviceTypesTitle?: string;
+  serviceTypesAction?: string;
+  bookSlideTitle?: string;
+  bookSlideCta?: string;
+  bookSlideFallbackSub?: string;
+  promoCodeHint?: string;
+  quickLabels?: HomeQuickLabels;
+  /** Optional hero eyebrow under greeting (e.g. brand line). */
+  heroEyebrow?: string;
+  /** Optional line under the user name on home hero. */
+  heroSubtitle?: string;
 }
 
 export interface SupportConfig {
@@ -240,6 +262,7 @@ export interface BookingCopyConfig {
   techEmptyJobsTitle: string;
   techEmptyJobsMessage: string;
   techJobValueLabel: string;
+  techEarningLabel: string;
   techVisitTimesTitle: string;
   techJobDetailsTitle: string;
   techTreatmentStepsTitle: string;
@@ -254,6 +277,100 @@ export interface BookingCopyConfig {
   techNoStepsHint: string;
 }
 
+/** Customer-facing screen copy (home chrome, auth, offers, profile, help, account). */
+export interface CustomerUiCopy {
+  homeGreetingMorning: string;
+  homeGreetingAfternoon: string;
+  homeGreetingEvening: string;
+  homeSetLocation: string;
+  homeFindingLocation: string;
+  homeEmptyNoMatchesTitle: string;
+  homeEmptyNoMatchesMessage: string;
+  homeEmptyNoServicesTitle: string;
+  homeEmptyNoServicesMessage: string;
+  homeEmptyBrowseAll: string;
+  homeCarouselOfferKicker: string;
+  homeCarouselBookKicker: string;
+  homeCarouselFallbackSub: string;
+  homePopularBadge: string;
+  authLoginTitle: string;
+  authLoginSubtitle: string;
+  authLoginEmailPlaceholder: string;
+  authLoginPasswordPlaceholder: string;
+  authLoginButton: string;
+  authLoginSuccessToast: string;
+  authLoginErrorToast: string;
+  authRegisterTitle: string;
+  authRegisterSubtitle: string;
+  authRegisterButton: string;
+  authRegisterSuccessToast: string;
+  authRegisterErrorToast: string;
+  authOtpTitle: string;
+  authOtpSubtitle: string;
+  authOtpButton: string;
+  offersScreenTitle: string;
+  offersSectionAvailable: string;
+  offersEmptyHint: string;
+  offersPickServiceTitle: string;
+  offersNoServicesAlertTitle: string;
+  offersNoServicesAlertBody: string;
+  offersHeroFallbackTitle: string;
+  offersHeroFallbackSub: string;
+  profileScreenTitle: string;
+  profileQuickBook: string;
+  profileQuickBookings: string;
+  profileQuickOffers: string;
+  profileQuickSupport: string;
+  profileStatActive: string;
+  profileStatDone: string;
+  profileStatSaved: string;
+  profileStatPay: string;
+  profileMenuBookings: string;
+  profileMenuBookingsSub: string;
+  profileMenuAddresses: string;
+  profileMenuAddressesSub: string;
+  profileMenuPayments: string;
+  profileMenuPaymentsSub: string;
+  profileMenuOffers: string;
+  profileMenuOffersSub: string;
+  profileMenuNotifications: string;
+  profileMenuNotificationsSub: string;
+  profileMenuSettings: string;
+  profileMenuSettingsSub: string;
+  profileMenuHelp: string;
+  profileMenuHelpSub: string;
+  profileMenuFaq: string;
+  profileMenuFaqSub: string;
+  profileMenuAbout: string;
+  profileMenuAboutSub: string;
+  profileMenuTerms: string;
+  profileMenuTermsSub: string;
+  profileMenuPrivacy: string;
+  profileMenuPrivacySub: string;
+  profileSignOut: string;
+  profileInviteTitle: string;
+  helpScreenTitle: string;
+  helpContactTitle: string;
+  helpResourcesTitle: string;
+  helpPhoneLabel: string;
+  helpEmailLabel: string;
+  helpWhatsappLabel: string;
+  helpHoursLabel: string;
+  addressesScreenTitle: string;
+  addressesEmptyTitle: string;
+  addressesEmptyMessage: string;
+  addressesAddButton: string;
+  paymentsScreenTitle: string;
+  paymentsEmptyTitle: string;
+  paymentsEmptyMessage: string;
+  paymentsAddButton: string;
+  notificationsScreenTitle: string;
+  notificationsEmptyTitle: string;
+  notificationsEmptyMessage: string;
+  settingsScreenTitle: string;
+  servicesScreenTitle: string;
+}
+
 export interface AppConfig {
   support: SupportConfig;
   branding: BrandingConfig;
@@ -263,6 +380,7 @@ export interface AppConfig {
   aboutMarkdown: string;
   faq: FaqItem[];
   booking?: BookingCopyConfig;
+  customerUi?: CustomerUiCopy;
 }
 
 export interface BookingStatusCounts {
@@ -347,6 +465,8 @@ export interface BookingStep {
   description?: string;
   status: 'pending' | 'active' | 'done';
   photoUrl?: string;
+  /** Multiple progress photos for this treatment step. */
+  photoUrls?: string[];
   capturedAt?: string;
   geo?: { lat: number; lng: number; address: string };
 }
@@ -391,8 +511,8 @@ export interface WorkOtpView {
 }
 
 export interface WorkOtpAdminView {
-  start?: { masked: string; verifiedAt?: string; expiresAt?: string };
-  end?: { masked: string; verifiedAt?: string; expiresAt?: string };
+  start?: { masked: string; code?: string; verifiedAt?: string; expiresAt?: string };
+  end?: { masked: string; code?: string; verifiedAt?: string; expiresAt?: string };
 }
 
 export type ScheduleMode = 'standard' | 'custom';
@@ -435,8 +555,12 @@ export interface Booking {
   tracking?: TrackingEvent[];
   otpRequired?: 'start' | 'end' | null;
   createdAt?: string;
+  /** Locked technician take-home (admin view / completed jobs). */
+  technicianEarning?: number;
   /** Technician view — job total for assigned active/completed jobs only */
   jobValue?: number;
+  /** Technician view — take-home (locked or estimated from pay rules) */
+  techEarning?: number;
 }
 
 export interface Review {
@@ -458,6 +582,10 @@ export interface TechnicianStats {
   rating: number;
   jobsDone: number;
   earnings: number;
+  paySummary?: string;
+  payMode?: 'percent' | 'flat';
+  payPercent?: number;
+  payFlat?: number;
   month?: string;
   attendance?: Record<string, DayAttendanceStatus>;
   todayStatus?: DayAttendanceStatus;
@@ -538,6 +666,7 @@ export interface TechnicianDetailStats {
   earnings: number;
   lastJobDate?: string;
   reviewCount: number;
+  paySummary?: string;
 }
 
 export interface AttendanceTrendBucket {
@@ -562,10 +691,12 @@ export type TechnicianMetricKey =
   | 'attendance_rate'
   | 'days_present'
   | 'days_absent'
+  | 'days_leave'
   | 'completion_rate'
   | 'jobs_started'
   | 'jobs_completed'
   | 'jobs_no_show'
+  | 'on_time'
   | 'avg_visit'
   | 'pending_global'
   | 'status_pending'
@@ -599,7 +730,46 @@ export interface TechnicianDetailResponse {
   jobsTrend?: JobsTrendBucket[];
 }
 
-export type DayAttendanceStatus = 'came' | 'not_came' | 'pending' | 'future';
+export type DayAttendanceStatus = 'came' | 'not_came' | 'pending' | 'future' | 'leave';
+
+export type AttendanceRecord = {
+  id: string;
+  technicianId: string;
+  date: string;
+  status: 'present' | 'absent' | 'leave';
+  checkedInAt: string;
+  checkedOutAt?: string;
+  source: string;
+  note?: string;
+};
+
+export type LeaveType = 'casual' | 'sick' | 'emergency' | 'other';
+export type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+
+export type LeaveRequest = {
+  id: string;
+  technicianId: string;
+  technicianName?: string;
+  technicianPhone?: string;
+  from: string;
+  to: string;
+  type: LeaveType;
+  status: LeaveStatus;
+  reason?: string;
+  adminNote?: string;
+  createdAt?: string;
+};
+
+export type PayrollRow = {
+  technicianId: string;
+  name: string;
+  phone?: string;
+  available: boolean;
+  disabled: boolean;
+  paySummary: string;
+  jobsCompleted: number;
+  earnings: number;
+};
 
 export type JobVisitStatus =
   | 'completed'
@@ -616,11 +786,15 @@ export interface JobVisitSummary {
   startedAt?: string;
   completedAt?: string;
   durationMinutes?: number;
+  startDeltaMinutes?: number;
+  punctuality?: 'on_time' | 'late' | 'early' | 'unknown';
+  onTime?: boolean;
 }
 
 export interface TechnicianAnalytics {
   daysPresent: number;
   daysAbsent: number;
+  daysLeave?: number;
   daysPending: number;
   attendanceRate: number;
   jobsScheduled: number;
@@ -629,6 +803,9 @@ export interface TechnicianAnalytics {
   jobsStarted?: number;
   jobsNoShow?: number;
   avgVisitMinutes?: number;
+  jobsOnTime?: number;
+  jobsLate?: number;
+  onTimeRate?: number;
 }
 
 export interface TeamAttendanceStats {
@@ -638,14 +815,4 @@ export interface TeamAttendanceStats {
   checkedInToday: number;
   averageAttendanceRate: number;
   lowAttendance: { id: string; name: string; rate: number }[];
-}
-
-export interface AttendanceRecord {
-  id: string;
-  technicianId: string;
-  date: string;
-  status: 'present' | 'absent';
-  checkedInAt: string;
-  source: 'technician' | 'admin';
-  note?: string;
 }

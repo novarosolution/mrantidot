@@ -3,8 +3,8 @@ import { StyleSheet, View, type RefreshControlProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomerPageHeader } from './CustomerPageHeader';
 import { UserAccountCard } from './UserAccountCard';
-import { TAB_BAR_SCROLL_PAD, customerScrollProps } from '@/components/kit/GlassScreenKit';
-import { colors, design, spacing } from '@/constants/theme';
+import { GlassBackdrop, TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
+import { surfaces, spacing } from '@/constants/theme';
 
 export function CustomerListShell({
   title,
@@ -28,20 +28,23 @@ export function CustomerListShell({
   children: ReactNode;
 }) {
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <CustomerPageHeader
-        title={title}
-        subtitle={subtitle}
-        showBack={showBack}
-        variant={headerVariant}
-        rightAction={rightAction}
-        overlapReserve={heroOverlap}
-      >
-        {headerExtra}
-      </CustomerPageHeader>
-      {accountStrip ? <UserAccountCard /> : null}
-      <View style={styles.body}>{children}</View>
-    </SafeAreaView>
+    <View style={styles.root}>
+      <GlassBackdrop />
+      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+        <CustomerPageHeader
+          title={title}
+          subtitle={subtitle}
+          showBack={showBack}
+          variant={headerVariant}
+          rightAction={rightAction}
+          overlapReserve={heroOverlap}
+        >
+          {headerExtra}
+        </CustomerPageHeader>
+        {accountStrip ? <UserAccountCard /> : null}
+        <View style={styles.body}>{children}</View>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -51,7 +54,8 @@ export const listShellStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: design.screenBg, overflow: 'hidden' },
+  root: { flex: 1, overflow: 'hidden', backgroundColor: surfaces.glassScreenBase },
+  safe: { flex: 1, backgroundColor: 'transparent', overflow: 'hidden' },
   body: { flex: 1, overflow: 'hidden' },
 });
 

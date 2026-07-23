@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import {
-  Plus,
-  Trash2,
-  X,
-} from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import Toast from 'react-native-toast-message';
 import { AdminCollapsibleCard, AdminFormCard, AdminTabHint } from '@/components/kit/AdminPageKit';
@@ -22,13 +18,21 @@ import { PromoBanner } from '@/components/ui/PromoBanner';
 import { api, screenLoadConfig } from '@/lib/api';
 import { useAppContent } from '@/context/AppContentContext';
 import { useScreenLoad } from '@/lib/useScreenLoad';
-import type { AppConfig, BookingCopyConfig, HomeConfig, HomePromo, Service } from '@/types/api';
+import type { AppConfig, BookingCopyConfig, CustomerUiCopy, HomeConfig, HomePromo, Service } from '@/types/api';
 import { DEFAULT_BOOKING_COPY, BOOKING_COPY_ADMIN_GROUPS, getBookingCopy, type BookingCopyFieldKey } from '@/constants/bookingCopy';
-import { colors, fonts, spacing } from '@/constants/theme';
+import {
+  CUSTOMER_UI_ADMIN_GROUPS,
+  DEFAULT_CUSTOMER_UI_COPY,
+  type CustomerUiFieldKey,
+} from '@/constants/customerUiCopy';
+import { DEFAULT_HOME_CONFIG, DEFAULT_HOME_PROMO } from '@/constants/homeContent';
+import { DEFAULT_APP_CONFIG, mergeAppConfig, mergeHomeConfig } from '@/lib/mergeHomeConfig';
+import { colors, fonts, spacing, surfaces } from '@/constants/theme';
 
 const CONTENT_TABS: AdminSectionTab[] = [
   { key: 'promo', label: 'Promo', icon: AppIcons.contentTab.promo },
   { key: 'home', label: 'Home', icon: AppIcons.contentTab.home },
+  { key: 'screens', label: 'Screens', icon: AppIcons.contentTab.screens },
   { key: 'brand', label: 'Brand', icon: AppIcons.contentTab.brand },
   { key: 'booking', label: 'Booking', icon: AppIcons.contentTab.booking },
   { key: 'onboard', label: 'Onboard', icon: AppIcons.contentTab.onboard },
@@ -41,8 +45,12 @@ const CONTENT_TAB_HINTS: Record<string, { title: string; body: string }> = {
     body: 'Toggle visibility, headline, CTA label, and which service the banner links to.',
   },
   home: {
-    title: 'Home screen copy',
-    body: 'Search placeholder, section titles, featured service, and category filter chips.',
+    title: 'Home screen content',
+    body: 'Edit hero copy, search, promo carousel, section titles, quick actions, and category filters.',
+  },
+  screens: {
+    title: 'Customer app screens',
+    body: 'Edit greetings, auth, offers, profile menus, help, and account screen copy across the user app.',
   },
   brand: {
     title: 'Brand & support',
@@ -77,36 +85,29 @@ const BOOKING_GROUP_META: Record<
   tech: { subtitle: 'Technician jobs, profile, check-in & job screen copy' },
 };
 
-const DEFAULT_CONFIG: HomeConfig = {
-  sectionTitles: { services: 'Our Services', popular: 'Popular Now' },
-  searchPlaceholder: 'Search services…',
-  servicesSubtitle: 'Trusted pest control & home services',
-  servicesActionLabel: 'View all',
-  popularActionLabel: 'See more',
-  categoryChips: [
-    { label: 'All' },
-    { label: 'Residential', category: 'residential' },
-    { label: 'Commercial', category: 'commercial' },
-    { label: 'Cleaning', category: 'cleaning' },
-  ],
+const SCREENS_GROUP_META: Record<
+  keyof typeof CUSTOMER_UI_ADMIN_GROUPS,
+  { title: string; subtitle: string; defaultOpen?: boolean }
+> = {
+  home: { title: 'Home chrome', subtitle: 'Greetings, location, empty states & carousel kickers', defaultOpen: true },
+  auth: { title: 'Auth', subtitle: 'Login, register & OTP copy' },
+  offers: { title: 'Offers', subtitle: 'Coupons screen titles & empty states' },
+  profile: { title: 'Profile', subtitle: 'Quick actions, stats & menu rows' },
+  help: { title: 'Help', subtitle: 'Support page section labels' },
+  account: { title: 'Account screens', subtitle: 'Addresses, payments, notifications, settings & services' },
 };
 
-const DEFAULT_APP: AppConfig = {
-  support: { phone: '', email: '', whatsapp: '', hours: '' },
-  branding: { name: 'Mr Antidot', tagline: '' },
-  trust: { guaranteeText: '', badges: [] },
-  onboarding: { slides: [], trustChips: [] },
-  legal: { termsMarkdown: '', privacyMarkdown: '' },
-  aboutMarkdown: '',
-  faq: [],
-  booking: DEFAULT_BOOKING_COPY,
-};
+const DEFAULT_CONFIG: HomeConfig = DEFAULT_HOME_CONFIG;
+
+const DEFAULT_PROMO: HomePromo = DEFAULT_HOME_PROMO;
+
+const DEFAULT_APP: AppConfig = DEFAULT_APP_CONFIG;
 
 export default function AdminContentScreen() {
   const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
   const { refresh: refreshAppContent } = useAppContent();
   const { loading, error, runLoad, reload } = useScreenLoad();
-  const [promo, setPromo] = useState<HomePromo | null>(null);
+  const [promo, setPromo] = useState<HomePromo>(DEFAULT_PROMO);
   const [homeConfig, setHomeConfig] = useState<HomeConfig>(DEFAULT_CONFIG);
   const [appConfig, setAppConfig] = useState<AppConfig>(DEFAULT_APP);
   const [services, setServices] = useState<Service[]>([]);
@@ -122,12 +123,9 @@ export default function AdminContentScreen() {
         params: { includeInactive: '1' },
       }),
     ]);
-    setPromo(homeRes.data.promo);
-    setHomeConfig(homeRes.data.homeConfig ?? DEFAULT_CONFIG);
-    setAppConfig({
-      ...(appRes.data.app ?? DEFAULT_APP),
-      booking: getBookingCopy(appRes.data.app?.booking),
-    });
+    setPromo(homeRes.data.promo ?? DEFAULT_PROMO);
+    setHomeConfig(mergeHomeConfig(homeRes.data.homeConfig));
+    setAppConfig(mergeAppConfig(appRes.data.app));
     setServices(svcRes.data.services);
   }, []);
 
@@ -142,7 +140,6 @@ export default function AdminContentScreen() {
   }, [tabParam]);
 
   async function save() {
-    if (!promo) return;
     setSaving(true);
     try {
       const [homeRes, appRes] = await Promise.all([
@@ -152,12 +149,9 @@ export default function AdminContentScreen() {
         }),
         api.patch<{ app: AppConfig }>('/content/admin/app', appConfig),
       ]);
-      setPromo(homeRes.data.promo);
-      setHomeConfig(homeRes.data.homeConfig);
-      setAppConfig({
-        ...appRes.data.app,
-        booking: getBookingCopy(appRes.data.app?.booking),
-      });
+      setPromo(homeRes.data.promo ?? DEFAULT_PROMO);
+      setHomeConfig(mergeHomeConfig(homeRes.data.homeConfig));
+      setAppConfig(mergeAppConfig(appRes.data.app));
       await refreshAppContent();
       Toast.show({ type: 'success', text1: 'Content saved' });
     } catch {
@@ -175,6 +169,13 @@ export default function AdminContentScreen() {
     setAppConfig((a) => ({
       ...a,
       booking: { ...(a.booking ?? DEFAULT_BOOKING_COPY), [key]: value } as BookingCopyConfig,
+    }));
+  }
+
+  function patchCustomerUiField(key: CustomerUiFieldKey, value: string) {
+    setAppConfig((a) => ({
+      ...a,
+      customerUi: { ...(a.customerUi ?? DEFAULT_CUSTOMER_UI_COPY), [key]: value } as CustomerUiCopy,
     }));
   }
 
@@ -206,6 +207,30 @@ export default function AdminContentScreen() {
     );
   }
 
+  function renderCustomerUiFields(groupKey: keyof typeof CUSTOMER_UI_ADMIN_GROUPS) {
+    const meta = SCREENS_GROUP_META[groupKey];
+    const fields = CUSTOMER_UI_ADMIN_GROUPS[groupKey];
+    return (
+      <AdminCollapsibleCard title={meta.title} subtitle={meta.subtitle} defaultOpen={meta.defaultOpen}>
+        {fields.map(([key, label]) => (
+          <IconInput
+            key={key}
+            label={label}
+            multiline={
+              key.includes('Subtitle') ||
+              key.includes('Message') ||
+              key.includes('Hint') ||
+              key.includes('Sub') ||
+              key.includes('Body')
+            }
+            value={appConfig.customerUi?.[key] ?? DEFAULT_CUSTOMER_UI_COPY[key]}
+            onChangeText={(value) => patchCustomerUiField(key, value)}
+          />
+        ))}
+      </AdminCollapsibleCard>
+    );
+  }
+
   function setChip(index: number, partial: { label?: string; category?: string }) {
     const chips = [...homeConfig.categoryChips];
     chips[index] = { ...chips[index], ...partial };
@@ -218,12 +243,12 @@ export default function AdminContentScreen() {
     patchHome({ categoryChips: homeConfig.categoryChips.filter((_, i) => i !== index) });
   }
 
-  if (loading && !promo) return <Spinner fullScreen />;
+  if (loading) return <Spinner fullScreen />;
 
-  if (error || !promo) {
+  if (error) {
     return (
       <AdminListShell title="App content" subtitle="Error">
-        <ListEmptyRetry message={error ?? 'Could not load'} onRetry={() => void reload(load, error ?? undefined)} />
+        <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
       </AdminListShell>
     );
   }
@@ -231,11 +256,11 @@ export default function AdminContentScreen() {
   return (
     <AdminListShell
       title="App content"
-      subtitle="Home, booking, legal & more"
+      subtitle="Manage every customer-facing string"
       keyboardAvoid
       stickyFooter={
         <StickyActionBar>
-          <Button title="Save" variant="premium" onPress={save} loading={saving} />
+          <Button title="Save all changes" variant="premium" onPress={save} loading={saving} />
         </StickyActionBar>
       }
     >
@@ -252,7 +277,9 @@ export default function AdminContentScreen() {
         {activeTab === 'promo' ? (
           <>
             <AdminSectionTitle title="Promo banner" hint="Live preview below — save to publish" />
-        <PromoBanner promo={promo} />
+            <View style={styles.previewShell}>
+              <PromoBanner promo={promo} />
+            </View>
             <AdminFormCard>
               <View style={styles.toggleRow}>
                 <View style={styles.flex}>
@@ -279,13 +306,54 @@ export default function AdminContentScreen() {
 
         {activeTab === 'home' ? (
           <>
-            <AdminSectionTitle title="Home screen" hint="Titles, search & category filters" />
+            <AdminSectionTitle title="Hero & search" hint="Greeting area at the top of home" />
             <AdminFormCard>
+              <IconInput
+                label="Hero eyebrow"
+                value={homeConfig.heroEyebrow ?? ''}
+                onChangeText={(heroEyebrow) => patchHome({ heroEyebrow })}
+                placeholder="Mr Antidot"
+              />
+              <IconInput
+                label="Hero subtitle"
+                value={homeConfig.heroSubtitle ?? ''}
+                onChangeText={(heroSubtitle) => patchHome({ heroSubtitle })}
+                placeholder="Eco-safe care for your space"
+              />
               <IconInput
                 label="Search placeholder"
                 value={homeConfig.searchPlaceholder}
                 onChangeText={(searchPlaceholder) => patchHome({ searchPlaceholder })}
               />
+            </AdminFormCard>
+
+            <AdminSectionTitle title="Promo carousel" hint="Book slide + offer code on home" />
+            <AdminFormCard>
+              <IconInput
+                label="Book slide title"
+                value={homeConfig.bookSlideTitle ?? ''}
+                onChangeText={(bookSlideTitle) => patchHome({ bookSlideTitle })}
+              />
+              <IconInput
+                label="Book slide CTA"
+                value={homeConfig.bookSlideCta ?? ''}
+                onChangeText={(bookSlideCta) => patchHome({ bookSlideCta })}
+              />
+              <IconInput
+                label="Book slide subtitle fallback"
+                value={homeConfig.bookSlideFallbackSub ?? ''}
+                onChangeText={(bookSlideFallbackSub) => patchHome({ bookSlideFallbackSub })}
+              />
+              <IconInput
+                label="Promo code hint"
+                value={homeConfig.promoCodeHint ?? ''}
+                onChangeText={(promoCodeHint) => patchHome({ promoCodeHint })}
+                autoCapitalize="characters"
+              />
+            </AdminFormCard>
+
+            <AdminSectionTitle title="Sections" hint="Titles shown above each home block" />
+            <AdminFormCard>
               <IconInput
                 label="Services title"
                 value={homeConfig.sectionTitles.services}
@@ -316,6 +384,16 @@ export default function AdminContentScreen() {
                 value={homeConfig.popularActionLabel}
                 onChangeText={(popularActionLabel) => patchHome({ popularActionLabel })}
               />
+              <IconInput
+                label="Service types title"
+                value={homeConfig.serviceTypesTitle ?? ''}
+                onChangeText={(serviceTypesTitle) => patchHome({ serviceTypesTitle })}
+              />
+              <IconInput
+                label="Service types action"
+                value={homeConfig.serviceTypesAction ?? ''}
+                onChangeText={(serviceTypesAction) => patchHome({ serviceTypesAction })}
+              />
               <Text style={styles.label}>Featured “Popular” service</Text>
               <ServiceChips
                 services={services}
@@ -325,10 +403,70 @@ export default function AdminContentScreen() {
             </AdminFormCard>
 
             <AdminFormCard>
+              <Text style={styles.blockTitle}>Quick action labels</Text>
+              <IconInput
+                label="Book"
+                value={homeConfig.quickLabels?.book ?? ''}
+                onChangeText={(book) =>
+                  patchHome({
+                    quickLabels: {
+                      book,
+                      bookings: homeConfig.quickLabels?.bookings ?? 'Bookings',
+                      offers: homeConfig.quickLabels?.offers ?? 'Offers',
+                      help: homeConfig.quickLabels?.help ?? 'Help',
+                    },
+                  })
+                }
+              />
+              <IconInput
+                label="Bookings"
+                value={homeConfig.quickLabels?.bookings ?? ''}
+                onChangeText={(bookings) =>
+                  patchHome({
+                    quickLabels: {
+                      book: homeConfig.quickLabels?.book ?? 'Book',
+                      bookings,
+                      offers: homeConfig.quickLabels?.offers ?? 'Offers',
+                      help: homeConfig.quickLabels?.help ?? 'Help',
+                    },
+                  })
+                }
+              />
+              <IconInput
+                label="Offers"
+                value={homeConfig.quickLabels?.offers ?? ''}
+                onChangeText={(offers) =>
+                  patchHome({
+                    quickLabels: {
+                      book: homeConfig.quickLabels?.book ?? 'Book',
+                      bookings: homeConfig.quickLabels?.bookings ?? 'Bookings',
+                      offers,
+                      help: homeConfig.quickLabels?.help ?? 'Help',
+                    },
+                  })
+                }
+              />
+              <IconInput
+                label="Help"
+                value={homeConfig.quickLabels?.help ?? ''}
+                onChangeText={(help) =>
+                  patchHome({
+                    quickLabels: {
+                      book: homeConfig.quickLabels?.book ?? 'Book',
+                      bookings: homeConfig.quickLabels?.bookings ?? 'Bookings',
+                      offers: homeConfig.quickLabels?.offers ?? 'Offers',
+                      help,
+                    },
+                  })
+                }
+              />
+            </AdminFormCard>
+
+            <AdminFormCard>
               <View style={styles.blockHead}>
                 <Text style={styles.blockTitle}>Category filters</Text>
                 <Pressable style={styles.addPill} onPress={addChip}>
-                  <Plus size={14} color={colors.green} />
+                  <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size="xs" color={colors.green} />
                   <Text style={styles.addPillText}>Add</Text>
                 </Pressable>
               </View>
@@ -344,11 +482,26 @@ export default function AdminContentScreen() {
                     />
                   </View>
                   <Pressable style={styles.removeBtn} onPress={() => removeChip(i)}>
-                    <Trash2 size={16} color={colors.error} />
+                    <PremiumIcon icon={AppIcons.ui.trash} variant="plain" size="sm" color={colors.error} />
                   </Pressable>
                 </View>
               ))}
             </AdminFormCard>
+          </>
+        ) : null}
+
+        {activeTab === 'screens' ? (
+          <>
+            <AdminSectionTitle
+              title="Customer screens"
+              hint="Use {brand} where the app name should appear · save to publish"
+            />
+            {renderCustomerUiFields('home')}
+            {renderCustomerUiFields('auth')}
+            {renderCustomerUiFields('offers')}
+            {renderCustomerUiFields('profile')}
+            {renderCustomerUiFields('help')}
+            {renderCustomerUiFields('account')}
           </>
         ) : null}
 
@@ -457,7 +610,7 @@ export default function AdminContentScreen() {
                     }))
                   }
                 >
-                  <Plus size={14} color={colors.green} />
+                  <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size="xs" color={colors.green} />
                   <Text style={styles.addPillText}>Add</Text>
                 </Pressable>
               </View>
@@ -500,7 +653,7 @@ export default function AdminContentScreen() {
                       }))
                     }
                   >
-                    <Trash2 size={16} color={colors.error} />
+                    <PremiumIcon icon={AppIcons.ui.trash} variant="plain" size="sm" color={colors.error} />
                   </Pressable>
                 </View>
               ))}
@@ -545,7 +698,7 @@ export default function AdminContentScreen() {
                   style={styles.addPill}
                   onPress={() => setAppConfig((a) => ({ ...a, faq: [...a.faq, { q: '', a: '' }] }))}
                 >
-                  <Plus size={14} color={colors.green} />
+                  <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size="xs" color={colors.green} />
                   <Text style={styles.addPillText}>Add</Text>
                 </Pressable>
               </View>
@@ -580,7 +733,7 @@ export default function AdminContentScreen() {
                     style={styles.removeBtn}
                     onPress={() => setAppConfig((a) => ({ ...a, faq: a.faq.filter((_, idx) => idx !== i) }))}
                   >
-                    <Trash2 size={16} color={colors.error} />
+                    <PremiumIcon icon={AppIcons.ui.trash} variant="plain" size="sm" color={colors.error} />
                   </Pressable>
                 </View>
               ))}
@@ -606,7 +759,7 @@ function StringListEditor({
       <View style={styles.blockHead}>
         <Text style={styles.label}>{title}</Text>
         <Pressable style={styles.addPill} onPress={() => onChange([...items, ''])}>
-          <Plus size={14} color={colors.green} />
+          <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size="xs" color={colors.green} />
           <Text style={styles.addPillText}>Add</Text>
         </Pressable>
       </View>
@@ -622,7 +775,7 @@ function StringListEditor({
             }}
           />
           <Pressable style={styles.tagRemove} onPress={() => onChange(items.filter((_, idx) => idx !== i))}>
-            <X size={15} color={colors.muted} />
+            <PremiumIcon icon={AppIcons.ui.close} variant="plain" size="sm" color={colors.muted} />
           </Pressable>
         </View>
       ))}
@@ -642,7 +795,7 @@ function ServiceChips({
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips}>
       <Pressable style={[styles.chip, !selectedId && styles.chipOn]} onPress={() => onSelect(undefined)}>
-        <Text style={styles.chipText}>None</Text>
+        <Text style={[styles.chipText, !selectedId && styles.chipTextOn]}>None</Text>
       </Pressable>
       {services.map((s) => (
         <Pressable
@@ -650,7 +803,7 @@ function ServiceChips({
           style={[styles.chip, selectedId === s.id && styles.chipOn]}
           onPress={() => onSelect(s.id)}
         >
-          <Text style={styles.chipText}>{s.name}</Text>
+          <Text style={[styles.chipText, selectedId === s.id && styles.chipTextOn]}>{s.name}</Text>
         </Pressable>
       ))}
     </ScrollView>
@@ -658,6 +811,21 @@ function ServiceChips({
 }
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
+  previewShell: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: surfaces.glassBorderStrong,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#03170B',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.16,
+    shadowRadius: 20,
+    elevation: 8,
+  },
   previewLabel: {
     fontFamily: fonts.bodySemi,
     fontSize: 11,
@@ -671,28 +839,33 @@ const styles = StyleSheet.create({
   blockTitle: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
   toggleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md, gap: 12 },
   flex: { flex: 1 },
-  toggleLabel: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.ink },
-  label: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, marginTop: spacing.sm, marginBottom: 8 },
+  toggleLabel: { fontFamily: fonts.bodySemi, fontSize: 14.5, color: colors.ink },
+  label: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: colors.muted, marginTop: spacing.sm, marginBottom: 8 },
   chips: { flexDirection: 'row', marginBottom: spacing.sm },
   chip: {
-    backgroundColor: colors.card,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: surfaces.glassBorderStrong,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
     marginRight: 8,
   },
-  chipOn: { backgroundColor: colors.soft },
-  chipText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.ink },
+  chipOn: { backgroundColor: colors.forest, borderColor: colors.forest },
+  chipText: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: colors.ink },
+  chipTextOn: { color: colors.white },
   addPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: colors.soft,
+    borderWidth: 1,
+    borderColor: surfaces.glassBorderStrong,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
   },
-  addPillText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.green },
+  addPillText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
   chipRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -717,7 +890,9 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 11,
-    backgroundColor: colors.bg,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: surfaces.glassBorderStrong,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 26,

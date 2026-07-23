@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { ChevronRight, LocateFixed } from 'lucide-react-native';
-import { colors, fonts, gradients, spacing } from '@/constants/theme';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
+import { fonts } from '@/constants/theme';
 
 export function AddressLocateButton({
   loading,
@@ -17,31 +18,41 @@ export function AddressLocateButton({
       disabled={loading}
     >
       <LinearGradient
-        colors={[gradients.primary[0], gradients.primary[1]]}
+        colors={['#209640', '#0A6423']}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
         <View style={styles.iconWrap}>
           {loading ? (
-            <ActivityIndicator color={colors.white} size="small" />
+            <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            <LocateFixed size={20} color={colors.white} strokeWidth={2.2} />
+            <PremiumIcon icon={AppIcons.ui.locate} variant="plain" size={20} color="#FFFFFF" strokeWidth={2.2} />
           )}
         </View>
         <View style={styles.textCol}>
-          <Text style={styles.title}>{loading ? 'Finding location…' : 'Use current location'}</Text>
-          <Text style={styles.sub}>Auto-fill from GPS</Text>
+          <Text style={styles.title}>{loading ? 'Finding your location…' : 'Use current location'}</Text>
+          <Text style={styles.sub}>{loading ? 'Almost there' : 'Auto-fill address from GPS'}</Text>
         </View>
-        {!loading ? <ChevronRight size={18} color="rgba(255,255,255,0.85)" /> : null}
+        {!loading ? (
+          <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={18} color="#8FD03C" strokeWidth={2.4} />
+        ) : null}
       </LinearGradient>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { borderRadius: 16, overflow: 'hidden' },
-  pressed: { opacity: 0.92, transform: [{ scale: 0.99 }] },
+  wrap: {
+    borderRadius: 18,
+    overflow: 'hidden',
+    shadowColor: '#043813',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 5,
+  },
+  pressed: { opacity: 0.94, transform: [{ scale: 0.985 }] },
   gradient: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -50,14 +61,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   textCol: { flex: 1 },
-  title: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.white },
-  sub: { fontFamily: fonts.body, fontSize: 11.5, color: 'rgba(255,255,255,0.82)', marginTop: 2 },
+  title: { fontFamily: fonts.bodyBold, fontSize: 14.5, color: '#FFFFFF' },
+  sub: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: 2,
+  },
 });

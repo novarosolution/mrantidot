@@ -5,11 +5,11 @@ import type { BookingStatus, StatusBreakdownItem } from '@/types/api';
 import { colors, fonts, spacing } from '@/constants/theme';
 
 const STATUS_COLORS: Partial<Record<BookingStatus, string>> = {
-  pending: colors.amberInk,
-  confirmed: colors.blue,
-  in_progress: colors.secondaryDark,
-  awaiting_verification: colors.amberInk,
-  completed: colors.green,
+  pending: '#C15B31',
+  confirmed: '#27A747',
+  in_progress: '#0A6423',
+  awaiting_verification: '#8FD03C',
+  completed: colors.forest,
   cancelled: colors.muted,
 };
 
@@ -18,16 +18,19 @@ export function StatusPipelineCard({
   onStatusPress,
   periodLabel,
   hideTitle,
+  flush = false,
 }: {
   items: StatusBreakdownItem[];
   onStatusPress: (status: string) => void;
   periodLabel?: string;
   hideTitle?: boolean;
+  /** Skip outer card when already inside a glass panel. */
+  flush?: boolean;
 }) {
   const maxCount = Math.max(1, ...items.map((i) => i.count));
 
-  return (
-    <Card variant="premium" style={styles.card}>
+  const body = (
+    <>
       {!hideTitle ? <Text style={styles.title}>Booking pipeline</Text> : null}
       {periodLabel ? <Text style={styles.sub}>{periodLabel}</Text> : null}
       {items.map((item) => {
@@ -55,12 +58,23 @@ export function StatusPipelineCard({
           </Pressable>
         );
       })}
+    </>
+  );
+
+  if (flush) {
+    return <View style={styles.flush}>{body}</View>;
+  }
+
+  return (
+    <Card variant="glass" style={styles.card}>
+      {body}
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { padding: spacing.md, marginBottom: spacing.md },
+  card: { padding: spacing.md, marginBottom: 0 },
+  flush: { marginBottom: 0 },
   title: { fontFamily: fonts.display, fontSize: 14, color: colors.ink, marginBottom: 4 },
   sub: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginBottom: spacing.sm },
   row: { marginTop: spacing.sm },
@@ -71,7 +85,7 @@ const styles = StyleSheet.create({
   period: { fontFamily: fonts.body, fontSize: 10, color: colors.muted },
   track: {
     height: 8,
-    backgroundColor: colors.border,
+    backgroundColor: 'rgba(226,240,216,0.85)',
     borderRadius: 4,
     overflow: 'hidden',
   },

@@ -4,7 +4,7 @@ import { ScheduleDayPicker } from '@/components/kit/ScheduleDayPicker';
 import { ScheduleModeToggle } from '@/components/kit/ScheduleModeToggle';
 import { ScheduleSelectionBanner } from '@/components/kit/ScheduleSelectionBanner';
 import { ScheduleSlotPicker } from '@/components/kit/ScheduleSlotPicker';
-import { BOOKING_SLOTS, formatScheduleLabel } from '@/lib/dates';
+import { DEFAULT_BOOKING_SLOT, formatScheduleLabel } from '@/lib/dates';
 import type { ScheduleMode } from '@/types/api';
 import { colors, fonts, spacing } from '@/constants/theme';
 
@@ -58,7 +58,7 @@ export function ScheduleEditorForm({
       />
       {mode === 'standard' ? (
         <ScheduleSlotPicker
-          selectedSlot={slot || BOOKING_SLOTS[0]}
+          selectedSlot={slot || DEFAULT_BOOKING_SLOT}
           onSelect={onSlotChange}
         />
       ) : (

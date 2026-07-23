@@ -31,9 +31,8 @@ export function UserAccountCard({
 
   const inner = (
     <View style={styles.inner}>
-      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <LinearGradient colors={[...gradients.avatarRing]} style={styles.avatarRing}>
-        <LinearGradient colors={['#14532D', '#1E8E4E']} style={styles.avatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+        <LinearGradient colors={['#30B84F', '#0A6423']} style={styles.avatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <Text style={styles.avatarText}>{initial}</Text>
         </LinearGradient>
       </LinearGradient>
@@ -86,8 +85,7 @@ const styles = StyleSheet.create({
   compact: { marginHorizontal: 0, marginBottom: spacing.md },
   embedded: { marginBottom: 0 },
   card: { padding: 0, overflow: 'hidden', ...shadows.card },
-  inner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: spacing.md, position: 'relative' },
-  goldBar: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
+  inner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: spacing.md },
   avatarRing: {
     width: 54,
     height: 54,
@@ -114,7 +112,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: colors.soft,
     borderWidth: 1,
-    borderColor: 'rgba(30,142,78,0.15)',
+    borderColor: '#D8EDC8',
   },
   badgeText: { ...customerType.pillLabel, color: colors.forest },
 });

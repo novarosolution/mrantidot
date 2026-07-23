@@ -1,21 +1,12 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  BadgeCheck,
-  Bell,
-  ChevronRight,
-  Copy,
-  Mail,
-  MapPin,
-  Phone,
-  Settings,
-  Sparkles,
-} from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { appToast } from '@/lib/toast';
 import * as Clipboard from 'expo-clipboard';
 import { colors, customerType, fonts, gradients, headerTopPad, premium, shadows, spacing } from '@/constants/theme';
+import { customerRoutes, appPush } from '@/lib/routes';
 
 function digits(v: string) {
   return v.replace(/[^\d+]/g, '');
@@ -64,22 +55,22 @@ export function ProfileHeroCard({
         <View style={styles.heroTop}>
           <View>
             <View style={styles.eyebrowRow}>
-              <Sparkles size={12} color={colors.lime} strokeWidth={2.2} />
+              <PremiumIcon icon={AppIcons.ui.sparkles} variant="plain" size={12} color={colors.lime} strokeWidth={2.2} />
               <Text style={styles.eyebrow}>Your profile</Text>
             </View>
             <Text style={styles.screenTitle}>My account</Text>
           </View>
           <View style={styles.heroActions}>
-            <Pressable style={styles.heroIconBtn} onPress={() => router.push('/(customer)/notifications')}>
-              <Bell size={18} color={colors.white} strokeWidth={2} />
+            <Pressable style={styles.heroIconBtn} onPress={() => appPush(customerRoutes.notifications)}>
+              <PremiumIcon icon={AppIcons.ui.bell} variant="plain" size={18} color={colors.white} strokeWidth={2} />
               {unread > 0 ? (
                 <View style={styles.notifBadge}>
                   <Text style={styles.notifBadgeText}>{unread > 9 ? '9+' : unread}</Text>
                 </View>
               ) : null}
             </Pressable>
-            <Pressable style={styles.heroIconBtn} onPress={() => router.push('/(customer)/settings')}>
-              <Settings size={18} color={colors.white} strokeWidth={2} />
+            <Pressable style={styles.heroIconBtn} onPress={() => appPush(customerRoutes.settings)}>
+              <PremiumIcon icon={AppIcons.ui.settings} variant="plain" size={18} color={colors.white} strokeWidth={2} />
             </Pressable>
           </View>
         </View>
@@ -87,7 +78,7 @@ export function ProfileHeroCard({
 
       <View style={styles.cardOuter}>
         <View style={styles.card}>
-          <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+          <LinearGradient colors={[...gradients.goldBar]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
 
           <LinearGradient colors={[...gradients.avatarRing]} style={styles.avatarRing}>
             <LinearGradient colors={['#14532D', '#1E8E4E']} style={styles.avatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
@@ -97,7 +88,7 @@ export function ProfileHeroCard({
 
           {verified ? (
             <View style={styles.verifiedBadge}>
-              <BadgeCheck size={13} color={colors.forest} strokeWidth={2.2} />
+              <PremiumIcon icon={AppIcons.techProfile.verified} variant="plain" size={13} color={colors.forest} strokeWidth={2.2} />
               <Text style={styles.verifiedText}>Verified customer</Text>
             </View>
           ) : null}
@@ -120,9 +111,7 @@ export function ProfileHeroCard({
           <View style={styles.metaGrid}>
             {city ? (
               <View style={styles.metaChip}>
-                <View style={[styles.metaIcon, { backgroundColor: colors.soft }]}>
-                  <MapPin size={14} color={colors.forest} />
-                </View>
+                  <PremiumIcon icon={AppIcons.ui.mapPin} variant="mint" size={14} color={colors.forest} boxSize={30} bg={colors.soft} />
                 <Text style={styles.metaText} numberOfLines={1}>
                   {city}
                 </Text>
@@ -131,44 +120,40 @@ export function ProfileHeroCard({
             {phone ? (
               <View style={styles.metaChip}>
                 <Pressable style={styles.metaInner} onPress={() => Linking.openURL(`tel:${digits(phone)}`)}>
-                  <View style={[styles.metaIcon, { backgroundColor: colors.secondarySoft }]}>
-                    <Phone size={14} color={colors.secondaryDark} />
-                  </View>
+                    <PremiumIcon icon={AppIcons.ui.phone} variant="mint" size={14} color={colors.secondaryDark} boxSize={30} bg={colors.secondarySoft} />
                   <Text style={styles.metaText} numberOfLines={1}>
                     {phone}
                   </Text>
                 </Pressable>
                 <Pressable hitSlop={8} onPress={() => void copyText('Phone', phone)}>
-                  <Copy size={13} color={colors.muted} />
+                  <PremiumIcon icon={AppIcons.ui.copy} variant="plain" size={13} color={colors.muted} />
                 </Pressable>
               </View>
             ) : null}
             {email ? (
               <View style={[styles.metaChip, styles.metaChipWide]}>
                 <Pressable style={styles.metaInner} onPress={() => Linking.openURL(`mailto:${email}`)}>
-                  <View style={[styles.metaIcon, { backgroundColor: colors.blueBg }]}>
-                    <Mail size={14} color={colors.blue} />
-                  </View>
+                    <PremiumIcon icon={AppIcons.ui.mail} variant="mint" size={14} color={colors.blue} boxSize={30} bg={colors.blueBg} />
                   <Text style={styles.metaText} numberOfLines={1}>
                     {email}
                   </Text>
                 </Pressable>
                 <Pressable hitSlop={8} onPress={() => void copyText('Email', email)}>
-                  <Copy size={13} color={colors.muted} />
+                  <PremiumIcon icon={AppIcons.ui.copy} variant="plain" size={13} color={colors.muted} />
                 </Pressable>
               </View>
             ) : null}
             {!phone && !email && !city ? (
-              <Pressable style={[styles.metaChip, styles.metaChipWide]} onPress={() => router.push('/(customer)/settings')}>
+              <Pressable style={[styles.metaChip, styles.metaChipWide]} onPress={() => appPush(customerRoutes.settings)}>
                 <Text style={styles.metaHint}>Complete your profile in settings →</Text>
               </Pressable>
             ) : null}
           </View>
 
-          <Pressable style={({ pressed }) => [styles.editRow, pressed && styles.editPressed]} onPress={() => router.push('/(customer)/settings')}>
+          <Pressable style={({ pressed }) => [styles.editRow, pressed && styles.editPressed]} onPress={() => appPush(customerRoutes.settings)}>
             <LinearGradient colors={['#14532D', '#1A6B3C']} style={styles.editGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
               <Text style={styles.editLabel}>Edit profile & account</Text>
-              <ChevronRight size={16} color={colors.lime} strokeWidth={2.5} />
+              <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={16} color={colors.lime} strokeWidth={2.5} />
             </LinearGradient>
           </Pressable>
         </View>
@@ -317,11 +302,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: colors.amberBg,
+    backgroundColor: colors.soft,
     borderWidth: 1,
-    borderColor: 'rgba(182,132,28,0.2)',
+    borderColor: '#D8EDC8',
   },
-  ratingText: { ...customerType.pillLabel, color: colors.amberInk },
+  ratingText: { ...customerType.pillLabel, color: colors.forest },
   member: {
     ...customerType.accountMeta,
     marginTop: 6,

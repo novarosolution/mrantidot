@@ -5,10 +5,12 @@ import {
   AppContent,
   DEFAULT_APP_CONFIG,
   DEFAULT_BOOKING_COPY,
+  DEFAULT_CUSTOMER_UI_COPY,
   DEFAULT_HOME_CONFIG,
   DEFAULT_HOME_PROMO,
   IAppConfig,
   IBookingCopyConfig,
+  ICustomerUiCopy,
   IHomeConfig,
 } from '../models/AppContent';
 import { Service } from '../models/Service';
@@ -54,6 +56,7 @@ function formatHomePromo(doc: Awaited<ReturnType<typeof getOrCreateHomeDoc>>) {
 function formatHomeConfig(doc: Awaited<ReturnType<typeof getOrCreateHomeDoc>>) {
   const c = doc.homeConfig ?? DEFAULT_HOME_CONFIG;
   const titles = c.sectionTitles ?? DEFAULT_HOME_CONFIG.sectionTitles;
+  const ql = c.quickLabels ?? DEFAULT_HOME_CONFIG.quickLabels!;
   return {
     featuredServiceId: c.featuredServiceId ? String(c.featuredServiceId) : undefined,
     sectionTitles: {
@@ -64,6 +67,20 @@ function formatHomeConfig(doc: Awaited<ReturnType<typeof getOrCreateHomeDoc>>) {
     servicesSubtitle: c.servicesSubtitle ?? DEFAULT_HOME_CONFIG.servicesSubtitle,
     servicesActionLabel: c.servicesActionLabel ?? DEFAULT_HOME_CONFIG.servicesActionLabel,
     popularActionLabel: c.popularActionLabel ?? DEFAULT_HOME_CONFIG.popularActionLabel,
+    serviceTypesTitle: c.serviceTypesTitle ?? DEFAULT_HOME_CONFIG.serviceTypesTitle,
+    serviceTypesAction: c.serviceTypesAction ?? DEFAULT_HOME_CONFIG.serviceTypesAction,
+    bookSlideTitle: c.bookSlideTitle ?? DEFAULT_HOME_CONFIG.bookSlideTitle,
+    bookSlideCta: c.bookSlideCta ?? DEFAULT_HOME_CONFIG.bookSlideCta,
+    bookSlideFallbackSub: c.bookSlideFallbackSub ?? DEFAULT_HOME_CONFIG.bookSlideFallbackSub,
+    promoCodeHint: c.promoCodeHint ?? DEFAULT_HOME_CONFIG.promoCodeHint,
+    heroEyebrow: c.heroEyebrow ?? DEFAULT_HOME_CONFIG.heroEyebrow,
+    heroSubtitle: c.heroSubtitle ?? DEFAULT_HOME_CONFIG.heroSubtitle,
+    quickLabels: {
+      book: ql.book ?? DEFAULT_HOME_CONFIG.quickLabels!.book,
+      bookings: ql.bookings ?? DEFAULT_HOME_CONFIG.quickLabels!.bookings,
+      offers: ql.offers ?? DEFAULT_HOME_CONFIG.quickLabels!.offers,
+      help: ql.help ?? DEFAULT_HOME_CONFIG.quickLabels!.help,
+    },
     categoryChips:
       c.categoryChips?.length > 0 ? c.categoryChips.map((ch) => ({
           label: ch.label,
@@ -83,6 +100,18 @@ function mergeHomeConfig(
     servicesSubtitle: current.servicesSubtitle ?? DEFAULT_HOME_CONFIG.servicesSubtitle,
     servicesActionLabel: current.servicesActionLabel ?? DEFAULT_HOME_CONFIG.servicesActionLabel,
     popularActionLabel: current.popularActionLabel ?? DEFAULT_HOME_CONFIG.popularActionLabel,
+    serviceTypesTitle: current.serviceTypesTitle ?? DEFAULT_HOME_CONFIG.serviceTypesTitle,
+    serviceTypesAction: current.serviceTypesAction ?? DEFAULT_HOME_CONFIG.serviceTypesAction,
+    bookSlideTitle: current.bookSlideTitle ?? DEFAULT_HOME_CONFIG.bookSlideTitle,
+    bookSlideCta: current.bookSlideCta ?? DEFAULT_HOME_CONFIG.bookSlideCta,
+    bookSlideFallbackSub: current.bookSlideFallbackSub ?? DEFAULT_HOME_CONFIG.bookSlideFallbackSub,
+    promoCodeHint: current.promoCodeHint ?? DEFAULT_HOME_CONFIG.promoCodeHint,
+    heroEyebrow: current.heroEyebrow ?? DEFAULT_HOME_CONFIG.heroEyebrow,
+    heroSubtitle: current.heroSubtitle ?? DEFAULT_HOME_CONFIG.heroSubtitle,
+    quickLabels: {
+      ...(DEFAULT_HOME_CONFIG.quickLabels!),
+      ...(current.quickLabels ?? {}),
+    },
     categoryChips: [...(current.categoryChips ?? DEFAULT_HOME_CONFIG.categoryChips)],
     featuredServiceId: current.featuredServiceId,
   };
@@ -105,6 +134,24 @@ function mergeHomeConfig(
   if (typeof cfg.servicesSubtitle === 'string') next.servicesSubtitle = cfg.servicesSubtitle;
   if (typeof cfg.servicesActionLabel === 'string') next.servicesActionLabel = cfg.servicesActionLabel;
   if (typeof cfg.popularActionLabel === 'string') next.popularActionLabel = cfg.popularActionLabel;
+  if (typeof cfg.serviceTypesTitle === 'string') next.serviceTypesTitle = cfg.serviceTypesTitle;
+  if (typeof cfg.serviceTypesAction === 'string') next.serviceTypesAction = cfg.serviceTypesAction;
+  if (typeof cfg.bookSlideTitle === 'string') next.bookSlideTitle = cfg.bookSlideTitle;
+  if (typeof cfg.bookSlideCta === 'string') next.bookSlideCta = cfg.bookSlideCta;
+  if (typeof cfg.bookSlideFallbackSub === 'string') next.bookSlideFallbackSub = cfg.bookSlideFallbackSub;
+  if (typeof cfg.promoCodeHint === 'string') next.promoCodeHint = cfg.promoCodeHint;
+  if (typeof cfg.heroEyebrow === 'string') next.heroEyebrow = cfg.heroEyebrow;
+  if (typeof cfg.heroSubtitle === 'string') next.heroSubtitle = cfg.heroSubtitle;
+
+  const ql = cfg.quickLabels as Record<string, unknown> | undefined;
+  if (ql && typeof ql === 'object') {
+    next.quickLabels = {
+      book: typeof ql.book === 'string' ? ql.book : next.quickLabels!.book,
+      bookings: typeof ql.bookings === 'string' ? ql.bookings : next.quickLabels!.bookings,
+      offers: typeof ql.offers === 'string' ? ql.offers : next.quickLabels!.offers,
+      help: typeof ql.help === 'string' ? ql.help : next.quickLabels!.help,
+    };
+  }
 
   if (Array.isArray(cfg.categoryChips)) {
     next.categoryChips = cfg.categoryChips
@@ -141,6 +188,7 @@ async function formatHomePromoResolved(doc: Awaited<ReturnType<typeof getOrCreat
 async function formatHomeConfigResolved(doc: Awaited<ReturnType<typeof getOrCreateHomeDoc>>) {
   const c = doc.homeConfig ?? DEFAULT_HOME_CONFIG;
   const titles = c.sectionTitles ?? DEFAULT_HOME_CONFIG.sectionTitles;
+  const ql = c.quickLabels ?? DEFAULT_HOME_CONFIG.quickLabels!;
   const featuredServiceId = await resolveActiveServiceId(
     c.featuredServiceId ? String(c.featuredServiceId) : undefined,
   );
@@ -154,6 +202,20 @@ async function formatHomeConfigResolved(doc: Awaited<ReturnType<typeof getOrCrea
     servicesSubtitle: c.servicesSubtitle ?? DEFAULT_HOME_CONFIG.servicesSubtitle,
     servicesActionLabel: c.servicesActionLabel ?? DEFAULT_HOME_CONFIG.servicesActionLabel,
     popularActionLabel: c.popularActionLabel ?? DEFAULT_HOME_CONFIG.popularActionLabel,
+    serviceTypesTitle: c.serviceTypesTitle ?? DEFAULT_HOME_CONFIG.serviceTypesTitle,
+    serviceTypesAction: c.serviceTypesAction ?? DEFAULT_HOME_CONFIG.serviceTypesAction,
+    bookSlideTitle: c.bookSlideTitle ?? DEFAULT_HOME_CONFIG.bookSlideTitle,
+    bookSlideCta: c.bookSlideCta ?? DEFAULT_HOME_CONFIG.bookSlideCta,
+    bookSlideFallbackSub: c.bookSlideFallbackSub ?? DEFAULT_HOME_CONFIG.bookSlideFallbackSub,
+    promoCodeHint: c.promoCodeHint ?? DEFAULT_HOME_CONFIG.promoCodeHint,
+    heroEyebrow: c.heroEyebrow ?? DEFAULT_HOME_CONFIG.heroEyebrow,
+    heroSubtitle: c.heroSubtitle ?? DEFAULT_HOME_CONFIG.heroSubtitle,
+    quickLabels: {
+      book: ql.book ?? DEFAULT_HOME_CONFIG.quickLabels!.book,
+      bookings: ql.bookings ?? DEFAULT_HOME_CONFIG.quickLabels!.bookings,
+      offers: ql.offers ?? DEFAULT_HOME_CONFIG.quickLabels!.offers,
+      help: ql.help ?? DEFAULT_HOME_CONFIG.quickLabels!.help,
+    },
     categoryChips:
       c.categoryChips?.length > 0
         ? c.categoryChips.map((ch) => ({
@@ -251,6 +313,16 @@ function formatBookingCopy(raw?: Partial<IBookingCopyConfig>): IBookingCopyConfi
   return out;
 }
 
+function formatCustomerUiCopy(raw?: Partial<ICustomerUiCopy>): ICustomerUiCopy {
+  const d = DEFAULT_CUSTOMER_UI_COPY;
+  const b = raw ?? {};
+  const out = { ...d };
+  for (const key of Object.keys(d) as (keyof ICustomerUiCopy)[]) {
+    out[key] = strBookingField(b[key], d[key]);
+  }
+  return out;
+}
+
 function formatAppConfig(doc: Awaited<ReturnType<typeof getOrCreateAppDoc>>): IAppConfig {
   const a = doc.appConfig ?? DEFAULT_APP_CONFIG;
   const d = DEFAULT_APP_CONFIG;
@@ -280,6 +352,7 @@ function formatAppConfig(doc: Awaited<ReturnType<typeof getOrCreateAppDoc>>): IA
     aboutMarkdown: a.aboutMarkdown ?? d.aboutMarkdown,
     faq: a.faq?.length ? a.faq : d.faq,
     booking: formatBookingCopy(a.booking),
+    customerUi: formatCustomerUiCopy(a.customerUi),
   };
 }
 
@@ -351,6 +424,14 @@ function mergeAppConfig(current: IAppConfig, patch: Record<string, unknown>): IA
     next.booking = formatBookingCopy({ ...next.booking, ...booking } as Partial<IBookingCopyConfig>);
   }
 
+  const customerUi = patch.customerUi as Record<string, unknown> | undefined;
+  if (customerUi && typeof customerUi === 'object') {
+    next.customerUi = formatCustomerUiCopy({
+      ...next.customerUi,
+      ...customerUi,
+    } as Partial<ICustomerUiCopy>);
+  }
+
   return next;
 }
 
@@ -383,6 +464,8 @@ contentRouter.patch(
   body('legal').optional().isObject(),
   body('aboutMarkdown').optional().isString(),
   body('faq').optional().isArray(),
+  body('booking').optional().isObject(),
+  body('customerUi').optional().isObject(),
   asyncHandler(async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {

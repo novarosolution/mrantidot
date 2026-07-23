@@ -1,81 +1,104 @@
+import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { CreditCard, Wallet } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { homeShadow } from '@/components/kit/homeUi';
+import { AppIcons } from '@/constants/appIcons';
 import type { PaymentMethodRecord } from '@/types/api';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
 
-export function PaymentMethodCard({ method, selected }: { method: PaymentMethodRecord; selected?: boolean }) {
-  const Icon = method.type === 'pay_after' ? Wallet : CreditCard;
+function PaymentMethodCardComponent({
+  method,
+  selected,
+}: {
+  method: PaymentMethodRecord;
+  selected?: boolean;
+}) {
+  const icon = method.type === 'pay_after' ? AppIcons.payment.wallet : AppIcons.payment.card;
 
   return (
-    <View style={[styles.card, selected && styles.cardSelected]}>
-      <View style={[styles.radio, selected && styles.radioOn]}>
-        {selected ? <View style={styles.radioDot} /> : null}
-      </View>
-      <View style={styles.icon}>
-        <Icon size={20} color={selected ? colors.forest : colors.green} />
-      </View>
-      <View style={styles.body}>
-        <View style={styles.row}>
-          <Text style={styles.label}>{method.label}</Text>
-          {method.isDefault ? <Text style={styles.defaultTag}>Default</Text> : null}
+    <View style={styles.shell}>
+      <GlassPanel
+        style={[styles.card, selected && styles.cardSelected]}
+        padded={false}
+        tone={selected ? 'mint' : 'clear'}
+        intensity={42}
+        goldEdge
+      >
+        <View style={styles.inner}>
+          <View style={[styles.radio, selected && styles.radioOn]}>
+            {selected ? <View style={styles.radioDot} /> : null}
+          </View>
+          <PremiumIcon
+            icon={icon}
+            variant={selected ? 'premium' : 'mint'}
+            size={20}
+            color={selected ? '#FFFFFF' : colors.forest}
+            boxSize={40}
+          />
+          <View style={styles.body}>
+            <View style={styles.row}>
+              <Text style={styles.label}>{method.label}</Text>
+              {method.isDefault ? <Text style={styles.defaultTag}>Default</Text> : null}
+            </View>
+            <Text style={styles.meta}>
+              {method.type.replace('_', ' ')}
+              {method.details ? ` · ${method.details}` : ''}
+            </Text>
+          </View>
         </View>
-        <Text style={styles.meta}>
-          {method.type.replace('_', ' ')}
-          {method.details ? ` · ${method.details}` : ''}
-        </Text>
-      </View>
+      </GlassPanel>
     </View>
   );
 }
 
+export const PaymentMethodCard = memo(PaymentMethodCardComponent);
+
 const styles = StyleSheet.create({
+  shell: {
+    marginBottom: spacing.sm,
+    borderRadius: premium.radiusCard,
+    ...homeShadow.card,
+  },
   card: {
+    borderRadius: premium.radiusCard,
+  },
+  cardSelected: {
+    borderWidth: 2,
+    borderColor: colors.forest,
+  },
+  inner: {
     flexDirection: 'row',
     gap: 12,
     padding: 14,
-    borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
-    marginBottom: spacing.sm,
-    borderWidth: 1.5,
-    borderColor: colors.border,
     alignItems: 'center',
     minHeight: 72,
-    ...premium.shadowSoft,
   },
-  cardSelected: { borderWidth: 2, borderColor: colors.forest, backgroundColor: colors.soft },
   radio: {
     width: 22,
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: surfaces.glassBorderStrong,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
   },
-  radioOn: { borderColor: colors.green },
+  radioOn: { borderColor: colors.forest },
   radioDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: colors.green,
-  },
-  icon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.soft,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: colors.forest,
   },
   body: { flex: 1 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   label: { fontFamily: fonts.display, fontSize: 14, color: colors.ink },
-  defaultTag: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.green },
+  defaultTag: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.forest },
   meta: {
     fontFamily: fonts.body,
     fontSize: 12,
     color: colors.muted,
-    marginTop: 6,
-    textTransform: 'capitalize',
+    marginTop: 2,
   },
 });

@@ -1,10 +1,13 @@
 import { type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { AdminLightHeader } from './AdminLightHeader';
 import { GlassBackdrop, TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
-import { adminSurfaces, adminType, colors, premium, spacing } from '@/constants/theme';
+import { adminType, colors, spacing, surfaces } from '@/constants/theme';
+import { adminShadow } from '@/components/kit/homeUi';
 
 /** Bottom padding when a sticky save bar sits above the tab bar. */
 export const ADMIN_STICKY_FOOTER_PAD = 108;
@@ -66,7 +69,7 @@ export function AdminListShell({
   );
 }
 
-/** Section title for admin screens */
+/** Section title for admin screens — lime accent bar + ink contrast. */
 export function AdminSectionTitle({
   title,
   hint,
@@ -81,20 +84,26 @@ export function AdminSectionTitle({
   return (
     <View style={adminStyles.sectionBlock}>
       <View style={adminStyles.sectionRow}>
-        <View style={adminStyles.sectionTextCol}>
-          <Text style={adminStyles.sectionTitle}>{title}</Text>
-          {hint ? <Text style={adminStyles.sectionHint}>{hint}</Text> : null}
+        <View style={adminStyles.titleCol}>
+          <LinearGradient
+            colors={['#8FD03C', '#27A747']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={adminStyles.sectionAccent}
+          />
+          <View style={adminStyles.sectionTextCol}>
+            <Text style={adminStyles.sectionTitle}>{title}</Text>
+            {hint ? <Text style={adminStyles.sectionHint}>{hint}</Text> : null}
+          </View>
         </View>
         {actionLabel && onAction ? (
           <Pressable onPress={onAction} hitSlop={8} style={adminStyles.sectionAction}>
             <Text style={adminStyles.sectionLink}>{actionLabel}</Text>
-            <ChevronRight size={14} color={colors.forest} strokeWidth={2.5} />
+            <View style={adminStyles.chevronBtn}>
+              <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={14} color={colors.forest} strokeWidth={2.5} />
+            </View>
           </Pressable>
         ) : null}
-      </View>
-      <View style={adminStyles.sectionRule}>
-        <View style={adminStyles.sectionRuleGold} />
-        <View style={adminStyles.sectionRuleLine} />
       </View>
     </View>
   );
@@ -121,36 +130,44 @@ export const adminStyles = StyleSheet.create({
   },
   sectionRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  titleCol: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  sectionAccent: {
+    width: 3,
+    height: 18,
+    borderRadius: 2,
   },
   sectionTextCol: { flex: 1, minWidth: 0 },
   sectionTitle: {
     ...adminType.sectionTitle,
+    color: colors.ink,
   },
   sectionHint: {
     ...adminType.sectionHint,
+    color: colors.muted,
   },
-  sectionRule: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.sm,
-    gap: spacing.sm,
-  },
-  sectionRuleGold: {
-    width: 28,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: premium.accentGold,
-  },
-  sectionRuleLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  sectionAction: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingTop: 2 },
+  sectionAction: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionLink: { ...adminType.sectionLink },
+  chevronBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(180,220,165,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...adminShadow.soft,
+  },
   summaryRow: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -172,7 +189,7 @@ export const adminStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  root: { flex: 1, overflow: 'hidden' },
+  root: { flex: 1, overflow: 'hidden', backgroundColor: surfaces.glassScreenBase },
   safe: { flex: 1 },
   flex: { flex: 1 },
   headerExtra: {

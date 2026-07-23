@@ -1,5 +1,4 @@
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text } from 'react-native';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminStatStrip } from '@/components/kit/AdminPageKit';
@@ -8,12 +7,14 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
-import { bookingDetailPath } from '@/lib/routes';
+import { CACHE_TTL } from '@/lib/apiCache';
+import { bookingDetailPath, appPush } from '@/lib/routes';
 import { useAuth } from '@/context/AuthContext';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
 import { useScreenLoad } from '@/lib/useScreenLoad';
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import type { AppNotification } from '@/types/api';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, fonts } from '@/constants/theme';
 
 export default function AdminNotificationsScreen() {
   const { user } = useAuth();
@@ -21,16 +22,20 @@ export default function AdminNotificationsScreen() {
   const [markingAll, setMarkingAll] = useState(false);
   const { loading, error, refreshing, runLoad, refresh, reload } = useScreenLoad();
 
-  const load = useCallback(async () => {
-    const { data } = await api.get<{ notifications: AppNotification[] }>('/notifications', screenLoadConfig);
+  const load = useCallback(async (skipCache = false) => {
+    const { data } = await api.get<{ notifications: AppNotification[] }>('/notifications', {
+      ...screenLoadConfig,
+      cacheTtlMs: CACHE_TTL.notifications,
+      ...(skipCache ? { skipCache: true as const } : {}),
+    });
     setItems(data.notifications);
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      void runLoad(load, 'Could not load notifications');
-    }, [load, runLoad]),
-  );
+  useEffect(() => {
+    void runLoad(() => load(), 'Could not load notifications');
+  }, [load, runLoad]);
+
+  useStaleFocusRefresh(() => refresh(() => load(true)), 45_000);
 
   async function markAllRead() {
     setMarkingAll(true);
@@ -52,7 +57,7 @@ export default function AdminNotificationsScreen() {
       });
     }
     if (n.bookingId) {
-      router.push(bookingDetailPath(user?.role, n.bookingId) as never);
+      appPush(bookingDetailPath(user?.role, n.bookingId));
     }
   }
 
@@ -88,7 +93,7 @@ export default function AdminNotificationsScreen() {
       <AdminStatStrip
         items={[
           { label: 'Total', value: items.length },
-          { label: 'Unread', value: unreadCount, color: unreadCount > 0 ? colors.amberInk : colors.forest },
+          { label: 'Unread', value: unreadCount, color: unreadCount > 0 ? colors.forest : colors.forest },
           { label: 'Read', value: items.length - unreadCount },
         ]}
       />

@@ -1,17 +1,24 @@
-import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { LocationLaunchScreen } from '@/components/kit/LocationLaunchScreen';
 import { useLocation } from '@/context/LocationContext';
-import { homeRouteForRole } from '@/lib/auth-routes';
-import { appReplace } from '@/lib/routes';
+import { appReplace, authRoutes, customerRoutes, homeRouteForRole } from '@/lib/routes';
 import { isOnboardingDone } from '@/lib/onboarding';
+import { isProfileIncomplete } from '@/lib/profile-display';
 import { useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
+import type { StoredUser } from '@/lib/storage';
 
 const MIN_SPLASH_MS = 2800;
 const FOUND_HOLD_MS = 900;
 const LOGGED_IN_MIN_MS = 350;
 const LOCATION_DETECT_TIMEOUT_MS = 9000;
+
+function routeAfterSplash(user: StoredUser) {
+  if (user.role === 'customer' && isProfileIncomplete(user)) {
+    return customerRoutes.settings;
+  }
+  return homeRouteForRole(user.role);
+}
 
 export default function SplashScreen() {
   const { user, isLoading: authLoading } = useAuth();
@@ -68,12 +75,12 @@ export default function SplashScreen() {
       navigated.current = true;
 
       if (user) {
-        appReplace(homeRouteForRole(user.role));
+        appReplace(routeAfterSplash(user));
         return;
       }
 
       const done = await isOnboardingDone();
-      router.replace(done ? '/(auth)/login' : '/(auth)/onboarding');
+      appReplace(done ? authRoutes.login : authRoutes.onboarding);
     }, wait);
 
     return () => clearTimeout(t);
@@ -93,11 +100,11 @@ export default function SplashScreen() {
         void setLocation({ city: 'your area', area: '', granted: false, updatedAt: Date.now() });
         void (async () => {
           if (user) {
-            appReplace(homeRouteForRole(user.role));
+            appReplace(routeAfterSplash(user));
             return;
           }
           const done = await isOnboardingDone();
-          router.replace(done ? '/(auth)/login' : '/(auth)/onboarding');
+          appReplace(done ? authRoutes.login : authRoutes.onboarding);
         })();
       }}
     />

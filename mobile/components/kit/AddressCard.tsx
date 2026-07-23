@@ -1,15 +1,20 @@
+import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Check, Home, MapPin } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { homeShadow } from '@/components/kit/homeUi';
+import { AppIcons } from '@/constants/appIcons';
 import type { SavedAddress } from '@/types/api';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, customerType, premium, spacing, surfaces } from '@/constants/theme';
 
-function labelIcon(label: string) {
+function labelIcon(label: string): LucideIcon {
   const l = label.toLowerCase();
-  if (l.includes('home') || l.includes('house')) return Home;
-  return MapPin;
+  if (l.includes('home') || l.includes('house')) return AppIcons.property.home;
+  return AppIcons.ui.mapPin;
 }
 
-export function AddressCard({
+function AddressCardComponent({
   address,
   selected,
   onPress,
@@ -18,35 +23,51 @@ export function AddressCard({
   selected?: boolean;
   onPress?: () => void;
 }) {
-  const Icon = labelIcon(address.label);
+  const icon = labelIcon(address.label);
 
   const inner = (
-    <View style={[styles.card, selected && styles.cardSelected]}>
-      <View style={[styles.icon, selected && styles.iconSelected]}>
-        <Icon size={18} color={selected ? colors.forest : colors.green} strokeWidth={2.2} />
-      </View>
-      <View style={styles.body}>
-        <View style={styles.topRow}>
-          <Text style={[styles.label, selected && styles.labelSelected]} numberOfLines={1}>
-            {address.label}
-          </Text>
-          {address.isDefault ? (
-            <View style={styles.defaultPill}>
-              <Text style={styles.defaultText}>Default</Text>
+    <View style={styles.shell}>
+      <GlassPanel
+        style={[styles.card, selected && styles.cardSelected]}
+        padded={false}
+        tone={selected ? 'mint' : 'clear'}
+        intensity={42}
+        goldEdge
+      >
+        <View style={styles.row}>
+          <PremiumIcon
+            icon={icon}
+            variant={selected ? 'premium' : 'mint'}
+            size={18}
+            color={selected ? '#FFFFFF' : colors.forest}
+            boxSize={44}
+          />
+          <View style={styles.body}>
+            <View style={styles.topRow}>
+              <Text style={[styles.label, selected && styles.labelSelected]} numberOfLines={1}>
+                {address.label}
+              </Text>
+              {address.isDefault ? (
+                <View style={styles.defaultPill}>
+                  <Text style={styles.defaultText}>Default</Text>
+                </View>
+              ) : null}
             </View>
-          ) : null}
+            <Text style={styles.line} numberOfLines={2}>
+              {address.line1}
+            </Text>
+            <Text style={styles.meta}>
+              {address.city}
+              {address.pincode ? ` · ${address.pincode}` : ''}
+            </Text>
+          </View>
+          <View style={[styles.radio, selected && styles.radioOn]}>
+            {selected ? (
+              <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={14} color={colors.white} strokeWidth={3} />
+            ) : null}
+          </View>
         </View>
-        <Text style={styles.line} numberOfLines={2}>
-          {address.line1}
-        </Text>
-        <Text style={styles.meta}>
-          {address.city}
-          {address.pincode ? ` · ${address.pincode}` : ''}
-        </Text>
-      </View>
-      <View style={[styles.radio, selected && styles.radioOn]}>
-        {selected ? <Check size={14} color={colors.white} strokeWidth={3} /> : null}
-      </View>
+      </GlassPanel>
     </View>
   );
 
@@ -57,70 +78,58 @@ export function AddressCard({
       </Pressable>
     );
   }
-  return inner;
+  return <View style={styles.pressable}>{inner}</View>;
 }
+
+export const AddressCard = memo(AddressCardComponent);
 
 const styles = StyleSheet.create({
   pressable: { marginBottom: spacing.sm },
-  pressed: { opacity: 0.92 },
+  pressed: { opacity: 0.92, transform: [{ scale: 0.995 }] },
+  shell: {
+    borderRadius: premium.radiusCard,
+    ...homeShadow.card,
+  },
   card: {
+    borderRadius: premium.radiusCard,
+  },
+  cardSelected: {
+    borderWidth: 1.5,
+    borderColor: 'rgba(48,184,79,0.55)',
+  },
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 12,
-    borderRadius: 16,
-    backgroundColor: colors.bg,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  cardSelected: {
-    backgroundColor: colors.white,
-    borderColor: colors.forest,
-    shadowColor: '#0E3A20',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  icon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  iconSelected: {
-    backgroundColor: colors.soft,
-    borderColor: 'rgba(30,142,78,0.2)',
+    padding: 13,
   },
   body: { flex: 1, minWidth: 0 },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  label: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.ink, flex: 1 },
+  label: { ...customerType.cardTitle, flex: 1, color: colors.ink },
   labelSelected: { color: colors.forest },
   defaultPill: {
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 999,
-    backgroundColor: colors.soft,
+    backgroundColor: '#EAF6E3',
+    borderWidth: 1,
+    borderColor: surfaces.glassBorderStrong,
   },
-  defaultText: { fontFamily: fonts.bodySemi, fontSize: 9, color: colors.green },
-  line: { fontFamily: fonts.body, fontSize: 13, color: colors.ink, marginTop: 4, lineHeight: 18 },
-  meta: { fontFamily: fonts.body, fontSize: 11.5, color: colors.muted, marginTop: 2 },
+  defaultText: { ...customerType.pillLabel, color: colors.forest },
+  line: { ...customerType.menuDesc, fontSize: 13, color: colors.ink, marginTop: 4, lineHeight: 18 },
+  meta: { ...customerType.listMetaMuted, marginTop: 2, color: colors.muted },
   radio: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.border,
+    borderWidth: 1.5,
+    borderColor: surfaces.glassBorderStrong,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: '#FFFFFF',
   },
   radioOn: {
-    backgroundColor: colors.green,
-    borderColor: colors.green,
+    backgroundColor: colors.forest,
+    borderColor: colors.forest,
   },
 });

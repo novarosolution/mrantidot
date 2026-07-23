@@ -1,12 +1,24 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Animated,
+  Dimensions,
+  Easing,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Check, MapPin, Navigation } from 'lucide-react-native';
 import { BrandLogo } from '@/components/BrandLogo';
-import { colors, fonts, gradients, spacing } from '@/constants/theme';
+import { fonts, spacing } from '@/constants/theme';
 
 type Phase = 'detecting' | 'found' | 'denied';
+
+const { width: W, height: H } = Dimensions.get('window');
+const DEEP = '#02180C';
+const FOREST = '#0A6423';
+const LIME = '#8FD03C';
 
 export function LocationLaunchScreen({
   brandName,
@@ -22,254 +34,436 @@ export function LocationLaunchScreen({
   onContinue?: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const mapDrift = useRef(new Animated.Value(0)).current;
-  const pinDrop = useRef(new Animated.Value(0)).current;
-  const pinBounce = useRef(new Animated.Value(0)).current;
-  const pulse1 = useRef(new Animated.Value(0)).current;
-  const pulse2 = useRef(new Animated.Value(0)).current;
-  const pulse3 = useRef(new Animated.Value(0)).current;
+
+  const stageIn = useRef(new Animated.Value(0)).current;
+  const brandIn = useRef(new Animated.Value(0)).current;
+  const lineIn = useRef(new Animated.Value(0)).current;
+  const footIn = useRef(new Animated.Value(0)).current;
+  const breathe = useRef(new Animated.Value(0)).current;
+  const drift = useRef(new Animated.Value(0)).current;
+  const ray = useRef(new Animated.Value(0)).current;
+  const progress = useRef(new Animated.Value(0.18)).current;
   const statusFade = useRef(new Animated.Value(1)).current;
-  const checkScale = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(mapDrift, { toValue: 1, duration: 4200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(mapDrift, { toValue: 0, duration: 4200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ]),
-    ).start();
-  }, [mapDrift]);
-
-  useEffect(() => {
-    Animated.spring(pinDrop, { toValue: 1, friction: 7, tension: 55, useNativeDriver: true }).start();
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pinBounce, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(pinBounce, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ]),
-    ).start();
-  }, [pinBounce, pinDrop]);
-
-  useEffect(() => {
-    function pulseLoop(v: Animated.Value, delay: number) {
-      return Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(v, { toValue: 1, duration: 1800, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-          Animated.timing(v, { toValue: 0, duration: 0, useNativeDriver: true }),
-        ]),
-      );
-    }
-    pulseLoop(pulse1, 0).start();
-    pulseLoop(pulse2, 400).start();
-    pulseLoop(pulse3, 800).start();
-  }, [pulse1, pulse2, pulse3]);
+  const progressLoop = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
     Animated.sequence([
-      Animated.timing(statusFade, { toValue: 0, duration: 180, useNativeDriver: true }),
-      Animated.timing(statusFade, { toValue: 1, duration: 320, useNativeDriver: true }),
+      Animated.timing(stageIn, { toValue: 1, duration: 520, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.stagger(110, [
+        Animated.timing(brandIn, { toValue: 1, duration: 720, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(lineIn, { toValue: 1, duration: 560, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(footIn, { toValue: 1, duration: 520, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]),
     ]).start();
-  }, [phase, cityLabel, statusFade]);
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(breathe, { toValue: 1, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(breathe, { toValue: 0, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+    ).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(drift, { toValue: 1, duration: 6800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(drift, { toValue: 0, duration: 6800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ]),
+    ).start();
+
+    Animated.loop(
+      Animated.timing(ray, { toValue: 1, duration: 4200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+    ).start();
+  }, [brandIn, breathe, drift, footIn, lineIn, ray, stageIn]);
 
   useEffect(() => {
-    if (phase === 'found') {
-      Animated.spring(checkScale, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }).start();
+    Animated.sequence([
+      Animated.timing(statusFade, { toValue: 0.35, duration: 100, useNativeDriver: true }),
+      Animated.timing(statusFade, { toValue: 1, duration: 320, useNativeDriver: true }),
+    ]).start();
+
+    progressLoop.current?.stop();
+
+    if (phase === 'detecting') {
+      progressLoop.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(progress, {
+            toValue: 0.72,
+            duration: 1600,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          }),
+          Animated.timing(progress, {
+            toValue: 0.28,
+            duration: 1200,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: false,
+          }),
+        ]),
+      );
+      progressLoop.current.start();
     } else {
-      checkScale.setValue(0);
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: 480,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }).start();
     }
-  }, [checkScale, phase]);
 
-  const driftX = mapDrift.interpolate({ inputRange: [0, 1], outputRange: [0, -18] });
-  const driftY = mapDrift.interpolate({ inputRange: [0, 1], outputRange: [0, 12] });
-  const pinY = pinDrop.interpolate({ inputRange: [0, 1], outputRange: [-72, 0] });
-  const pinLift = pinBounce.interpolate({ inputRange: [0, 1], outputRange: [0, -6] });
+    return () => {
+      progressLoop.current?.stop();
+    };
+  }, [phase, progress, statusFade]);
 
-  function ringStyle(v: Animated.Value) {
-    const scale = v.interpolate({ inputRange: [0, 1], outputRange: [0.35, 2.4] });
-    const opacity = v.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0.45, 0.28, 0] });
-    return { transform: [{ scale }], opacity };
-  }
+  const markStyle = {
+    opacity: brandIn,
+    transform: [
+      { translateY: brandIn.interpolate({ inputRange: [0, 1], outputRange: [36, 0] }) },
+      { scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.028] }) },
+    ],
+  };
+  const titleStyle = {
+    opacity: lineIn,
+    transform: [{ translateY: lineIn.interpolate({ inputRange: [0, 1], outputRange: [22, 0] }) }],
+  };
+  const footStyle = {
+    opacity: footIn,
+    transform: [{ translateY: footIn.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }],
+  };
+  const orbA = {
+    opacity: stageIn,
+    transform: [
+      { translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [0, 22] }) },
+      { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [0, -18] }) },
+      { scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) },
+    ],
+  };
+  const orbB = {
+    opacity: stageIn,
+    transform: [
+      { translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [0, -20] }) },
+      { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [0, 16] }) },
+    ],
+  };
+  const orbC = {
+    opacity: stageIn.interpolate({ inputRange: [0, 1], outputRange: [0, 0.9] }),
+    transform: [
+      { translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [8, -12] }) },
+      { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [-6, 10] }) },
+    ],
+  };
+  const rayStyle = {
+    opacity: ray.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.08, 0.22, 0.08] }),
+    transform: [
+      { translateX: ray.interpolate({ inputRange: [0, 1], outputRange: [-W * 0.28, W * 0.2] }) },
+      { rotate: '22deg' },
+    ],
+  };
+  const progressW = progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
 
-  const headline =
+  const statusTitle =
     phase === 'found' && cityLabel
-      ? `Serving ${cityLabel}`
+      ? `Ready in ${cityLabel}`
       : phase === 'denied'
-        ? 'Location access off'
-        : 'Finding your location…';
+        ? 'Continue without GPS'
+        : 'Finding your area';
 
-  const subline =
+  const statusBody =
     phase === 'found'
-      ? areaLabel || (cityLabel ? `Home services in ${cityLabel}` : 'Services near you')
+      ? areaLabel || 'Trusted technicians near you'
       : phase === 'denied'
-        ? 'You can still browse — we will use your saved city when available'
-        : 'Pinpointing services near you';
+        ? 'Set your city anytime from home'
+        : 'Matching eco-safe services nearby';
 
   return (
     <View style={styles.root}>
-      <Animated.View style={[styles.mapLayer, { transform: [{ translateX: driftX }, { translateY: driftY }] }]}>
-        <View style={styles.mapBase} />
-        {Array.from({ length: 8 }).map((_, i) => (
-          <View key={`h-${i}`} style={[styles.gridH, { top: i * 56 }]} />
-        ))}
-        {Array.from({ length: 6 }).map((_, i) => (
-          <View key={`v-${i}`} style={[styles.gridV, { left: i * 64 }]} />
-        ))}
-        <View style={[styles.road, styles.roadA]} />
-        <View style={[styles.road, styles.roadB]} />
-      </Animated.View>
+      <LinearGradient
+        colors={['#1A8734', FOREST, '#053A18', DEEP]}
+        locations={[0, 0.28, 0.62, 1]}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0.15, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
+      />
+
+      <Animated.View style={[styles.orbTop, orbA]} pointerEvents="none" />
+      <Animated.View style={[styles.orbMid, orbC]} pointerEvents="none" />
+      <Animated.View style={[styles.orbBottom, orbB]} pointerEvents="none" />
+      <Animated.View style={[styles.ray, rayStyle]} pointerEvents="none" />
 
       <LinearGradient
-        colors={['rgba(14,58,32,0.05)', 'rgba(14,58,32,0.55)', 'rgba(14,58,32,0.92)']}
-        style={StyleSheet.absoluteFill}
+        colors={['rgba(2,24,12,0)', 'rgba(2,24,12,0.18)', 'rgba(2,24,12,0.55)']}
+        locations={[0.35, 0.7, 1]}
+        style={styles.bottomFade}
         pointerEvents="none"
       />
 
-      <View style={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.xl }]}>
-        <View style={styles.brandRow}>
-          <BrandLogo size={40} />
-          <Text style={styles.brand}>{brandName}</Text>
-        </View>
+      <View
+        style={[
+          styles.stage,
+          {
+            paddingTop: insets.top + spacing.xl,
+            paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.sm,
+          },
+        ]}
+      >
+        <View style={styles.hero}>
+          <Animated.View style={[styles.markWrap, markStyle]}>
+            <View style={styles.haloOuter} />
+            <View style={styles.haloInner} />
+            <LinearGradient
+              colors={['rgba(255,255,255,0.42)', 'rgba(143,208,60,0.55)', 'rgba(48,184,79,0.18)']}
+              locations={[0, 0.45, 1]}
+              start={{ x: 0.15, y: 0 }}
+              end={{ x: 0.9, y: 1 }}
+              style={styles.markRing}
+            >
+              <View style={styles.markInner}>
+                <LinearGradient
+                  colors={['#FFFFFF', '#F4FBF0']}
+                  style={StyleSheet.absoluteFill}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
+                />
+                <BrandLogo size={124} animate={false} />
+              </View>
+            </LinearGradient>
+          </Animated.View>
 
-        <View style={styles.mapFocus}>
-          {[pulse1, pulse2, pulse3].map((p, i) => (
-            <Animated.View key={i} style={[styles.pulseRing, ringStyle(p)]} />
-          ))}
-          <View style={styles.pinShadow} />
-          <Animated.View style={{ transform: [{ translateY: pinY }, { translateY: pinLift }] }}>
-            <View style={[styles.pinBubble, phase === 'found' && styles.pinBubbleFound]}>
-              {phase === 'found' ? (
-                <Animated.View style={{ transform: [{ scale: checkScale }] }}>
-                  <Check size={28} color={colors.forest} strokeWidth={3} />
-                </Animated.View>
-              ) : phase === 'denied' ? (
-                <Navigation size={26} color={colors.white} strokeWidth={2.2} />
-              ) : (
-                <MapPin size={28} color={colors.white} fill={colors.forest} strokeWidth={1.5} />
-              )}
-            </View>
+          <Animated.View style={[styles.brandBlock, titleStyle]}>
+            <Text style={styles.brand}>{brandName}</Text>
+            <View style={styles.brandRule} />
+            <Text style={styles.tagline}>Premium pest control for home & business</Text>
           </Animated.View>
         </View>
 
-        <Animated.View style={[styles.statusBlock, { opacity: statusFade }]}>
-          <Text style={styles.headline}>{headline}</Text>
-          <Text style={styles.subline}>{subline}</Text>
-          {phase === 'found' && cityLabel ? (
-            <View style={styles.foundPill}>
-              <MapPin size={12} color={colors.lime} />
-              <Text style={styles.foundPillText}>{areaLabel ? `${areaLabel} · ${cityLabel}` : cityLabel}</Text>
-            </View>
-          ) : null}
-          <View style={styles.dotsRow}>
-            {[0, 1, 2].map((i) => (
-              <View key={i} style={[styles.dot, (phase === 'found' || phase === 'denied') && i === 2 && styles.dotActive]} />
-            ))}
+        <Animated.View style={[styles.footer, footStyle]}>
+          <Animated.View style={{ opacity: statusFade }}>
+            <Text style={styles.statusTitle}>{statusTitle}</Text>
+            <Text style={styles.statusBody}>{statusBody}</Text>
+          </Animated.View>
+
+          <View style={styles.progressTrack}>
+            <Animated.View style={[styles.progressFill, { width: progressW }]}>
+              <LinearGradient
+                colors={['#B8E86A', LIME, '#27A747']}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={StyleSheet.absoluteFill}
+              />
+            </Animated.View>
           </View>
+
           {phase === 'denied' && onContinue ? (
-            <Pressable style={({ pressed }) => [styles.continueBtn, pressed && styles.continuePressed]} onPress={onContinue}>
-              <Text style={styles.continueText}>Continue</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Continue"
+              style={({ pressed }) => [pressed && styles.pressed]}
+              onPress={onContinue}
+            >
+              <LinearGradient
+                colors={['#A8E04A', LIME, '#27A747']}
+                locations={[0, 0.45, 1]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.continueBtn}
+              >
+                <Text style={styles.continueText}>Continue</Text>
+              </LinearGradient>
             </Pressable>
-          ) : null}
+          ) : (
+            <Text style={styles.footNote}>Secure · Eco-safe · Verified technicians</Text>
+          )}
         </Animated.View>
       </View>
-
-      <LinearGradient
-        colors={[...gradients.premiumHero]}
-        style={styles.bottomGlow}
-        pointerEvents="none"
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#DDE8E0', overflow: 'hidden' },
-  mapLayer: { ...StyleSheet.absoluteFill },
-  mapBase: { ...StyleSheet.absoluteFill, backgroundColor: '#E4EBE6' },
-  gridH: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: 'rgba(20,83,45,0.06)' },
-  gridV: { position: 'absolute', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(20,83,45,0.06)' },
-  road: { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.65)', borderRadius: 2 },
-  roadA: { width: '120%', height: 10, top: '38%', left: '-10%', transform: [{ rotate: '-12deg' }] },
-  roadB: { width: 10, height: '70%', left: '62%', top: '10%', transform: [{ rotate: '8deg' }] },
-  content: { flex: 1, justifyContent: 'space-between' },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg },
-  brand: { fontFamily: fonts.displayExtra, fontSize: 20, color: colors.white, letterSpacing: -0.3 },
-  mapFocus: { alignSelf: 'center', width: 220, height: 220, alignItems: 'center', justifyContent: 'center' },
-  pulseRing: {
+  root: { flex: 1, backgroundColor: DEEP, overflow: 'hidden' },
+  orbTop: {
     position: 'absolute',
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    borderWidth: 2,
-    borderColor: 'rgba(168,224,78,0.55)',
-    backgroundColor: 'rgba(168,224,78,0.08)',
+    top: -H * 0.12,
+    right: -W * 0.28,
+    width: W * 0.9,
+    height: W * 0.9,
+    borderRadius: W * 0.45,
+    backgroundColor: 'rgba(143,208,60,0.22)',
   },
-  pinShadow: {
+  orbMid: {
     position: 'absolute',
-    bottom: 58,
-    width: 36,
-    height: 10,
-    borderRadius: 18,
-    backgroundColor: 'rgba(14,58,32,0.22)',
+    top: H * 0.28,
+    left: -W * 0.35,
+    width: W * 0.7,
+    height: W * 0.7,
+    borderRadius: W * 0.35,
+    backgroundColor: 'rgba(48,184,79,0.14)',
   },
-  pinBubble: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.forest,
+  orbBottom: {
+    position: 'absolute',
+    bottom: -H * 0.05,
+    right: -W * 0.15,
+    width: W * 0.78,
+    height: W * 0.78,
+    borderRadius: W * 0.39,
+    backgroundColor: 'rgba(8,90,34,0.55)',
+  },
+  ray: {
+    position: 'absolute',
+    top: H * 0.08,
+    left: W * 0.05,
+    width: W * 0.48,
+    height: H * 0.55,
+    borderRadius: 120,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  bottomFade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: H * 0.42,
+  },
+  stage: {
+    flex: 1,
+    paddingHorizontal: spacing.xl,
+    justifyContent: 'space-between',
+  },
+  hero: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.white,
-    shadowColor: '#0E3A20',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.28,
-    shadowRadius: 12,
-    elevation: 8,
+    gap: spacing.xl + 4,
+    paddingBottom: spacing.lg,
   },
-  pinBubbleFound: { backgroundColor: colors.lime },
-  statusBlock: { paddingHorizontal: spacing.xl, alignItems: 'center', gap: 8 },
-  headline: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 24,
-    color: colors.white,
+  markWrap: {
+    width: 188,
+    height: 188,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  haloOuter: {
+    position: 'absolute',
+    width: 188,
+    height: 188,
+    borderRadius: 94,
+    backgroundColor: 'rgba(143,208,60,0.16)',
+  },
+  haloInner: {
+    position: 'absolute',
+    width: 168,
+    height: 168,
+    borderRadius: 84,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  markRing: {
+    width: 158,
+    height: 158,
+    borderRadius: 46,
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  markInner: {
+    width: 150,
+    height: 150,
+    borderRadius: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.7)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 22 },
+    shadowOpacity: 0.38,
+    shadowRadius: 32,
+    elevation: 16,
+  },
+  brandBlock: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    gap: 14,
+  },
+  brand: {
+    fontFamily: fonts.brand,
+    fontSize: 46,
+    lineHeight: 50,
+    letterSpacing: -1.6,
+    color: '#FFFFFF',
     textAlign: 'center',
-    letterSpacing: -0.4,
+    textShadowColor: 'rgba(0,0,0,0.28)',
+    textShadowOffset: { width: 0, height: 8 },
+    textShadowRadius: 18,
   },
-  subline: {
+  brandRule: {
+    width: 42,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: LIME,
+  },
+  tagline: {
+    fontFamily: fonts.body,
+    fontSize: 15.5,
+    lineHeight: 23,
+    color: 'rgba(255,255,255,0.74)',
+    textAlign: 'center',
+    maxWidth: 290,
+  },
+  footer: {
+    gap: 16,
+    paddingBottom: 2,
+  },
+  statusTitle: {
+    fontFamily: fonts.display,
+    fontSize: 20,
+    letterSpacing: -0.4,
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  statusBody: {
+    marginTop: 6,
     fontFamily: fonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.82)',
-    textAlign: 'center',
     lineHeight: 20,
-    maxWidth: 300,
+    color: 'rgba(234,246,227,0.72)',
+    textAlign: 'center',
   },
-  foundPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(0,0,0,0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(168,224,78,0.35)',
+  progressTrack: {
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    overflow: 'hidden',
+    marginTop: 2,
   },
-  foundPillText: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.lime },
-  dotsRow: { flexDirection: 'row', gap: 6, marginTop: spacing.sm },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.35)' },
-  dotActive: { backgroundColor: colors.lime, width: 18 },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  footNote: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 12,
+    letterSpacing: 0.35,
+    color: 'rgba(255,255,255,0.48)',
+    textAlign: 'center',
+    paddingTop: 2,
+    paddingBottom: 4,
+  },
   continueBtn: {
-    marginTop: spacing.md,
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    borderRadius: 999,
-    backgroundColor: colors.lime,
+    borderRadius: 18,
+    paddingVertical: 16,
+    alignItems: 'center',
+    shadowColor: LIME,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 8,
   },
-  continuePressed: { opacity: 0.9 },
-  continueText: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.forest },
-  bottomGlow: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '42%', opacity: 0.35 },
+  continueText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 16,
+    letterSpacing: 0.2,
+    color: '#FFFFFF',
+  },
+  pressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
 });

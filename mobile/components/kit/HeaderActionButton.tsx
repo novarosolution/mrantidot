@@ -1,10 +1,13 @@
 import type { LucideIcon } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet } from 'react-native';
-import { colors, shadows } from '@/constants/theme';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { IconGradients } from '@/constants/appIcons';
+import { shadows } from '@/constants/theme';
 
 /** Circular header action — consistent across tab screens. */
 export function HeaderActionButton({
-  icon: Icon,
+  icon,
   onPress,
   accessibilityLabel,
 }: {
@@ -19,7 +22,9 @@ export function HeaderActionButton({
       hitSlop={8}
       accessibilityLabel={accessibilityLabel}
     >
-      <Icon size={20} color={colors.white} strokeWidth={2.5} />
+      <LinearGradient colors={[...IconGradients.forest]} style={styles.grad} start={{ x: 0.2, y: 0 }} end={{ x: 0.9, y: 1 }}>
+        <PremiumIcon icon={icon} variant="plain" size="lg" color="#FFFFFF" strokeWidth={2.3} />
+      </LinearGradient>
     </Pressable>
   );
 }
@@ -29,10 +34,13 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.forest,
+    overflow: 'hidden',
+    ...shadows.card,
+  },
+  grad: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.card,
   },
   pressed: { opacity: 0.92, transform: [{ scale: 0.97 }] },
 });

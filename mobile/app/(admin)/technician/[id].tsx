@@ -1,4 +1,4 @@
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
@@ -90,7 +90,7 @@ export default function AdminTechnicianDetailScreen() {
   const { loading, error, refreshing, runLoad, reload, refresh } = useScreenLoad();
   const [detail, setDetail] = useState<TechnicianDetailResponse | null>(null);
   const [viewMode, setViewMode] = useState<TechnicianViewMode>('calendar');
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [month, setMonth] = useState(() => localDateKey().slice(0, 7));
   const [listStatusFilter, setListStatusFilter] = useState<string | null>(null);
   const [metricSheet, setMetricSheet] = useState<MetricSheetState>({
     visible: false,
@@ -129,7 +129,7 @@ export default function AdminTechnicianDetailScreen() {
 
   function openBooking(bookingId: string) {
     closeMetricSheet();
-    router.push(`/(admin)/booking/${bookingId}`);
+    appPush(adminRoutes.booking(bookingId));
   }
 
   function viewInList(status?: string) {
@@ -211,7 +211,7 @@ export default function AdminTechnicianDetailScreen() {
       compact={viewMode === 'analytics'}
       onCall={technician.phone ? () => void Linking.openURL(`tel:${technician.phone}`) : undefined}
       onEdit={() =>
-        router.push({
+        appPush({
           pathname: adminRoutes.userEdit,
           params: { id: technician.id, returnTo: adminRoutes.technician(technician.id) },
         })
@@ -386,7 +386,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     marginBottom: spacing.sm,
     borderRadius: 12,
-    backgroundColor: colors.secondarySoft,
+    backgroundColor: 'rgba(255,255,255,0.72)',
+    borderWidth: 1,
+    borderColor: 'rgba(226,240,216,0.95)',
     marginHorizontal: spacing.md,
   },
   filterText: { fontFamily: fonts.body, fontSize: 12, color: colors.secondaryInk },

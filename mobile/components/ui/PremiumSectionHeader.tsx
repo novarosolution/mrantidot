@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { colors, customerType, premium, spacing } from '@/constants/theme';
 
 export function PremiumSectionHeader({
@@ -34,9 +35,7 @@ export function PremiumSectionHeader({
         {onAction ? (
           <Pressable style={styles.action} onPress={onAction} hitSlop={8}>
             {actionLabel ? <Text style={styles.link}>{actionLabel}</Text> : null}
-            <View style={[styles.actionIcon, compact && styles.actionIconCompact]}>
-              <ChevronRight size={compact ? 13 : 14} color={colors.forest} strokeWidth={2.5} />
-            </View>
+            <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size={compact ? 13 : 14} color={colors.forest} strokeWidth={2.5} />
           </Pressable>
         ) : null}
       </View>

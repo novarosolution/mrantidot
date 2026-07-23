@@ -1,6 +1,7 @@
 import { IBooking } from '../models/Booking';
 import { DayAttendanceStatus, monthRange } from './attendance';
 import { eachDateInRange } from './dateKey';
+import { resolveTechEarning, type TechPayConfig } from './techPay';
 
 export const TECH_PIPELINE_STATUSES = [
   'pending',
@@ -97,7 +98,11 @@ export function buildAttendanceTrend(
   });
 }
 
-export function buildJobsTrend(bookings: IBooking[], month: string): JobsTrendBucket[] {
+export function buildJobsTrend(
+  bookings: IBooking[],
+  month: string,
+  techPay?: TechPayConfig | null,
+): JobsTrendBucket[] {
   return weeklyBucketsInMonth(month).map((bucket) => {
     let completed = 0;
     let earnings = 0;
@@ -107,7 +112,7 @@ export function buildJobsTrend(bookings: IBooking[], month: string): JobsTrendBu
       if (!date || date < bucket.from || date > bucket.to) continue;
       if (b.status === 'completed') {
         completed += 1;
-        earnings += b.amount?.total ?? 0;
+        earnings += resolveTechEarning(b, techPay);
       }
     }
 

@@ -1,4 +1,4 @@
-import { Link, router } from 'expo-router';
+import { Link, Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AuthField, AuthScreenLayout, authScreenStyles } from '@/components/kit/auth/AuthScreenLayout';
@@ -6,10 +6,11 @@ import { OtpBoxes } from '@/components/kit/OtpBoxes';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
-import { api } from '@/lib/api';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { api, getApiErrorMessage } from '@/lib/api';
+import { formatLoginIdentifier } from '@/lib/phone';
 import { appToast } from '@/lib/toast';
-import { homeRouteForRole } from '@/lib/auth-routes';
-import { appReplace } from '@/lib/routes';
+import { appReplace, authRoutes, customerRoutes, homeRouteForRole } from '@/lib/routes';
 import { isProfileIncomplete } from '@/lib/profile-display';
 import { colors, fonts, spacing } from '@/constants/theme';
 
@@ -20,8 +21,17 @@ function maskPhone(phone: string): string {
 }
 
 export default function OtpScreen() {
+  if (!__DEV__) {
+    return <Redirect href={authRoutes.login} />;
+  }
+
+  return <OtpScreenBody />;
+}
+
+function OtpScreenBody() {
   const { otpVerify } = useAuth();
   const { content } = useAppContent();
+  const ui = useCustomerUiCopy();
 
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
@@ -39,32 +49,38 @@ export default function OtpScreen() {
   }, [timer]);
 
   async function sendOtp() {
-    const trimmed = phone.trim();
-    if (!trimmed) {
+    const normalized = formatLoginIdentifier(phone);
+    if (!normalized) {
       setPhoneError('Required');
+      return;
+    }
+    if (normalized.length < 10) {
+      setPhoneError('Enter a valid mobile number');
       return;
     }
     setPhoneError(undefined);
     setSending(true);
     try {
-      await api.post('/auth/otp/send', { phone: trimmed });
-      appToast.success('Code sent', `Check SMS on ${maskPhone(trimmed)}`);
-      setSentTo(trimmed);
+      await api.post('/auth/otp/send', { phone: normalized }, { skipErrorToast: true });
+      // Dev mock OTP — no SMS provider is wired yet
+      appToast.success('Use code 4700', `Enter 4700 for ${maskPhone(normalized)}`);
+      setSentTo(normalized);
+      setPhone(normalized);
       setTimer(30);
       setCode('');
       setCodeError(undefined);
-    } catch {
-      // handled by API interceptor
+    } catch (err) {
+      appToast.error('Could not send code', getApiErrorMessage(err, 'Try password sign-in instead'));
     } finally {
       setSending(false);
     }
   }
 
   async function verify() {
-    const trimmedPhone = phone.trim();
+    const normalizedPhone = formatLoginIdentifier(phone);
     const trimmedCode = code.trim();
 
-    if (!trimmedPhone) {
+    if (!normalizedPhone) {
       setPhoneError('Required');
       return;
     }
@@ -76,39 +92,45 @@ export default function OtpScreen() {
       appToast.info('Send code first', 'Tap Send code to receive your OTP');
       return;
     }
+    if (normalizedPhone !== sentTo) {
+      setPhoneError('Number changed — send a new code');
+      return;
+    }
 
     setPhoneError(undefined);
     setCodeError(undefined);
     setLoading(true);
     try {
-      const signedIn = await otpVerify(trimmedPhone, trimmedCode);
+      const signedIn = await otpVerify(sentTo, trimmedCode);
       if (signedIn.role === 'customer' && isProfileIncomplete(signedIn)) {
         appToast.info('Complete your profile', 'Add your name and email to finish setup.');
-        router.replace('/(customer)/settings');
+        appReplace(customerRoutes.settings);
         return;
       }
       appReplace(homeRouteForRole(signedIn.role));
-    } catch {
-      // handled by API interceptor
+    } catch (err) {
+      const message = getApiErrorMessage(err, 'Invalid code');
+      setCodeError(message);
+      appToast.error('OTP failed', message);
     } finally {
       setLoading(false);
     }
   }
 
-  const heading = sentTo ? `Code sent to ${maskPhone(sentTo)}` : 'Sign in with OTP';
-
   return (
     <AuthScreenLayout
       brandName={content.branding.name}
-      heading={heading}
+      brandTag={content.branding.tagline}
+      heading={ui.authOtpTitle}
+      subtitle={ui.authOtpSubtitle}
       showBack
       footer={
-        <Text style={authScreenStyles.footer}>
-          Prefer password?{' '}
-          <Link href="/(auth)/login">
+        <>
+          <Text style={authScreenStyles.footer}>Prefer password? </Text>
+          <Link href={authRoutes.login}>
             <Text style={authScreenStyles.footerLink}>Sign in</Text>
           </Link>
-        </Text>
+        </>
       }
     >
       <AuthField
@@ -149,7 +171,7 @@ export default function OtpScreen() {
           ) : null}
 
           <Button
-            title="Verify & sign in"
+            title={ui.authOtpButton}
             variant="premium"
             onPress={() => void verify()}
             loading={loading}

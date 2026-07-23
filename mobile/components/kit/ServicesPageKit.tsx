@@ -1,30 +1,23 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  Building2,
-  Home,
-  LayoutGrid,
-  Search,
-  Sparkles,
-  SprayCan,
-  X,
-  type LucideIcon,
-} from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { SERVICE_TYPE_LABELS, type ServiceTypeKey } from '@/constants/serviceTypes';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import {  colors, fonts, premium, shadows, spacing , gradients } from '@/constants/theme';
 import { textInputDefaults } from '@/components/ui/textInputDefaults';
 
 function categoryIcon(category?: string): LucideIcon {
   switch (category) {
     case 'residential':
-      return Home;
+      return AppIcons.property.home;
     case 'commercial':
-      return Building2;
+      return AppIcons.property.apartment;
     case 'cleaning':
-      return Sparkles;
+      return AppIcons.ui.sparkles;
     default:
-      return LayoutGrid;
+      return AppIcons.ui.brand;
   }
 }
 
@@ -53,7 +46,13 @@ function FilterChip({
       ]}
     >
       <View style={[chipStyles.iconBox, selected ? chipStyles.iconBoxOn : { backgroundColor: bg ?? colors.soft }]}>
-        <Icon size={14} color={selected ? colors.white : tint ?? colors.forest} strokeWidth={2.2} />
+        <PremiumIcon
+          icon={Icon}
+          variant="plain"
+          size={14}
+          color={selected ? colors.white : tint ?? colors.forest}
+          strokeWidth={2.2}
+        />
       </View>
       <Text style={[chipStyles.chipLabel, selected && chipStyles.chipLabelOn]} numberOfLines={1}>
         {label}
@@ -93,10 +92,10 @@ export function ServicesFilterPanel({
   return (
     <View style={panelStyles.outer}>
       <View style={panelStyles.card}>
-        <LinearGradient colors={['#D4A017', '#B6841C']} style={panelStyles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+        <LinearGradient colors={[...gradients.goldBar]} style={panelStyles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
 
         <View style={panelStyles.searchRow}>
-          <Search size={18} color={colors.forest} strokeWidth={2.2} />
+          <PremiumIcon icon={AppIcons.ui.search} variant="plain" size={18} color={colors.forest} strokeWidth={2.2} />
           <TextInput
             style={panelStyles.searchInput}
             {...textInputDefaults}
@@ -109,7 +108,7 @@ export function ServicesFilterPanel({
           />
           {search.length > 0 ? (
             <Pressable onPress={() => onSearchChange('')} hitSlop={8} style={panelStyles.clearBtn}>
-              <X size={14} color={colors.muted} />
+              <PremiumIcon icon={AppIcons.ui.close} variant="plain" size={14} color={colors.muted} />
             </Pressable>
           ) : null}
         </View>
@@ -117,7 +116,7 @@ export function ServicesFilterPanel({
         <Text style={panelStyles.sectionLabel}>Categories</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={panelStyles.chipRow}>
           {categoryChips.map((chip) => {
-            const Icon = chip.category ? categoryIcon(chip.category) : SprayCan;
+            const Icon = chip.category ? categoryIcon(chip.category) : AppIcons.ui.brand;
             const active = categorySelected === chip.label;
             return (
               <FilterChip
@@ -137,7 +136,7 @@ export function ServicesFilterPanel({
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={panelStyles.chipRow}>
               <FilterChip
                 label="All types"
-                icon={LayoutGrid}
+                icon={AppIcons.ui.layoutGrid}
                 selected={pestSelected === 'all'}
                 onPress={() => onPestSelect('all')}
               />
@@ -185,7 +184,7 @@ export function ServicesStatsStrip({
   return (
     <View style={stripStyles.wrap}>
       <LinearGradient colors={['#FFFFFF', '#F6FAF7']} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
-      <LinearGradient colors={['#D4A017', '#B6841C']} style={stripStyles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <LinearGradient colors={[...gradients.goldBar]} style={stripStyles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <View style={stripStyles.row}>
         <View style={stripStyles.cell}>
           <Text style={stripStyles.value}>{total}</Text>

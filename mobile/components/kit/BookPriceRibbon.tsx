@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { IndianRupee, Tag } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { colors, fonts, premium, spacing } from '@/constants/theme';
 
 /** Always-visible price strip — stays above scroll content so total is never hidden. */
@@ -21,13 +22,13 @@ export function BookPriceRibbon({
         {stepHint ? <Text style={styles.hint} numberOfLines={1}>{stepHint}</Text> : null}
         {savings && savings > 0 ? (
           <View style={styles.saveRow}>
-            <Tag size={11} color={colors.green} />
+            <PremiumIcon icon={AppIcons.ui.tag} variant="plain" size={11} color={colors.green} />
             <Text style={styles.saveText}>You save ₹{savings}</Text>
           </View>
         ) : null}
       </View>
       <View style={styles.amountWrap}>
-        <IndianRupee size={16} color={premium.accentGold} strokeWidth={2.5} />
+        <PremiumIcon icon={AppIcons.ui.rupee} variant="plain" size={16} color={premium.accentGold} strokeWidth={2.5} />
         <Text style={styles.amount}>{total}</Text>
       </View>
     </View>

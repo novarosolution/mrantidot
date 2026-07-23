@@ -1,9 +1,11 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import { Bell } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { adminType, colors, fonts, gradients, headerTopPad, premium, radius, shadows, spacing } from '@/constants/theme';
+import { HeroDarkSlice } from '@/components/kit/HeroDarkSlice';
+import { colors, fonts, headerTopPad, spacing } from '@/constants/theme';
+import { adminRoutes, appPush } from '@/lib/routes';
 
 const ACTION = 44;
 
@@ -12,13 +14,16 @@ export function AdminScreenHeader({
   subtitle,
   userInitial,
   unreadCount = 0,
-  onBellPress = () => router.push('/(admin)/notifications'),
-  onProfilePress = () => router.push('/(admin)/settings'),
+  eyebrow = 'OPERATIONS',
+  onBellPress = () => appPush(adminRoutes.notifications),
+  onProfilePress = () => appPush(adminRoutes.settings),
 }: {
   title: string;
   subtitle?: string;
   userInitial: string;
   unreadCount?: number;
+  /** Small label above the title (brand hierarchy). */
+  eyebrow?: string;
   onBellPress?: () => void;
   onProfilePress?: () => void;
 }) {
@@ -27,25 +32,32 @@ export function AdminScreenHeader({
   const badge = unreadCount > 99 ? '99+' : String(unreadCount);
 
   return (
-    <LinearGradient
-      colors={[...gradients.premiumHero]}
-      style={[styles.wrap, { paddingTop: headerTopPad(insets.top) }]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
+    <HeroDarkSlice
+      style={styles.shell}
+      contentStyle={[styles.content, { paddingTop: headerTopPad(insets.top) }]}
+      sliceHeight={20}
     >
-      <View style={styles.glowA} pointerEvents="none" />
-      <View style={styles.glowB} pointerEvents="none" />
       <View style={styles.row}>
         <View style={styles.textCol}>
+          <View style={styles.eyebrowRow}>
+            <LinearGradient
+              colors={['#C8F07A', '#8FD03C']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.eyebrowBar}
+            />
+            <Text style={styles.eyebrow}>{eyebrow}</Text>
+          </View>
           <Text style={styles.title} numberOfLines={1}>
             {title}
           </Text>
           {subtitle ? (
-            <Text style={styles.sub} numberOfLines={1}>
+            <Text style={styles.sub} numberOfLines={2}>
               {subtitle}
             </Text>
           ) : null}
         </View>
+
         <Pressable
           style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
           onPress={onBellPress}
@@ -53,76 +65,91 @@ export function AdminScreenHeader({
           accessibilityLabel="Notifications"
           hitSlop={8}
         >
-          <Bell size={20} color={colors.forest} strokeWidth={2} />
+          <PremiumIcon icon={AppIcons.ui.bell} variant="plain" size={20} color="#FFFFFF" strokeWidth={2.2} />
           {unreadCount > 0 ? (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{badge}</Text>
             </View>
-          ) : null}
+          ) : (
+            <View style={styles.ping} />
+          )}
         </Pressable>
+
         <Pressable
-          style={({ pressed }) => [styles.avatarBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.avatarShell, pressed && styles.pressed]}
           onPress={onProfilePress}
           accessibilityRole="button"
           accessibilityLabel="Open profile"
           hitSlop={8}
         >
           <LinearGradient
-            colors={['#2A9D5C', '#14532D']}
-            style={StyleSheet.absoluteFill}
+            colors={['#FFFFFF', '#EAF6E3']}
+            style={styles.avatarBtn}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-          />
-          <Text style={styles.avatarText}>{letter}</Text>
+          >
+            <Text style={styles.avatarText}>{letter}</Text>
+          </LinearGradient>
         </Pressable>
       </View>
-      <View style={styles.goldRule}>
-        <View style={styles.goldAccent} />
-        <View style={styles.goldLine} />
-      </View>
-    </LinearGradient>
+    </HeroDarkSlice>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
+  shell: {
+    marginBottom: -4,
+  },
+  content: {
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-    borderBottomLeftRadius: radius.xl,
-    borderBottomRightRadius: radius.xl,
-    overflow: 'hidden',
-    ...shadows.hero,
-  },
-  glowA: {
-    position: 'absolute',
-    top: -40,
-    right: -20,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(168,224,78,0.12)',
-  },
-  glowB: {
-    position: 'absolute',
-    bottom: -20,
-    left: -40,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(212,160,23,0.08)',
+    paddingBottom: spacing.md + 2,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   textCol: { flex: 1, minWidth: 0 },
-  title: { ...adminType.screenTitle },
-  sub: { ...adminType.screenSubtitle, marginTop: 2 },
+  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  eyebrowBar: { width: 18, height: 3, borderRadius: 2 },
+  eyebrow: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 10,
+    letterSpacing: 1.3,
+    color: 'rgba(255,255,255,0.92)',
+  },
+  title: {
+    fontFamily: fonts.displayExtra,
+    fontSize: 26,
+    lineHeight: 30,
+    letterSpacing: -0.55,
+    color: '#FFFFFF',
+  },
+  sub: {
+    fontFamily: fonts.body,
+    fontSize: 13.5,
+    lineHeight: 19,
+    color: 'rgba(255,255,255,0.86)',
+    marginTop: 4,
+  },
   actionBtn: {
     width: ACTION,
     height: ACTION,
     borderRadius: ACTION / 2,
-    backgroundColor: colors.white,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.card,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.34)',
+    shadowColor: '#02180C',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  avatarShell: {
+    borderRadius: ACTION / 2,
+    shadowColor: '#02180C',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 4,
   },
   avatarBtn: {
     width: ACTION,
@@ -131,8 +158,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.35)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.7)',
   },
   pressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
   badge: {
@@ -147,25 +174,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 4,
     borderWidth: 2,
-    borderColor: colors.white,
+    borderColor: '#0A6423',
   },
-  badgeText: { ...adminType.badgeCount },
-  avatarText: { fontFamily: fonts.displayExtra, fontSize: 17, color: colors.white, letterSpacing: -0.2 },
-  goldRule: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.sm,
-    gap: spacing.sm,
+  badgeText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 9,
+    color: colors.white,
   },
-  goldAccent: {
-    width: 28,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: premium.accentGold,
+  ping: {
+    position: 'absolute',
+    top: 9,
+    right: 10,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#8FD03C',
+    borderWidth: 1.5,
+    borderColor: '#0A6423',
   },
-  goldLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  avatarText: {
+    fontFamily: fonts.displayExtra,
+    fontSize: 17,
+    color: '#043813',
+    letterSpacing: -0.2,
   },
 });

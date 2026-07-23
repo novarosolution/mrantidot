@@ -8,10 +8,11 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import axios from 'axios';
 import { api, clearApiCache, setUnauthorizedHandler } from '@/lib/api';
 import { normalizeLoginEmail } from '@/lib/email';
 import { formatLoginIdentifier } from '@/lib/phone';
-import { clearSession, getToken, setToken, setUser, type StoredUser } from '@/lib/storage';
+import { clearSession, getToken, getUser, setToken, setUser, type StoredUser } from '@/lib/storage';
 import type { User } from '@/types/api';
 
 interface AuthContextValue {
@@ -33,18 +34,33 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/** Strip zero-width / BOM chars that mobile keyboards sometimes insert. */
+function cleanAuthText(value: string): string {
+  return value.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUserState] = useState<StoredUser | null>(null);
   const [token, setTokenState] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const authEpoch = useRef(0);
+  const loginInFlight = useRef(0);
 
   const bumpEpoch = useCallback(() => {
     authEpoch.current += 1;
     return authEpoch.current;
   }, []);
 
+  const persistSession = useCallback(async (sessionToken: string, sessionUser: User) => {
+    await setToken(sessionToken);
+    await setUser(sessionUser);
+    setTokenState(sessionToken);
+    setUserState(sessionUser);
+  }, []);
+
   const logout = useCallback(async () => {
+    // Don't wipe a login that just succeeded.
+    if (loginInFlight.current > 0) return;
     bumpEpoch();
     clearApiCache();
     await clearSession();
@@ -64,22 +80,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         skipErrorToast: silent,
       });
       if (epoch !== authEpoch.current) return;
+      if (loginInFlight.current > 0) return;
       await setUser(data.user);
       setUserState(data.user);
-    } catch {
+    } catch (err) {
       if (epoch !== authEpoch.current) return;
+      if (loginInFlight.current > 0) return;
       const stillCurrent = (await getToken()) === tokenAtStart;
       if (!stillCurrent) return;
-      await logout();
+
+      // Only clear session on confirmed auth failure — keep session on network/5xx.
+      const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+      if (status === 401 || status === 403) {
+        await logout();
+      }
     }
   }, [logout]);
-
-  const persistSession = useCallback(async (sessionToken: string, sessionUser: User) => {
-    await setToken(sessionToken);
-    await setUser(sessionUser);
-    setTokenState(sessionToken);
-    setUserState(sessionUser);
-  }, []);
 
   useEffect(() => {
     setUnauthorizedHandler(() => logout());
@@ -90,14 +106,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function bootstrap() {
       try {
-        const storedToken = await getToken();
+        const [storedToken, storedUser] = await Promise.all([getToken(), getUser()]);
         if (cancelled) return;
         if (storedToken) {
           setTokenState(storedToken);
+          if (storedUser) setUserState(storedUser);
           await refreshMe({ silent: true });
         }
       } catch {
-        if (!cancelled) await logout();
+        // Keep any hydrated session; interceptor handles real 401s.
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -107,28 +124,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [logout, refreshMe]);
+  }, [refreshMe]);
 
   const login = useCallback(
     async (identifier: string, password: string) => {
-      const epoch = bumpEpoch();
-      await clearSession();
-      setUserState(null);
-      setTokenState(null);
+      loginInFlight.current += 1;
+      try {
+        const { data } = await api.post<{ token: string; user: User }>(
+          '/auth/login',
+          {
+            identifier: formatLoginIdentifier(cleanAuthText(identifier)),
+            password: cleanAuthText(password),
+          },
+          { skipErrorToast: true },
+        );
+        if (!data?.token || !data?.user?.id || !data?.user?.role) {
+          throw new Error(
+            `Login response invalid — API at ${api.defaults.baseURL?.replace(/\/api$/, '') ?? 'unknown'} may be down.`,
+          );
+        }
 
-      const { data } = await api.post<{ token: string; user: User }>(
-        '/auth/login',
-        {
-          identifier: formatLoginIdentifier(identifier),
-          password: password.trim(),
-        },
-        { skipErrorToast: true },
-      );
-      if (epoch !== authEpoch.current) return data.user;
-
-      await persistSession(data.token, data.user);
-      clearApiCache();
-      return data.user;
+        // Always persist a successful login (do not skip on epoch races).
+        bumpEpoch();
+        await persistSession(data.token, data.user);
+        clearApiCache();
+        return data.user;
+      } finally {
+        loginInFlight.current = Math.max(0, loginInFlight.current - 1);
+      }
     },
     [bumpEpoch, persistSession],
   );
@@ -141,41 +164,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password: string;
       city?: string;
     }) => {
-      const epoch = bumpEpoch();
-      await clearSession();
-      setUserState(null);
-      setTokenState(null);
-
-      const { data } = await api.post<{ token: string; user: User }>('/auth/register', {
-        ...payload,
-        phone: formatLoginIdentifier(payload.phone),
-        email: normalizeLoginEmail(payload.email),
-      });
-      if (epoch !== authEpoch.current) return data.user;
-
-      await persistSession(data.token, data.user);
-      clearApiCache();
-      return data.user;
+      loginInFlight.current += 1;
+      try {
+        const { data } = await api.post<{ token: string; user: User }>('/auth/register', {
+          ...payload,
+          phone: formatLoginIdentifier(cleanAuthText(payload.phone)),
+          email: normalizeLoginEmail(cleanAuthText(payload.email)),
+          password: cleanAuthText(payload.password),
+        }, { skipErrorToast: true });
+        if (!data?.token || !data?.user?.id) {
+          throw new Error('Register response invalid');
+        }
+        bumpEpoch();
+        await persistSession(data.token, data.user);
+        clearApiCache();
+        return data.user;
+      } finally {
+        loginInFlight.current = Math.max(0, loginInFlight.current - 1);
+      }
     },
     [bumpEpoch, persistSession],
   );
 
   const otpVerify = useCallback(
     async (phone: string, code: string) => {
-      const epoch = bumpEpoch();
-      await clearSession();
-      setUserState(null);
-      setTokenState(null);
-
-      const { data } = await api.post<{ token: string; user: User }>('/auth/otp/verify', {
-        phone: formatLoginIdentifier(phone),
-        code: code.trim(),
-      });
-      if (epoch !== authEpoch.current) return data.user;
-
-      await persistSession(data.token, data.user);
-      clearApiCache();
-      return data.user;
+      loginInFlight.current += 1;
+      try {
+        const { data } = await api.post<{ token: string; user: User }>('/auth/otp/verify', {
+          phone: formatLoginIdentifier(cleanAuthText(phone)),
+          code: cleanAuthText(code),
+        }, { skipErrorToast: true });
+        if (!data?.token || !data?.user?.id) {
+          throw new Error('OTP response invalid');
+        }
+        bumpEpoch();
+        await persistSession(data.token, data.user);
+        clearApiCache();
+        return data.user;
+      } finally {
+        loginInFlight.current = Math.max(0, loginInFlight.current - 1);
+      }
     },
     [bumpEpoch, persistSession],
   );

@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
-import { CalendarCheck2 } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { colors, fonts, gradients, spacing } from '@/constants/theme';
 
 export function ScheduleSelectionBanner({ label }: { label: string }) {
@@ -29,7 +30,7 @@ export function ScheduleSelectionBanner({ label }: { label: string }) {
         end={{ x: 1, y: 1 }}
       >
         <View style={styles.iconWrap}>
-          <CalendarCheck2 size={20} color={colors.forest} strokeWidth={2.2} />
+          <PremiumIcon icon={AppIcons.ui.calendarCheck} variant="mint" size={20} color={colors.forest} boxSize={36} />
         </View>
         <View style={styles.textCol}>
           <Text style={styles.kicker}>Your visit</Text>

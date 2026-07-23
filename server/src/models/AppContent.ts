@@ -24,6 +24,20 @@ export interface IHomeConfig {
   servicesActionLabel: string;
   popularActionLabel: string;
   categoryChips: ICategoryChip[];
+  serviceTypesTitle?: string;
+  serviceTypesAction?: string;
+  bookSlideTitle?: string;
+  bookSlideCta?: string;
+  bookSlideFallbackSub?: string;
+  promoCodeHint?: string;
+  heroEyebrow?: string;
+  heroSubtitle?: string;
+  quickLabels?: {
+    book: string;
+    bookings: string;
+    offers: string;
+    help: string;
+  };
 }
 
 export interface ISupportConfig {
@@ -170,6 +184,7 @@ export interface IBookingCopyConfig {
   techEmptyJobsTitle: string;
   techEmptyJobsMessage: string;
   techJobValueLabel: string;
+  techEarningLabel: string;
   techVisitTimesTitle: string;
   techJobDetailsTitle: string;
   techTreatmentStepsTitle: string;
@@ -184,6 +199,100 @@ export interface IBookingCopyConfig {
   techNoStepsHint: string;
 }
 
+
+export interface ICustomerUiCopy {
+  homeGreetingMorning: string;
+  homeGreetingAfternoon: string;
+  homeGreetingEvening: string;
+  homeSetLocation: string;
+  homeFindingLocation: string;
+  homeEmptyNoMatchesTitle: string;
+  homeEmptyNoMatchesMessage: string;
+  homeEmptyNoServicesTitle: string;
+  homeEmptyNoServicesMessage: string;
+  homeEmptyBrowseAll: string;
+  homeCarouselOfferKicker: string;
+  homeCarouselBookKicker: string;
+  homeCarouselFallbackSub: string;
+  homePopularBadge: string;
+  authLoginTitle: string;
+  authLoginSubtitle: string;
+  authLoginEmailPlaceholder: string;
+  authLoginPasswordPlaceholder: string;
+  authLoginButton: string;
+  authLoginSuccessToast: string;
+  authLoginErrorToast: string;
+  authRegisterTitle: string;
+  authRegisterSubtitle: string;
+  authRegisterButton: string;
+  authRegisterSuccessToast: string;
+  authRegisterErrorToast: string;
+  authOtpTitle: string;
+  authOtpSubtitle: string;
+  authOtpButton: string;
+  offersScreenTitle: string;
+  offersSectionAvailable: string;
+  offersEmptyHint: string;
+  offersPickServiceTitle: string;
+  offersNoServicesAlertTitle: string;
+  offersNoServicesAlertBody: string;
+  offersHeroFallbackTitle: string;
+  offersHeroFallbackSub: string;
+  profileScreenTitle: string;
+  profileQuickBook: string;
+  profileQuickBookings: string;
+  profileQuickOffers: string;
+  profileQuickSupport: string;
+  profileStatActive: string;
+  profileStatDone: string;
+  profileStatSaved: string;
+  profileStatPay: string;
+  profileMenuBookings: string;
+  profileMenuBookingsSub: string;
+  profileMenuAddresses: string;
+  profileMenuAddressesSub: string;
+  profileMenuPayments: string;
+  profileMenuPaymentsSub: string;
+  profileMenuOffers: string;
+  profileMenuOffersSub: string;
+  profileMenuNotifications: string;
+  profileMenuNotificationsSub: string;
+  profileMenuSettings: string;
+  profileMenuSettingsSub: string;
+  profileMenuHelp: string;
+  profileMenuHelpSub: string;
+  profileMenuFaq: string;
+  profileMenuFaqSub: string;
+  profileMenuAbout: string;
+  profileMenuAboutSub: string;
+  profileMenuTerms: string;
+  profileMenuTermsSub: string;
+  profileMenuPrivacy: string;
+  profileMenuPrivacySub: string;
+  profileSignOut: string;
+  profileInviteTitle: string;
+  helpScreenTitle: string;
+  helpContactTitle: string;
+  helpResourcesTitle: string;
+  helpPhoneLabel: string;
+  helpEmailLabel: string;
+  helpWhatsappLabel: string;
+  helpHoursLabel: string;
+  addressesScreenTitle: string;
+  addressesEmptyTitle: string;
+  addressesEmptyMessage: string;
+  addressesAddButton: string;
+  paymentsScreenTitle: string;
+  paymentsEmptyTitle: string;
+  paymentsEmptyMessage: string;
+  paymentsAddButton: string;
+  notificationsScreenTitle: string;
+  notificationsEmptyTitle: string;
+  notificationsEmptyMessage: string;
+  settingsScreenTitle: string;
+  servicesScreenTitle: string;
+}
+
 export interface IAppConfig {
   support: ISupportConfig;
   branding: IBrandingConfig;
@@ -193,6 +302,7 @@ export interface IAppConfig {
   aboutMarkdown: string;
   faq: IFaqItem[];
   booking?: IBookingCopyConfig;
+  customerUi?: ICustomerUiCopy;
 }
 
 export interface IAppContent extends Document {
@@ -233,6 +343,20 @@ const homeConfigSchema = new Schema<IHomeConfig>(
     servicesSubtitle: { type: String, default: 'Trusted pest control & home services' },
     servicesActionLabel: { type: String, default: 'View all' },
     popularActionLabel: { type: String, default: 'See more' },
+    serviceTypesTitle: { type: String, default: 'Service types' },
+    serviceTypesAction: { type: String, default: 'View all' },
+    bookSlideTitle: { type: String, default: 'Book pest control & home services' },
+    bookSlideCta: { type: String, default: 'Book Now' },
+    bookSlideFallbackSub: { type: String, default: 'Certified experts · Same-day slots' },
+    promoCodeHint: { type: String, default: 'ANTIDOT20' },
+    heroEyebrow: { type: String, default: 'Mr Antidot' },
+    heroSubtitle: { type: String, default: 'Eco-safe care for your space' },
+    quickLabels: {
+      book: { type: String, default: 'Book' },
+      bookings: { type: String, default: 'Bookings' },
+      offers: { type: String, default: 'Offers' },
+      help: { type: String, default: 'Help' },
+    },
     categoryChips: {
       type: [categoryChipSchema],
       default: () => DEFAULT_HOME_CONFIG.categoryChips,
@@ -259,6 +383,8 @@ const faqItemSchema = new Schema<IFaqItem>(
 );
 
 const bookingCopySchema = new Schema<IBookingCopyConfig>({}, { _id: false, strict: false });
+
+const customerUiCopySchema = new Schema<ICustomerUiCopy>({}, { _id: false, strict: false });
 
 const appConfigSchema = new Schema<IAppConfig>(
   {
@@ -290,6 +416,7 @@ const appConfigSchema = new Schema<IAppConfig>(
     aboutMarkdown: { type: String, default: '' },
     faq: { type: [faqItemSchema], default: () => DEFAULT_APP_CONFIG.faq },
     booking: { type: bookingCopySchema, default: () => DEFAULT_APP_CONFIG.booking },
+    customerUi: { type: customerUiCopySchema, default: () => DEFAULT_APP_CONFIG.customerUi },
   },
   { _id: false },
 );
@@ -319,6 +446,20 @@ export const DEFAULT_HOME_CONFIG: IHomeConfig = {
   searchPlaceholder: 'Search services…',
   servicesActionLabel: 'View all',
   popularActionLabel: 'See more',
+  serviceTypesTitle: 'Service types',
+  serviceTypesAction: 'View all',
+  bookSlideTitle: 'Book pest control & home services',
+  bookSlideCta: 'Book Now',
+  bookSlideFallbackSub: 'Certified experts · Same-day slots',
+  promoCodeHint: 'ANTIDOT20',
+  heroEyebrow: 'Mr Antidot',
+  heroSubtitle: 'Eco-safe care for your space',
+  quickLabels: {
+    book: 'Book',
+    bookings: 'Bookings',
+    offers: 'Offers',
+    help: 'Help',
+  },
   categoryChips: [
     { label: 'All' },
     { label: 'Residential', category: 'residential' },
@@ -436,6 +577,7 @@ export const DEFAULT_BOOKING_COPY: IBookingCopyConfig = {
   techEmptyJobsTitle: 'No jobs assigned',
   techEmptyJobsMessage: 'New jobs from admin will appear here.',
   techJobValueLabel: 'Job value',
+  techEarningLabel: 'Your earning',
   techVisitTimesTitle: 'Visit times',
   techJobDetailsTitle: 'Job details',
   techTreatmentStepsTitle: 'Treatment steps',
@@ -450,12 +592,116 @@ export const DEFAULT_BOOKING_COPY: IBookingCopyConfig = {
   techNoStepsHint: 'No step photos required. Enter completion code when done.',
 };
 
+export const DEFAULT_CUSTOMER_UI_COPY: ICustomerUiCopy = {
+  // Home chrome
+  homeGreetingMorning: 'Good morning',
+  homeGreetingAfternoon: 'Good afternoon',
+  homeGreetingEvening: 'Good evening',
+  homeSetLocation: 'Set location',
+  homeFindingLocation: 'Finding location…',
+  homeEmptyNoMatchesTitle: 'No matches',
+  homeEmptyNoMatchesMessage: 'Try another search or filter.',
+  homeEmptyNoServicesTitle: 'No services yet',
+  homeEmptyNoServicesMessage: 'Check back soon.',
+  homeEmptyBrowseAll: 'Browse all',
+  homeCarouselOfferKicker: 'Limited offer',
+  homeCarouselBookKicker: 'Book now',
+  homeCarouselFallbackSub: '20% off first booking',
+  homePopularBadge: 'Most booked',
+
+  // Auth
+  authLoginTitle: 'Welcome\nback',
+  authLoginSubtitle: 'Sign in to book trusted care with {brand}',
+  authLoginEmailPlaceholder: 'you@example.com or 98XXXXXXXX',
+  authLoginPasswordPlaceholder: 'Enter your password',
+  authLoginButton: 'Sign in',
+  authLoginSuccessToast: 'Welcome back',
+  authLoginErrorToast: 'Sign in failed',
+  authRegisterTitle: 'Create\naccount',
+  authRegisterSubtitle: 'Join {brand} for trusted pest control at home',
+  authRegisterButton: 'Create account',
+  authRegisterSuccessToast: 'Account created',
+  authRegisterErrorToast: 'Could not create account',
+  authOtpTitle: 'Verify phone',
+  authOtpSubtitle: 'Enter the code we sent you',
+  authOtpButton: 'Verify',
+
+  // Offers
+  offersScreenTitle: 'Offers',
+  offersSectionAvailable: 'Available coupons',
+  offersEmptyHint: 'Seasonal deals appear here',
+  offersPickServiceTitle: 'Choose a service',
+  offersNoServicesAlertTitle: 'No services',
+  offersNoServicesAlertBody: 'No services available to book right now.',
+  offersHeroFallbackTitle: 'Exclusive deals',
+  offersHeroFallbackSub: 'Save on pest control & home care',
+
+  // Profile
+  profileScreenTitle: 'Your profile',
+  profileQuickBook: 'Book',
+  profileQuickBookings: 'Bookings',
+  profileQuickOffers: 'Offers',
+  profileQuickSupport: 'Support',
+  profileStatActive: 'ACTIVE',
+  profileStatDone: 'DONE',
+  profileStatSaved: 'SAVED',
+  profileStatPay: 'PAY',
+  profileMenuBookings: 'My Bookings',
+  profileMenuBookingsSub: 'Track, reschedule & rate visits',
+  profileMenuAddresses: 'Saved Addresses',
+  profileMenuAddressesSub: 'Home, office & more',
+  profileMenuPayments: 'Payment Methods',
+  profileMenuPaymentsSub: 'UPI, cards & wallets',
+  profileMenuOffers: 'Offers & Referrals',
+  profileMenuOffersSub: 'Coupons and rewards',
+  profileMenuNotifications: 'Notifications',
+  profileMenuNotificationsSub: 'Reminders & booking updates',
+  profileMenuSettings: 'Settings',
+  profileMenuSettingsSub: 'Language, privacy & app preferences',
+  profileMenuHelp: 'Help & Support',
+  profileMenuHelpSub: 'Chat or call our team',
+  profileMenuFaq: 'FAQs',
+  profileMenuFaqSub: 'Answers to common questions',
+  profileMenuAbout: 'About',
+  profileMenuAboutSub: 'Company & app details',
+  profileMenuTerms: 'Terms of Service',
+  profileMenuTermsSub: 'Booking & cancellation policies',
+  profileMenuPrivacy: 'Privacy Policy',
+  profileMenuPrivacySub: 'How we use your data',
+  profileSignOut: 'Sign out',
+  profileInviteTitle: 'Invite to {brand}',
+
+  // Help
+  helpScreenTitle: 'Help & support',
+  helpContactTitle: 'Contact us',
+  helpResourcesTitle: 'Resources',
+  helpPhoneLabel: 'Phone',
+  helpEmailLabel: 'Email',
+  helpWhatsappLabel: 'WhatsApp',
+  helpHoursLabel: 'Hours',
+
+  // Account screens
+  addressesScreenTitle: 'Saved addresses',
+  addressesEmptyTitle: 'No addresses yet',
+  addressesEmptyMessage: 'Add a home or office address for faster booking.',
+  addressesAddButton: 'Add address',
+  paymentsScreenTitle: 'Payment methods',
+  paymentsEmptyTitle: 'No payment methods',
+  paymentsEmptyMessage: 'Add UPI or a card for quicker checkout.',
+  paymentsAddButton: 'Add payment method',
+  notificationsScreenTitle: 'Notifications',
+  notificationsEmptyTitle: 'You’re all caught up',
+  notificationsEmptyMessage: 'Booking updates and offers will show here.',
+  settingsScreenTitle: 'Settings',
+  servicesScreenTitle: 'Services',
+};
+
 export const DEFAULT_APP_CONFIG: IAppConfig = {
   support: {
     phone: '+91 90000 00000',
     email: 'support@mrantidot.com',
     whatsapp: '',
-    hours: 'Mon–Sat, 9 AM – 7 PM',
+    hours: 'Open 24/7',
   },
   branding: {
     name: 'Mr Antidot',
@@ -500,4 +746,5 @@ export const DEFAULT_APP_CONFIG: IAppConfig = {
     { q: 'How do I reschedule or cancel?', a: 'Open your booking and use the reschedule or cancel option, or contact support.' },
   ],
   booking: DEFAULT_BOOKING_COPY,
+  customerUi: DEFAULT_CUSTOMER_UI_COPY,
 };

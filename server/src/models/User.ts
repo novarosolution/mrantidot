@@ -17,6 +17,10 @@ export interface IUser extends Document {
   jobsDone: number;
   available: boolean;
   disabled: boolean;
+  /** Technician pay: percent of job total, or flat ₹ per completed job. */
+  payMode?: 'percent' | 'flat';
+  payPercent?: number;
+  payFlat?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,6 +42,9 @@ const userSchema = new Schema<IUser>(
     jobsDone: { type: Number, default: 0 },
     available: { type: Boolean, default: true },
     disabled: { type: Boolean, default: false },
+    payMode: { type: String, enum: ['percent', 'flat'], default: 'percent' },
+    payPercent: { type: Number, default: 100, min: 0, max: 100 },
+    payFlat: { type: Number, default: 0, min: 0 },
   },
   {
     timestamps: true,

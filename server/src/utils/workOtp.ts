@@ -207,7 +207,6 @@ export function verifyEndOtp(booking: IBooking, code: string): void {
   booking.markModified('workOtp');
   clearAttempts(booking, 'end');
   appendTracking(booking, 'work_completed');
-  void incrementTechnicianJobsDone(booking.technicianId);
 }
 
 export function regenerateOtp(booking: IBooking, type: 'start' | 'end'): string {

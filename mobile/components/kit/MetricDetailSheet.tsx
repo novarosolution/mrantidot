@@ -1,5 +1,6 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, premium, spacing } from '@/constants/theme';
 
@@ -62,7 +63,9 @@ export function MetricDetailSheet({
                     ) : null}
                     {row.meta ? <Text style={styles.rowMeta}>{row.meta}</Text> : null}
                   </View>
-                  {row.onPress ? <ChevronRight size={18} color={colors.muted} /> : null}
+                  {row.onPress ? (
+                    <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size="md" color={colors.muted} />
+                  ) : null}
                 </Pressable>
               ))
             )}

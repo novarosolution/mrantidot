@@ -1,98 +1,123 @@
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, RefreshControl, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
-import { AdminFilterChips } from '@/components/kit/AdminPageKit';
+import { AdminFilterChips, AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { AdminOfferCard } from '@/components/kit/AdminOfferCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
+import { CACHE_TTL } from '@/lib/apiCache';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
 import { useScreenLoad } from '@/lib/useScreenLoad';
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import type { Offer } from '@/types/api';
-import { colors } from '@/constants/theme';
+import { colors, spacing } from '@/constants/theme';
+import { adminRoutes, appPush } from '@/lib/routes';
 
-type OfferFilter = 'all' | 'active' | 'inactive';
+type OfferFilter = 'all' | 'active' | 'inactive' | 'expired';
 
 export default function AdminOffersScreen() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [listFilter, setListFilter] = useState<OfferFilter>('all');
   const { loading, error, refreshing, runLoad, reload, refresh } = useScreenLoad();
 
-  const load = useCallback(async () => {
-    const { data } = await api.get<{ offers: Offer[] }>('/admin/offers', screenLoadConfig);
+  const load = useCallback(async (skipCache = false) => {
+    const { data } = await api.get<{ offers: Offer[] }>('/admin/offers', {
+      ...screenLoadConfig,
+      cacheTtlMs: CACHE_TTL.offers,
+      ...(skipCache ? { skipCache: true as const } : {}),
+    });
     setOffers(data.offers);
   }, []);
 
-  const focusedOnce = useRef(false);
-  useFocusEffect(
-    useCallback(() => {
-      if (!focusedOnce.current) {
-        focusedOnce.current = true;
-        void runLoad(load, 'Could not load offers');
-        return;
-      }
-      void refresh(load);
-    }, [load, runLoad, refresh]),
-  );
+  useEffect(() => {
+    void runLoad(() => load(), 'Could not load offers');
+  }, [load, runLoad]);
+
+  useStaleFocusRefresh(() => refresh(() => load(true)), 45_000);
+
+  const now = useMemo(() => Date.now(), [offers]);
+
+  const counts = useMemo(() => {
+    let active = 0;
+    let inactive = 0;
+    let expired = 0;
+    for (const o of offers) {
+      const isExpired = o.expiresAt ? new Date(o.expiresAt).getTime() < now : false;
+      if (isExpired) expired += 1;
+      if (o.active) active += 1;
+      else inactive += 1;
+    }
+    return { total: offers.length, active, inactive, expired };
+  }, [offers, now]);
 
   const visibleOffers = useMemo(() => {
     if (listFilter === 'active') return offers.filter((o) => o.active);
     if (listFilter === 'inactive') return offers.filter((o) => !o.active);
+    if (listFilter === 'expired') {
+      return offers.filter((o) => (o.expiresAt ? new Date(o.expiresAt).getTime() < now : false));
+    }
     return offers;
-  }, [offers, listFilter]);
+  }, [offers, listFilter, now]);
 
-  const activeCount = useMemo(() => offers.filter((o) => o.active).length, [offers]);
-
-  const toggleActive = useCallback(
-    async (o: Offer) => {
-      const next = !o.active;
-      setOffers((prev) => prev.map((x) => (x.id === o.id ? { ...x, active: next } : x)));
-      try {
-        await api.patch(`/admin/offers/${o.id}`, { active: next });
-      } catch {
-        setOffers((prev) => prev.map((x) => (x.id === o.id ? { ...x, active: o.active } : x)));
-        Alert.alert('Error', 'Could not update offer');
-      }
-    },
-    [],
-  );
+  const toggleActive = useCallback(async (o: Offer) => {
+    const next = !o.active;
+    setOffers((prev) => prev.map((x) => (x.id === o.id ? { ...x, active: next } : x)));
+    try {
+      await api.patch(`/admin/offers/${o.id}`, { active: next });
+    } catch {
+      setOffers((prev) => prev.map((x) => (x.id === o.id ? { ...x, active: o.active } : x)));
+      Alert.alert('Error', 'Could not update offer');
+    }
+  }, []);
 
   const header = useMemo(
     () => (
-      <View>
-        <AdminFilterChips
-          chips={[
-            { key: 'all', label: `All (${offers.length})` },
-            { key: 'active', label: `Active (${activeCount})` },
-            { key: 'inactive', label: `Inactive (${offers.length - activeCount})` },
+      <View style={styles.headerBlock}>
+        <AdminStatStrip
+          flush
+          items={[
+            { label: 'Total', value: counts.total },
+            { label: 'Active', value: counts.active, color: colors.forest },
+            { label: 'Inactive', value: counts.inactive, color: colors.muted },
+            { label: 'Expired', value: counts.expired, color: '#9E3F1C' },
           ]}
-          selected={listFilter}
-          onSelect={(key) => setListFilter(key as OfferFilter)}
         />
+        <View style={styles.chipsWrap}>
+          <AdminFilterChips
+            chips={[
+              { key: 'all', label: `All (${counts.total})` },
+              { key: 'active', label: `Active (${counts.active})` },
+              { key: 'inactive', label: `Off (${counts.inactive})` },
+              { key: 'expired', label: `Expired (${counts.expired})` },
+            ]}
+            selected={listFilter}
+            onSelect={(key) => setListFilter(key as OfferFilter)}
+          />
+        </View>
       </View>
     ),
-    [offers.length, activeCount, listFilter],
+    [counts, listFilter],
   );
 
   if (loading) return <Spinner fullScreen />;
 
   if (error) {
     return (
-      <AdminListShell title="Offers" subtitle="Error">
+      <AdminListShell title="Offers" subtitle="Could not load">
         <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
       </AdminListShell>
     );
   }
 
-  const addBtn = <AdminAddButton onPress={() => router.push('/(admin)/offer-edit')} />;
+  const addBtn = <AdminAddButton onPress={() => appPush(adminRoutes.offerEdit)} />;
 
   return (
     <AdminListShell
       title="Offers & coupons"
-      subtitle={`${activeCount} active`}
+      subtitle={`${counts.active} live · manage checkout promos`}
       rightAction={addBtn}
     >
       <FlatList
@@ -108,14 +133,18 @@ export default function AdminOffersScreen() {
         ListEmptyComponent={
           <EmptyState
             title={listFilter === 'all' ? 'No offers yet' : `No ${listFilter} offers`}
-            message="Create a coupon for checkout"
+            message={
+              listFilter === 'all'
+                ? 'Create a coupon customers can apply at checkout'
+                : 'Try another filter or create a new offer'
+            }
           />
         }
         renderItem={({ item }) => (
           <AdminOfferCard
             offer={item}
-            onPress={() => router.push({ pathname: '/(admin)/offer-edit', params: { id: item.id } })}
-            onEdit={() => router.push({ pathname: '/(admin)/offer-edit', params: { id: item.id } })}
+            onPress={() => appPush({ pathname: adminRoutes.offerEdit, params: { id: item.id } })}
+            onEdit={() => appPush({ pathname: adminRoutes.offerEdit, params: { id: item.id } })}
             onToggle={() => void toggleActive(item)}
           />
         )}
@@ -123,3 +152,13 @@ export default function AdminOffersScreen() {
     </AdminListShell>
   );
 }
+
+const styles = StyleSheet.create({
+  headerBlock: {
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  chipsWrap: {
+    marginHorizontal: -spacing.md,
+  },
+});

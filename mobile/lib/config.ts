@@ -9,21 +9,35 @@ const DEFAULT_PORT = 4001;
  * host for the API guarantees reachability and means we never have to hand-edit an
  * IP in .env when the network (and the Mac's LAN IP) changes.
  */
-function parsePortFromUrl(url: string | undefined): number | undefined {
+/** Only return a port when the URL explicitly includes one (never assume 443/80). */
+function parseExplicitPort(url: string | undefined): number | undefined {
   if (!url) return undefined;
   try {
     const port = new URL(url).port;
     if (port) return parseInt(port, 10);
-    return url.startsWith('https:') ? 443 : 80;
+    return undefined;
   } catch {
     return undefined;
+  }
+}
+
+function isRemoteProductionUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'https:') return true;
+    const host = parsed.hostname;
+    if (host === 'localhost' || host === '127.0.0.1' || host === '10.0.2.2') return false;
+    if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(host)) return false;
+    return true;
+  } catch {
+    return false;
   }
 }
 
 function devHostApiUrl(port: number): string | undefined {
   const hostUri =
     Constants.expoConfig?.hostUri ??
-    // Fallbacks for older manifests / Expo Go
     (Constants as { expoGoConfig?: { debuggerHost?: string } }).expoGoConfig?.debuggerHost ??
     (Constants as { manifest2?: { extra?: { expoGo?: { debuggerHost?: string } } } }).manifest2?.extra
       ?.expoGo?.debuggerHost ??
@@ -33,7 +47,6 @@ function devHostApiUrl(port: number): string | undefined {
   let host = String(hostUri).split(':')[0]?.trim();
   if (!host) return undefined;
 
-  // Android emulator: localhost is the emulator itself, not the dev machine.
   if (Platform.OS === 'android' && (host === 'localhost' || host === '127.0.0.1')) {
     host = '10.0.2.2';
   }
@@ -46,26 +59,33 @@ const fromExtra =
     ? Constants.expoConfig.extra.apiUrl.trim()
     : undefined;
 
-const explicit =
-  process.env.EXPO_PUBLIC_API_URL?.trim() || fromExtra || undefined;
-
-const apiPort = parsePortFromUrl(explicit) ?? DEFAULT_PORT;
-const auto = __DEV__ ? devHostApiUrl(apiPort) : undefined;
+const envApiUrl = process.env.EXPO_PUBLIC_API_URL?.trim() || undefined;
 
 /**
- * Precedence:
- * - In dev, use EXPO_PUBLIC_API_URL when set (correct port from .env).
- * - Otherwise auto-detect host from Metro with apiPort.
- * - In production builds, use deploy.config / EXPO_PUBLIC_API_URL.
+ * Production https URLs (from deploy.config) must NOT supply the port for Metro
+ * auto-detect — that caused http://<lan-ip>:443 unreachable errors.
  */
-const resolvedApiUrl =
-  __DEV__ && explicit
-    ? explicit.replace(/\/$/, '')
-    : __DEV__ && auto
-      ? auto
-      : explicit?.replace(/\/$/, '') ?? auto ?? `http://127.0.0.1:${DEFAULT_PORT}`;
+const localPinnedUrl =
+  envApiUrl && !isRemoteProductionUrl(envApiUrl) ? envApiUrl : undefined;
 
-/** Android emulator reaches the dev machine via 10.0.2.2, not LAN IP or localhost. */
+const apiPort = parseExplicitPort(localPinnedUrl) ?? DEFAULT_PORT;
+const auto = __DEV__ ? devHostApiUrl(apiPort) : undefined;
+
+const forceExplicit =
+  process.env.EXPO_PUBLIC_API_URL_FORCE === '1' ||
+  process.env.EXPO_PUBLIC_API_URL_FORCE === 'true';
+
+const resolvedApiUrl = (() => {
+  if (__DEV__) {
+    if (forceExplicit && envApiUrl) return envApiUrl.replace(/\/$/, '');
+    if (auto) return auto;
+    if (localPinnedUrl) return localPinnedUrl.replace(/\/$/, '');
+    return `http://127.0.0.1:${DEFAULT_PORT}`;
+  }
+  const prod = (envApiUrl || fromExtra)?.replace(/\/$/, '');
+  return prod ?? `http://127.0.0.1:${DEFAULT_PORT}`;
+})();
+
 function forAndroidEmulator(url: string): string {
   if (Platform.OS !== 'android' || Constants.isDevice) return url;
   try {
@@ -77,7 +97,7 @@ function forAndroidEmulator(url: string): string {
   }
 }
 
-if (!explicit && !auto) {
+if (!__DEV__ && !envApiUrl && !fromExtra) {
   console.warn(
     '[config] Set deploy.config.json API_URL (repo root) or EXPO_PUBLIC_API_URL for production builds. ' +
       'Falling back to localhost.',

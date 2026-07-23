@@ -362,9 +362,8 @@ async function upsertService(entry: SeedService): Promise<IService> {
   return service;
 }
 
-async function seed(): Promise<void> {
-  await connectDb();
-
+/** Seed demo data into the already-connected database (does not connect/disconnect). */
+export async function runSeedDatabase(): Promise<void> {
   for (const indexName of ['slug_1', 'email_1']) {
     try {
       await Service.collection.dropIndex(indexName);
@@ -705,18 +704,19 @@ async function seed(): Promise<void> {
     }
   }
 
-  // Recompute technician ratings from reviews (idempotent after re-seed)
+  // Recompute technician ratings / jobsDone (idempotent after re-seed)
   for (const tech of techs) {
-    const agg = await Review.aggregate([
-      { $match: { technicianId: tech._id } },
-      { $group: { _id: null, avg: { $avg: '$stars' }, count: { $sum: 1 } } },
+    const [agg, completedJobs] = await Promise.all([
+      Review.aggregate([
+        { $match: { technicianId: tech._id, hidden: { $ne: true } } },
+        { $group: { _id: null, avg: { $avg: '$stars' } } },
+      ]),
+      Booking.countDocuments({ technicianId: tech._id, status: 'completed' }),
     ]);
-    if (agg[0]) {
-      await User.findByIdAndUpdate(tech._id, {
-        rating: Math.round((agg[0].avg as number) * 10) / 10,
-        jobsDone: agg[0].count as number,
-      });
-    }
+    await User.findByIdAndUpdate(tech._id, {
+      rating: agg[0] ? Math.round((agg[0].avg as number) * 10) / 10 : 0,
+      jobsDone: completedJobs,
+    });
   }
 
   const [userCount, serviceCount, bookingCount, reviewCount] = await Promise.all([
@@ -758,11 +758,25 @@ async function seed(): Promise<void> {
   console.log(`\nAdmin login: phone ${adminCfg.phone} or email ${adminCfg.email}`);
   console.log(`Legacy alias admin@mrantidot.com also works → same admin account.\n`);
   console.log('========================================\n');
-
-  await disconnectDb();
 }
 
-seed().catch((err) => {
-  console.error('[seed] Failed:', err);
-  process.exit(1);
-});
+async function seedCli(): Promise<void> {
+  await connectDb();
+  try {
+    await runSeedDatabase();
+  } finally {
+    await disconnectDb();
+  }
+}
+
+function isSeedCliEntry(): boolean {
+  const entry = process.argv[1] ?? '';
+  return /(^|[\\/])seed\.(ts|js|cjs|mjs)$/.test(entry);
+}
+
+if (isSeedCliEntry()) {
+  seedCli().catch((err) => {
+    console.error('[seed] Failed:', err);
+    process.exit(1);
+  });
+}

@@ -24,6 +24,7 @@ import {
   computeJobVisitAnalytics,
 } from '../utils/jobVisit';
 import { technicianPublicRating } from '../utils/ratings';
+import { formatPaySummary, payConfigFromUser, resolveTechEarning } from '../utils/techPay';
 
 export const statsRouter = Router();
 
@@ -422,20 +423,25 @@ statsRouter.get(
     const { from, to } = monthRange(month);
     const today = todayDateKey();
 
-    const [assigned, inProgress, completed, awaitingVerification, earningsAgg, monthBookings] = await Promise.all([
-      Booking.countDocuments({ technicianId: techId, status: 'confirmed' }),
-      Booking.countDocuments({ technicianId: techId, status: 'in_progress' }),
-      Booking.countDocuments({ technicianId: techId, status: 'completed' }),
-      Booking.countDocuments({ technicianId: techId, status: 'awaiting_verification' }),
-      Booking.aggregate([
-        { $match: { technicianId: tech._id, status: 'completed' } },
-        { $group: { _id: null, earnings: { $sum: '$amount.total' } } },
-      ]),
-      Booking.find({
-        technicianId: tech._id,
-        'schedule.date': { $gte: from, $lte: to },
-      }),
-    ]);
+    const [assigned, inProgress, completed, awaitingVerification, completedBookings, monthBookings] =
+      await Promise.all([
+        Booking.countDocuments({ technicianId: techId, status: 'confirmed' }),
+        Booking.countDocuments({ technicianId: techId, status: 'in_progress' }),
+        Booking.countDocuments({ technicianId: techId, status: 'completed' }),
+        Booking.countDocuments({ technicianId: techId, status: 'awaiting_verification' }),
+        Booking.find({ technicianId: tech._id, status: 'completed' }).select(
+          'amount technicianEarning',
+        ),
+        Booking.find({
+          technicianId: tech._id,
+          'schedule.date': { $gte: from, $lte: to },
+        }),
+      ]);
+    const techPay = payConfigFromUser(tech);
+    const earnings = completedBookings.reduce(
+      (sum, b) => sum + resolveTechEarning(b, techPay),
+      0,
+    );
     const attendanceRecords = await loadAttendanceForRange(tech._id, from, to);
     const attendance = buildAttendanceCalendar(attendanceRecords, from, to, today);
     const attendanceStats = computeAttendanceAnalytics(attendance, today);
@@ -450,7 +456,11 @@ statsRouter.get(
       awaitingVerification,
       rating: technicianPublicRating(tech),
       jobsDone: Math.max(tech.jobsDone ?? 0, completed),
-      earnings: earningsAgg[0]?.earnings ?? 0,
+      earnings,
+      paySummary: formatPaySummary(techPay),
+      payMode: techPay.payMode ?? 'percent',
+      payPercent: techPay.payPercent ?? 100,
+      payFlat: techPay.payFlat ?? 0,
       month,
       attendance,
       todayStatus: attendance[today] ?? 'pending',

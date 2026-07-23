@@ -1,10 +1,11 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowRight, Clock, Star } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import { serviceDisplayRating } from '@/lib/ratings';
 import type { Service } from '@/types/api';
-import { colors, customerType, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, customerType, premium, spacing, surfaces } from '@/constants/theme';
 
 const COLS = 2;
 const GAP = 10;
@@ -38,21 +39,21 @@ export function ServiceCatalogCard({
       style={({ pressed }) => [styles.card, { width: w }, pressed && styles.pressed]}
       onPress={onPress}
     >
-      <LinearGradient colors={['#D4A017', '#B6841C']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <View style={styles.iconWrap}>
-        <ServiceIcon iconKey={service.iconKey} size={26} color={colors.forest} strokeWidth={2.2} />
+        <ServiceIcon iconKey={service.iconKey} size={22} variant="premium" boxSize={52} color={colors.forest} strokeWidth={2.2} />
       </View>
       <Text style={styles.name} numberOfLines={2}>
         {service.name}
       </Text>
       <View style={styles.metaRow}>
         <View style={styles.metaChip}>
-          <Clock size={10} color={colors.forest} />
+          <PremiumIcon icon={AppIcons.ui.clock} variant="plain" size={10} color={colors.forest} />
           <Text style={styles.metaText}>{durationLabel(service)}</Text>
         </View>
         {rating > 0 ? (
           <View style={styles.metaChip}>
-            <Star size={10} color={premium.accentGold} fill={premium.accentGold} />
+            <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={10} color={premium.accentGold} fill={premium.accentGold} />
             <Text style={styles.metaText}>{rating.toFixed(1)}</Text>
           </View>
         ) : null}
@@ -65,7 +66,7 @@ export function ServiceCatalogCard({
           hitSlop={6}
         >
           <Text style={styles.bookText}>Book</Text>
-          <ArrowRight size={12} color={colors.white} strokeWidth={2.5} />
+          <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={12} color={colors.white} strokeWidth={2.5} />
         </Pressable>
       </View>
     </Pressable>
@@ -74,14 +75,14 @@ export function ServiceCatalogCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.white,
-    borderRadius: 18,
+    backgroundColor: surfaces.glass,
+    borderRadius: premium.radiusCard,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: surfaces.glassBorderStrong,
     padding: spacing.sm + 2,
     marginBottom: GAP,
     overflow: 'hidden',
-    ...shadows.card,
+    ...premium.shadowSoft,
   },
   pressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
   goldBar: {
@@ -91,13 +92,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   iconWrap: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
-    backgroundColor: colors.soft,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: spacing.sm,
+    alignItems: 'flex-start',
   },
   name: {
     ...customerType.serviceGridTitle,
@@ -116,7 +112,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: colors.soft,
+    backgroundColor: surfaces.glassSoft,
+    borderWidth: 1,
+    borderColor: surfaces.glassBorder,
   },
   metaText: { ...customerType.kicker, fontSize: 10, color: colors.forest },
   footer: {
@@ -126,7 +124,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
+    borderTopColor: surfaces.glassBorderStrong,
   },
   price: { ...customerType.listPrice },
   bookBtn: {
@@ -135,9 +133,11 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 7,
-    borderRadius: 10,
+    borderRadius: 12,
     backgroundColor: colors.forest,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   bookPressed: { opacity: 0.88 },
-  bookText: { ...customerType.kicker, fontSize: 10, color: colors.white },
+  bookText: { ...customerType.pillLabel, fontSize: 10, color: colors.white },
 });

@@ -14,10 +14,12 @@ import { AppIcons } from '@/constants/appIcons';
 import { useAuth } from '@/context/AuthContext';
 import { useLocation } from '@/context/LocationContext';
 import { api } from '@/lib/api';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { displayUserEmail, displayUserName, isProfileIncomplete } from '@/lib/profile-display';
 import { colors, fonts, spacing, surfaces } from '@/constants/theme';
 
 export default function SettingsScreen() {
+  const ui = useCustomerUiCopy();
   const { user, refreshMe } = useAuth();
   const { displayLabel, locating, detectAddress } = useLocation();
   const [name, setName] = useState(user?.name ?? '');
@@ -66,7 +68,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <GlassScreen header={<CustomerPageHeader variant="premium" title="Settings" subtitle="Your account & preferences" showBack />}>
+    <GlassScreen header={<CustomerPageHeader variant="premium" title={ui.settingsScreenTitle} subtitle="Your account & preferences" showBack />}>
       <GlassPanel padded={false}>
         <View style={styles.accountWrap}>
           <UserAccountCard compact embedded />
@@ -79,7 +81,12 @@ export default function SettingsScreen() {
 
       {displayLabel ? (
         <GlassPanel>
-          <LocationBanner label={displayLabel} loading={locating} onRefresh={() => void detectCity()} />
+          <LocationBanner
+            label={displayLabel}
+            loading={locating}
+            onRefresh={() => void detectCity()}
+            embedded
+          />
         </GlassPanel>
       ) : null}
 

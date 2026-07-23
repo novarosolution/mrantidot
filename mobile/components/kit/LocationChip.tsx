@@ -1,6 +1,11 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { MapPin, RefreshCw } from 'lucide-react-native';
-import { colors, fonts } from '@/constants/theme';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
+import { fonts } from '@/constants/theme';
+
+const FOREST = '#0A6423';
+const BORDER = '#E2F0D8';
+const TILE = '#EEF8E6';
 
 export function LocationChip({
   label,
@@ -25,15 +30,15 @@ export function LocationChip({
       disabled={!onPress || loading}
     >
       {loading ? (
-        <ActivityIndicator size="small" color={dark ? colors.lime : colors.forest} />
+        <ActivityIndicator size="small" color={dark ? '#8FD03C' : FOREST} />
       ) : (
-        <MapPin size={11} color={dark ? colors.lime : colors.forest} />
+        <PremiumIcon icon={AppIcons.ui.mapPin} variant="plain" size={12} color={dark ? '#8FD03C' : FOREST} strokeWidth={2.2} />
       )}
       <Text style={[styles.text, dark ? styles.textDark : styles.textLight]} numberOfLines={1}>
         {label}
       </Text>
       {onPress && !loading ? (
-        <RefreshCw size={10} color={dark ? 'rgba(255,255,255,0.65)' : colors.muted} />
+        <PremiumIcon icon={AppIcons.ui.refresh} variant="plain" size={11} color={dark ? 'rgba(255,255,255,0.7)' : '#7A9A7E'} strokeWidth={2.2} />
       ) : null}
     </Pressable>
   );
@@ -44,27 +49,35 @@ export function LocationBanner({
   hint,
   loading,
   onRefresh,
+  embedded = false,
 }: {
   label: string;
   hint?: string;
   loading?: boolean;
   onRefresh?: () => void;
+  /** Transparent row for use inside GlassPanel (no opaque white chrome). */
+  embedded?: boolean;
 }) {
   return (
-    <View style={styles.banner}>
+    <View style={[styles.banner, embedded && styles.bannerEmbedded]}>
+      <PremiumIcon icon={AppIcons.ui.mapPin} variant="gradient" size={16} color="#FFFFFF" strokeWidth={2.2} boxSize={42} />
       <View style={styles.bannerBody}>
-        <Text style={styles.bannerLabel}>Service area</Text>
+        <Text style={styles.bannerLabel}>SERVICE AREA</Text>
         <Text style={styles.bannerValue} numberOfLines={1}>
           {label}
         </Text>
         {hint ? <Text style={styles.bannerHint}>{hint}</Text> : null}
       </View>
       {onRefresh ? (
-        <Pressable style={styles.bannerBtn} onPress={onRefresh} disabled={loading}>
+        <Pressable
+          style={({ pressed }) => [styles.bannerBtn, pressed && styles.pressed]}
+          onPress={onRefresh}
+          disabled={loading}
+        >
           {loading ? (
-            <ActivityIndicator size="small" color={colors.forest} />
+            <ActivityIndicator size="small" color={FOREST} />
           ) : (
-            <RefreshCw size={16} color={colors.forest} />
+            <PremiumIcon icon={AppIcons.ui.refresh} variant="plain" size={15} color={FOREST} strokeWidth={2.2} />
           )}
         </Pressable>
       ) : null}
@@ -77,48 +90,76 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: 999,
     maxWidth: '100%',
   },
-  pillDark: { backgroundColor: 'rgba(0,0,0,0.12)' },
-  pillLight: {
-    backgroundColor: colors.soft,
+  pillDark: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(30,142,78,0.12)',
+    borderColor: 'rgba(255,255,255,0.18)',
   },
-  pressed: { opacity: 0.88 },
-  text: { fontFamily: fonts.bodySemi, fontSize: 12, flexShrink: 1 },
-  textDark: { color: 'rgba(255,255,255,0.88)' },
-  textLight: { color: colors.forest },
+  pillLight: {
+    backgroundColor: TILE,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  pressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
+  text: { fontFamily: fonts.bodySemi, fontSize: 12.5, flexShrink: 1 },
+  textDark: { color: '#FFFFFF' },
+  textLight: { color: FOREST },
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: colors.soft,
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.55)',
     borderWidth: 1,
-    borderColor: 'rgba(30,142,78,0.12)',
+    borderColor: 'rgba(226,240,216,0.9)',
     marginBottom: 12,
+    shadowColor: '#043813',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  bannerEmbedded: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    marginBottom: 0,
+    padding: 0,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   bannerBody: { flex: 1, minWidth: 0 },
   bannerLabel: {
-    fontFamily: fonts.bodySemi,
+    fontFamily: fonts.bodyBold,
     fontSize: 10,
-    color: colors.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    color: '#7A9A7E',
+    letterSpacing: 1.1,
   },
-  bannerValue: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.ink, marginTop: 2 },
-  bannerHint: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
+  bannerValue: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14.5,
+    color: '#0B2213',
+    marginTop: 2,
+  },
+  bannerHint: {
+    fontFamily: fonts.body,
+    fontSize: 11.5,
+    color: '#7A9A7E',
+    marginTop: 2,
+  },
   bannerBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: colors.white,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: TILE,
+    borderWidth: 1,
+    borderColor: BORDER,
     alignItems: 'center',
     justifyContent: 'center',
   },

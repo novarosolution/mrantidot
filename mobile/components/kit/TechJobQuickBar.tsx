@@ -1,8 +1,10 @@
-import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { homeShadow } from '@/components/kit/homeUi';
 import { AppIcons, IconGradients } from '@/constants/appIcons';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, fonts, spacing, surfaces } from '@/constants/theme';
+import { techRoutes, appPush } from '@/lib/routes';
 
 /** Jobs tab — only urgent work actions (no duplicate manage grid). */
 export function TechJobQuickBar({
@@ -20,22 +22,42 @@ export function TechJobQuickBar({
     <View style={styles.wrap}>
       {activeJobId ? (
         <Pressable
-          style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
-          onPress={() => router.push(`/(tech)/job/${activeJobId}`)}
+          style={({ pressed }) => [pressed && styles.pressed]}
+          onPress={() => appPush(techRoutes.job(activeJobId))}
         >
-          <PremiumIcon icon={AppIcons.techHub.active} variant="gradient" gradient={IconGradients.gold} size="sm" boxSize={32} />
-          <Text style={styles.label}>Continue active job</Text>
+          <View style={styles.shell}>
+            <GlassPanel style={styles.chip} padded={false} tone="clear" intensity={42} goldEdge>
+              <View style={styles.inner}>
+                <PremiumIcon icon={AppIcons.techHub.active} variant="premium" size="sm" boxSize={36} />
+                <Text style={styles.label}>Continue active job</Text>
+                <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size={14} color={colors.forest} />
+              </View>
+            </GlassPanel>
+          </View>
         </Pressable>
       ) : null}
       {verifyJobId ? (
         <Pressable
-          style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
-          onPress={() => router.push(`/(tech)/job/${verifyJobId}`)}
+          style={({ pressed }) => [pressed && styles.pressed]}
+          onPress={() => appPush(techRoutes.job(verifyJobId))}
         >
-          <PremiumIcon icon={AppIcons.techHub.verify} variant="gradient" gradient={IconGradients.teal} size="sm" boxSize={32} />
-          <Text style={styles.label}>
-            Enter completion code{verifyCount > 1 ? ` (${verifyCount})` : ''}
-          </Text>
+          <View style={styles.shell}>
+            <GlassPanel style={styles.chip} padded={false} tone="mint" intensity={42} goldEdge>
+              <View style={styles.inner}>
+                <PremiumIcon
+                  icon={AppIcons.techHub.verify}
+                  variant="gradient"
+                  gradient={IconGradients.forest}
+                  size="sm"
+                  boxSize={36}
+                />
+                <Text style={styles.label}>
+                  Enter completion code{verifyCount > 1 ? ` (${verifyCount})` : ''}
+                </Text>
+                <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size={14} color={colors.forest} />
+              </View>
+            </GlassPanel>
+          </View>
         </Pressable>
       ) : null}
     </View>
@@ -44,22 +66,23 @@ export function TechJobQuickBar({
 
 const styles = StyleSheet.create({
   wrap: {
-    paddingHorizontal: spacing.md,
     gap: 8,
     marginBottom: spacing.sm,
   },
+  shell: {
+    borderRadius: 18,
+    ...homeShadow.tile,
+  },
   chip: {
+    borderRadius: 18,
+  },
+  inner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.08)',
-    ...shadows.card,
+    paddingHorizontal: 12,
   },
-  pressed: { opacity: 0.92 },
-  label: { flex: 1, fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink },
+  pressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
+  label: { flex: 1, fontFamily: fonts.bodyBold, fontSize: 13.5, color: colors.ink },
 });

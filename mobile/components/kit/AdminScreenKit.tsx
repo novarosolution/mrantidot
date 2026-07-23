@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode } from 'react';
 import {
   ScrollView,
@@ -9,18 +8,21 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   GlassBackdrop,
+  GlassPanel,
   TAB_BAR_SCROLL_PAD,
   customerScrollProps,
 } from '@/components/kit/GlassScreenKit';
-import { gradients, shadows, spacing } from '@/constants/theme';
+import { adminShadow } from '@/components/kit/homeUi';
+import { surfaces, spacing } from '@/constants/theme';
 
 /** Reusable gold accent bar for admin cards and strips. */
 export function AdminGoldBar({ height = 3, style }: { height?: number; style?: StyleProp<ViewStyle> }) {
   return (
     <LinearGradient
-      colors={[...gradients.goldBar]}
+      colors={['#8FD03C', '#27A747']}
       style={[{ height, width: '100%' }, style]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 0 }}
@@ -44,7 +46,7 @@ export function AdminTabScreen({
 }) {
   return (
     <View style={styles.root}>
-      <GlassBackdrop />
+      <GlassBackdrop variant="deep" />
       <SafeAreaView style={styles.safe} edges={edges}>
         {header}
         <ScrollView
@@ -61,7 +63,7 @@ export function AdminTabScreen({
   );
 }
 
-/** Frosted admin card shell with gold top bar. */
+/** Frosted admin card shell with gold top bar — shadow on outer shell so overflow does not clip. */
 export function AdminPremiumCard({
   children,
   style,
@@ -72,27 +74,28 @@ export function AdminPremiumCard({
   padded?: boolean;
 }) {
   return (
-    <View style={[styles.card, style]}>
-      <AdminGoldBar />
-      <View style={padded ? styles.cardInner : undefined}>{children}</View>
+    <View style={[styles.cardShell, style]}>
+      <GlassPanel style={styles.cardInner} padded={padded} goldEdge tone="light">
+        {children}
+      </GlassPanel>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, overflow: 'hidden' },
+  root: { flex: 1, overflow: 'hidden', backgroundColor: surfaces.glassScreenBase },
   safe: { flex: 1 },
   flex: { flex: 1 },
-  content: { paddingBottom: TAB_BAR_SCROLL_PAD, flexGrow: 1 },
-  card: {
+  content: {
+    paddingBottom: TAB_BAR_SCROLL_PAD,
+    flexGrow: 1,
+    gap: spacing.sm,
+  },
+  cardShell: {
     borderRadius: 22,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.55)',
-    ...shadows.card,
+    ...adminShadow.card,
   },
   cardInner: {
-    padding: spacing.md,
+    borderRadius: 22,
   },
 });

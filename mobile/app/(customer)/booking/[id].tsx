@@ -1,8 +1,9 @@
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
+import { paramString } from '@/lib/routeParams';
 import { BookingDetailHero } from '@/components/kit/BookingDetailHero';
 import {
   BookingDetailSection,
@@ -18,6 +19,7 @@ import { JobProgressCard } from '@/components/kit/JobProgressCard';
 import { OtpEntrySheet } from '@/components/kit/OtpEntrySheet';
 import { getActiveCustomerOtp, WorkOtpCard } from '@/components/kit/WorkOtpCard';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
+import { GlassBackdrop } from '@/components/kit/GlassScreenKit';
 import { Button } from '@/components/ui/Button';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
@@ -26,6 +28,7 @@ import { type BadgeTone } from '@/components/ui/StatusBadge';
 import { Spinner } from '@/components/ui/Spinner';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
+import { stepPhotoUrls } from '@/lib/stepPhotos';
 import { CACHE_TTL } from '@/lib/apiCache';
 import {
   bookingHasTechnician,
@@ -39,7 +42,8 @@ import {
 } from '@/lib/booking-helpers';
 import { getCustomerTrackingSteps, getStatusGuidance, useBookingCopy } from '@/lib/schedule-copy';
 import type { Booking, WorkOtpView } from '@/types/api';
-import { colors, design, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, spacing, surfaces } from '@/constants/theme';
+import { sharedRoutes, appPush } from '@/lib/routes';
 
 function customerTrackingSteps(
   booking: Booking,
@@ -50,7 +54,7 @@ function customerTrackingSteps(
 }
 
 export default function CustomerBookingDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
   const bookingCopy = useBookingCopy();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [hasReview, setHasReview] = useState(false);
@@ -60,11 +64,15 @@ export default function CustomerBookingDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [regenerating, setRegenerating] = useState<'start' | 'end' | null>(null);
   const [endOtpOpen, setEndOtpOpen] = useState(false);
+  const [otpErrorTrigger, setOtpErrorTrigger] = useState(0);
   const focusedRef = useRef(false);
   const lastRefresh = useRef(0);
 
   const load = useCallback(async (opts?: { skipCache?: boolean }) => {
-    if (!id) return;
+    if (!id) {
+      setLoadError('Booking not found');
+      return;
+    }
     setLoadError(null);
     const cacheOpts = opts?.skipCache
       ? { skipCache: true as const }
@@ -142,6 +150,8 @@ export default function CustomerBookingDetailScreen() {
       Toast.show({ type: 'success', text1: 'Job completed!' });
       setEndOtpOpen(false);
       await load({ skipCache: true });
+    } catch {
+      setOtpErrorTrigger((n) => n + 1);
     } finally {
       setVerifying(false);
     }
@@ -182,19 +192,22 @@ export default function CustomerBookingDetailScreen() {
 
   if (loadError) {
     return (
-      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      <View style={styles.rootShell}><GlassBackdrop /><SafeAreaView style={styles.safe} edges={['left', 'right']}>
         <CustomerPageHeader variant="premium" title="Booking" showBack />
-        <ListEmptyRetry message={loadError} onRetry={() => safeAsync(load)} />
-      </SafeAreaView>
+        <ListEmptyRetry
+          message={loadError}
+          onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
+        />
+      </SafeAreaView></View>
     );
   }
 
   if (!booking) {
     return (
-      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      <View style={styles.rootShell}><GlassBackdrop /><SafeAreaView style={styles.safe} edges={['left', 'right']}>
         <CustomerPageHeader variant="premium" title="Your booking" showBack />
         <Spinner />
-      </SafeAreaView>
+      </SafeAreaView></View>
     );
   }
 
@@ -215,7 +228,8 @@ export default function CustomerBookingDetailScreen() {
   const showStageTimeline = booking.status === 'pending' || booking.status === 'confirmed';
   const showLiveProgress =
     booking.status === 'in_progress' || booking.status === 'awaiting_verification';
-  const showStepHistory = booking.status === 'completed' && steps.some((s) => s.photoUrl);
+  const showStepHistory =
+    booking.status === 'completed' && steps.some((s) => stepPhotoUrls(s).length > 0);
 
   const stepStatusBadge = (status: string, index: number): { label: string; tone: BadgeTone } => {
     if (status === 'done') return { label: 'Completed', tone: 'success' };
@@ -234,6 +248,7 @@ export default function CustomerBookingDetailScreen() {
         status={step.status}
         badge={badge}
         photoUrl={step.photoUrl}
+        photoUrls={stepPhotoUrls(step)}
         geoAddress={step.geo?.address}
         active={isStepActive}
       />
@@ -265,7 +280,7 @@ export default function CustomerBookingDetailScreen() {
   ].filter(Boolean).length;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+    <View style={styles.rootShell}><GlassBackdrop /><SafeAreaView style={styles.safe} edges={['left', 'right']}>
       <CustomerPageHeader
         variant="premium"
         title={bookingCopy.detailScreenTitle}
@@ -400,7 +415,7 @@ export default function CustomerBookingDetailScreen() {
             />
           )}
           {booking.status === 'completed' && !hasReview && (
-            <Button title={bookingCopy.detailActionReview} variant="premium" onPress={() => router.push(`/review/${booking.id}`)} />
+            <Button title={bookingCopy.detailActionReview} variant="premium" onPress={() => appPush(sharedRoutes.review(booking.id))} />
           )}
           {canCancelBooking(booking.status) && (
             <Button
@@ -412,7 +427,7 @@ export default function CustomerBookingDetailScreen() {
             />
           )}
           {booking.status === 'cancelled' && svcId ? (
-            <Button title={bookingCopy.detailActionBookAgain} variant="premium" onPress={() => router.push(`/book/${svcId}`)} />
+            <Button title={bookingCopy.detailActionBookAgain} variant="premium" onPress={() => appPush(sharedRoutes.bookPath(svcId))} />
           ) : null}
         </StickyActionBar>
       )}
@@ -421,15 +436,17 @@ export default function CustomerBookingDetailScreen() {
         visible={endOtpOpen}
         title="Confirm completion"
         loading={verifying}
+        errorTrigger={otpErrorTrigger}
         onClose={() => setEndOtpOpen(false)}
         onSubmit={(otp) => void completeWithOtp(otp)}
       />
-    </SafeAreaView>
+    </SafeAreaView></View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: design.screenBg },
+  rootShell: { flex: 1, backgroundColor: surfaces.glassScreenBase },
+  safe: { flex: 1, backgroundColor: 'transparent' },
   container: { paddingBottom: 120 },
   sectionWrap: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
   priceInset: {

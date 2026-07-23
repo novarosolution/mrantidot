@@ -1,22 +1,59 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs, useSegments } from 'expo-router';
 import { KitTabBarButton } from '@/components/kit/KitTabBarButton';
 import { GlassTabBarBackground, glassTabBarStyle } from '@/components/kit/GlassScreenKit';
 import { KitTabBarIcon } from '@/components/kit/PremiumIcon';
+import { Spinner } from '@/components/ui/Spinner';
 import { AppIcons } from '@/constants/appIcons';
-import { colors, design, typography } from '@/constants/theme';
+import { fonts, typography } from '@/constants/theme';
+import { useAuth } from '@/context/AuthContext';
+import { isProfileIncomplete } from '@/lib/profile-display';
+import { appHref, authRoutes, customerRoutes, homeRouteForRole } from '@/lib/routes';
 
 const Tab = AppIcons.customerTab;
 
+/** Screens incomplete OTP profiles may still open (booking follow-ups + settings). */
+const INCOMPLETE_PROFILE_ALLOWED = new Set([
+  'settings',
+  'booking',
+  'notifications',
+  'help',
+  'faq',
+]);
+
 export default function CustomerLayout() {
+  const { user, isLoading } = useAuth();
+  const segments = useSegments();
+
+  if (isLoading) return <Spinner fullScreen />;
+  if (!user) return <Redirect href={authRoutes.login} />;
+  if (user.role !== 'customer') {
+    return <Redirect href={appHref(homeRouteForRole(user.role))} />;
+  }
+  if (isProfileIncomplete(user)) {
+    const allowed = (segments as string[]).some((s) => INCOMPLETE_PROFILE_ALLOWED.has(s));
+    if (!allowed) {
+      return <Redirect href={appHref(customerRoutes.settings)} />;
+    }
+  }
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: design.tabBarActive,
-        tabBarInactiveTintColor: colors.muted,
+        tabBarActiveTintColor: '#0A6423',
+        tabBarInactiveTintColor: '#2F5538',
         tabBarStyle: glassTabBarStyle,
         tabBarBackground: () => <GlassTabBarBackground />,
-        tabBarLabelStyle: typography.tabLabel,
+        tabBarLabelStyle: {
+          ...typography.tabLabel,
+          fontFamily: fonts.bodyBold,
+          fontSize: 10,
+          letterSpacing: 0.2,
+          marginTop: 2,
+        },
+        tabBarItemStyle: {
+          paddingTop: 0,
+        },
         tabBarButton: (props) => <KitTabBarButton {...props} />,
       }}
     >

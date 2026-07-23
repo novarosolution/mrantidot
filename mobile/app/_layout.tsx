@@ -3,15 +3,9 @@ import {
   PlusJakartaSans_500Medium,
   PlusJakartaSans_600SemiBold,
   PlusJakartaSans_700Bold,
-  useFonts as useJakarta,
+  PlusJakartaSans_800ExtraBold,
+  useFonts as usePlusJakarta,
 } from '@expo-google-fonts/plus-jakarta-sans';
-import { PlayfairDisplay_600SemiBold, PlayfairDisplay_700Bold, useFonts as usePlayfair } from '@expo-google-fonts/playfair-display';
-import {
-  Sora_600SemiBold,
-  Sora_700Bold,
-  Sora_800ExtraBold,
-  useFonts as useSora,
-} from '@expo-google-fonts/sora';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
@@ -24,10 +18,9 @@ import { AuthProvider } from '@/context/AuthContext';
 import { AppContentProvider, DEFAULT_APP_CONFIG } from '@/context/AppContentContext';
 import { LocationProvider } from '@/context/LocationContext';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
-import { Spinner } from '@/components/ui/Spinner';
 import { registerGlobalErrorHandlers } from '@/lib/registerGlobalErrorHandlers';
 import { setupDefaultFonts } from '@/lib/setupFonts';
-import { colors, fonts, premiumType } from '@/constants/theme';
+import { design, fonts } from '@/constants/theme';
 
 registerGlobalErrorHandlers();
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -40,8 +33,10 @@ function BootSplash() {
       trustBadges={DEFAULT_APP_CONFIG.onboarding.trustChips}
       footer={
         <View style={bootStyles.loading}>
-          <Spinner />
-          <Text style={bootStyles.text}>Starting Mr Antidot…</Text>
+          <View style={bootStyles.progressTrack}>
+            <View style={bootStyles.progressFill} />
+          </View>
+          <Text style={bootStyles.text}>Starting…</Text>
         </View>
       }
     />
@@ -49,16 +44,15 @@ function BootSplash() {
 }
 
 export default function RootLayout() {
-  const [soraLoaded] = useSora({ Sora_600SemiBold, Sora_700Bold, Sora_800ExtraBold });
-  const [jakartaLoaded] = useJakarta({
+  const [fontsLoaded] = usePlusJakarta({
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,
     PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
   });
-  const [playfairLoaded] = usePlayfair({ PlayfairDisplay_600SemiBold, PlayfairDisplay_700Bold });
   const [fontFallback, setFontFallback] = useState(false);
-  const fontsReady = (soraLoaded && jakartaLoaded && playfairLoaded) || fontFallback;
+  const fontsReady = fontsLoaded || fontFallback;
 
   useEffect(() => {
     const t = setTimeout(() => setFontFallback(true), 10000);
@@ -80,7 +74,7 @@ export default function RootLayout() {
         <LocationProvider>
           <AppContentProvider>
             <StatusBar style="dark" />
-            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }} />
+            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: design.screenBg } }} />
             <Toast config={premiumToastConfig} topOffset={TOAST_DEFAULTS.topOffset} visibilityTime={TOAST_DEFAULTS.visibilityTime} />
           </AppContentProvider>
         </LocationProvider>
@@ -90,6 +84,24 @@ export default function RootLayout() {
 }
 
 const bootStyles = StyleSheet.create({
-  loading: { alignItems: 'center', gap: 12 },
-  text: { ...premiumType.caption, fontFamily: fonts.bodySemi, color: 'rgba(255,255,255,0.7)' },
+  loading: { alignSelf: 'stretch', alignItems: 'center', gap: 12 },
+  progressTrack: {
+    width: '100%',
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    width: '42%',
+    height: '100%',
+    borderRadius: 2,
+    backgroundColor: '#8FD03C',
+  },
+  text: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 13,
+    letterSpacing: -0.05,
+    color: 'rgba(255,255,255,0.68)',
+  },
 });

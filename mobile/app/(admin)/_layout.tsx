@@ -1,15 +1,14 @@
 import { Redirect, Stack } from 'expo-router';
 import { Spinner } from '@/components/ui/Spinner';
 import { useAuth } from '@/context/AuthContext';
-import { homeRouteForRole } from '@/lib/auth-routes';
-import { appHref } from '@/lib/routes';
+import { appHref, authRoutes, homeRouteForRole } from '@/lib/routes';
 
 export default function AdminLayout() {
   const { user, isLoading } = useAuth();
 
   if (isLoading) return <Spinner fullScreen />;
 
-  if (!user) return <Redirect href="/(auth)/login" />;
+  if (!user) return <Redirect href={authRoutes.login} />;
 
   if (user.role !== 'admin') {
     return <Redirect href={appHref(homeRouteForRole(user.role))} />;
@@ -41,6 +40,8 @@ export default function AdminLayout() {
       <Stack.Screen name="notifications" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="reviews" />
+      <Stack.Screen name="leave" />
+      <Stack.Screen name="payroll" />
     </Stack>
   );
 }

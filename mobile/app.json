@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0F766E"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": true,
@@ -32,7 +32,7 @@
         "android.permission.RECORD_AUDIO"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#0D9488",
+        "backgroundColor": "#0A6423",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -72,11 +72,11 @@
     },
     "extra": {
       "router": {},
-      "apiUrl": "https://mrantidot-y5zg.onrender.com",
+      "apiUrl": null,
       "eas": {
-        "projectId": "6490390c-0c90-43cb-94df-e5d051f6a7be"
+        "projectId": "f75fd96d-693f-482c-9c86-53cd1ee48a2f"
       }
     },
-    "owner": "priti1027"
+    "owner": "novarosolution"
   }
 }

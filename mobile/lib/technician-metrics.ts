@@ -5,6 +5,7 @@ import {
   bookingServiceName,
   bookingStatusLabel,
 } from '@/lib/booking-helpers';
+import { localDateKey } from '@/lib/dates';
 import { formatDuration } from '@/lib/job-visit-helpers';
 import type { MetricDetailRow } from '@/components/kit/MetricDetailSheet';
 
@@ -22,7 +23,7 @@ export function metricSheetMeta(
   detail: TechnicianDetailResponse,
   weekIndex?: number,
 ): { title: string; message?: string; actionLabel?: string; listStatus?: string } {
-  const month = detail.month ?? new Date().toISOString().slice(0, 7);
+  const month = detail.month ?? localDateKey().slice(0, 7);
   const analytics = detail.analytics;
 
   switch (key) {
@@ -35,6 +36,8 @@ export function metricSheetMeta(
       return { title: 'Days came', message: `Present days in ${month}` };
     case 'days_absent':
       return { title: 'Did not come', message: `Absent days in ${month}` };
+    case 'days_leave':
+      return { title: 'Leave days', message: `Approved leave days in ${month}` };
     case 'completion_rate':
       return {
         title: 'Job completion',
@@ -46,6 +49,14 @@ export function metricSheetMeta(
       return { title: 'Jobs completed', message: `Completed in ${month}` };
     case 'jobs_no_show':
       return { title: 'No-shows', message: `Confirmed but not started past schedule date` };
+    case 'on_time':
+      return {
+        title: 'On-time rate',
+        message:
+          analytics?.onTimeRate != null
+            ? `${analytics.onTimeRate}% of started visits were on time in ${month}`
+            : `On-time visits in ${month}`,
+      };
     case 'avg_visit':
       return { title: 'Average visit duration', message: `Completed visits in ${month}` };
     case 'pending_global':
@@ -85,7 +96,9 @@ export function metricSheetMeta(
     case 'earnings':
       return {
         title: 'Earnings',
-        message: `₹${detail.stats.earnings} from completed jobs`,
+        message: `₹${detail.stats.earnings} tech take-home from completed jobs${
+          detail.stats.paySummary ? ` · ${detail.stats.paySummary}` : ''
+        }`,
         actionLabel: 'View completed jobs',
         listStatus: 'completed',
       };
@@ -129,7 +142,7 @@ function bookingsInWeek(
   weekIndex: number,
   filter?: (b: (typeof detail.bookings)[0]) => boolean,
 ) {
-  const month = detail.month ?? new Date().toISOString().slice(0, 7);
+  const month = detail.month ?? localDateKey().slice(0, 7);
   const [y, m] = month.split('-').map(Number);
   const lastDay = new Date(y, m, 0).getDate();
   const from = `${month}-01`;
@@ -160,7 +173,7 @@ export function buildMetricDetailRows(
   weekIndex?: number,
   onBookingPress?: (id: string) => void,
 ): MetricDetailRow[] {
-  const month = detail.month ?? new Date().toISOString().slice(0, 7);
+  const month = detail.month ?? localDateKey().slice(0, 7);
   const attendance = detail.attendance ?? {};
   const today = new Date().toISOString().slice(0, 10);
 
@@ -257,14 +270,14 @@ export function buildMetricDetailRows(
     case 'earnings':
       return detail.bookings.filter((b) => b.status === 'completed').map((b) => ({
         ...bookingRow(b),
-        meta: `₹${b.amount?.total ?? b.jobValue ?? 0}`,
+        meta: `₹${b.technicianEarning ?? b.techEarning ?? b.amount?.total ?? b.jobValue ?? 0}`,
       }));
     case 'week_jobs':
       return bookingsInWeek(detail, weekIndex ?? 0, (b) => b.status === 'completed').map(bookingRow);
     case 'week_earnings':
       return bookingsInWeek(detail, weekIndex ?? 0, (b) => b.status === 'completed').map((b) => ({
         ...bookingRow(b),
-        meta: `₹${b.amount?.total ?? b.jobValue ?? 0}`,
+        meta: `₹${b.technicianEarning ?? b.techEarning ?? b.amount?.total ?? b.jobValue ?? 0}`,
       }));
     default:
       if (key.startsWith('status_')) {

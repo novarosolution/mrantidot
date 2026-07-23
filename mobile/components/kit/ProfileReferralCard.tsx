@@ -1,9 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Share2 } from 'lucide-react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { router } from 'expo-router';
-import { colors, fonts, gradients, premium, shadows, spacing } from '@/constants/theme';
+import { colors, fonts, gradients, premium, shadows, spacing, surfaces } from '@/constants/theme';
+import { customerRoutes, appPush } from '@/lib/routes';
 
 export function ProfileReferralCard({
   brandName,
@@ -15,18 +15,17 @@ export function ProfileReferralCard({
   return (
     <Pressable
       style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}
-      onPress={() => router.push('/(customer)/offers')}
+      onPress={() => appPush(customerRoutes.offers)}
     >
       <LinearGradient
-        colors={['#FFF9ED', '#FFF4DC', '#FFFFFF']}
+        colors={['#F6FAF2', '#EEF8E6', '#FFFFFF']}
         style={styles.card}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
+        <LinearGradient colors={[...gradients.goldBar]} style={styles.accent} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
         <View style={styles.glow} />
-        <LinearGradient colors={[...gradients.goldCta]} style={styles.icon} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-          <AppIcons.quick.offers size={20} color={colors.white} strokeWidth={2.2} />
-        </LinearGradient>
+        <PremiumIcon icon={AppIcons.quick.offers} variant="gradient" size={20} color={colors.white} strokeWidth={2.2} boxSize={42} />
         <View style={styles.body}>
           <Text style={styles.title}>Invite & earn</Text>
           <Text style={styles.sub}>{brandName} offers</Text>
@@ -45,7 +44,7 @@ export function ProfileReferralCard({
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <Share2 size={15} color={colors.white} strokeWidth={2.5} />
+            <PremiumIcon icon={AppIcons.ui.share} variant="plain" size={15} color={colors.white} strokeWidth={2.5} />
           </LinearGradient>
         </Pressable>
       </LinearGradient>
@@ -63,11 +62,19 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingLeft: spacing.md,
     paddingRight: spacing.sm + 4,
+    paddingTop: spacing.md + 4,
     borderRadius: premium.radiusCard,
     borderWidth: 1,
-    borderColor: 'rgba(182,132,28,0.22)',
+    borderColor: surfaces.glassBorderStrong,
     overflow: 'hidden',
     ...shadows.card,
+  },
+  accent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
   },
   glow: {
     position: 'absolute',
@@ -76,7 +83,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(212,160,23,0.12)',
+    backgroundColor: 'rgba(143,208,60,0.14)',
   },
   icon: {
     width: 42,

@@ -1,53 +1,52 @@
-import { AppIcons } from '@/constants/appIcons';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, design, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { AppIcons } from '@/constants/appIcons';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { Button } from './Button';
+import { colors, customerType, spacing } from '@/constants/theme';
 
-export function EmptyState({ title, message }: { title: string; message?: string }) {
+export function EmptyState({
+  title,
+  message,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  message?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
   return (
     <View style={styles.wrap}>
-      <View style={styles.card}>
-        <View style={styles.iconCircle}>
-          <AppIcons.empty size={28} color={colors.secondaryDark} strokeWidth={1.8} />
+      <GlassPanel style={styles.card} goldEdge tone="clear" intensity={42}>
+        <View style={styles.inner}>
+          <PremiumIcon icon={AppIcons.empty} variant="ring" size="hero" color={colors.forest} boxSize={68} />
+          <Text style={styles.title}>{title}</Text>
+          {message ? <Text style={styles.message}>{message}</Text> : null}
+          {actionLabel && onAction ? (
+            <Button title={actionLabel} variant="premium" size="md" onPress={onAction} style={styles.btn} />
+          ) : null}
         </View>
-        <Text style={styles.title}>{title}</Text>
-        {message ? <Text style={styles.message}>{message}</Text> : null}
-      </View>
+      </GlassPanel>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
-  card: {
-    backgroundColor: premium.surfaceElevated,
-    borderRadius: premium.radiusCard,
+  card: { maxWidth: 320, width: '100%', borderRadius: 24 },
+  inner: {
     padding: spacing.lg,
     alignItems: 'center',
-    maxWidth: 320,
-    borderWidth: 1,
-    borderColor: 'rgba(182,132,28,0.15)',
-    borderTopWidth: 3,
-    borderTopColor: premium.accentGold,
-    ...shadows.floating,
+    gap: 10,
   },
-  iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.soft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: 'rgba(182,132,28,0.2)',
-  },
-  title: { ...design.sectionTitle, textAlign: 'center' },
-  message: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    color: colors.textMuted,
-    marginTop: spacing.sm,
+  title: {
+    ...customerType.emptyTitle,
     textAlign: 'center',
-    lineHeight: 20,
   },
+  message: {
+    ...customerType.emptyBody,
+    textAlign: 'center',
+  },
+  btn: { marginTop: spacing.sm, minWidth: 160 },
 });

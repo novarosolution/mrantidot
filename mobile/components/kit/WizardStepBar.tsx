@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { type LucideIcon } from 'lucide-react-native';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { colors, classic, fonts, gradients, premium, spacing } from '@/constants/theme';
 
 const DEFAULT_LABELS = ['Schedule', 'Address', 'Payment', 'Confirm'];
@@ -97,7 +98,7 @@ export function WizardStepBar({
                 {done ? (
                   <Text style={[styles.dotText, styles.dotTextOn]}>✓</Text>
                 ) : active && StepIcon ? (
-                  <StepIcon size={15} color={colors.white} strokeWidth={2.4} />
+                  <PremiumIcon icon={StepIcon} variant="plain" size={15} color={colors.white} strokeWidth={2.4} />
                 ) : (
                   <Text style={[styles.dotText, active && styles.dotTextOn]}>{String(i + 1)}</Text>
                 )}

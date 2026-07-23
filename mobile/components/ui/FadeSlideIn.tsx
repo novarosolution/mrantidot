@@ -1,12 +1,18 @@
 import { type ReactNode, useEffect, useRef } from 'react';
 import { Animated, Easing, type ViewStyle } from 'react-native';
 
+/**
+ * Entrance fade/slide. Safe inside ScrollViews:
+ * - Does not re-flash to opacity 0 on remount unless `trigger` changes
+ * - Uses a stable “already shown” latch so clipped-view remounts stay visible
+ */
 export function FadeSlideIn({
   children,
   delay = 0,
   slideFrom = 20,
   style,
   trigger,
+  disabled = false,
 }: {
   children: ReactNode;
   delay?: number;
@@ -14,14 +20,35 @@ export function FadeSlideIn({
   style?: ViewStyle;
   /** Re-run animation when this value changes (e.g. wizard step). */
   trigger?: string | number;
+  /** Skip animation — render children statically (preferred in long scroll screens). */
+  disabled?: boolean;
 }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(slideFrom)).current;
+  const opacity = useRef(new Animated.Value(disabled ? 1 : 0)).current;
+  const translateY = useRef(new Animated.Value(disabled ? 0 : slideFrom)).current;
+  const shown = useRef(disabled);
+  const lastTrigger = useRef(trigger);
 
   useEffect(() => {
+    if (disabled) {
+      opacity.setValue(1);
+      translateY.setValue(0);
+      shown.current = true;
+      return;
+    }
+
+    const triggerChanged = lastTrigger.current !== trigger;
+    lastTrigger.current = trigger;
+
+    // Remount / re-render after first play: stay visible (fixes scroll flash/ghost).
+    if (shown.current && !triggerChanged) {
+      opacity.setValue(1);
+      translateY.setValue(0);
+      return;
+    }
+
     opacity.setValue(0);
     translateY.setValue(slideFrom);
-    Animated.parallel([
+    const anim = Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
         duration: 340,
@@ -36,11 +63,19 @@ export function FadeSlideIn({
         tension: 68,
         useNativeDriver: true,
       }),
-    ]).start();
-  }, [delay, opacity, slideFrom, translateY, trigger]);
+    ]);
+    anim.start(({ finished }) => {
+      if (finished) shown.current = true;
+    });
+    return () => anim.stop();
+  }, [delay, disabled, opacity, slideFrom, translateY, trigger]);
+
+  if (disabled) {
+    return <>{children}</>;
+  }
 
   return (
-    <Animated.View style={[{ opacity, transform: [{ translateY }] }, style]}>
+    <Animated.View style={[{ opacity, transform: [{ translateY }] }, style]} collapsable={false}>
       {children}
     </Animated.View>
   );
@@ -81,7 +116,7 @@ export function FadeSlideHorizontal({
   }, [opacity, step, translateX]);
 
   return (
-    <Animated.View style={[{ opacity, transform: [{ translateX }] }, style]}>
+    <Animated.View style={[{ opacity, transform: [{ translateX }] }, style]} collapsable={false}>
       {children}
     </Animated.View>
   );
