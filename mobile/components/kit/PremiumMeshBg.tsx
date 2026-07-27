@@ -56,7 +56,7 @@ const SPHERE: Record<SphereTone, { c0: string; c1: string; c2: string; c3: strin
   },
 };
 
-/** Soft volumetric sphere — kept for optional accents; not used in screen mesh. */
+/** Soft volumetric sphere — faux-3D orb accents for mesh / empty / hero depth. */
 export function VolumeSphere({
   size,
   tone = 'mint',
@@ -94,7 +94,7 @@ export function VolumeSphere({
           </RadialGradient>
           <RadialGradient id={rimId} cx="72%" cy="74%" rx="56%" ry="56%">
             <Stop offset="60%" stopColor="rgba(0,0,0,0)" />
-            <Stop offset="100%" stopColor="rgba(2,24,12,0.05)" />
+            <Stop offset="100%" stopColor="rgba(2,24,12,0.08)" />
           </RadialGradient>
         </Defs>
         {withShadow ? (
@@ -102,7 +102,8 @@ export function VolumeSphere({
         ) : null}
         <Circle cx={r} cy={r} r={r} fill={`url(#${id})`} />
         <Circle cx={r} cy={r} r={r} fill={`url(#${rimId})`} />
-        <Ellipse cx={r * 0.56} cy={r * 0.46} rx={r * 0.28} ry={r * 0.15} fill="rgba(255,255,255,0.45)" />
+        <Ellipse cx={r * 0.56} cy={r * 0.46} rx={r * 0.28} ry={r * 0.15} fill="rgba(255,255,255,0.55)" />
+        <Ellipse cx={r * 0.42} cy={r * 0.38} rx={r * 0.12} ry={r * 0.07} fill="rgba(255,255,255,0.7)" />
       </Svg>
     </View>
   );
@@ -110,7 +111,7 @@ export function VolumeSphere({
 
 /**
  * Premium light-theme ambient background —
- * clean mint → white wash. No floating 3D orbs.
+ * mint → ivory wash plus soft volumetric orbs for faux-3D depth.
  */
 export function PremiumMeshBg({
   variant = 'default',
@@ -133,25 +134,32 @@ function LightPremiumWash({ deep }: { deep: boolean }) {
       <Svg width={W} height={H} style={StyleSheet.absoluteFill}>
         <Defs>
           <SvgLinear id={`wash-${uid}`} x1="50%" y1="0%" x2="50%" y2="100%">
-            <Stop offset="0%" stopColor={deep ? '#F0F7EA' : '#FFFFFF'} />
-            <Stop offset="38%" stopColor={base} />
+            <Stop offset="0%" stopColor={deep ? '#EAF6E0' : '#FFFFFF'} />
+            <Stop offset="32%" stopColor={deep ? '#F0F7EA' : base} />
+            <Stop offset="68%" stopColor={base} />
             <Stop offset="100%" stopColor="#FFFFFF" />
           </SvgLinear>
-          <RadialGradient id={`cornerTR-${uid}`} cx="96%" cy="0%" rx="52%" ry="34%">
-            <Stop offset="0%" stopColor="rgba(232,248,214,0.42)" />
+          <RadialGradient id={`cornerTR-${uid}`} cx="96%" cy="0%" rx="56%" ry="38%">
+            <Stop offset="0%" stopColor="rgba(200,240,122,0.38)" />
+            <Stop offset="55%" stopColor="rgba(232,248,214,0.22)" />
             <Stop offset="100%" stopColor="rgba(255,255,255,0)" />
           </RadialGradient>
-          <RadialGradient id={`cornerTL-${uid}`} cx="4%" cy="6%" rx="44%" ry="28%">
-            <Stop offset="0%" stopColor="rgba(255,255,255,0.95)" />
+          <RadialGradient id={`cornerTL-${uid}`} cx="4%" cy="6%" rx="48%" ry="30%">
+            <Stop offset="0%" stopColor="rgba(255,255,255,0.98)" />
             <Stop offset="100%" stopColor="rgba(255,255,255,0)" />
           </RadialGradient>
-          <RadialGradient id={`midGlow-${uid}`} cx="50%" cy="28%" rx="60%" ry="28%">
-            <Stop offset="0%" stopColor="rgba(255,255,255,0.75)" />
+          <RadialGradient id={`midGlow-${uid}`} cx="48%" cy="26%" rx="64%" ry="30%">
+            <Stop offset="0%" stopColor="rgba(255,255,255,0.82)" />
             <Stop offset="100%" stopColor="rgba(255,255,255,0)" />
           </RadialGradient>
-          <RadialGradient id={`botGlow-${uid}`} cx="50%" cy="100%" rx="72%" ry="32%">
-            <Stop offset="0%" stopColor="rgba(236,248,226,0.38)" />
+          <RadialGradient id={`botGlow-${uid}`} cx="42%" cy="100%" rx="78%" ry="36%">
+            <Stop offset="0%" stopColor="rgba(143,208,60,0.14)" />
+            <Stop offset="45%" stopColor="rgba(236,248,226,0.32)" />
             <Stop offset="100%" stopColor="rgba(236,248,226,0)" />
+          </RadialGradient>
+          <RadialGradient id={`sideGlow-${uid}`} cx="0%" cy="55%" rx="42%" ry="34%">
+            <Stop offset="0%" stopColor="rgba(48,184,79,0.1)" />
+            <Stop offset="100%" stopColor="rgba(48,184,79,0)" />
           </RadialGradient>
         </Defs>
 
@@ -159,13 +167,42 @@ function LightPremiumWash({ deep }: { deep: boolean }) {
         <Rect x={0} y={0} width={W} height={H} fill={`url(#cornerTR-${uid})`} />
         <Rect x={0} y={0} width={W} height={H} fill={`url(#cornerTL-${uid})`} />
         <Rect x={0} y={0} width={W} height={H} fill={`url(#midGlow-${uid})`} />
+        <Rect x={0} y={0} width={W} height={H} fill={`url(#sideGlow-${uid})`} />
         <Rect x={0} y={0} width={W} height={H} fill={`url(#botGlow-${uid})`} />
       </Svg>
+
+      {/* Soft volumetric orbs — faux 3D depth without GL/Three.js */}
+      <VolumeSphere
+        size={Math.min(W * 0.58, 240)}
+        tone="lime"
+        opacity={deep ? 0.55 : 0.42}
+        style={{ position: 'absolute', top: -H * 0.02, right: -W * 0.12 }}
+      />
+      <VolumeSphere
+        size={Math.min(W * 0.42, 180)}
+        tone="mint"
+        opacity={deep ? 0.5 : 0.36}
+        style={{ position: 'absolute', top: H * 0.28, left: -W * 0.16 }}
+      />
+      <VolumeSphere
+        size={Math.min(W * 0.5, 210)}
+        tone="deepLime"
+        opacity={deep ? 0.4 : 0.3}
+        withShadow={false}
+        style={{ position: 'absolute', bottom: H * 0.08, right: -W * 0.08 }}
+      />
+      <VolumeSphere
+        size={Math.min(W * 0.28, 120)}
+        tone="white"
+        opacity={0.55}
+        withShadow={false}
+        style={{ position: 'absolute', top: H * 0.48, left: W * 0.22 }}
+      />
     </View>
   );
 }
 
-/** Auth / dark hero wash — soft gradients only, no floating orbs. */
+/** Auth / dark hero wash — forest depth + volumetric lime orbs. */
 function DarkMeshBg({ hero }: { hero?: boolean }) {
   const uid = useId().replace(/:/g, '');
   const h = hero ? Math.min(H * 0.52, 440) : H;
@@ -175,26 +212,27 @@ function DarkMeshBg({ hero }: { hero?: boolean }) {
       <Svg width={W} height={h} style={StyleSheet.absoluteFill}>
         <Defs>
           <SvgLinear id={`darkWash-${uid}`} x1="18%" y1="0%" x2="82%" y2="100%">
-            <Stop offset="0%" stopColor="#1F9444" />
-            <Stop offset="40%" stopColor="#0A6423" />
-            <Stop offset="75%" stopColor="#043816" />
+            <Stop offset="0%" stopColor="#27A747" />
+            <Stop offset="28%" stopColor="#1B873E" />
+            <Stop offset="55%" stopColor="#0A6423" />
+            <Stop offset="82%" stopColor="#043816" />
             <Stop offset="100%" stopColor="#02180C" />
           </SvgLinear>
-          <RadialGradient id={`darkHot-${uid}`} cx="82%" cy="10%" rx="50%" ry="36%">
-            <Stop offset="0%" stopColor="rgba(200,255,150,0.32)" />
+          <RadialGradient id={`darkHot-${uid}`} cx="86%" cy="6%" rx="52%" ry="40%">
+            <Stop offset="0%" stopColor="rgba(220,255,150,0.42)" />
             <Stop offset="100%" stopColor="rgba(143,208,60,0)" />
           </RadialGradient>
-          <RadialGradient id={`darkSide-${uid}`} cx="8%" cy="68%" rx="46%" ry="36%">
-            <Stop offset="0%" stopColor="rgba(48,184,79,0.2)" />
+          <RadialGradient id={`darkSide-${uid}`} cx="6%" cy="72%" rx="50%" ry="40%">
+            <Stop offset="0%" stopColor="rgba(48,184,79,0.28)" />
             <Stop offset="100%" stopColor="rgba(48,184,79,0)" />
           </RadialGradient>
-          <RadialGradient id={`darkMid-${uid}`} cx="45%" cy="38%" rx="42%" ry="30%">
-            <Stop offset="0%" stopColor="rgba(255,255,255,0.1)" />
+          <RadialGradient id={`darkMid-${uid}`} cx="45%" cy="38%" rx="44%" ry="32%">
+            <Stop offset="0%" stopColor="rgba(255,255,255,0.14)" />
             <Stop offset="100%" stopColor="rgba(255,255,255,0)" />
           </RadialGradient>
-          <SvgLinear id={`darkFloor-${uid}`} x1="50%" y1="52%" x2="50%" y2="100%">
+          <SvgLinear id={`darkFloor-${uid}`} x1="50%" y1="48%" x2="50%" y2="100%">
             <Stop offset="0%" stopColor="rgba(2,24,12,0)" />
-            <Stop offset="100%" stopColor="rgba(2,24,12,0.5)" />
+            <Stop offset="100%" stopColor="rgba(2,24,12,0.58)" />
           </SvgLinear>
         </Defs>
         <Rect x={0} y={0} width={W} height={h} fill={`url(#darkWash-${uid})`} />
@@ -203,6 +241,21 @@ function DarkMeshBg({ hero }: { hero?: boolean }) {
         <Rect x={0} y={0} width={W} height={h} fill={`url(#darkMid-${uid})`} />
         <Rect x={0} y={0} width={W} height={h} fill={`url(#darkFloor-${uid})`} />
       </Svg>
+
+      <VolumeSphere
+        size={Math.min(W * 0.55, 220)}
+        tone="deepLime"
+        opacity={0.38}
+        withShadow={false}
+        style={{ position: 'absolute', top: -40, right: -60 }}
+      />
+      <VolumeSphere
+        size={Math.min(W * 0.4, 160)}
+        tone="forest"
+        opacity={0.45}
+        withShadow={false}
+        style={{ position: 'absolute', bottom: hero ? 40 : H * 0.18, left: -50 }}
+      />
     </View>
   );
 }

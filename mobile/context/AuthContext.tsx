@@ -10,6 +10,7 @@ import {
 } from 'react';
 import axios from 'axios';
 import { api, clearApiCache, setUnauthorizedHandler } from '@/lib/api';
+import { config } from '@/lib/config';
 import { normalizeLoginEmail } from '@/lib/email';
 import { formatLoginIdentifier } from '@/lib/phone';
 import { clearSession, getToken, getUser, setToken, setUser, type StoredUser } from '@/lib/storage';
@@ -139,9 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           { skipErrorToast: true },
         );
         if (!data?.token || !data?.user?.id || !data?.user?.role) {
-          throw new Error(
-            `Login response invalid — API at ${api.defaults.baseURL?.replace(/\/api$/, '') ?? 'unknown'} may be down.`,
-          );
+          throw new Error(`Login response invalid — API at ${config.apiUrl} may be misconfigured.`);
         }
 
         // Always persist a successful login (do not skip on epoch races).

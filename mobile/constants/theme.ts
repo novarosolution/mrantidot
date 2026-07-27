@@ -3,11 +3,11 @@ import type { TextStyle, ViewStyle } from 'react-native';
 
 /** Mr Antidot HTML UI kit tokens */
 export const colors = {
-  deep: '#043813',
-  green: '#1F9A3E',
+  deep: '#02180C',
+  green: '#27A747',
   forest: '#0A6423',
   lime: '#E9F8E3',
-  bg: '#FFFFFF',
+  bg: '#FAFCF8',
   ink: '#071A0E',
   muted: '#3F6B48',
   border: '#CDE8C0',
@@ -32,15 +32,15 @@ export const colors = {
   amberInk: '#9A6F12',
   greyBg: '#EEF2EE',
   // aliases
-  primary: '#1F9A3E',
+  primary: '#27A747',
   primaryDark: '#0A6423',
   primaryLight: '#EAF6E3',
   accent: '#E9F8E3',
-  background: '#FFFFFF',
+  background: '#FAFCF8',
   surface: '#FFFFFF',
   text: '#071A0E',
   textMuted: '#3F6B48',
-  success: '#1F9A3E',
+  success: '#27A747',
   warning: '#9A6F12',
 };
 
@@ -630,16 +630,16 @@ export const adminSurfaces = {
 /** Semantic tinted surfaces for status banners, chips, calendar cells */
 export const surfaces = {
   /** Primary frosted card fill (pair with BlurView via GlassPanel). */
-  glass: 'rgba(255,255,255,0.52)',
-  glassSoft: 'rgba(255,255,255,0.38)',
-  glassSheet: 'rgba(246,250,242,0.68)',
-  glassBorder: 'rgba(255,255,255,0.62)',
-  glassBorderStrong: 'rgba(180,220,165,0.92)',
-  glassDark: 'rgba(14,58,32,0.14)',
+  glass: 'rgba(255,255,255,0.58)',
+  glassSoft: 'rgba(255,255,255,0.42)',
+  glassSheet: 'rgba(246,250,242,0.72)',
+  glassBorder: 'rgba(255,255,255,0.68)',
+  glassBorderStrong: 'rgba(180,220,165,0.95)',
+  glassDark: 'rgba(14,58,32,0.16)',
   glassScreenBase: '#FAFCF8',
-  glassPanelTint: 'rgba(255,255,255,0.42)',
-  glassTabTint: 'rgba(255,255,255,0.55)',
-  glassInput: 'rgba(255,255,255,0.68)',
+  glassPanelTint: 'rgba(255,255,255,0.48)',
+  glassTabTint: 'rgba(255,255,255,0.58)',
+  glassInput: 'rgba(255,255,255,0.72)',
   tintSuccess: '#DCFCE7',
   tintSuccessInk: colors.forest,
   tintWarning: '#FEF3C7',

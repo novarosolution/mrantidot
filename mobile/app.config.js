@@ -1,41 +1,35 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const PLACEHOLDER = /REPLACE|YOUR-SERVICE|your-public-api|example\.com/i;
+const LIVE_API_URL = 'http://13.60.23.65:4001';
+const BLOCKED = /localhost|127\.0\.0\.1|10\.0\.2\.2|0\.0\.0\.0|REPLACE|YOUR-SERVICE|example\.com/i;
 
 function readApiUrlFromFile(filePath) {
   try {
     if (!fs.existsSync(filePath)) return undefined;
     const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     const url = (data.API_URL || data.apiUrl || '').trim();
-    if (url && !PLACEHOLDER.test(url)) return url.replace(/\/$/, '');
+    if (url && !BLOCKED.test(url)) return url.replace(/\/$/, '');
   } catch {
     // ignore
   }
   return undefined;
 }
 
-/**
- * Resolve API URL for Expo/EAS builds.
- * Order: EXPO_PUBLIC_API_URL → mobile/deploy.api.json → ../deploy.config.json → app.json extra.
- */
 function resolveDeployApiUrl(fallbackFromAppJson) {
   const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim();
-  if (fromEnv && !PLACEHOLDER.test(fromEnv)) {
+  if (fromEnv && !BLOCKED.test(fromEnv)) {
     return fromEnv.replace(/\/$/, '');
   }
 
   const fromMobile = readApiUrlFromFile(path.join(__dirname, 'deploy.api.json'));
   if (fromMobile) return fromMobile;
 
-  const fromRoot = readApiUrlFromFile(path.join(__dirname, '..', 'deploy.config.json'));
-  if (fromRoot) return fromRoot;
-
-  if (fallbackFromAppJson && !PLACEHOLDER.test(fallbackFromAppJson)) {
+  if (fallbackFromAppJson && !BLOCKED.test(fallbackFromAppJson)) {
     return fallbackFromAppJson.replace(/\/$/, '');
   }
 
-  return undefined;
+  return LIVE_API_URL;
 }
 
 const appJson = require('./app.json');
@@ -47,10 +41,7 @@ module.exports = ({ config }) => {
     typeof base.extra?.apiUrl === 'string' ? base.extra.apiUrl.trim() : undefined;
   const apiUrl = resolveDeployApiUrl(fallbackExtra);
 
-  // Always bake into Expo public env so Metro inlines it into release APK/IPA.
-  if (apiUrl) {
-    process.env.EXPO_PUBLIC_API_URL = apiUrl;
-  }
+  process.env.EXPO_PUBLIC_API_URL = apiUrl;
 
   return {
     ...config,
@@ -58,7 +49,6 @@ module.exports = ({ config }) => {
     android: {
       ...(base.android ?? {}),
       ...(config.android ?? {}),
-      // Required for http:// API hosts (cleartext). Without this, release APKs fail networking.
       usesCleartextTraffic: true,
     },
     ios: {
@@ -75,7 +65,7 @@ module.exports = ({ config }) => {
     extra: {
       ...(base.extra ?? {}),
       ...(config.extra ?? {}),
-      apiUrl: apiUrl ?? null,
+      apiUrl,
     },
   };
 };

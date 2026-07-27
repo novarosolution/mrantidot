@@ -1,115 +1,58 @@
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
-
-/** Must match server/.env PORT (default 4001 — port 4000 is often taken on macOS). */
-const DEFAULT_PORT = 4001;
 
 /**
- * In Expo dev, the device reaches Metro at a specific host/IP. Re-using that same
- * host for the API guarantees reachability and means we never have to hand-edit an
- * IP in .env when the network (and the Mac's LAN IP) changes.
+ * Live AWS API — never fall back to localhost / 10.0.2.2 / 127.0.0.1.
+ * Expo Go, emulators, and release APKs all use this public host.
  */
-/** Only return a port when the URL explicitly includes one (never assume 443/80). */
-function parseExplicitPort(url: string | undefined): number | undefined {
-  if (!url) return undefined;
-  try {
-    const port = new URL(url).port;
-    if (port) return parseInt(port, 10);
-    return undefined;
-  } catch {
-    return undefined;
-  }
+export const LIVE_API_URL = 'http://13.60.23.65:4001';
+
+const BLOCKED_HOST = /localhost|127\.0\.0\.1|10\.0\.2\.2|0\.0\.0\.0/i;
+
+function stripSlash(url: string): string {
+  return url.replace(/\/+$/, '');
 }
 
-function isRemoteProductionUrl(url: string | undefined): boolean {
-  if (!url) return false;
+function isUsableApiUrl(url: string | undefined | null): url is string {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  if (BLOCKED_HOST.test(trimmed)) return false;
+  if (/REPLACE|YOUR-SERVICE|your-public-api|example\.com/i.test(trimmed)) return false;
   try {
-    const parsed = new URL(url);
-    if (parsed.protocol === 'https:') return true;
-    const host = parsed.hostname;
-    if (host === 'localhost' || host === '127.0.0.1' || host === '10.0.2.2') return false;
-    if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(host)) return false;
-    return true;
+    const parsed = new URL(trimmed);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
   } catch {
     return false;
   }
 }
 
-function devHostApiUrl(port: number): string | undefined {
-  const hostUri =
-    Constants.expoConfig?.hostUri ??
-    (Constants as { expoGoConfig?: { debuggerHost?: string } }).expoGoConfig?.debuggerHost ??
-    (Constants as { manifest2?: { extra?: { expoGo?: { debuggerHost?: string } } } }).manifest2?.extra
-      ?.expoGo?.debuggerHost ??
-    (Constants as { manifest?: { debuggerHost?: string } }).manifest?.debuggerHost;
-
-  if (!hostUri) return undefined;
-  let host = String(hostUri).split(':')[0]?.trim();
-  if (!host) return undefined;
-
-  if (Platform.OS === 'android' && (host === 'localhost' || host === '127.0.0.1')) {
-    host = '10.0.2.2';
-  }
-
-  return `http://${host}:${port}`;
+function fromExpoExtra(): string | undefined {
+  const extra = Constants.expoConfig?.extra ?? (Constants as { manifest?: { extra?: Record<string, unknown> } }).manifest?.extra;
+  const raw = extra && typeof extra.apiUrl === 'string' ? extra.apiUrl : undefined;
+  return isUsableApiUrl(raw) ? stripSlash(raw.trim()) : undefined;
 }
 
-const fromExtra =
-  typeof Constants.expoConfig?.extra?.apiUrl === 'string'
-    ? Constants.expoConfig.extra.apiUrl.trim()
-    : typeof (Constants as { manifest?: { extra?: { apiUrl?: string } } }).manifest?.extra?.apiUrl ===
-        'string'
-      ? (Constants as { manifest: { extra: { apiUrl: string } } }).manifest.extra.apiUrl.trim()
-      : undefined;
+function resolveApiUrl(): string {
+  const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (isUsableApiUrl(fromEnv)) return stripSlash(fromEnv);
 
-const envApiUrl = process.env.EXPO_PUBLIC_API_URL?.trim() || undefined;
+  const fromExtra = fromExpoExtra();
+  if (fromExtra) return fromExtra;
 
-/**
- * Production https URLs (from deploy.config) must NOT supply the port for Metro
- * auto-detect — that caused http://<lan-ip>:443 unreachable errors.
- */
-const localPinnedUrl =
-  envApiUrl && !isRemoteProductionUrl(envApiUrl) ? envApiUrl : undefined;
-
-const apiPort = parseExplicitPort(localPinnedUrl) ?? DEFAULT_PORT;
-const auto = __DEV__ ? devHostApiUrl(apiPort) : undefined;
-
-const forceExplicit =
-  process.env.EXPO_PUBLIC_API_URL_FORCE === '1' ||
-  process.env.EXPO_PUBLIC_API_URL_FORCE === 'true';
-
-const resolvedApiUrl = (() => {
-  if (__DEV__) {
-    if (forceExplicit && envApiUrl) return envApiUrl.replace(/\/$/, '');
-    if (auto) return auto;
-    if (localPinnedUrl) return localPinnedUrl.replace(/\/$/, '');
-    // Prefer baked deploy URL over localhost when present (useful for device testing).
-    if (fromExtra && isRemoteProductionUrl(fromExtra)) return fromExtra.replace(/\/$/, '');
-    return `http://127.0.0.1:${DEFAULT_PORT}`;
-  }
-  // Release APK/IPA: prefer Expo extra (app.config.js) then EXPO_PUBLIC_* from EAS env.
-  const prod = (fromExtra || envApiUrl)?.replace(/\/$/, '');
-  return prod ?? `http://127.0.0.1:${DEFAULT_PORT}`;
-})();
-
-function forAndroidEmulator(url: string): string {
-  if (Platform.OS !== 'android' || Constants.isDevice) return url;
-  try {
-    const parsed = new URL(url);
-    parsed.hostname = '10.0.2.2';
-    return parsed.toString().replace(/\/$/, '');
-  } catch {
-    return url;
-  }
+  return LIVE_API_URL;
 }
 
-if (!__DEV__ && !envApiUrl && !fromExtra) {
-  console.warn(
-    '[config] Set deploy.config.json / mobile/deploy.api.json / eas.json EXPO_PUBLIC_API_URL. ' +
-      'Falling back to localhost (APK will not reach production API).',
-  );
-}
+const apiUrl = resolveApiUrl();
+
+console.log('[config] API resolved', {
+  apiUrl,
+  EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL ?? null,
+  EXPO_PUBLIC_API_URL_FORCE: process.env.EXPO_PUBLIC_API_URL_FORCE ?? null,
+  expoConfigExtra: Constants.expoConfig?.extra?.apiUrl ?? null,
+  manifestExtra: (Constants as { manifest?: { extra?: { apiUrl?: string } } }).manifest?.extra?.apiUrl ?? null,
+  __DEV__,
+});
 
 export const config = {
-  apiUrl: __DEV__ ? forAndroidEmulator(resolvedApiUrl) : resolvedApiUrl,
+  apiUrl,
 };

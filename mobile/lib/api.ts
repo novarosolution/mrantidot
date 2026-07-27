@@ -1,61 +1,29 @@
-import axios, { AxiosError, type AxiosRequestConfig, type AxiosResponse } from 'axios';
+import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import { appToast } from '@/lib/toast';
-import {
-  apiCacheKey,
-  clearApiCache,
-  invalidateAfterMutation,
-  readApiCacheEntry,
-  writeApiCache,
-} from '@/lib/apiCache';
+import { clearApiCache, invalidateAfterMutation } from '@/lib/apiCache';
 import { config } from './config';
 import { clearSession, getToken } from './storage';
 import type { ApiErrorBody } from '@/types/axios';
 
+/** Single shared Axios client — every app request goes through this instance. */
 export const api = axios.create({
   baseURL: `${config.apiUrl}/api`,
-  timeout: 20000,
-  headers: { 'Content-Type': 'application/json' },
+  timeout: 30000,
+  headers: {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  },
+  transitional: { clarifyTimeoutError: true },
 });
 
-const nativeGet = api.get.bind(api);
-
-function cachedResponse<T>(data: T, config?: AxiosRequestConfig): AxiosResponse<T> {
-  return {
-    data,
-    status: 200,
-    statusText: 'OK',
-    headers: {},
-    config: config ?? {},
-  } as AxiosResponse<T>;
+// Prefer fetch adapter in Expo Go (cleartext HTTP is more reliable than XHR).
+if (typeof fetch === 'function') {
+  try {
+    api.defaults.adapter = 'fetch';
+  } catch {
+    // keep default adapter
+  }
 }
-
-const getWithCache = async function getWithCache<T = unknown>(
-  url: string,
-  config?: AxiosRequestConfig,
-): Promise<AxiosResponse<T>> {
-  const ttl = config?.cacheTtlMs;
-  if (ttl && !config?.skipCache) {
-    const key = apiCacheKey('GET', url, config?.params);
-    const entry = readApiCacheEntry<T>(key, ttl);
-    if (entry && !entry.stale) {
-      return cachedResponse(entry.data, config);
-    }
-    if (entry?.stale) {
-      void nativeGet<T>(url, config)
-        .then((response) => writeApiCache(key, response.data))
-        .catch(() => undefined);
-      return cachedResponse(entry.data, config);
-    }
-  }
-
-  const response = await nativeGet<T>(url, config);
-  if (ttl && !config?.skipCache) {
-    writeApiCache(apiCacheKey('GET', url, config?.params), response.data);
-  }
-  return response;
-};
-
-api.get = getWithCache as typeof api.get;
 
 /** Pass on GETs inside useScreenLoad to avoid duplicate toast + inline retry. */
 export const screenLoadConfig: AxiosRequestConfig = { skipErrorToast: true };
@@ -70,8 +38,8 @@ function isAuthAttempt(url: string | undefined): boolean {
   return AUTH_ATTEMPT_PATHS.some((path) => url.includes(path));
 }
 
-function bearerToken(config: AxiosRequestConfig | undefined): string | null {
-  const header = config?.headers?.Authorization;
+function bearerToken(reqConfig: AxiosRequestConfig | undefined): string | null {
+  const header = reqConfig?.headers?.Authorization;
   if (typeof header !== 'string' || !header.startsWith('Bearer ')) return null;
   return header.slice(7);
 }
@@ -93,6 +61,18 @@ function looksLikeHtml(body: unknown): boolean {
   return sample.includes('<!doctype') || sample.includes('<html') || sample.includes('service suspended');
 }
 
+function requestUrl(error: AxiosError): string {
+  try {
+    if (error.config) return axios.getUri(error.config);
+  } catch {
+    // ignore
+  }
+  const base = error.config?.baseURL ?? `${config.apiUrl}/api`;
+  const path = error.config?.url ?? '';
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+/** Human + machine-readable network / HTTP errors for login + toasts. */
 export function getApiErrorMessage(error: unknown, fallback = 'Something went wrong'): string {
   if (!axios.isAxiosError(error)) {
     return error instanceof Error ? error.message : fallback;
@@ -105,22 +85,42 @@ export function getApiErrorMessage(error: unknown, fallback = 'Something went wr
   }
 
   if (looksLikeHtml(body)) {
-    return `API host is down or suspended. Use local server (${config.apiUrl}) or update deploy.config.json.`;
+    return `API returned HTML instead of JSON (${config.apiUrl})`;
   }
 
-  if (!error.response) {
-    if (error.code === 'ECONNABORTED') return 'Request timed out. Please try again.';
-    return `Cannot reach server. Check API at ${config.apiUrl}`;
+  const status = error.response?.status;
+  if (status != null) {
+    if (status === 401) return 'Invalid credentials';
+    if (status === 403) return '403 Forbidden';
+    if (status === 404) return '404 Not Found';
+    if (status === 408) return '408 Request Timeout';
+    if (status === 422) return 'Please check your input and try again.';
+    if (status === 429) return 'Too many attempts. Try again later.';
+    if (status === 500) return '500 Internal Server Error';
+    if (status === 502) return '502 Bad Gateway';
+    if (status === 503) return '503 Service Unavailable';
+    if (status === 504) return '504 Gateway Timeout';
+    if (status >= 500) return `${status} Server Error`;
+    return `${status} ${error.response?.statusText || error.message}`.trim();
   }
 
-  const status = error.response.status;
-  if (status === 404) return 'The requested item was not found.';
-  if (status === 403) return 'You do not have permission to do that.';
-  if (status === 422) return 'Please check your input and try again.';
-  if (status === 503) return 'Database or API temporarily unavailable. Try again.';
-  if (status >= 500) return 'Server error. Please try again later.';
+  const code = error.code ?? 'NETWORK_ERROR';
+  const msg = error.message || 'Network request failed';
 
-  return error.message || fallback;
+  if (code === 'ECONNABORTED' || code === 'ETIMEDOUT' || /timeout/i.test(msg)) {
+    return `Timeout (${code}) — ${config.apiUrl}`;
+  }
+  if (code === 'ECONNREFUSED') {
+    return `ECONNREFUSED — ${config.apiUrl}`;
+  }
+  if (code === 'ENOTFOUND') {
+    return `ENOTFOUND — DNS failed for ${config.apiUrl}`;
+  }
+  if (code === 'ERR_NETWORK' || /network request failed/i.test(msg)) {
+    return `Network request failed (${code}) — ${config.apiUrl}`;
+  }
+
+  return `${code}: ${msg}`;
 }
 
 export function setUnauthorizedHandler(handler: () => void | Promise<void>): void {
@@ -128,6 +128,9 @@ export function setUnauthorizedHandler(handler: () => void | Promise<void>): voi
 }
 
 api.interceptors.request.use(async (req) => {
+  // Always pin to resolved config (never a stale / localhost baseURL).
+  req.baseURL = `${config.apiUrl}/api`;
+
   const url = req.url ?? '';
   const isPublicAuth = isAuthAttempt(url);
   const token = isPublicAuth ? null : await getToken();
@@ -138,7 +141,6 @@ api.interceptors.request.use(async (req) => {
     delete req.headers.Authorization;
   }
 
-  // Default JSON Content-Type breaks multipart uploads (missing boundary).
   if (typeof FormData !== 'undefined' && req.data instanceof FormData) {
     const headers = req.headers as { delete?: (name: string) => void } & Record<string, unknown>;
     if (typeof headers.delete === 'function') {
@@ -150,11 +152,24 @@ api.interceptors.request.use(async (req) => {
     }
   }
 
+  try {
+    const fullUrl = axios.getUri(req);
+    console.log('[api→]', (req.method ?? 'GET').toUpperCase(), fullUrl);
+  } catch {
+    console.log('[api→]', (req.method ?? 'GET').toUpperCase(), req.baseURL, req.url);
+  }
+
   return req;
 });
 
 api.interceptors.response.use(
   (res) => {
+    console.log('[api←]', res.status, {
+      url: axios.getUri(res.config),
+      headers: res.headers,
+      body: res.data,
+    });
+
     const method = res.config.method?.toUpperCase();
     if (method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
       invalidateAfterMutation(res.config.url ?? '');
@@ -162,19 +177,29 @@ api.interceptors.response.use(
     return res;
   },
   async (error: AxiosError<ApiErrorBody>) => {
+    const url = requestUrl(error);
+    console.error('[api←ERR]', {
+      code: error.code,
+      message: error.message,
+      stack: error.stack,
+      url,
+      status: error.response?.status,
+      body: error.response?.data,
+    });
+
     const message = getApiErrorMessage(error);
     const silent401 = error.config?.silent401 === true;
     const skipToast = error.config?.skipErrorToast === true;
-    const url = error.config?.url ?? '';
+    const path = error.config?.url ?? '';
     const status = error.response?.status;
     const showToast = shouldShowToast(error, silent401, skipToast);
 
-    if (status === 404 && error.config?.method?.toUpperCase() === 'GET' && url.includes('/services')) {
+    if (status === 404 && error.config?.method?.toUpperCase() === 'GET' && path.includes('/services')) {
       clearApiCache('/services');
     }
 
     if (status === 401) {
-      if (isAuthAttempt(url)) {
+      if (isAuthAttempt(path)) {
         if (showToast) appToast.error(message);
         return Promise.reject(error);
       }
@@ -201,7 +226,7 @@ api.interceptors.response.use(
       if (status) {
         appToast.error(message);
       } else {
-        appToast.offline('Cannot reach server', `Check API at ${config.apiUrl}`);
+        appToast.offline(error.code ?? 'NETWORK_ERROR', message);
       }
     }
 
@@ -209,14 +234,18 @@ api.interceptors.response.use(
   },
 );
 
+/** Health check via the same axios instance (never a second client). */
 export async function checkHealth(): Promise<{
   ok: boolean;
   db: string;
   dbMode?: string;
 }> {
-  const { data } = await axios.get(`${config.apiUrl}/api/health`, { timeout: 10000 });
+  const { data } = await api.get<{ ok: boolean; db: string; dbMode?: string }>('/health', {
+    skipErrorToast: true,
+    timeout: 15000,
+  });
   if (looksLikeHtml(data)) {
-    throw new Error(`API host is down or suspended (${config.apiUrl})`);
+    throw new Error(`API returned HTML (${config.apiUrl})`);
   }
   return data;
 }

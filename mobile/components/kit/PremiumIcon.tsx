@@ -302,11 +302,19 @@ export function PremiumIcon({
     return (
       <View style={[styles.glassBox, { width: box, height: box, borderRadius: r }, style]}>
         <LinearGradient
-          colors={['rgba(255,255,255,0.98)', 'rgba(240,250,234,0.94)', 'rgba(220,240,200,0.78)']}
-          locations={[0, 0.5, 1]}
+          colors={['rgba(255,255,255,0.98)', 'rgba(240,250,234,0.92)', 'rgba(200,240,122,0.55)']}
+          locations={[0, 0.45, 1]}
           style={StyleSheet.absoluteFill}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
+        />
+        <LinearGradient
+          colors={['rgba(255,255,255,0.7)', 'rgba(255,255,255,0)', 'rgba(10,100,35,0.06)']}
+          locations={[0, 0.5, 1]}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          pointerEvents="none"
         />
         <TileShine />
         <TileRim />

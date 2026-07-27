@@ -1,14 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
+import { AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
-import { customerScrollProps } from '@/components/kit/GlassScreenKit';
+import { GlassPanel, customerScrollProps } from '@/components/kit/GlassScreenKit';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { adminRoutes } from '@/lib/routes';
 import type { LeaveRequest } from '@/types/api';
-import { fonts, spacing } from '@/constants/theme';
+import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+
+const FILTERS = [
+  { key: 'pending', label: 'Pending' },
+  { key: 'approved', label: 'Approved' },
+  { key: 'rejected', label: 'Rejected' },
+] as const;
 
 export default function AdminLeaveScreen() {
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
@@ -69,11 +76,11 @@ export default function AdminLeaveScreen() {
   return (
     <AdminListShell title="Leave requests" subtitle="Approve technician time off" backFallback={adminRoutes.team}>
       <View style={styles.tabs}>
-        {(['pending', 'approved', 'rejected'] as const).map((f) => (
-          <Pressable key={f} style={[styles.tab, filter === f && styles.tabOn]} onPress={() => setFilter(f)}>
-            <Text style={[styles.tabText, filter === f && styles.tabTextOn]}>{f}</Text>
-          </Pressable>
-        ))}
+        <AdminFilterChips
+          chips={FILTERS.map((f) => ({ key: f.key, label: f.label }))}
+          selected={filter}
+          onSelect={(key) => setFilter(key as typeof filter)}
+        />
       </View>
       {loading ? (
         <Spinner />
@@ -93,15 +100,18 @@ export default function AdminLeaveScreen() {
                   setRefreshing(false);
                 }
               }}
+              tintColor={colors.forest}
             />
           }
           {...customerScrollProps}
         >
           {leaves.length === 0 ? (
-            <Text style={styles.empty}>No {filter} leave requests</Text>
+            <GlassPanel tone="mint">
+              <Text style={styles.empty}>No {filter} leave requests</Text>
+            </GlassPanel>
           ) : (
             leaves.map((l) => (
-              <View key={l.id} style={styles.card}>
+              <GlassPanel key={l.id} goldEdge tone="light" style={styles.card}>
                 <Text style={styles.name}>{l.technicianName || 'Technician'}</Text>
                 <Text style={styles.meta}>
                   {l.from === l.to ? l.from : `${l.from} → ${l.to}`} · {l.type}
@@ -117,9 +127,11 @@ export default function AdminLeaveScreen() {
                     </Pressable>
                   </View>
                 ) : (
-                  <Text style={styles.status}>{l.status}</Text>
+                  <View style={styles.statusPill}>
+                    <Text style={styles.status}>{l.status}</Text>
+                  </View>
                 )}
-              </View>
+              </GlassPanel>
             ))
           )}
         </ScrollView>
@@ -129,43 +141,41 @@ export default function AdminLeaveScreen() {
 }
 
 const styles = StyleSheet.create({
-  tabs: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md, marginBottom: 8 },
-  tab: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: '#FFFFFF',
+  tabs: { paddingBottom: spacing.xs },
+  content: { gap: 12 },
+  empty: { textAlign: 'center', fontFamily: fonts.body, color: colors.muted, paddingVertical: spacing.lg },
+  card: { borderRadius: premium.radiusCard },
+  name: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.ink },
+  meta: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, marginTop: 4 },
+  reason: { marginTop: 8, fontFamily: fonts.body, fontSize: 13, color: colors.ink, lineHeight: 18 },
+  statusPill: {
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    backgroundColor: surfaces.glassSoft,
+    borderWidth: 1,
+    borderColor: surfaces.glassBorderStrong,
   },
-  tabOn: { backgroundColor: '#0A6423' },
-  tabText: { fontFamily: fonts.bodySemi, fontSize: 13, color: '#5A7360', textTransform: 'capitalize' },
-  tabTextOn: { color: '#FFFFFF' },
-  content: { gap: 10 },
-  empty: { textAlign: 'center', marginTop: 40, fontFamily: fonts.body, color: '#8FA696' },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    gap: 4,
-  },
-  name: { fontFamily: fonts.bodyBold, fontSize: 16, color: '#0C1F12' },
-  meta: { fontFamily: fonts.body, fontSize: 13, color: '#5A7360' },
-  reason: { marginTop: 4, fontFamily: fonts.body, fontSize: 13, color: '#0C1F12' },
-  status: { marginTop: 8, fontFamily: fonts.bodySemi, fontSize: 12, color: '#5A7360', textTransform: 'capitalize' },
-  actions: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  status: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, textTransform: 'capitalize' },
+  actions: { flexDirection: 'row', gap: 10, marginTop: 14 },
   approve: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#0A6423',
+    borderRadius: 14,
+    backgroundColor: colors.forest,
   },
-  approveText: { fontFamily: fonts.bodyBold, color: '#FFFFFF' },
+  approveText: { fontFamily: fonts.bodyBold, color: colors.white },
   reject: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#FBE7E1',
+    borderRadius: 14,
+    backgroundColor: colors.errorBg,
+    borderWidth: 1,
+    borderColor: 'rgba(179,63,40,0.2)',
   },
-  rejectText: { fontFamily: fonts.bodyBold, color: '#B33F28' },
+  rejectText: { fontFamily: fonts.bodyBold, color: colors.error },
 });

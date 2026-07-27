@@ -95,8 +95,8 @@ export default function CustomerHome() {
         if (axios.isAxiosError(err) && !err.response) {
           try {
             await checkHealth();
-          } catch {
-            msg = `Server unreachable. Check API at ${config.apiUrl}`;
+          } catch (healthErr) {
+            msg = getApiErrorMessage(healthErr, `Network error — ${config.apiUrl}`);
           }
         }
         setLoadError(msg);

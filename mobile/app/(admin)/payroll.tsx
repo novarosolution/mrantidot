@@ -1,14 +1,17 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { formatRupee } from '@/components/kit/format';
-import { customerScrollProps } from '@/components/kit/GlassScreenKit';
+import { GlassPanel, customerScrollProps } from '@/components/kit/GlassScreenKit';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, safeAsync, screenLoadConfig } from '@/lib/api';
 import { adminRoutes, appPush } from '@/lib/routes';
 import type { PayrollRow } from '@/types/api';
-import { fonts } from '@/constants/theme';
+import { colors, fonts, premium, spacing } from '@/constants/theme';
 
 export default function AdminPayrollScreen() {
   const [rows, setRows] = useState<PayrollRow[]>([]);
@@ -70,32 +73,48 @@ export default function AdminPayrollScreen() {
                   setRefreshing(false);
                 }
               }}
+              tintColor={colors.forest}
             />
           }
           {...customerScrollProps}
         >
-          <View style={styles.summary}>
-            <Text style={styles.period}>
-              {from} → {to}
-            </Text>
-            <Text style={styles.total}>{formatRupee(totalEarnings)}</Text>
-            <Text style={styles.sub}>{totalJobs} completed jobs this period</Text>
+          <View style={styles.summaryShell}>
+            <LinearGradient
+              colors={['#1B873E', '#0A6423', '#043813']}
+              style={styles.summary}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.summaryGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+              <Text style={styles.period}>
+                {from} → {to}
+              </Text>
+              <Text style={styles.total}>{formatRupee(totalEarnings)}</Text>
+              <Text style={styles.sub}>{totalJobs} completed jobs this period</Text>
+            </LinearGradient>
           </View>
 
           {rows.map((r) => (
             <Pressable
               key={r.technicianId}
-              style={styles.card}
               onPress={() => appPush(adminRoutes.technician(r.technicianId))}
+              style={({ pressed }) => [pressed && styles.pressed]}
             >
-              <View style={styles.rowTop}>
-                <Text style={styles.name}>{r.name}</Text>
-                <Text style={styles.earn}>{formatRupee(r.earnings)}</Text>
-              </View>
-              <Text style={styles.meta}>
-                {r.jobsCompleted} jobs · {r.paySummary}
-                {r.disabled ? ' · Disabled' : r.available ? '' : ' · Off duty'}
-              </Text>
+              <GlassPanel goldEdge tone="light" style={styles.card}>
+                <View style={styles.rowTop}>
+                  <View style={styles.avatar}>
+                    <PremiumIcon icon={AppIcons.ui.user} variant="premium" size={18} color="#FFFFFF" boxSize={42} />
+                  </View>
+                  <View style={styles.rowBody}>
+                    <Text style={styles.name}>{r.name}</Text>
+                    <Text style={styles.meta}>
+                      {r.jobsCompleted} jobs · {r.paySummary}
+                      {r.disabled ? ' · Disabled' : r.available ? '' : ' · Off duty'}
+                    </Text>
+                  </View>
+                  <Text style={styles.earn}>{formatRupee(r.earnings)}</Text>
+                </View>
+              </GlassPanel>
             </Pressable>
           ))}
         </ScrollView>
@@ -105,29 +124,41 @@ export default function AdminPayrollScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { gap: 10 },
+  content: { gap: 12 },
+  summaryShell: {
+    borderRadius: premium.radiusCard,
+    overflow: 'hidden',
+    marginBottom: 4,
+    ...premium.shadowSoft,
+  },
   summary: {
-    backgroundColor: '#0A6423',
-    borderRadius: 18,
+    borderRadius: premium.radiusCard,
     padding: 18,
-    marginBottom: 6,
+    paddingTop: 22,
+    overflow: 'hidden',
+  },
+  summaryGold: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
   },
   period: { fontFamily: fonts.body, fontSize: 12, color: 'rgba(255,255,255,0.8)' },
   total: {
     marginTop: 6,
     fontFamily: fonts.displayExtra,
     fontSize: 28,
-    color: '#FFFFFF',
+    color: colors.white,
     letterSpacing: -0.5,
   },
   sub: { marginTop: 4, fontFamily: fonts.body, fontSize: 13, color: 'rgba(255,255,255,0.85)' },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 14,
-  },
-  rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
-  name: { flex: 1, fontFamily: fonts.bodyBold, fontSize: 15, color: '#0C1F12' },
-  earn: { fontFamily: fonts.displaySemi, fontSize: 16, color: '#0A6423' },
-  meta: { marginTop: 4, fontFamily: fonts.body, fontSize: 12, color: '#5A7360' },
+  card: { borderRadius: premium.radiusCard },
+  pressed: { opacity: 0.94, transform: [{ scale: 0.99 }] },
+  rowTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: {},
+  rowBody: { flex: 1, minWidth: 0 },
+  name: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.ink },
+  earn: { fontFamily: fonts.displaySemi, fontSize: 16, color: colors.forest },
+  meta: { marginTop: 3, fontFamily: fonts.body, fontSize: 12, color: colors.muted },
 });

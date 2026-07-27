@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { AppIcons } from '@/constants/appIcons';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { VolumeSphere } from '@/components/kit/PremiumMeshBg';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { Button } from './Button';
 import { colors, customerType, spacing } from '@/constants/theme';
@@ -18,9 +19,12 @@ export function EmptyState({
 }) {
   return (
     <View style={styles.wrap}>
-      <GlassPanel style={styles.card} goldEdge tone="clear" intensity={42}>
+      <GlassPanel style={styles.card} goldEdge tone="mint" intensity={48}>
         <View style={styles.inner}>
-          <PremiumIcon icon={AppIcons.empty} variant="ring" size="hero" color={colors.forest} boxSize={68} />
+          <View style={styles.orbWrap}>
+            <VolumeSphere size={110} tone="lime" opacity={0.7} style={styles.orb} withShadow={false} />
+            <PremiumIcon icon={AppIcons.empty} variant="ring" size="hero" color={colors.forest} boxSize={68} />
+          </View>
           <Text style={styles.title}>{title}</Text>
           {message ? <Text style={styles.message}>{message}</Text> : null}
           {actionLabel && onAction ? (
@@ -40,6 +44,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
+  orbWrap: {
+    width: 110,
+    height: 110,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  orb: { position: 'absolute' },
   title: {
     ...customerType.emptyTitle,
     textAlign: 'center',

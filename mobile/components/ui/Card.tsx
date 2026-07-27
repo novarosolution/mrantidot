@@ -11,13 +11,20 @@ interface CardProps extends PressableProps {
 function GlassFill({ accent }: { accent?: 'gold' | 'lime' | null }) {
   return (
     <>
-      <View style={[styles.glassTint, { backgroundColor: 'rgba(255,255,255,0.96)' }]} pointerEvents="none" />
+      <View style={[styles.glassTint, { backgroundColor: 'rgba(255,255,255,0.72)' }]} pointerEvents="none" />
       <LinearGradient
-        colors={['rgba(255,255,255,0.7)', 'rgba(255,255,255,0.08)', 'rgba(234,246,227,0.2)']}
-        locations={[0, 0.5, 1]}
+        colors={['rgba(255,255,255,0.88)', 'rgba(255,255,255,0.12)', 'rgba(200,240,122,0.18)']}
+        locations={[0, 0.48, 1]}
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
+        pointerEvents="none"
+      />
+      <LinearGradient
+        colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
+        style={styles.topSheen}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
         pointerEvents="none"
       />
       {accent ? (
@@ -74,6 +81,13 @@ const styles = StyleSheet.create({
   glassTint: {
     ...StyleSheet.absoluteFill,
     backgroundColor: surfaces.glassPanelTint,
+  },
+  topSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '42%',
   },
   accentBar: {
     position: 'absolute',
