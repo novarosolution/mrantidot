@@ -18,10 +18,10 @@ export const DEFAULT_CUSTOMER_UI_COPY: CustomerUiCopy = {
   homePopularBadge: 'Most booked',
 
   // Auth
-  authLoginTitle: 'Welcome\nback',
-  authLoginSubtitle: 'Sign in to book trusted care with {brand}',
-  authLoginEmailPlaceholder: 'you@example.com or 98XXXXXXXX',
-  authLoginPasswordPlaceholder: 'Enter your password',
+  authLoginTitle: 'Welcome back',
+  authLoginSubtitle: 'Sign in to continue',
+  authLoginEmailPlaceholder: 'Email or phone',
+  authLoginPasswordPlaceholder: 'Password',
   authLoginButton: 'Sign in',
   authLoginSuccessToast: 'Welcome back',
   authLoginErrorToast: 'Sign in failed',

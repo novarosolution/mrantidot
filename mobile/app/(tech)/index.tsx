@@ -8,8 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GlassBackdrop } from '@/components/kit/GlassScreenKit';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HeroDarkSlice } from '@/components/kit/HeroDarkSlice';
 import { homeShadow } from '@/components/kit/homeUi';
 import Toast from 'react-native-toast-message';
@@ -18,7 +17,7 @@ import { BookingListCard } from '@/components/kit/BookingListCard';
 import { TechCheckInCard, TechOffDutyCard, TechOnDutyCard } from '@/components/kit/TechPageKit';
 import { TechJobQuickBar } from '@/components/kit/TechJobQuickBar';
 import { TechPriorityBanner } from '@/components/kit/TechPriorityBanner';
-import { TechScreenGutter, TechScreenList, techScreenStyles } from '@/components/kit/TechScreenKit';
+import { TechScreen, TechScreenGutter, TechScreenList, techScreenStyles } from '@/components/kit/TechScreenKit';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
@@ -269,29 +268,27 @@ export default function TechDashboard() {
 
   if (loading) {
     return (
-      <View style={styles.rootShell}><GlassBackdrop /><SafeAreaView style={styles.safe} edges={['left', 'right']}>
-        {hero}
+      <TechScreen header={hero}>
         <View style={styles.loadingBody}>
           <Spinner />
         </View>
-      </SafeAreaView></View>
+      </TechScreen>
     );
   }
 
   if (loadError && bookings.length === 0) {
     return (
-      <View style={styles.rootShell}><GlassBackdrop /><SafeAreaView style={styles.safe} edges={['left', 'right']}>
-        {hero}
+      <TechScreen header={hero}>
         <ListEmptyRetry
           message={loadError}
           onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
         />
-      </SafeAreaView></View>
+      </TechScreen>
     );
   }
 
   return (
-    <View style={styles.rootShell}><GlassBackdrop /><SafeAreaView style={styles.safe} edges={['left', 'right']}>
+    <TechScreen header={hero}>
       <TechScreenList
         data={flatData}
         {...CUSTOMER_LIST_PERF}
@@ -439,13 +436,11 @@ export default function TechDashboard() {
           );
         }}
       />
-    </SafeAreaView></View>
+    </TechScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  rootShell: { flex: 1, backgroundColor: surfaces.glassScreenBase },
-  safe: { flex: 1, backgroundColor: 'transparent' },
   loadingBody: { flex: 1, justifyContent: 'center' },
   heroShell: { marginBottom: -4 },
   heroContent: {

@@ -1,14 +1,14 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { AdminBookingListCard } from '@/components/kit/AdminBookingListCard';
 import { adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/AdminActionSheet';
 import { AdminFilterChips, AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { AdminScreenHeader } from '@/components/kit/AdminScreenHeader';
-import { GlassBackdrop, TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
+import { AdminTabScreen } from '@/components/kit/AdminScreenKit';
+import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
@@ -25,7 +25,7 @@ import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { useUnreadNotifications } from '@/lib/useUnreadNotifications';
 import { userInitial } from '@/lib/userInitials';
 import type { Booking, BookingStatusCounts, User } from '@/types/api';
-import { colors, spacing, surfaces } from '@/constants/theme';
+import { colors, spacing } from '@/constants/theme';
 import { adminRoutes, appPush } from '@/lib/routes';
 
 const FILTERS = [
@@ -221,62 +221,52 @@ export default function AdminBookingsScreen() {
 
   if (error) {
     return (
-      <View style={styles.root}>
-        <GlassBackdrop />
-        <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-          {header}
-          <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
-        </SafeAreaView>
-      </View>
+      <AdminTabScreen header={header} scroll={false}>
+        <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
+      </AdminTabScreen>
     );
   }
 
   return (
-    <View style={styles.root}>
-      <GlassBackdrop />
-      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-        {header}
-        <FlatList
-          data={bookings}
-          keyExtractor={(b) => b.id}
-          {...ADMIN_LIST_PERF}
-          keyboardShouldPersistTaps="handled"
-          ListHeaderComponent={listHeader}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() =>
-                void refresh(async () => {
-                  await Promise.all([load(true), loadCounts(true)]);
-                })
-              }
-              tintColor={colors.green}
-            />
-          }
-          contentContainerStyle={[
-            bookings.length === 0 ? adminListShellStyles.empty : adminListShellStyles.list,
-            { paddingBottom: TAB_BAR_SCROLL_PAD },
-          ]}
-          ListEmptyComponent={<EmptyState title="No bookings" message="Try another filter or search" />}
-          renderItem={({ item }) => (
-            <AdminBookingListCard item={item} onOpen={openBooking} onAssign={assign} />
-          )}
-        />
-        <AdminActionSheet
-          visible={assignTarget !== null}
-          title="Assign technician"
-          message={assignTarget ? bookingServiceName(assignTarget) : undefined}
-          options={assignOptions}
-          onClose={() => setAssignTarget(null)}
-        />
-      </SafeAreaView>
-    </View>
+    <AdminTabScreen header={header} scroll={false}>
+      <FlatList
+        data={bookings}
+        keyExtractor={(b) => b.id}
+        {...ADMIN_LIST_PERF}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={listHeader}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() =>
+              void refresh(async () => {
+                await Promise.all([load(true), loadCounts(true)]);
+              })
+            }
+            tintColor={colors.green}
+          />
+        }
+        contentContainerStyle={[
+          bookings.length === 0 ? adminListShellStyles.empty : adminListShellStyles.list,
+          { paddingBottom: TAB_BAR_SCROLL_PAD },
+        ]}
+        ListEmptyComponent={<EmptyState title="No bookings" message="Try another filter or search" />}
+        renderItem={({ item }) => (
+          <AdminBookingListCard item={item} onOpen={openBooking} onAssign={assign} />
+        )}
+      />
+      <AdminActionSheet
+        visible={assignTarget !== null}
+        title="Assign technician"
+        message={assignTarget ? bookingServiceName(assignTarget) : undefined}
+        options={assignOptions}
+        onClose={() => setAssignTarget(null)}
+      />
+    </AdminTabScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, overflow: 'hidden', backgroundColor: surfaces.glassScreenBase },
-  safe: { flex: 1 },
   headerExtra: { paddingBottom: spacing.sm, gap: spacing.sm },
   searchWrap: { paddingHorizontal: spacing.md, paddingTop: spacing.xs },
 });

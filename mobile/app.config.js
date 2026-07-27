@@ -3,47 +3,79 @@ const path = require('node:path');
 
 const PLACEHOLDER = /REPLACE|YOUR-SERVICE|your-public-api|example\.com/i;
 
-function resolveDeployApiUrl() {
+function readApiUrlFromFile(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return undefined;
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    const url = (data.API_URL || data.apiUrl || '').trim();
+    if (url && !PLACEHOLDER.test(url)) return url.replace(/\/$/, '');
+  } catch {
+    // ignore
+  }
+  return undefined;
+}
+
+/**
+ * Resolve API URL for Expo/EAS builds.
+ * Order: EXPO_PUBLIC_API_URL → mobile/deploy.api.json → ../deploy.config.json → app.json extra.
+ */
+function resolveDeployApiUrl(fallbackFromAppJson) {
   const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim();
   if (fromEnv && !PLACEHOLDER.test(fromEnv)) {
     return fromEnv.replace(/\/$/, '');
   }
 
-  const configPath = path.join(__dirname, '..', 'deploy.config.json');
-  try {
-    if (fs.existsSync(configPath)) {
-      const deploy = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      const fromFile = deploy.API_URL?.trim();
-      if (fromFile && !PLACEHOLDER.test(fromFile)) {
-        return fromFile.replace(/\/$/, '');
-      }
-    }
-  } catch {
-    // ignore
+  const fromMobile = readApiUrlFromFile(path.join(__dirname, 'deploy.api.json'));
+  if (fromMobile) return fromMobile;
+
+  const fromRoot = readApiUrlFromFile(path.join(__dirname, '..', 'deploy.config.json'));
+  if (fromRoot) return fromRoot;
+
+  if (fallbackFromAppJson && !PLACEHOLDER.test(fallbackFromAppJson)) {
+    return fallbackFromAppJson.replace(/\/$/, '');
   }
 
-  return fromEnv?.replace(/\/$/, '');
+  return undefined;
 }
 
 const appJson = require('./app.json');
 
 /** @param {{ config: import('expo/config').ExpoConfig }} ctx */
 module.exports = ({ config }) => {
-  const apiUrl = resolveDeployApiUrl();
+  const base = appJson.expo;
+  const fallbackExtra =
+    typeof base.extra?.apiUrl === 'string' ? base.extra.apiUrl.trim() : undefined;
+  const apiUrl = resolveDeployApiUrl(fallbackExtra);
 
-  if (apiUrl && process.env.NODE_ENV === 'production') {
+  // Always bake into Expo public env so Metro inlines it into release APK/IPA.
+  if (apiUrl) {
     process.env.EXPO_PUBLIC_API_URL = apiUrl;
   }
-
-  const base = appJson.expo;
 
   return {
     ...config,
     ...base,
+    android: {
+      ...(base.android ?? {}),
+      ...(config.android ?? {}),
+      // Required for http:// API hosts (cleartext). Without this, release APKs fail networking.
+      usesCleartextTraffic: true,
+    },
+    ios: {
+      ...(base.ios ?? {}),
+      ...(config.ios ?? {}),
+      infoPlist: {
+        ...(base.ios?.infoPlist ?? {}),
+        ...(config.ios?.infoPlist ?? {}),
+        NSAppTransportSecurity: {
+          NSAllowsArbitraryLoads: true,
+        },
+      },
+    },
     extra: {
       ...(base.extra ?? {}),
       ...(config.extra ?? {}),
-      apiUrl: apiUrl ?? base.extra?.apiUrl ?? null,
+      apiUrl: apiUrl ?? null,
     },
   };
 };

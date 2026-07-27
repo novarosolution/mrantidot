@@ -745,10 +745,12 @@ export const formField = {
   minHeight: 56,
   radius: 18,
   borderWidth: 1.5,
-  borderColor: 'rgba(26,135,52,0.12)',
+  borderColor: surfaces.glassBorderStrong,
   borderFocus: colors.forest,
-  bg: colors.white,
-  bgMuted: colors.card,
+  /** Frosted glass fill — pairs with mesh / GlassPanel screens. */
+  bg: surfaces.glassInput,
+  bgMuted: 'rgba(246,251,242,0.78)',
+  bgFocus: 'rgba(255,255,255,0.88)',
   labelSize: 12,
   inputSize: 15,
 };

@@ -1,1 +1,8 @@
-export { appToast, premiumToastConfig, TOAST_DEFAULTS, type AppToastOptions, type AppToastType } from '@/components/ui/PremiumToast';
+export {
+  appToast,
+  premiumToastConfig,
+  TOAST_DEFAULTS,
+  useToastTopOffset,
+  type AppToastOptions,
+  type AppToastType,
+} from '@/components/ui/PremiumToast';

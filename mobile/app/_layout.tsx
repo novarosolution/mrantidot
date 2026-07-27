@@ -12,7 +12,8 @@ import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { premiumToastConfig, TOAST_DEFAULTS } from '@/components/ui/PremiumToast';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { premiumToastConfig, TOAST_DEFAULTS, useToastTopOffset } from '@/components/ui/PremiumToast';
 import { AuthSplashLayout } from '@/components/kit/auth/AuthScreenKit';
 import { AuthProvider } from '@/context/AuthContext';
 import { AppContentProvider, DEFAULT_APP_CONFIG } from '@/context/AppContentContext';
@@ -21,6 +22,18 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { registerGlobalErrorHandlers } from '@/lib/registerGlobalErrorHandlers';
 import { setupDefaultFonts } from '@/lib/setupFonts';
 import { design, fonts } from '@/constants/theme';
+
+function AppToastHost() {
+  const topOffset = useToastTopOffset();
+  return (
+    <Toast
+      config={premiumToastConfig}
+      topOffset={topOffset}
+      visibilityTime={TOAST_DEFAULTS.visibilityTime}
+      position={TOAST_DEFAULTS.position}
+    />
+  );
+}
 
 registerGlobalErrorHandlers();
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -69,17 +82,19 @@ export default function RootLayout() {
   if (!fontsReady) return <BootSplash />;
 
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <LocationProvider>
-          <AppContentProvider>
-            <StatusBar style="dark" />
-            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: design.screenBg } }} />
-            <Toast config={premiumToastConfig} topOffset={TOAST_DEFAULTS.topOffset} visibilityTime={TOAST_DEFAULTS.visibilityTime} />
-          </AppContentProvider>
-        </LocationProvider>
-      </AuthProvider>
-    </ErrorBoundary>
+    <SafeAreaProvider>
+      <ErrorBoundary>
+        <AuthProvider>
+          <LocationProvider>
+            <AppContentProvider>
+              <StatusBar style="dark" />
+              <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: design.screenBg } }} />
+              <AppToastHost />
+            </AppContentProvider>
+          </LocationProvider>
+        </AuthProvider>
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }
 

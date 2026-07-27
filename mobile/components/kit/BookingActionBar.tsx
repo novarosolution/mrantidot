@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
-import { colors, classic, spacing } from '@/constants/theme';
+import { classic, spacing, surfaces } from '@/constants/theme';
 
 export function BookingActionBar({
   primaryTitle,
@@ -76,8 +76,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.white,
+    borderTopColor: surfaces.glassBorderStrong,
+    backgroundColor: surfaces.glassSheet,
   },
   goldAccent: {
     position: 'absolute',

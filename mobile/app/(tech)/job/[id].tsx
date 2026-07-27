@@ -9,7 +9,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import Toast from 'react-native-toast-message';
@@ -21,9 +20,9 @@ import { BookingTrackingTimeline } from '@/components/kit/BookingTrackingTimelin
 import { JobProgressCard } from '@/components/kit/JobProgressCard';
 import { OtpEntrySheet } from '@/components/kit/OtpEntrySheet';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
-import { GlassBackdrop, GlassPanel } from '@/components/kit/GlassScreenKit';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { homeShadow } from '@/components/kit/homeUi';
-import { TechScreenScroll } from '@/components/kit/TechScreenKit';
+import { TechScreen, TechScreenScroll } from '@/components/kit/TechScreenKit';
 import { Button } from '@/components/ui/Button';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { Input } from '@/components/ui/Input';
@@ -228,13 +227,11 @@ export default function TechJobScreen() {
 
   if (error || !booking) {
     return (
-      <View style={styles.root}>
-        <GlassBackdrop />
-        <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-          <CustomerPageHeader variant="premium" title="Job" showBack />
-          <ListEmptyRetry message={error ?? 'Job not found'} onRetry={() => void runLoad(load)} />
-        </SafeAreaView>
-      </View>
+      <TechScreen
+        header={<CustomerPageHeader variant="premium" title="Job" showBack />}
+      >
+        <ListEmptyRetry message={error ?? 'Job not found'} onRetry={() => void runLoad(load)} />
+      </TechScreen>
     );
   }
 
@@ -256,16 +253,17 @@ export default function TechJobScreen() {
   const headerLive = booking.status === 'in_progress';
 
   return (
-    <View style={styles.root}>
-      <GlassBackdrop />
-      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <CustomerPageHeader
-        variant="premium"
-        title={bookingServiceName(booking)}
-        subtitle={`Field job · ${bookingScheduleDisplay(booking)}`}
-        showBack
-        rightAction={headerLive ? <StatusBadge label="● Live" tone="success" /> : null}
-      />
+    <TechScreen
+      header={
+        <CustomerPageHeader
+          variant="premium"
+          title={bookingServiceName(booking)}
+          subtitle={`Field job · ${bookingScheduleDisplay(booking)}`}
+          showBack
+          rightAction={headerLive ? <StatusBadge label="● Live" tone="success" /> : null}
+        />
+      }
+    >
       <TechScreenScroll
         contentContainerStyle={styles.container}
         refreshControl={
@@ -534,14 +532,11 @@ export default function TechJobScreen() {
         onClose={() => setOtpSheet(null)}
         onSubmit={(otp) => void submitOtp(otp)}
       />
-      </SafeAreaView>
-    </View>
+    </TechScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: surfaces.glassScreenBase },
-  safe: { flex: 1, backgroundColor: 'transparent' },
   container: { paddingBottom: 120 },
   inset: { marginHorizontal: spacing.md },
   sectionHeader: { marginTop: spacing.sm },

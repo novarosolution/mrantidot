@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
 export function AdminFormCard({ children, style }: { children: ReactNode; style?: object }) {
   return (
     <View style={formStyles.shell}>
-      <GlassPanel style={[formStyles.card, style]} padded={false} tone="clear" intensity={42} goldEdge>
+      <GlassPanel style={[formStyles.card, style]} padded={false} tone="light" intensity={48} goldEdge>
         <View style={formStyles.inner}>{children}</View>
       </GlassPanel>
     </View>
@@ -254,7 +254,7 @@ export function AdminCollapsibleCard({
 
   return (
     <View style={collapseStyles.shell}>
-      <GlassPanel style={collapseStyles.wrap} padded={false} tone="clear" intensity={40}>
+      <GlassPanel style={collapseStyles.wrap} padded={false} tone="light" intensity={46} goldEdge>
         <Pressable
           onPress={() => setOpen((v) => !v)}
           style={({ pressed }) => [collapseStyles.head, pressed && collapseStyles.pressed]}

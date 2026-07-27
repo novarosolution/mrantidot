@@ -219,8 +219,9 @@ export function AuthLoginShell({
   title,
   subtitle,
   brandName = 'Mr Antidot',
-  brandTag = 'Pest control & care',
+  brandTag,
   showBack,
+  compact,
   children,
 }: {
   title: string;
@@ -232,10 +233,13 @@ export function AuthLoginShell({
   trustBadges?: string[];
   guaranteeText?: string;
   showBack?: boolean;
+  /** Tighter hero for login — brand + title only. */
+  compact?: boolean;
   children: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
   const enter = useLoginEnter();
+  const tag = brandTag?.trim();
 
   return (
     <KeyboardAvoidingView
@@ -245,7 +249,11 @@ export function AuthLoginShell({
       <LinearGradient
         colors={['#1F9A42', '#0A6423', '#043A16', '#02180C']}
         locations={[0, 0.38, 0.72, 1]}
-        style={[styles.loginHeroBlock, { paddingTop: insets.top + spacing.sm }]}
+        style={[
+          styles.loginHeroBlock,
+          compact && styles.loginHeroCompact,
+          { paddingTop: insets.top + (compact ? 6 : spacing.sm) },
+        ]}
         start={{ x: 0.12, y: 0 }}
         end={{ x: 0.88, y: 1 }}
       >
@@ -265,7 +273,6 @@ export function AuthLoginShell({
             end={{ x: 1, y: 1 }}
           />
         </Animated.View>
-        <View style={styles.heroRay} pointerEvents="none" />
         <LinearGradient
           colors={['rgba(255,255,255,0.16)', 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0)']}
           style={styles.heroSheen}
@@ -283,28 +290,30 @@ export function AuthLoginShell({
         )}
 
         <Animated.View style={[styles.heroInner, enter.hero]} pointerEvents="box-none">
-          <View style={styles.brandRow}>
+          <View style={[styles.brandRow, compact && styles.brandRowCompact]}>
             <LinearGradient
               colors={['#FFFFFF', '#F4FBF0']}
               start={{ x: 0.5, y: 0 }}
               end={{ x: 0.5, y: 1 }}
-              style={styles.brandTile}
+              style={[styles.brandTile, compact && styles.brandTileCompact]}
             >
-              <BrandLogo size={36} animate={false} />
+              <BrandLogo size={compact ? 32 : 36} animate={false} />
             </LinearGradient>
             <View style={styles.brandInfo}>
-              <Text style={styles.brandName} numberOfLines={1}>
+              <Text style={[styles.brandName, compact && styles.brandNameCompact]} numberOfLines={1}>
                 {brandName}
               </Text>
               <View style={styles.brandRule} />
-              <Text style={styles.brandSub} numberOfLines={1}>
-                {brandTag}
-              </Text>
+              {tag && !compact ? (
+                <Text style={styles.brandSub} numberOfLines={1}>
+                  {tag}
+                </Text>
+              ) : null}
             </View>
           </View>
 
-          <Text style={styles.heroTitle}>{title}</Text>
-          {subtitle ? <Text style={styles.heroDesc}>{subtitle}</Text> : null}
+          <Text style={[styles.heroTitle, compact && styles.heroTitleCompact]}>{title}</Text>
+          {subtitle && !compact ? <Text style={styles.heroDesc}>{subtitle}</Text> : null}
         </Animated.View>
 
         <LinearGradient
@@ -317,7 +326,7 @@ export function AuthLoginShell({
         />
       </LinearGradient>
 
-      <View style={styles.sheetWrap}>
+      <View style={[styles.sheetWrap, compact && styles.sheetWrapCompact]}>
         <View style={styles.sheet}>
           <LinearGradient
             colors={['#FBFEF9', '#F4FAEF', '#EAF6E3']}
@@ -520,6 +529,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     paddingBottom: spacing.xl + 36,
   },
+  loginHeroCompact: {
+    paddingBottom: spacing.lg + 28,
+  },
   heroGlowA: {
     position: 'absolute',
     top: -100,
@@ -581,6 +593,10 @@ const styles = StyleSheet.create({
     gap: 14,
     marginBottom: spacing.lg + 6,
   },
+  brandRowCompact: {
+    marginBottom: spacing.md,
+    gap: 12,
+  },
   brandTile: {
     width: 58,
     height: 58,
@@ -596,6 +612,11 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 10,
   },
+  brandTileCompact: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+  },
   brandInfo: { flex: 1, minWidth: 0, gap: 5 },
   brandName: {
     fontFamily: fonts.brand,
@@ -603,6 +624,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.7,
     color: '#FFFFFF',
     lineHeight: 31,
+  },
+  brandNameCompact: {
+    fontSize: 24,
+    lineHeight: 28,
   },
   brandRule: {
     width: 32,
@@ -625,6 +650,10 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.22)',
     textShadowOffset: { width: 0, height: 6 },
     textShadowRadius: 14,
+  },
+  heroTitleCompact: {
+    fontSize: 32,
+    lineHeight: 36,
   },
   heroDesc: {
     fontFamily: fonts.body,
@@ -649,6 +678,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   sheetWrap: { flex: 1, marginTop: -34 },
+  sheetWrapCompact: { marginTop: -28 },
   sheet: {
     flex: 1,
     borderTopLeftRadius: 36,
@@ -702,13 +732,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: spacing.lg + 6,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.55)',
-    borderWidth: 1,
-    borderColor: 'rgba(219,241,209,0.95)',
+    marginTop: spacing.lg,
+    paddingVertical: 4,
   },
 });
 

@@ -1,5 +1,5 @@
 import { Link } from 'expo-router';
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -18,7 +18,6 @@ import {
   AuthFooterText,
   AuthFormSection,
   AuthLoginShell,
-  AuthSecureNote,
 } from '@/components/kit/auth/AuthScreenKit';
 import { AuthField, authScreenStyles } from '@/components/kit/auth/AuthScreenLayout';
 import { useAuth } from '@/context/AuthContext';
@@ -27,31 +26,13 @@ import { getApiErrorMessage } from '@/lib/api';
 import { appPush, appReplace, authRoutes, customerRoutes, homeRouteForRole } from '@/lib/routes';
 import { isProfileIncomplete } from '@/lib/profile-display';
 import { appToast } from '@/lib/toast';
-import { useBrandFill, useCustomerUiCopy } from '@/lib/customer-ui-copy';
-import { spacing, colors, fonts, premium, premiumType } from '@/constants/theme';
-
-/** One-shot staggered fade-in. Opacity only — transforms break TextInput touch/focus. */
-function FadeIn({ delay = 0, children }: { delay?: number; children: ReactNode }) {
-  const v = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(v, {
-      toValue: 1,
-      duration: 460,
-      delay,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [v, delay]);
-
-  return <Animated.View style={{ opacity: v }}>{children}</Animated.View>;
-}
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { spacing, colors, fonts, premium } from '@/constants/theme';
 
 export default function LoginScreen() {
   const { login } = useAuth();
   const { content } = useAppContent();
   const ui = useCustomerUiCopy();
-  const { fill } = useBrandFill();
 
   const passwordRef = useRef<TextInput>(null);
   const [identifier, setIdentifier] = useState('');
@@ -61,7 +42,6 @@ export default function LoginScreen() {
   const [passwordError, setPasswordError] = useState<string>();
 
   const brandName = content.branding.name?.trim() || 'Mr Antidot';
-  const brandTag = content.branding.tagline?.trim() || 'Trusted pest control & home services';
   const supportContact = useMemo(() => {
     const phone = content.support?.phone?.trim();
     const email = content.support?.email?.trim();
@@ -74,13 +54,13 @@ export default function LoginScreen() {
       Animated.sequence([
         Animated.timing(arrowNudge, {
           toValue: 1,
-          duration: 950,
+          duration: 1100,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(arrowNudge, {
           toValue: 0,
-          duration: 950,
+          duration: 1100,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
@@ -131,20 +111,8 @@ export default function LoginScreen() {
   return (
     <>
       <StatusBar style="light" />
-      <AuthLoginShell
-        brandName={brandName}
-        brandTag={brandTag}
-        title={ui.authLoginTitle}
-        subtitle={fill(ui.authLoginSubtitle)}
-      >
+      <AuthLoginShell brandName={brandName} title={ui.authLoginTitle} compact>
         <AuthFormSection>
-          <FadeIn>
-            <View style={styles.formIntro}>
-              <Text style={styles.formKicker}>Account</Text>
-              <Text style={styles.formTitle}>Sign in to continue</Text>
-            </View>
-          </FadeIn>
-
           <AuthField
             label="Email or phone"
             value={identifier}
@@ -175,137 +143,106 @@ export default function LoginScreen() {
             onSubmitEditing={() => void handleLogin()}
           />
 
-          <FadeIn delay={120}>
-            <Pressable
-              style={styles.forgotBtn}
-              onPress={() => {
-                appToast.info(
-                  'Password reset',
-                  supportContact
-                    ? `Contact support: ${supportContact}`
-                    : 'Use OTP sign-in, or contact support from Help.',
-                );
-              }}
-              hitSlop={8}
-            >
-              <Text style={styles.forgotText}>Forgot password?</Text>
-            </Pressable>
-          </FadeIn>
+          <Pressable
+            style={styles.forgotBtn}
+            onPress={() => {
+              appToast.info(
+                'Password reset',
+                supportContact
+                  ? `Contact support: ${supportContact}`
+                  : 'Contact support from Help in the app.',
+              );
+            }}
+            hitSlop={8}
+          >
+            <Text style={styles.forgotText}>Forgot password?</Text>
+          </Pressable>
 
-          <FadeIn delay={180}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={ui.authLoginButton}
-              style={({ pressed }) => [pressed && !loading && styles.pressed]}
-              onPress={() => void handleLogin()}
-              disabled={loading}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={ui.authLoginButton}
+            style={({ pressed }) => [pressed && !loading && styles.pressed]}
+            onPress={() => void handleLogin()}
+            disabled={loading}
+          >
+            <LinearGradient
+              colors={['#3BC45A', '#1A8734', '#0A6423']}
+              locations={[0, 0.5, 1]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.cta, loading && styles.ctaLoading]}
             >
               <LinearGradient
-                colors={['#3BC45A', '#1A8734', '#0A6423']}
-                locations={[0, 0.5, 1]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[styles.cta, loading && styles.ctaLoading]}
-              >
-                <LinearGradient
-                  colors={['rgba(255,255,255,0.26)', 'rgba(255,255,255,0)']}
-                  style={styles.ctaSheen}
-                  start={{ x: 0.5, y: 0 }}
-                  end={{ x: 0.5, y: 1 }}
-                  pointerEvents="none"
-                />
-                {loading ? (
-                  <>
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                    <Text style={styles.ctaText}>Signing in…</Text>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.ctaText}>{ui.authLoginButton}</Text>
-                    <Animated.View
-                      style={{
-                        transform: [
-                          {
-                            translateX: arrowNudge.interpolate({
-                              inputRange: [0, 1],
-                              outputRange: [0, 3],
-                            }),
-                          },
-                        ],
-                      }}
-                    >
-                      <LinearGradient
-                        colors={['#FFFFFF', '#F2FAEE']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.ctaChip}
-                      >
-                        <PremiumIcon
-                          icon={AppIcons.ui.arrowRight}
-                          variant="plain"
-                          size={17}
-                          color="#0A6423"
-                          strokeWidth={2.5}
-                        />
-                      </LinearGradient>
-                    </Animated.View>
-                  </>
-                )}
-              </LinearGradient>
-            </Pressable>
-          </FadeIn>
+                colors={['rgba(255,255,255,0.28)', 'rgba(255,255,255,0)']}
+                style={styles.ctaSheen}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                pointerEvents="none"
+              />
+              {loading ? (
+                <>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <Text style={styles.ctaText}>Signing in…</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.ctaText}>{ui.authLoginButton}</Text>
+                  <Animated.View
+                    style={{
+                      transform: [
+                        {
+                          translateX: arrowNudge.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, 3],
+                          }),
+                        },
+                      ],
+                    }}
+                  >
+                    <View style={styles.ctaChip}>
+                      <PremiumIcon
+                        icon={AppIcons.ui.arrowRight}
+                        variant="plain"
+                        size={17}
+                        color="#0A6423"
+                        strokeWidth={2.5}
+                      />
+                    </View>
+                  </Animated.View>
+                </>
+              )}
+            </LinearGradient>
+          </Pressable>
 
           {__DEV__ ? (
-            <FadeIn delay={240}>
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>or continue with</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              <Pressable
-                style={({ pressed }) => [styles.otpBtn, pressed && styles.pressed]}
-                onPress={() => appPush(authRoutes.otp)}
-              >
-                <LinearGradient colors={['#FFFFFF', '#F2FAEE']} style={styles.otpDot}>
-                  <PremiumIcon
-                    icon={AppIcons.ui.phone}
-                    variant="plain"
-                    size={16}
-                    color="#1A8734"
-                    strokeWidth={2.15}
-                  />
-                </LinearGradient>
-                <View style={styles.otpCopy}>
-                  <Text style={styles.otpText}>Sign in with OTP</Text>
-                  <Text style={styles.otpHint}>Dev mock code 4700</Text>
-                </View>
-                <View style={styles.otpArrow}>
-                  <PremiumIcon
-                    icon={AppIcons.ui.chevronRight}
-                    variant="plain"
-                    size={16}
-                    color="#1A8734"
-                    strokeWidth={2.4}
-                  />
-                </View>
-              </Pressable>
-            </FadeIn>
+            <Pressable
+              style={({ pressed }) => [styles.otpBtn, pressed && styles.pressed]}
+              onPress={() => appPush(authRoutes.otp)}
+            >
+              <PremiumIcon
+                icon={AppIcons.ui.phone}
+                variant="mint"
+                size={16}
+                color={colors.forest}
+                boxSize={40}
+              />
+              <Text style={styles.otpText}>OTP sign-in</Text>
+              <PremiumIcon
+                icon={AppIcons.ui.chevronRight}
+                variant="plain"
+                size={16}
+                color={colors.muted}
+              />
+            </Pressable>
           ) : null}
-
-          <FadeIn delay={300}>
-            <AuthSecureNote text="Secure encrypted sign-in" />
-          </FadeIn>
         </AuthFormSection>
 
-        <FadeIn delay={360}>
-          <AuthFooterText>
-            <Text style={authScreenStyles.footer}>No account? </Text>
-            <Link href={authRoutes.register}>
-              <Text style={authScreenStyles.footerLink}>Create one free →</Text>
-            </Link>
-          </AuthFooterText>
-        </FadeIn>
+        <AuthFooterText>
+          <Text style={authScreenStyles.footer}>New here? </Text>
+          <Link href={authRoutes.register}>
+            <Text style={authScreenStyles.footerLink}>Create account</Text>
+          </Link>
+        </AuthFooterText>
       </AuthLoginShell>
     </>
   );
@@ -318,28 +255,11 @@ function displayUserGreeting(name?: string): string {
 }
 
 const styles = StyleSheet.create({
-  formIntro: {
-    marginBottom: spacing.md + 2,
-    gap: 4,
-  },
-  formKicker: {
-    ...premiumType.kicker,
-    fontSize: 10.5,
-    letterSpacing: 1.1,
-    color: '#6F9A74',
-  },
-  formTitle: {
-    fontFamily: fonts.display,
-    fontSize: 18,
-    letterSpacing: -0.3,
-    color: '#0B2213',
-  },
   forgotBtn: {
     alignSelf: 'flex-end',
-    marginBottom: spacing.md + 2,
-    marginTop: -2,
-    paddingVertical: 2,
-    paddingHorizontal: 2,
+    marginBottom: spacing.md + 4,
+    marginTop: -4,
+    paddingVertical: 4,
   },
   forgotText: {
     fontFamily: fonts.bodySemi,
@@ -351,17 +271,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 60,
-    borderRadius: 22,
+    minHeight: 58,
+    borderRadius: 20,
     paddingLeft: 22,
-    paddingRight: 7,
-    paddingVertical: 7,
+    paddingRight: 8,
+    paddingVertical: 8,
     overflow: 'hidden',
     ...premium.shadowSoft,
     shadowColor: '#0A6423',
-    shadowOpacity: 0.36,
-    shadowRadius: 20,
-    elevation: 12,
+    shadowOpacity: 0.34,
+    shadowRadius: 18,
+    elevation: 11,
   },
   ctaSheen: {
     position: 'absolute',
@@ -376,78 +296,37 @@ const styles = StyleSheet.create({
     paddingRight: 22,
   },
   ctaText: {
-    ...premiumType.button,
-    fontSize: 16.5,
-    letterSpacing: 0.15,
+    fontFamily: fonts.bodyBold,
+    fontSize: 16,
+    letterSpacing: 0.1,
     color: '#FFFFFF',
   },
   ctaChip: {
-    width: 46,
-    height: 46,
-    borderRadius: 15,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.6)',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  dividerLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(26,135,52,0.22)',
-  },
-  dividerText: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 11,
-    letterSpacing: 0.2,
-    color: '#86AC80',
+    borderColor: 'rgba(255,255,255,0.7)',
   },
   otpBtn: {
+    marginTop: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    minHeight: 66,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.82)',
+    minHeight: 56,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.72)',
     borderWidth: 1,
-    borderColor: 'rgba(143,208,60,0.55)',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    ...premium.shadowSoft,
-    shadowOpacity: 0.08,
+    borderColor: 'rgba(180,220,165,0.85)',
+    paddingHorizontal: 12,
   },
-  otpDot: {
-    width: 44,
-    height: 44,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: '#DBF1D1',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  otpCopy: { flex: 1, minWidth: 0, gap: 2 },
   otpText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 14.5,
-    color: '#0B2213',
-  },
-  otpHint: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: '#5C8A63',
-  },
-  otpArrow: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#EAF6E3',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flex: 1,
+    fontFamily: fonts.bodySemi,
+    fontSize: 14,
+    color: colors.ink,
   },
 });

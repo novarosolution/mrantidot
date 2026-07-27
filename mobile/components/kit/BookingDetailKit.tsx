@@ -7,7 +7,7 @@ import { AppIcons } from '@/constants/appIcons';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { mediaUrl } from '@/lib/images';
-import {  colors, fonts, premium, shadows, spacing , gradients } from '@/constants/theme';
+import {  colors, fonts, premium, shadows, spacing , gradients, surfaces } from '@/constants/theme';
 
 const STAGE_ICONS: LucideIcon[] = [
   AppIcons.ui.listChecks,
@@ -180,10 +180,10 @@ export function BookingPhotoGallery({ photos }: { photos: string[] }) {
 const styles = StyleSheet.create({
   section: { marginBottom: spacing.xs },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glassInput,
     borderRadius: premium.radiusCard,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: surfaces.glassBorderStrong,
     overflow: 'hidden',
     ...shadows.card,
   },
@@ -244,12 +244,12 @@ const styles = StyleSheet.create({
   treatmentCard: {
     marginHorizontal: spacing.md,
     marginBottom: spacing.sm,
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glassInput,
     borderRadius: premium.radiusCard,
     padding: spacing.md,
     paddingTop: spacing.sm,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.07)',
+    borderColor: surfaces.glassBorderStrong,
     overflow: 'hidden',
     ...shadows.card,
   },

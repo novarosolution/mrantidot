@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   body: {
     padding: spacing.md,
     gap: spacing.lg,
-    backgroundColor: 'rgba(244,248,241,0.42)',
+    backgroundColor: surfaces.glassSoft,
   },
   bodyCompact: {
     gap: spacing.md,
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   panel: {
-    backgroundColor: 'rgba(255,255,255,0.52)',
+    backgroundColor: surfaces.glassInput,
     borderRadius: 18,
     padding: spacing.md,
     borderWidth: 1,

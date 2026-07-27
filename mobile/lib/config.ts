@@ -57,7 +57,10 @@ function devHostApiUrl(port: number): string | undefined {
 const fromExtra =
   typeof Constants.expoConfig?.extra?.apiUrl === 'string'
     ? Constants.expoConfig.extra.apiUrl.trim()
-    : undefined;
+    : typeof (Constants as { manifest?: { extra?: { apiUrl?: string } } }).manifest?.extra?.apiUrl ===
+        'string'
+      ? (Constants as { manifest: { extra: { apiUrl: string } } }).manifest.extra.apiUrl.trim()
+      : undefined;
 
 const envApiUrl = process.env.EXPO_PUBLIC_API_URL?.trim() || undefined;
 
@@ -80,9 +83,12 @@ const resolvedApiUrl = (() => {
     if (forceExplicit && envApiUrl) return envApiUrl.replace(/\/$/, '');
     if (auto) return auto;
     if (localPinnedUrl) return localPinnedUrl.replace(/\/$/, '');
+    // Prefer baked deploy URL over localhost when present (useful for device testing).
+    if (fromExtra && isRemoteProductionUrl(fromExtra)) return fromExtra.replace(/\/$/, '');
     return `http://127.0.0.1:${DEFAULT_PORT}`;
   }
-  const prod = (envApiUrl || fromExtra)?.replace(/\/$/, '');
+  // Release APK/IPA: prefer Expo extra (app.config.js) then EXPO_PUBLIC_* from EAS env.
+  const prod = (fromExtra || envApiUrl)?.replace(/\/$/, '');
   return prod ?? `http://127.0.0.1:${DEFAULT_PORT}`;
 })();
 
@@ -99,8 +105,8 @@ function forAndroidEmulator(url: string): string {
 
 if (!__DEV__ && !envApiUrl && !fromExtra) {
   console.warn(
-    '[config] Set deploy.config.json API_URL (repo root) or EXPO_PUBLIC_API_URL for production builds. ' +
-      'Falling back to localhost.',
+    '[config] Set deploy.config.json / mobile/deploy.api.json / eas.json EXPO_PUBLIC_API_URL. ' +
+      'Falling back to localhost (APK will not reach production API).',
   );
 }
 

@@ -6,19 +6,55 @@ import {
   View,
   type FlatListProps,
   type ScrollViewProps,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
-import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
-import { spacing } from '@/constants/theme';
+import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
+import {
+  GlassBackdrop,
+  TAB_BAR_SCROLL_PAD,
+  customerScrollProps,
+} from '@/components/kit/GlassScreenKit';
+import { spacing, surfaces } from '@/constants/theme';
 
 /** Bottom inset so tab bar does not cover last items. */
 export const TECH_TAB_BAR_PAD = TAB_BAR_SCROLL_PAD;
 
 export const techScreenStyles = StyleSheet.create({
+  root: { flex: 1, overflow: 'hidden', backgroundColor: surfaces.glassScreenBase },
   flex: { flex: 1 },
   gutter: { paddingHorizontal: spacing.md },
   scrollContent: { paddingBottom: TECH_TAB_BAR_PAD },
   scrollEmpty: { flexGrow: 1 },
 });
+
+/**
+ * Shared tech screen shell — mesh glass backdrop + safe area.
+ * Prefer this over duplicating GlassBackdrop in every tech route.
+ */
+export function TechScreen({
+  header,
+  children,
+  edges = ['left', 'right'],
+  style,
+  backdrop = 'default',
+}: {
+  header?: ReactNode;
+  children: ReactNode;
+  edges?: Edge[];
+  style?: StyleProp<ViewStyle>;
+  backdrop?: 'default' | 'deep' | 'auth';
+}) {
+  return (
+    <View style={[techScreenStyles.root, style]}>
+      <GlassBackdrop variant={backdrop} />
+      <SafeAreaView style={techScreenStyles.flex} edges={edges}>
+        {header}
+        {children}
+      </SafeAreaView>
+    </View>
+  );
+}
 
 export function TechScreenGutter({ children, style }: { children: ReactNode; style?: object }) {
   return <View style={[techScreenStyles.gutter, style]}>{children}</View>;
@@ -35,6 +71,7 @@ export function TechScreenScroll({
       contentContainerStyle={[techScreenStyles.scrollContent, contentContainerStyle]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      {...customerScrollProps}
       {...rest}
     >
       {children}

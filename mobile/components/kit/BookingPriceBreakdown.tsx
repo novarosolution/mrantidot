@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { BookingAmount } from '@/types/api';
 import { useBookingCopy } from '@/lib/schedule-copy';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, fonts, premium, shadows, spacing, surfaces } from '@/constants/theme';
 
 export function BookingPriceBreakdown({
   amount,
@@ -48,11 +48,11 @@ function Row({
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glassInput,
     borderRadius: premium.radiusCard,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.06)',
+    borderColor: surfaces.glassBorderStrong,
     overflow: 'hidden',
     ...shadows.card,
   },
@@ -80,17 +80,19 @@ const styles = StyleSheet.create({
   label: { fontFamily: fonts.body, fontSize: 13, color: colors.muted },
   value: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink },
   discount: { color: colors.green },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
+  divider: { height: 1, backgroundColor: surfaces.glassBorder, marginVertical: 12 },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
-    backgroundColor: colors.soft,
+    backgroundColor: surfaces.glassSoft,
     marginHorizontal: -spacing.sm,
     marginBottom: -spacing.xs,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: surfaces.glassBorder,
   },
   totalLabel: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.ink },
   totalValue: { fontFamily: fonts.displayExtra, fontSize: 22, color: premium.accentGold, letterSpacing: -0.3 },

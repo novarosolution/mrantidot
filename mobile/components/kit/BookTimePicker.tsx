@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { BOOKING_HOURS, BOOKING_MINUTES, formatTime12h } from '@/lib/dates';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, spacing, surfaces } from '@/constants/theme';
 
 export function BookTimePicker({
   hour,
@@ -121,11 +121,11 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 8,
     borderRadius: 10,
-    backgroundColor: colors.bg,
+    backgroundColor: surfaces.glassInput,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderColor: surfaces.glassBorderStrong,
   },
   hourChip: {
     width: '23%',

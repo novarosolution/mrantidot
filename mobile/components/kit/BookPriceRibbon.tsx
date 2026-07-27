@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
 
 /** Always-visible price strip — stays above scroll content so total is never hidden. */
 export function BookPriceRibbon({
@@ -56,9 +56,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 16,
-    backgroundColor: colors.white,
+    backgroundColor: surfaces.glassInput,
     borderWidth: 1,
-    borderColor: 'rgba(182,132,28,0.22)',
+    borderColor: surfaces.glassBorderStrong,
     ...premium.shadowSoft,
   },
   wrapCompact: {
@@ -92,6 +92,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 12,
     backgroundColor: premium.accentGoldBg,
+    borderWidth: 1,
+    borderColor: 'rgba(48,184,79,0.28)',
   },
   amount: {
     fontFamily: fonts.displayExtra,

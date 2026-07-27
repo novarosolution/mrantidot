@@ -1,6 +1,6 @@
 import { forwardRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
-import { colors, fonts, formField, premiumType, spacing } from '@/constants/theme';
+import { colors, fonts, formField, premium, premiumType, shadows, spacing } from '@/constants/theme';
 import { textInputDefaults, textInputStyles } from '@/components/ui/textInputDefaults';
 
 interface InputProps extends TextInputProps {
@@ -72,20 +72,26 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   fieldWrap: {
-    backgroundColor: formField.bgMuted,
+    backgroundColor: formField.bg,
     borderRadius: formField.radius,
+    borderWidth: formField.borderWidth,
+    borderColor: formField.borderColor,
     minHeight: formField.minHeight,
     justifyContent: 'center',
+    ...premium.shadowSoft,
   },
   fieldWrapMultiline: {
     minHeight: 100,
     alignItems: 'stretch',
   },
   fieldFocused: {
-    backgroundColor: formField.bg,
+    backgroundColor: formField.bgFocus,
+    borderColor: formField.borderFocus,
+    ...shadows.soft,
   },
   fieldError: {
     backgroundColor: colors.errorBg,
+    borderColor: 'rgba(179,63,40,0.35)',
   },
   multiline: {
     minHeight: 88,

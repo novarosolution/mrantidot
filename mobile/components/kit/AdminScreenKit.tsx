@@ -37,27 +37,34 @@ export function AdminTabScreen({
   edges = ['left', 'right'],
   contentContainerStyle,
   refreshControl,
+  scroll = true,
 }: {
   header?: ReactNode;
   children: ReactNode;
   edges?: Edge[];
   contentContainerStyle?: StyleProp<ViewStyle>;
   refreshControl?: React.ReactElement<RefreshControlProps>;
+  /** Set false for FlatList / custom body layouts (e.g. bookings tab). */
+  scroll?: boolean;
 }) {
   return (
     <View style={styles.root}>
       <GlassBackdrop variant="deep" />
       <SafeAreaView style={styles.safe} edges={edges}>
         {header}
-        <ScrollView
-          style={styles.flex}
-          contentContainerStyle={[styles.content, contentContainerStyle]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={refreshControl}
-          {...customerScrollProps}
-        >
-          {children}
-        </ScrollView>
+        {scroll ? (
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={[styles.content, contentContainerStyle]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={refreshControl}
+            {...customerScrollProps}
+          >
+            {children}
+          </ScrollView>
+        ) : (
+          <View style={[styles.flex, contentContainerStyle]}>{children}</View>
+        )}
       </SafeAreaView>
     </View>
   );

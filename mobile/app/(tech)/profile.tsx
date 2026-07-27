@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { GlassBackdrop } from '@/components/kit/GlassScreenKit';
+import { Alert } from 'react-native';
 import {
   TechnicianProfilePanel,
   loadTechnicianProfileData,
 } from '@/components/kit/TechnicianProfilePanel';
+import { TechScreen } from '@/components/kit/TechScreenKit';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { useAuth } from '@/context/AuthContext';
@@ -14,7 +13,6 @@ import { localDateKey } from '@/lib/dates';
 import { useTechCopy } from '@/lib/tech-copy';
 import type { Booking, DayAttendanceStatus, TechnicianStats } from '@/types/api';
 import { authRoutes, appReplace } from '@/lib/routes';
-import { surfaces } from '@/constants/theme';
 
 export default function TechProfileScreen() {
   const copy = useTechCopy();
@@ -82,18 +80,18 @@ export default function TechProfileScreen() {
 
   if (loadError) {
     return (
-      <View style={styles.rootShell}><GlassBackdrop /><SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      <TechScreen>
         <ListEmptyRetry
           message={loadError}
           onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
         />
-      </SafeAreaView></View>
+      </TechScreen>
     );
   }
 
   return (
-    <View style={styles.rootShell}><GlassBackdrop /><SafeAreaView style={styles.safe} edges={['left', 'right']}>
-        <TechnicianProfilePanel
+    <TechScreen>
+      <TechnicianProfilePanel
         copy={copy}
         user={user}
         stats={stats}
@@ -108,10 +106,6 @@ export default function TechProfileScreen() {
         onMonthChange={setMonth}
         onLogout={confirmLogout}
       />
-    </SafeAreaView></View>
+    </TechScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  rootShell: { flex: 1, backgroundColor: surfaces.glassScreenBase }, safe: { flex: 1, backgroundColor: 'transparent' },
-});

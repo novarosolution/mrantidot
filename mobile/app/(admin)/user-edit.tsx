@@ -249,67 +249,6 @@ export default function UserEditScreen() {
             secure
           />
 
-          {role === 'technician' ? (
-            <>
-              {id ? (
-                <>
-                  <IconInput
-                    label="Public rating"
-                    value={displayRating}
-                    onChangeText={setDisplayRating}
-                    keyboardType="decimal-pad"
-                    placeholder="Empty = real average"
-                  />
-                  {realTechRating != null ? (
-                    <Text style={styles.hint}>Real avg: ★ {realTechRating.toFixed(1)}</Text>
-                  ) : null}
-                  <View style={styles.toggleRow}>
-                    <View style={styles.flex}>
-                      <Text style={styles.toggleLabel}>On duty</Text>
-                    </View>
-                    <ToggleSwitch value={available} onToggle={() => setAvailable((v) => !v)} />
-                  </View>
-                </>
-              ) : null}
-
-              <Text style={[styles.sectionTitle, styles.payTitle]}>Technician pay</Text>
-              <Text style={styles.sectionHint}>
-                Take-home per completed job. Locked when the job is marked complete.
-              </Text>
-              <Text style={styles.label}>Pay mode</Text>
-              <AdminFilterChips
-                chips={[
-                  { key: 'percent', label: '% of job' },
-                  { key: 'flat', label: 'Flat ₹' },
-                ]}
-                selected={payMode}
-                onSelect={(key) => setPayMode(key as 'percent' | 'flat')}
-              />
-              {payMode === 'percent' ? (
-                <IconInput
-                  label="Percent of job value"
-                  value={payPercent}
-                  onChangeText={setPayPercent}
-                  keyboardType="decimal-pad"
-                  placeholder="e.g. 70"
-                />
-              ) : (
-                <IconInput
-                  label="Flat pay (₹)"
-                  value={payFlat}
-                  onChangeText={setPayFlat}
-                  keyboardType="number-pad"
-                  placeholder="e.g. 500"
-                />
-              )}
-              <Text style={styles.hint}>
-                {payMode === 'percent'
-                  ? `Tech earns ${payPercent || '0'}% of each completed job total`
-                  : `Tech earns ₹${payFlat || '0'} per completed job`}
-              </Text>
-            </>
-          ) : null}
-
           {id ? (
             <View style={styles.toggleRow}>
               <View style={styles.flex}>
@@ -319,6 +258,71 @@ export default function UserEditScreen() {
             </View>
           ) : null}
         </AdminFormCard>
+
+        {role === 'technician' ? (
+          <AdminFormCard>
+            <Text style={styles.sectionTitle}>Technician</Text>
+            <Text style={styles.sectionHint}>Duty status and public rating</Text>
+            {id ? (
+              <>
+                <IconInput
+                  label="Public rating"
+                  value={displayRating}
+                  onChangeText={setDisplayRating}
+                  keyboardType="decimal-pad"
+                  placeholder="Empty = real average"
+                />
+                {realTechRating != null ? (
+                  <Text style={styles.hint}>Real avg: ★ {realTechRating.toFixed(1)}</Text>
+                ) : null}
+                <View style={styles.toggleRow}>
+                  <View style={styles.flex}>
+                    <Text style={styles.toggleLabel}>On duty</Text>
+                  </View>
+                  <ToggleSwitch value={available} onToggle={() => setAvailable((v) => !v)} />
+                </View>
+              </>
+            ) : (
+              <Text style={styles.hint}>Save the account first, then set rating and duty.</Text>
+            )}
+
+            <Text style={[styles.sectionTitle, styles.payTitle]}>Technician pay</Text>
+            <Text style={styles.sectionHint}>
+              Take-home per completed job. Locked when the job is marked complete.
+            </Text>
+            <Text style={styles.label}>Pay mode</Text>
+            <AdminFilterChips
+              chips={[
+                { key: 'percent', label: '% of job' },
+                { key: 'flat', label: 'Flat ₹' },
+              ]}
+              selected={payMode}
+              onSelect={(key) => setPayMode(key as 'percent' | 'flat')}
+            />
+            {payMode === 'percent' ? (
+              <IconInput
+                label="Percent of job value"
+                value={payPercent}
+                onChangeText={setPayPercent}
+                keyboardType="decimal-pad"
+                placeholder="e.g. 70"
+              />
+            ) : (
+              <IconInput
+                label="Flat pay (₹)"
+                value={payFlat}
+                onChangeText={setPayFlat}
+                keyboardType="number-pad"
+                placeholder="e.g. 500"
+              />
+            )}
+            <Text style={styles.hint}>
+              {payMode === 'percent'
+                ? `Tech earns ${payPercent || '0'}% of each completed job total`
+                : `Tech earns ₹${payFlat || '0'} per completed job`}
+            </Text>
+          </AdminFormCard>
+        ) : null}
       </ScrollView>
     </AdminListShell>
   );
