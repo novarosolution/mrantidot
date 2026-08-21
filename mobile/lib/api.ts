@@ -107,6 +107,9 @@ export function getApiErrorMessage(error: unknown, fallback = 'Something went wr
   const code = error.code ?? 'NETWORK_ERROR';
   const msg = error.message || 'Network request failed';
 
+  if (/CLEARTEXT|UnknownServiceException|cleartext/i.test(msg)) {
+    return 'Android blocked HTTP to the server. Rebuild the app APK (cleartext fix) or use HTTPS.';
+  }
   if (code === 'ECONNABORTED' || code === 'ETIMEDOUT' || /timeout/i.test(msg)) {
     return `Timeout (${code}) — ${config.apiUrl}`;
   }

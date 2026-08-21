@@ -62,6 +62,16 @@ module.exports = ({ config }) => {
         },
       },
     },
+    plugins: (() => {
+      const list = Array.isArray(base.plugins) ? [...base.plugins] : [];
+      const hasCleartext = list.some(
+        (p) =>
+          p === './plugins/withCleartextTraffic' ||
+          (typeof p === 'string' && p.includes('withCleartextTraffic')),
+      );
+      if (!hasCleartext) list.push('./plugins/withCleartextTraffic');
+      return list;
+    })(),
     extra: {
       ...(base.extra ?? {}),
       ...(config.extra ?? {}),

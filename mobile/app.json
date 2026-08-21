@@ -69,7 +69,8 @@
           "cameraPermission": "Mr Antidot uses your camera to capture photos for bookings and job verification."
         }
       ],
-      "expo-splash-screen"
+      "expo-splash-screen",
+      "./plugins/withCleartextTraffic"
     ],
     "experiments": {
       "typedRoutes": true

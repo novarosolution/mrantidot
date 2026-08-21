@@ -1,4 +1,4 @@
 {
   "API_URL": "http://13.60.23.65:4001",
-  "comment": "Baked into Expo extra.apiUrl via app.config.js"
+  "comment": "Synced by build-apk.sh"
 }
