@@ -35,7 +35,7 @@ export function metricSheetMeta(
     case 'days_present':
       return { title: 'Days came', message: `Present days in ${month}` };
     case 'days_absent':
-      return { title: 'Did not come', message: `Absent days in ${month}` };
+      return { title: 'Absent', message: `Absent days in ${month}` };
     case 'days_leave':
       return { title: 'Leave days', message: `Approved leave days in ${month}` };
     case 'completion_rate':
@@ -204,7 +204,7 @@ export function buildMetricDetailRows(
           key: date,
           title: date,
           subtitle: 'Absent',
-          meta: 'Did not come',
+          meta: 'Absent',
         }));
     case 'week_attendance': {
       const [y, m] = month.split('-').map(Number);

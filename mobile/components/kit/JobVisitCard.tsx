@@ -71,11 +71,11 @@ export function JobVisitCard({
             </Text>
             <View style={styles.times}>
               <View style={styles.timeRow}>
-                <Text style={styles.timeLabel}>Came to job</Text>
+                <Text style={styles.timeLabel}>Started</Text>
                 <Text style={styles.timeVal}>{startedLabel}</Text>
               </View>
               <View style={styles.timeRow}>
-                <Text style={styles.timeLabel}>Stopped job</Text>
+                <Text style={styles.timeLabel}>Completed</Text>
                 <Text style={styles.timeVal}>{stoppedLabel}</Text>
               </View>
               {duration ? (

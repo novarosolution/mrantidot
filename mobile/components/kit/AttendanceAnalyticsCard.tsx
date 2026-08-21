@@ -25,7 +25,7 @@ export function AttendanceAnalyticsCard({
   const attendanceMetrics: MetricDef[] = [
     { key: 'attendance_rate', label: 'Attendance', value: `${analytics.attendanceRate}%` },
     { key: 'days_present', label: 'Days came', value: String(analytics.daysPresent) },
-    { key: 'days_absent', label: 'Did not come', value: String(analytics.daysAbsent) },
+    { key: 'days_absent', label: 'Absent', value: String(analytics.daysAbsent) },
     { key: 'days_leave', label: 'Leave days', value: String(analytics.daysLeave ?? 0) },
   ];
 

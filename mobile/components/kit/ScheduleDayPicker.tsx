@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { nextBookableDays } from '@/lib/dates';
-import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, spacing, surfaces } from '@/constants/theme';
 
 export function ScheduleDayPicker({
   selectedDate,
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   cardOn: {
     backgroundColor: colors.soft,
     borderColor: colors.forest,
-    ...premium.shadowSoft,
+    borderWidth: 2,
   },
   pressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
   week: {

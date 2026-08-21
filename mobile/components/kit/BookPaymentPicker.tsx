@@ -25,12 +25,15 @@ export function BookPaymentPicker({
   onSelect: (type: 'upi_card' | 'pay_after') => void;
   showManageLink?: boolean;
 }) {
-  const types = Array.from(new Set(methods.map((m) => m.type))) as ('upi_card' | 'pay_after')[];
+  const types = Array.from(new Set(methods.map((m) => m.type))).filter(
+    (t): t is 'upi_card' | 'pay_after' => t === 'upi_card' || t === 'pay_after',
+  );
 
   return (
     <View style={styles.wrap}>
       {types.map((type) => {
         const meta = PAYMENT_TYPE_META[type];
+        if (!meta) return null;
         const method = methods.find((m) => m.type === type);
         const on = selected === type;
 

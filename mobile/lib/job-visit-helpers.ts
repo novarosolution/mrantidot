@@ -68,12 +68,12 @@ export function jobVisitHint(booking: Booking, today: string): string {
   const status = jobVisitStatus(booking, today);
   if (status === 'completed' && booking.workStartedAt && booking.workCompletedAt) {
     const dur = formatBookingDuration(booking);
-    return `Started ${formatVisitTimeShort(booking.workStartedAt)} · Stopped ${formatVisitTimeShort(booking.workCompletedAt)}${dur ? ` · ${dur}` : ''}`;
+    return `Started ${formatVisitTimeShort(booking.workStartedAt)} · Completed ${formatVisitTimeShort(booking.workCompletedAt)}${dur ? ` · ${dur}` : ''}`;
   }
   if (status === 'in_progress' && booking.workStartedAt) {
     return `Started ${formatVisitTimeShort(booking.workStartedAt)} · In progress`;
   }
-  if (status === 'no_show') return 'Did not come to job';
+  if (status === 'no_show') return 'Absent — no visit recorded';
   if (status === 'scheduled') return 'Not started yet';
   return visitStatusLabel(status);
 }

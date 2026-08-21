@@ -14,7 +14,7 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const STATUS_LABELS: Record<DayAttendanceStatus, string> = {
   came: 'Came',
-  not_came: 'Did not come',
+  not_came: 'Absent',
   pending: 'Pending',
   future: 'Upcoming',
   leave: 'Leave',

@@ -154,7 +154,7 @@ export default function AdminTechnicianDetailScreen() {
             }),
       },
       {
-        text: 'Did not come',
+        text: 'Absent',
         onPress: () =>
           void api
             .put(`/admin/technicians/${id}/attendance/${date}`, { status: 'absent' })
@@ -216,7 +216,7 @@ export default function AdminTechnicianDetailScreen() {
           params: { id: technician.id, returnTo: adminRoutes.technician(technician.id) },
         })
       }
-      onPending={() => appPush(`${adminRoutes.bookings}?status=pending`)}
+      onPending={() => appPush(adminRoutes.bookingsFiltered({ status: 'pending' }))}
       onAssign={() => appPush(adminRoutes.bookings)}
     />
   );
@@ -234,7 +234,7 @@ export default function AdminTechnicianDetailScreen() {
       onAction={() => {
         if (metricSheet.key === 'pending_global') {
           closeMetricSheet();
-          appPush(`${adminRoutes.bookings}?status=pending`);
+          appPush(adminRoutes.bookingsFiltered({ status: 'pending' }));
           return;
         }
         if (sheetMeta.listStatus) {

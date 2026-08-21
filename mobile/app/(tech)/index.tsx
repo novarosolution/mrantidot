@@ -323,7 +323,7 @@ export default function TechDashboard() {
                   accessibilityRole="button"
                 >
                   <View>
-                    <Text style={styles.earnLabel}>Your earnings</Text>
+                    <Text style={styles.earnLabel}>This month</Text>
                     <Text style={styles.earnValue}>
                       {stats.earnings >= 1000 ? formatRupee(stats.earnings) : `₹${stats.earnings}`}
                     </Text>

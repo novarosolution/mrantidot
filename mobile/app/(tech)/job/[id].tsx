@@ -56,6 +56,7 @@ import { MAX_STEP_PHOTOS, stepPhotoUrls } from '@/lib/stepPhotos';
 import { uploadImages, type PickedImage } from '@/lib/upload';
 import type { Booking, BookingStep } from '@/types/api';
 import { colors, fonts, spacing } from '@/constants/theme';
+import { techGoBack, techRoutes } from '@/lib/routes';
 
 export default function TechJobScreen() {
   const copy = useTechCopy();
@@ -234,7 +235,14 @@ export default function TechJobScreen() {
   if (error || !booking) {
     return (
       <TechScreen
-        header={<CustomerPageHeader variant="premium" title="Job" showBack />}
+        header={
+          <CustomerPageHeader
+            variant="premium"
+            title="Job"
+            showBack
+            onBack={() => techGoBack(techRoutes.home)}
+          />
+        }
       >
         <ListEmptyRetry message={error ?? 'Job not found'} onRetry={() => void runLoad(load)} />
       </TechScreen>
@@ -266,6 +274,7 @@ export default function TechJobScreen() {
           title={bookingServiceName(booking)}
           subtitle={`Field job · ${bookingScheduleDisplay(booking)}`}
           showBack
+          onBack={() => techGoBack(techRoutes.home)}
           rightAction={headerLive ? <StatusBadge label="● Live" tone="success" /> : null}
         />
       }

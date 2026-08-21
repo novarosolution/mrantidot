@@ -1,8 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons, IconGradients } from '@/constants/appIcons';
-import { colors, fonts, premium, shadows, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
 import { techRoutes, appPush } from '@/lib/routes';
 
 const Hub = AppIcons.techHub;
@@ -65,31 +64,32 @@ export function TechManageHub({
           <Pressable
             key={item.key}
             style={({ pressed }) => [
-              styles.tile,
+              styles.tileOuter,
               item.disabled && styles.disabled,
               pressed && !item.disabled && styles.pressed,
             ]}
             onPress={item.onPress}
             disabled={item.disabled}
           >
-            <LinearGradient
-              colors={['#8FD03C', '#27A747']}
-              style={styles.goldEdge}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-            />
-            <PremiumIcon icon={item.icon} variant="gradient" gradient={item.grad} size="md" boxSize={42} />
-            <View style={styles.labelRow}>
-              <Text style={styles.label}>{item.label}</Text>
-              {item.badge != null ? (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{item.badge}</Text>
+            <View style={styles.tile}>
+              <View style={styles.accent} />
+              <PremiumIcon icon={item.icon} variant="gradient" gradient={item.grad} size="md" boxSize={40} />
+              <View style={styles.copy}>
+                <View style={styles.labelRow}>
+                  <Text style={styles.label} numberOfLines={1}>
+                    {item.label}
+                  </Text>
+                  {item.badge != null ? (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{item.badge}</Text>
+                    </View>
+                  ) : null}
                 </View>
-              ) : null}
+                <Text style={styles.desc} numberOfLines={2}>
+                  {item.desc}
+                </Text>
+              </View>
             </View>
-            <Text style={styles.desc} numberOfLines={1}>
-              {item.desc}
-            </Text>
           </Pressable>
         ))}
       </View>
@@ -98,7 +98,7 @@ export function TechManageHub({
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: spacing.md },
+  wrap: { marginBottom: spacing.md, marginTop: spacing.xs },
   sectionLabel: {
     fontFamily: fonts.bodySemi,
     fontSize: 11,
@@ -108,29 +108,49 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     marginLeft: 2,
   },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, width: '100%' },
-  tile: {
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  // Shadow lives on the outer shell — never combine elevation with overflow:hidden on Android.
+  tileOuter: {
     width: '47%',
     flexGrow: 1,
-    flexShrink: 1,
-    minWidth: 140,
-    backgroundColor: surfaces.glass,
+    maxWidth: '48.5%',
     borderRadius: premium.radiusCard,
-    padding: spacing.sm + 4,
-    paddingTop: spacing.sm + 8,
+    backgroundColor: '#FFFFFF',
+    ...premium.shadowSoft,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  tile: {
+    borderRadius: premium.radiusCard,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
+    backgroundColor: '#FFFFFF',
+    padding: 12,
+    paddingTop: 14,
+    minHeight: 112,
+    gap: 10,
     overflow: 'hidden',
-    minHeight: 108,
-    gap: 8,
-    ...shadows.card,
   },
-  goldEdge: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
-  pressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
-  disabled: { opacity: 0.5 },
+  accent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: '#8FD03C',
+  },
+  pressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
+  disabled: { opacity: 0.48 },
+  copy: { gap: 3, flex: 1 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  label: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink },
-  desc: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
+  label: { fontFamily: fonts.bodySemi, fontSize: 13.5, color: colors.ink, flexShrink: 1 },
+  desc: { fontFamily: fonts.body, fontSize: 11.5, color: colors.muted, lineHeight: 15 },
   badge: {
     minWidth: 18,
     height: 18,

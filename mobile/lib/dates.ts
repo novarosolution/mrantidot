@@ -98,13 +98,15 @@ export function formatBookableDate(dateKey: string, opts?: { includeYear?: boole
 }
 
 export function formatScheduleLabel(
-  schedule: { date: string; slot: string; time?: string },
+  schedule?: { date?: string; slot?: string; time?: string } | null,
   mode?: 'standard' | 'custom',
 ): string {
+  if (!schedule?.date) return 'Schedule TBD';
   const dateLabel = formatBookableDate(schedule.date);
-  const isCustom = mode === 'custom' || schedule.slot === 'custom';
+  const slot = schedule.slot ?? 'custom';
+  const isCustom = mode === 'custom' || slot === 'custom';
   if (isCustom && schedule.time) {
     return `${dateLabel} · ${formatTime12h(schedule.time)}`;
   }
-  return `${dateLabel} · ${formatSlotLabel(schedule.slot)}`;
+  return `${dateLabel} · ${formatSlotLabel(slot)}`;
 }

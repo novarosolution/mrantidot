@@ -89,12 +89,16 @@ export function BookWizardSection({
 const styles = StyleSheet.create({
   root: {
     borderRadius: premium.radiusCard,
-    backgroundColor: 'rgba(255,255,255,0.38)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
     overflow: 'hidden',
     marginBottom: spacing.md,
-    ...premium.shadowSoft,
+    shadowColor: '#03170B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 2,
   },
   goldBar: { height: 3, width: '100%' },
   header: {
@@ -186,16 +190,14 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   panel: {
-    backgroundColor: surfaces.glassInput,
-    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     padding: spacing.md,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
-    ...premium.shadowSoft,
-    shadowOpacity: 0.06,
   },
   panelCompact: {
-    padding: spacing.sm,
+    padding: spacing.sm + 2,
     borderRadius: 14,
   },
 });

@@ -629,11 +629,9 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: 'transparent' },
   stickyHeader: {
     zIndex: 10,
-    backgroundColor: 'rgba(246,250,242,0.92)',
+    backgroundColor: 'rgba(246,250,242,0.96)',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: surfaces.glassBorderStrong,
-    elevation: 4,
-    ...premium.shadowSoft,
   },
   errorHeader: {
     flexDirection: 'row',
@@ -656,7 +654,7 @@ const styles = StyleSheet.create({
   },
   errorTitle: { fontFamily: fonts.displayExtra, fontSize: 18, color: colors.white },
   scroll: { flex: 1 },
-  container: { padding: spacing.md, paddingTop: spacing.xs, paddingBottom: 120 },
+  container: { padding: spacing.md, paddingTop: spacing.xs, paddingBottom: 160 },
   notesWrap: { marginTop: spacing.md },
   modeRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md },
   techOption: {

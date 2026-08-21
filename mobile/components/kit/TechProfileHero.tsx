@@ -98,7 +98,7 @@ export function TechProfileHero({
             </View>
           ) : null}
           {phone ? (
-            <View style={styles.compactMetaItem}>
+            <View style={styles.compactMetaItemPhone}>
               <PremiumIcon icon={AppIcons.techProfile.phone} variant="plain" size="xs" color={colors.muted} />
               <Text style={styles.compactMetaText} numberOfLines={1}>
                 {phone}
@@ -133,7 +133,7 @@ export function TechProfileHero({
           <Text style={styles.statVal}>
             {stats.earnings >= 1000 ? formatRupee(stats.earnings) : `₹${stats.earnings}`}
           </Text>
-          <Text style={styles.statLabel}>{compact ? 'Earned' : 'Earnings'}</Text>
+          <Text style={styles.statLabel}>{compact ? 'Month' : 'This month'}</Text>
         </View>
       </View>
     ) : null;
@@ -289,9 +289,36 @@ const styles = StyleSheet.create({
   compactAvatarText: { fontFamily: fonts.displayExtra, fontSize: 24, color: colors.white },
   compactBody: { flex: 1, minWidth: 0 },
   compactName: { ...premiumType.cardTitle, fontSize: 18, color: colors.ink },
-  compactMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  compactMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: '100%' },
-  compactMetaText: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, flexShrink: 1 },
+  compactMeta: { marginTop: 4, gap: 4 },
+  compactMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 0 },
+  compactMetaItemPhone: { flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 0 },
+  compactMetaText: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, flexShrink: 1 },
+  dutyPill: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dutyCentered: { alignSelf: 'center' },
+  dutyOn: { backgroundColor: '#EEF8E6', borderColor: surfaces.glassBorderStrong },
+  dutyOff: { backgroundColor: '#FEF2F2', borderColor: 'rgba(220,38,38,0.2)' },
+  dutyLeave: { backgroundColor: '#EFF6FF', borderColor: 'rgba(59,130,246,0.25)' },
+  dutyPending: { backgroundColor: '#FFF8E8', borderColor: 'rgba(245,184,46,0.35)' },
+  dutyDot: { width: 6, height: 6, borderRadius: 3 },
+  dutyDotOn: { backgroundColor: '#27A747' },
+  dutyDotOff: { backgroundColor: '#DC2626' },
+  dutyDotLeave: { backgroundColor: '#3B82F6' },
+  dutyDotPending: { backgroundColor: '#F5B82E' },
+  dutyText: { fontFamily: fonts.bodySemi, fontSize: 11, lineHeight: 14, includeFontPadding: false },
+  dutyTextOn: { color: colors.forest },
+  dutyTextOff: { color: '#B91C1C' },
+  dutyTextLeave: { color: '#1D4ED8' },
+  dutyTextPending: { color: '#9A6F12' },
   cardOuter: { paddingHorizontal: spacing.md },
   cardShell: {
     borderRadius: premium.radiusCard,
@@ -335,32 +362,6 @@ const styles = StyleSheet.create({
   },
   verifiedText: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.forest },
   name: { ...premiumType.brandTitle, fontSize: 24, marginTop: spacing.sm, textAlign: 'center', color: colors.ink },
-  dutyPill: {
-    alignSelf: 'flex-start',
-    marginTop: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  dutyCentered: { alignSelf: 'center' },
-  dutyOn: { backgroundColor: '#EEF8E6', borderColor: surfaces.glassBorderStrong },
-  dutyOff: { backgroundColor: '#FEF2F2', borderColor: 'rgba(220,38,38,0.2)' },
-  dutyLeave: { backgroundColor: '#EFF6FF', borderColor: 'rgba(59,130,246,0.25)' },
-  dutyPending: { backgroundColor: '#FFF8E8', borderColor: 'rgba(245,184,46,0.35)' },
-  dutyDot: { width: 6, height: 6, borderRadius: 3 },
-  dutyDotOn: { backgroundColor: '#27A747' },
-  dutyDotOff: { backgroundColor: '#DC2626' },
-  dutyDotLeave: { backgroundColor: '#3B82F6' },
-  dutyDotPending: { backgroundColor: '#F5B82E' },
-  dutyText: { fontFamily: fonts.bodySemi, fontSize: 11 },
-  dutyTextOn: { color: colors.forest },
-  dutyTextOff: { color: '#B91C1C' },
-  dutyTextLeave: { color: '#1D4ED8' },
-  dutyTextPending: { color: '#9A6F12' },
   metaRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

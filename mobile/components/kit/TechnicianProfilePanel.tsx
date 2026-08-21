@@ -224,7 +224,11 @@ const styles = StyleSheet.create({
   block: { paddingHorizontal: spacing.md, marginBottom: spacing.md },
   payShell: {
     borderRadius: premium.radiusCard,
-    ...homeShadow.card,
+    shadowColor: '#03170B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 2,
   },
   payCard: {
     borderRadius: premium.radiusCard,
@@ -232,6 +236,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
     padding: spacing.md,
+    overflow: 'hidden',
   },
   payLabel: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted },
   payValue: {

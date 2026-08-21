@@ -18,7 +18,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { textInputDefaults } from '@/components/ui/textInputDefaults';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { localDateKey } from '@/lib/dates';
-import { techGoBack } from '@/lib/routes';
+import { techGoBack, techRoutes } from '@/lib/routes';
 import type { LeaveRequest, LeaveStatus, LeaveType } from '@/types/api';
 import { colors, fonts, formField, premium, spacing, surfaces } from '@/constants/theme';
 
@@ -123,7 +123,8 @@ export default function TechLeaveScreen() {
       variant="premium"
       title="Leave"
       subtitle="Request time off for approval"
-      onBack={() => techGoBack()}
+      showBack
+      onBack={() => techGoBack(techRoutes.home)}
     />
   );
 

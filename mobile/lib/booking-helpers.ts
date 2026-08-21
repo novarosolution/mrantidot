@@ -38,7 +38,8 @@ export function bookingRef(id: string): string {
   return `#${id.slice(-6).toUpperCase()}`;
 }
 
-export function paymentMethodLabel(method: string): string {
+export function paymentMethodLabel(method?: string | null): string {
+  if (!method?.trim()) return '—';
   if (method === 'pay_after') return 'Pay after service';
   if (method === 'upi_card') return 'UPI / Card';
   return method.replace(/_/g, ' ');
@@ -117,6 +118,7 @@ export function bookingScheduleDisplay(booking: Booking): string {
         time: booking.scheduleRequest.time,
       }
     : booking.schedule;
+  if (!source?.date) return 'Schedule TBD';
   return formatScheduleLabel(source, booking.scheduleMode);
 }
 

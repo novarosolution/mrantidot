@@ -64,7 +64,9 @@ export const AdminBookingListCard = memo(function AdminBookingListCard({
                 {isPending ? <Text style={styles.pendingBadge}>Confirm</Text> : null}
               </View>
             </View>
-            <Text style={styles.price}>₹{item.amount.total}</Text>
+            <Text style={styles.price}>
+              {item.amount?.total != null ? `₹${item.amount.total}` : '—'}
+            </Text>
           </View>
         </Pressable>
         {canAssign ? (

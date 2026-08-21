@@ -58,16 +58,22 @@ export function WizardStepBar({
   return (
     <View style={[styles.wrap, compact && styles.wrapCompact]}>
       {!compact ? <View style={styles.goldRule} /> : null}
-      <View style={[styles.progressMeta, compact && styles.progressMetaCompact]}>
-        <Text style={styles.progressLabel}>
-          Step {step + 1} of {labels.length}
-        </Text>
-        {!compact ? (
+      {!compact ? (
+        <View style={styles.progressMeta}>
+          <Text style={styles.progressLabel}>
+            Step {step + 1} of {labels.length}
+          </Text>
           <Text style={styles.progressStep} numberOfLines={1}>
             {labels[step]}
           </Text>
-        ) : null}
-      </View>
+        </View>
+      ) : (
+        <View style={styles.progressMetaCompact}>
+          <Text style={styles.progressLabelCompact}>
+            {labels[step]} · {step + 1}/{labels.length}
+          </Text>
+        </View>
+      )}
       <View style={[styles.track, compact && styles.trackCompact]}>
         <Animated.View style={[styles.fillWrap, { width: fillWidth }]}>
           <LinearGradient
@@ -143,11 +149,17 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   wrapCompact: {
-    paddingTop: 4,
-    paddingBottom: spacing.xs,
+    paddingTop: 6,
+    paddingBottom: 8,
   },
   progressMetaCompact: {
-    marginBottom: spacing.xs,
+    marginBottom: 6,
+  },
+  progressLabelCompact: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 12,
+    color: colors.forest,
+    letterSpacing: 0.1,
   },
   goldRule: {
     height: 2,
@@ -184,16 +196,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     overflow: 'hidden',
   },
-  trackCompact: { marginBottom: spacing.xs, height: 4 },
+  trackCompact: { marginBottom: 8, height: 3 },
   fillWrap: { height: '100%' },
   fill: { flex: 1, borderRadius: 3 },
   steps: { flexDirection: 'row', justifyContent: 'space-between' },
   item: { flex: 1, alignItems: 'center', gap: 6 },
   itemPressed: { opacity: 0.6 },
   dotCompact: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
   dot: {
     width: 32,
@@ -209,7 +221,6 @@ const styles = StyleSheet.create({
   dotActive: {
     backgroundColor: colors.secondaryDark,
     borderColor: colors.secondaryDark,
-    ...premium.shadowSoft,
   },
   dotText: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.muted },
   dotTextOn: { color: colors.white },
