@@ -10,6 +10,7 @@ import { appToast } from '@/lib/toast';
 import { getApiErrorMessage } from '@/lib/api';
 import { appReplace, authRoutes, homeRouteForRole } from '@/lib/routes';
 import { useBrandFill, useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { AppIcons } from '@/constants/appIcons';
 import { spacing } from '@/constants/theme';
 
 type Errors = Partial<Record<'name' | 'phone' | 'email' | 'password', string>>;
@@ -99,6 +100,7 @@ export default function RegisterScreen() {
         }}
         placeholder="Your name"
         error={errors.name}
+        icon={AppIcons.ui.user}
         autoCapitalize="words"
         returnKeyType="next"
         onSubmitEditing={() => phoneRef.current?.focus()}
@@ -113,6 +115,7 @@ export default function RegisterScreen() {
         }}
         placeholder="Mobile number"
         error={errors.phone}
+        icon={AppIcons.ui.phone}
         keyboardType="phone-pad"
         inputRef={phoneRef}
         returnKeyType="next"
@@ -128,6 +131,7 @@ export default function RegisterScreen() {
         }}
         placeholder="Email address"
         error={errors.email}
+        icon={AppIcons.ui.mail}
         keyboardType="email-address"
         inputRef={emailRef}
         returnKeyType="next"
@@ -143,6 +147,7 @@ export default function RegisterScreen() {
         }}
         placeholder="Create a password"
         error={errors.password}
+        icon={AppIcons.ui.lock}
         secure
         inputRef={passwordRef}
         returnKeyType="next"
@@ -154,6 +159,7 @@ export default function RegisterScreen() {
         value={city}
         onChangeText={setCity}
         placeholder="Your city"
+        icon={AppIcons.ui.mapPin}
         optional
         autoCapitalize="words"
         inputRef={cityRef}

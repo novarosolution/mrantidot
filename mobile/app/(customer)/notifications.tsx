@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text } from 'react-native';
 import { CustomerListShell, listShellStyles } from '@/components/kit/CustomerListShell';
 import { NotificationRow } from '@/components/kit/NotificationRow';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AppIcons } from '@/constants/appIcons';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
@@ -12,7 +14,7 @@ import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
 import { bookingDetailPath, appPush } from '@/lib/routes';
 import { useAuth } from '@/context/AuthContext';
 import type { AppNotification } from '@/types/api';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, spacing, surfaces } from '@/constants/theme';
 
 export default function NotificationsScreen() {
   const ui = useCustomerUiCopy();
@@ -86,7 +88,8 @@ export default function NotificationsScreen() {
       title={ui.notificationsScreenTitle}
       rightAction={
         hasUnread ? (
-          <Pressable onPress={markAllRead} disabled={markingAll} style={styles.markAll}>
+          <Pressable onPress={markAllRead} disabled={markingAll} style={({ pressed }) => [styles.markAll, pressed && styles.markAllPressed]}>
+            <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={13} color={colors.forest} strokeWidth={2.6} />
             <Text style={styles.markAllText}>{markingAll ? '…' : 'Mark all'}</Text>
           </Pressable>
         ) : undefined
@@ -117,6 +120,17 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  markAll: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
-  markAllText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.green },
+  markAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.soft,
+    borderWidth: 1,
+    borderColor: surfaces.glassBorderStrong,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+  },
+  markAllPressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
+  markAllText: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.forest },
 });
