@@ -162,40 +162,12 @@ export function GlassChip({
 }
 
 /**
- * Clean light premium wash behind screens.
- * Soft frost veil only — no 3D orbs.
+ * Brand mint screen background — matches app greens, no 3D orbs.
  */
 export function GlassBackdrop({ variant = 'default' }: { variant?: 'default' | 'deep' | 'auth' }) {
   return (
     <View style={styles.backdropRoot} pointerEvents="none">
       <PremiumMeshBg variant={variant} />
-      <LinearGradient
-        colors={[
-          'rgba(255,255,255,0.62)',
-          'rgba(250,252,248,0.08)',
-          'rgba(236,248,226,0.22)',
-          'rgba(255,255,255,0.4)',
-        ]}
-        locations={[0, 0.32, 0.72, 1]}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        pointerEvents="none"
-      />
-      <LinearGradient
-        colors={['rgba(200,240,122,0.16)', 'rgba(200,240,122,0)']}
-        style={styles.backdropLimeBloom}
-        start={{ x: 1, y: 0 }}
-        end={{ x: 0.2, y: 0.55 }}
-        pointerEvents="none"
-      />
-      <LinearGradient
-        colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
-        style={styles.backdropTopSheen}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        pointerEvents="none"
-      />
     </View>
   );
 }

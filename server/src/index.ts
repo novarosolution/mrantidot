@@ -41,9 +41,14 @@ async function main(): Promise<void> {
   }
 
   if (env.ensureAdminOnStartup && !seedOnStart) {
-    await upsertAdminUser();
-    const admin = getAdminConfig();
-    console.log(`[admin] Synced to database — ${admin.email} (phone ${admin.phone})`);
+    try {
+      await upsertAdminUser();
+      const admin = getAdminConfig();
+      console.log(`[admin] Synced to database — ${admin.email} (phone ${admin.phone})`);
+    } catch (err) {
+      console.error('[admin] Failed to sync admin user on startup:', err);
+      throw err;
+    }
   } else if (env.ensureAdminOnStartup && seedOnStart) {
     // Seed already upserts admin
     const admin = getAdminConfig();

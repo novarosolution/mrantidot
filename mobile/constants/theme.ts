@@ -7,11 +7,12 @@ export const colors = {
   green: '#27A747',
   forest: '#0A6423',
   lime: '#E9F8E3',
-  bg: '#FAFCF8',
+  /** Soft mint screen wash — pairs with forest/lime brand greens */
+  bg: '#F6FAF2',
   ink: '#071A0E',
   muted: '#3F6B48',
   border: '#CDE8C0',
-  card: '#F5FBF2',
+  card: '#FFFFFF',
   soft: '#EAF6E3',
   amber: '#F5B82E',
   white: '#FFFFFF',
@@ -36,7 +37,7 @@ export const colors = {
   primaryDark: '#0A6423',
   primaryLight: '#EAF6E3',
   accent: '#E9F8E3',
-  background: '#FAFCF8',
+  background: '#F6FAF2',
   surface: '#FFFFFF',
   text: '#071A0E',
   textMuted: '#3F6B48',
@@ -636,7 +637,7 @@ export const surfaces = {
   glassBorder: 'rgba(255,255,255,0.68)',
   glassBorderStrong: 'rgba(180,220,165,0.95)',
   glassDark: 'rgba(14,58,32,0.16)',
-  glassScreenBase: '#FAFCF8',
+  glassScreenBase: '#F6FAF2',
   glassPanelTint: 'rgba(255,255,255,0.48)',
   glassTabTint: 'rgba(255,255,255,0.58)',
   glassInput: 'rgba(255,255,255,0.72)',
@@ -765,10 +766,10 @@ export const buttonTokens = {
   borderWidth: 1.5,
 };
 
-/** Classic ivory + forest + gold palette */
+/** Soft mint + forest brand palette */
 export const classic = {
-  screenBg: '#FAFCF8',
-  screenBgAlt: '#F3F8EE',
+  screenBg: '#F6FAF2',
+  screenBgAlt: '#EEF6E8',
   cardBorder: 'rgba(26,135,52,0.08)',
   cardBorderGold: 'rgba(48,184,79,0.25)',
   headerGoldLine: 'rgba(48,184,79,0.5)',

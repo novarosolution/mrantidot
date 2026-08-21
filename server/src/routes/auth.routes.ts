@@ -139,7 +139,12 @@ authRouter.post(
 
     // Env admin may be missing after a fresh DB / failed startup sync — repair then retry.
     if (!user && isEnvAdminIdentifier(identifier)) {
-      await upsertAdminUser();
+      try {
+        await upsertAdminUser();
+      } catch (err) {
+        console.error('[auth] admin upsert failed during login lookup:', err);
+        throw new AppError(503, 'Admin account sync failed. Restart the API and try again.');
+      }
       user = await findEnvAdminForLogin();
     }
 
@@ -153,7 +158,12 @@ authRouter.post(
     let valid = await bcrypt.compare(pass, user.passwordHash);
     if (!valid && isEnvAdminIdentifier(identifier) && isAcceptedAdminPassword(pass)) {
       // Env password or (dev) legacy demo password — re-sync hash from ADMIN_PASSWORD.
-      await upsertAdminUser();
+      try {
+        await upsertAdminUser();
+      } catch (err) {
+        console.error('[auth] admin upsert failed during password repair:', err);
+        throw new AppError(503, 'Admin account sync failed. Restart the API and try again.');
+      }
       user = await findEnvAdminForLogin();
       if (!user?.passwordHash) {
         throw new AppError(401, 'Invalid credentials');

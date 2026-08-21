@@ -62,44 +62,98 @@ export function isAcceptedAdminPassword(password: string): boolean {
   return LEGACY_ADMIN_PASSWORDS.includes(pass);
 }
 
-/** Create or update the admin user from env (phone + email are stable keys). */
+/**
+ * Create or update the admin user from env.
+ * Avoids `$or` + upsert (can throw E11000 when legacy admin rows share email/phone).
+ */
 export async function upsertAdminUser(): Promise<IUser> {
   const admin = getAdminConfig();
   const passwordHash = await bcrypt.hash(admin.password, 12);
 
-  // Soft-disable stale duplicate admin rows (never hard-delete on boot).
+  // Prefer the env phone row; fall back to email / legacy phones.
+  let user =
+    (await User.findOne({ phone: admin.phone })) ||
+    (await User.findOne({ email: admin.email })) ||
+    (await User.findOne({ phone: { $in: LEGACY_ADMIN_PHONES } }));
+
+  // Soft-disable other admin rows that used legacy emails/phones — never steal their phone
+  // onto the canonical row (unique index) or hard-delete on boot.
   await User.updateMany(
     {
       role: 'admin',
-      phone: { $ne: admin.phone },
+      ...(user ? { _id: { $ne: user._id } } : {}),
       $or: [
-        { email: { $in: LEGACY_ADMIN_EMAILS } },
+        { email: { $in: [...LEGACY_ADMIN_EMAILS, admin.email] } },
+        { phone: { $in: LEGACY_ADMIN_PHONES } },
+        { phone: admin.phone },
         { email: admin.email },
       ],
     },
     { disabled: true, available: false },
   );
 
-  return User.findOneAndUpdate(
-    { $or: [{ phone: admin.phone }, { email: admin.email }] },
+  // Free the target phone/email on non-canonical rows so unique phone updates cannot 500.
+  await User.updateMany(
     {
-      role: 'admin',
-      name: admin.name,
-      email: admin.email,
+      ...(user ? { _id: { $ne: user._id } } : {}),
       phone: admin.phone,
-      passwordHash,
-      city: admin.city,
-      rating: 0,
-      jobsDone: 0,
-      available: true,
-      disabled: false,
     },
-    { upsert: true, new: true },
+    {
+      $set: {
+        phone: `disabled-${admin.phone}-${Date.now()}`,
+        disabled: true,
+        available: false,
+      },
+    },
   );
+
+  if (user) {
+    // Use updateOne so passwordHash (select:false) always persists even when
+    // the document was loaded without +passwordHash.
+    await User.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          role: 'admin',
+          name: admin.name,
+          email: admin.email,
+          phone: admin.phone,
+          passwordHash,
+          city: admin.city,
+          available: true,
+          disabled: false,
+        },
+      },
+    );
+    const updated = await User.findById(user._id);
+    if (!updated) {
+      throw new Error('Admin user disappeared during sync');
+    }
+    return updated;
+  }
+
+  return User.create({
+    role: 'admin',
+    name: admin.name,
+    email: admin.email,
+    phone: admin.phone,
+    passwordHash,
+    city: admin.city,
+    rating: 0,
+    jobsDone: 0,
+    available: true,
+    disabled: false,
+  });
 }
 
 /** Load env-configured admin for login (handles legacy admin@ email alias). */
 export async function findEnvAdminForLogin(): Promise<IUser | null> {
   const admin = getAdminConfig();
-  return User.findOne({ phone: admin.phone }).select('+passwordHash');
+  const byPhone = await User.findOne({ phone: admin.phone }).select('+passwordHash');
+  if (byPhone) return byPhone;
+
+  const byEmail = await User.findOne({ email: admin.email }).select('+passwordHash');
+  if (byEmail) return byEmail;
+
+  return User.findOne({ phone: { $in: LEGACY_ADMIN_PHONES } }).select('+passwordHash');
 }
