@@ -1,8 +1,9 @@
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Image,
+  Linking,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -20,7 +21,7 @@ import { BookingTrackingTimeline } from '@/components/kit/BookingTrackingTimelin
 import { JobProgressCard } from '@/components/kit/JobProgressCard';
 import { OtpEntrySheet } from '@/components/kit/OtpEntrySheet';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
-import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { GlassPanel, glassTabBarStyle } from '@/components/kit/GlassScreenKit';
 import { homeShadow } from '@/components/kit/homeUi';
 import { TechScreen, TechScreenScroll } from '@/components/kit/TechScreenKit';
 import { Button } from '@/components/ui/Button';
@@ -46,6 +47,7 @@ import {
   bookingServiceName,
   bookingStepsDone,
   isTerminalBookingStatus,
+  paymentMethodLabel,
 } from '@/lib/booking-helpers';
 import { useTechCopy } from '@/lib/tech-copy';
 import { localDateKey } from '@/lib/dates';
@@ -57,6 +59,7 @@ import { colors, fonts, spacing } from '@/constants/theme';
 
 export default function TechJobScreen() {
   const copy = useTechCopy();
+  const navigation = useNavigation();
   const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [note, setNote] = useState('');
@@ -90,10 +93,13 @@ export default function TechJobScreen() {
   useFocusEffect(
     useCallback(() => {
       focusedRef.current = true;
+      const parent = navigation.getParent();
+      parent?.setOptions({ tabBarStyle: { display: 'none' } });
       return () => {
         focusedRef.current = false;
+        parent?.setOptions({ tabBarStyle: glassTabBarStyle });
       };
-    }, []),
+    }, [navigation]),
   );
 
   useEffect(() => {
@@ -476,8 +482,36 @@ export default function TechJobScreen() {
 
           <PremiumSectionHeader title={copy.techJobDetailsTitle} style={styles.sectionHeader} />
           <View style={styles.inset}>
-            <BookingFactsCard booking={booking} audience="technician" showCustomer showPayment={false} hideHead />
+            <BookingFactsCard booking={booking} audience="technician" showCustomer showPayment hideHead />
           </View>
+
+          {booking.paymentMethod || booking.address ? (
+            <View style={styles.calloutOuter}>
+              <View style={styles.surfaceShell}>
+                <GlassPanel style={styles.jobValueCard} padded={false} tone="light" intensity={42} goldEdge>
+                  <View style={styles.jobValueInner}>
+                    {booking.paymentMethod ? (
+                      <>
+                        <Text style={styles.jobValueLabel}>Collect payment</Text>
+                        <Text style={styles.collectValue}>{paymentMethodLabel(booking.paymentMethod)}</Text>
+                      </>
+                    ) : null}
+                    {booking.address ? (
+                      <Button
+                        title="Open directions"
+                        variant="secondary"
+                        onPress={() => {
+                          const q = encodeURIComponent(booking.address);
+                          void Linking.openURL(`https://maps.google.com/?q=${q}`);
+                        }}
+                        style={{ marginTop: booking.paymentMethod ? spacing.sm : 0 }}
+                      />
+                    ) : null}
+                  </View>
+                </GlassPanel>
+              </View>
+            </View>
+          ) : null}
 
           {canWork && booking.status === 'in_progress' ? (
             <Input
@@ -548,6 +582,13 @@ const styles = StyleSheet.create({
   startCallout: { borderRadius: 20 },
   calloutInner: { padding: spacing.md },
   startCalloutTitle: { fontFamily: fonts.displayExtra, fontSize: 16, color: colors.ink, letterSpacing: -0.3 },
+  collectValue: {
+    marginTop: 4,
+    fontFamily: fonts.displayExtra,
+    fontSize: 18,
+    color: colors.forest,
+    letterSpacing: -0.3,
+  },
   startCalloutBody: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, marginTop: 6, lineHeight: 19 },
   jobValueCard: { borderRadius: 20 },
   jobValueInner: { padding: spacing.md },

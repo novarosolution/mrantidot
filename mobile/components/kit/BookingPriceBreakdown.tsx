@@ -6,15 +6,30 @@ import { colors, fonts, premium, shadows, spacing, surfaces } from '@/constants/
 export function BookingPriceBreakdown({
   amount,
   compact,
+  serviceName,
+  serviceDesc,
 }: {
   amount: Pick<BookingAmount, 'base' | 'gst' | 'coupon' | 'total'>;
   compact?: boolean;
+  /** Optional service title shown above the charge rows. */
+  serviceName?: string;
+  serviceDesc?: string;
 }) {
   const copy = useBookingCopy();
   return (
     <View style={[styles.wrap, compact && styles.compact, compact && styles.embedded]}>
       {!compact ? <View style={styles.goldRule} /> : null}
       <Text style={styles.heading}>{copy.priceBreakdownTitle}</Text>
+      {serviceName ? (
+        <View style={styles.serviceBlock}>
+          <Text style={styles.serviceName}>{serviceName}</Text>
+          {serviceDesc ? (
+            <Text style={styles.serviceDesc} numberOfLines={2}>
+              {serviceDesc}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
       <Row label={copy.priceLabelService} value={`₹${amount.base}`} />
       <Row label={copy.priceLabelGst} value={`₹${amount.gst}`} />
       {amount.coupon > 0 ? (
@@ -66,7 +81,13 @@ const styles = StyleSheet.create({
     opacity: 0.55,
     borderRadius: 1,
   },
-  compact: { padding: spacing.sm, borderWidth: 0, shadowOpacity: 0, elevation: 0, backgroundColor: 'transparent' },
+  compact: {
+    padding: spacing.sm,
+    borderWidth: 0,
+    shadowOpacity: 0,
+    elevation: 0,
+    backgroundColor: 'transparent',
+  },
   embedded: { paddingHorizontal: 0, paddingTop: 0 },
   heading: {
     fontFamily: fonts.bodySemi,
@@ -75,6 +96,25 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
+  },
+  serviceBlock: {
+    marginBottom: spacing.sm,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: surfaces.glassBorder,
+  },
+  serviceName: {
+    fontFamily: fonts.display,
+    fontSize: 15,
+    letterSpacing: -0.25,
+    color: colors.ink,
+  },
+  serviceDesc: {
+    marginTop: 3,
+    fontFamily: fonts.body,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: colors.muted,
   },
   row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   label: { fontFamily: fonts.body, fontSize: 13, color: colors.muted },
@@ -95,5 +135,10 @@ const styles = StyleSheet.create({
     borderColor: surfaces.glassBorder,
   },
   totalLabel: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.ink },
-  totalValue: { fontFamily: fonts.displayExtra, fontSize: 22, color: premium.accentGold, letterSpacing: -0.3 },
+  totalValue: {
+    fontFamily: fonts.displayExtra,
+    fontSize: 22,
+    color: premium.accentGold,
+    letterSpacing: -0.3,
+  },
 });

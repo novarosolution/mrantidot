@@ -1,33 +1,78 @@
 import type { ReactNode } from 'react';
-import { Pressable, type PressableProps, StyleSheet, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, Pressable, type PressableProps, StyleSheet } from 'react-native';
 
 type KitTabBarButtonProps = PressableProps & {
   children?: ReactNode;
   accessibilityState?: { selected?: boolean };
 };
 
-/** Premium tab press target with lime active indicator. */
+/** Premium floating tab press target — soft press + active lift + lime glow. */
 export function KitTabBarButton(props: KitTabBarButtonProps) {
   const { children, accessibilityState, style: _style, ...rest } = props;
-  const focused = accessibilityState?.selected;
+  const focused = Boolean(accessibilityState?.selected);
+  const focusAnim = useRef(new Animated.Value(focused ? 1 : 0)).current;
+  const pressAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.spring(focusAnim, {
+      toValue: focused ? 1 : 0,
+      friction: 7,
+      tension: 120,
+      useNativeDriver: true,
+    }).start();
+  }, [focused, focusAnim]);
 
   return (
     <Pressable
       {...rest}
-      style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}
+      onPressIn={(e) => {
+        Animated.timing(pressAnim, {
+          toValue: 0.94,
+          duration: 90,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }).start();
+        rest.onPressIn?.(e);
+      }}
+      onPressOut={(e) => {
+        Animated.timing(pressAnim, {
+          toValue: 1,
+          duration: 140,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }).start();
+        rest.onPressOut?.(e);
+      }}
+      style={styles.wrap}
     >
-      {focused ? (
-        <LinearGradient
-          colors={['#B6E86A', '#8FD03C', '#27A747']}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={styles.indicator}
-        />
-      ) : (
-        <View style={styles.indicatorSpacer} />
-      )}
-      <View style={styles.inner}>{children}</View>
+      <Animated.View
+        style={[
+          styles.inner,
+          {
+            transform: [
+              { scale: pressAnim },
+              {
+                translateY: focusAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -1.5] }),
+              },
+            ],
+          },
+        ]}
+      >
+        {children}
+      </Animated.View>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.glow,
+          {
+            opacity: focusAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
+            transform: [
+              { scaleX: focusAnim.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }) },
+            ],
+          },
+        ]}
+      />
     </Pressable>
   );
 }
@@ -36,26 +81,23 @@ const styles = StyleSheet.create({
   wrap: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingTop: 4,
-  },
-  pressed: {
-    opacity: 0.88,
-    transform: [{ scale: 0.94 }],
-  },
-  indicator: {
-    width: 18,
-    height: 3.5,
-    borderRadius: 3,
-    marginBottom: 4,
-  },
-  indicatorSpacer: {
-    width: 18,
-    height: 3.5,
-    marginBottom: 4,
+    justifyContent: 'center',
+    paddingTop: 2,
   },
   inner: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  glow: {
+    position: 'absolute',
+    bottom: 5,
+    width: 26,
+    height: 3.5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(143,208,60,0.6)',
+    shadowColor: '#8FD03C',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.75,
+    shadowRadius: 5,
   },
 });

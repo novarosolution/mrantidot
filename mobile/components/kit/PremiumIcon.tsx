@@ -193,15 +193,16 @@ export function PremiumIcon({
       <View style={[styles.tabWrap, style]}>
         {focused ? (
           <View style={styles.tabActiveShell}>
+            <View style={styles.tabActiveHalo} pointerEvents="none" />
             <LinearGradient
-              colors={['#8FD03C', '#30B84F', '#0A6423']}
+              colors={['#A8E04A', '#30B84F', '#0A6423']}
               style={styles.tabActive}
-              start={{ x: 0.12, y: 0 }}
-              end={{ x: 0.9, y: 1 }}
+              start={{ x: 0.15, y: 0 }}
+              end={{ x: 0.88, y: 1 }}
             >
               <LinearGradient
-                colors={['rgba(255,255,255,0.42)', 'rgba(255,255,255,0.08)', 'rgba(0,0,0,0.08)']}
-                locations={[0, 0.45, 1]}
+                colors={['rgba(255,255,255,0.5)', 'rgba(255,255,255,0.1)', 'rgba(0,0,0,0.1)']}
+                locations={[0, 0.42, 1]}
                 style={StyleSheet.absoluteFill}
                 start={{ x: 0.5, y: 0 }}
                 end={{ x: 0.5, y: 1 }}
@@ -213,12 +214,19 @@ export function PremiumIcon({
                 px={px}
                 color="#FFFFFF"
                 stroke={opticalStroke(px, 'bold')}
-                fill="rgba(255,255,255,0.38)"
+                fill="rgba(255,255,255,0.4)"
               />
             </LinearGradient>
           </View>
         ) : (
           <View style={styles.tabIdle}>
+            <LinearGradient
+              colors={['rgba(255,255,255,0.92)', 'rgba(234,246,227,0.78)']}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              pointerEvents="none"
+            />
             <Glyph
               Icon={Icon}
               px={px}
@@ -465,39 +473,49 @@ const styles = StyleSheet.create({
   tabWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 42,
+    minHeight: 44,
   },
   tabActiveShell: {
-    borderRadius: 16,
+    borderRadius: 17,
     shadowColor: '#0A6423',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.36,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.42,
     shadowRadius: 14,
-    elevation: 10,
+    elevation: 12,
+  },
+  tabActiveHalo: {
+    position: 'absolute',
+    top: -5,
+    left: -5,
+    right: -5,
+    bottom: -5,
+    borderRadius: 20,
+    backgroundColor: 'rgba(143,208,60,0.22)',
   },
   tabActive: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   tabActiveRim: {
     ...StyleSheet.absoluteFill,
-    borderWidth: 1.2,
-    borderColor: 'rgba(255,255,255,0.42)',
-    borderRadius: 16,
+    borderWidth: 1.25,
+    borderColor: 'rgba(255,255,255,0.48)',
+    borderRadius: 15,
   },
   tabIdle: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
-    backgroundColor: 'rgba(234,246,227,0.72)',
+    borderRadius: 15,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(143,208,60,0.35)',
+    borderColor: 'rgba(180,220,165,0.55)',
+    backgroundColor: 'rgba(255,255,255,0.55)',
   },
   ringOuter: {
     padding: 2.5,

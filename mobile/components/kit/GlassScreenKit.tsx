@@ -16,7 +16,7 @@ import { PremiumMeshBg } from '@/components/kit/PremiumMeshBg';
 import { colors, fonts, premium, shadows, spacing, surfaces } from '@/constants/theme';
 
 /** Bottom scroll inset for tab-root screens above the floating glass tab bar. */
-export const TAB_BAR_SCROLL_PAD = 108;
+export const TAB_BAR_SCROLL_PAD = 112;
 
 /**
  * Shared ScrollView props for customer screens.
@@ -253,11 +253,11 @@ export function GlassTabBarBackground() {
   return (
     <View style={styles.tabBarShell}>
       {Platform.OS !== 'web' ? (
-        <BlurView intensity={BLUR_IOS ? 64 : 80} tint="light" style={StyleSheet.absoluteFill} pointerEvents="none" />
+        <BlurView intensity={BLUR_IOS ? 72 : 88} tint="light" style={StyleSheet.absoluteFill} pointerEvents="none" />
       ) : null}
       <LinearGradient
-        colors={['rgba(255,255,255,0.78)', 'rgba(246,250,242,0.72)', 'rgba(234,246,227,0.58)']}
-        locations={[0, 0.45, 1]}
+        colors={['rgba(255,255,255,0.88)', 'rgba(250,253,247,0.82)', 'rgba(234,246,227,0.62)']}
+        locations={[0, 0.48, 1]}
         style={styles.tabBarSheen}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
@@ -265,20 +265,23 @@ export function GlassTabBarBackground() {
       />
       <View style={styles.tabBarTint} pointerEvents="none" />
       <LinearGradient
-        colors={['rgba(255,255,255,0.85)', 'rgba(255,255,255,0)']}
+        colors={['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.2)', 'rgba(255,255,255,0)']}
+        locations={[0, 0.4, 1]}
         style={styles.tabBarTopGlow}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         pointerEvents="none"
       />
       <LinearGradient
-        colors={['#B6E86A', '#8FD03C', '#27A747']}
+        colors={['#C8F07A', '#8FD03C', '#27A747', '#8FD03C', '#C8F07A']}
+        locations={[0, 0.22, 0.5, 0.78, 1]}
         style={styles.tabBarLimeEdge}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         pointerEvents="none"
       />
       <View style={styles.tabBarRim} pointerEvents="none" />
+      <View style={styles.tabBarInnerRim} pointerEvents="none" />
     </View>
   );
 }
@@ -323,21 +326,21 @@ export const glassSkin = {
 
 export const glassTabBarStyle: ViewStyle = {
   position: 'absolute',
-  left: 12,
-  right: 12,
-  bottom: 10,
+  left: 14,
+  right: 14,
+  bottom: 12,
   backgroundColor: 'transparent',
   borderTopColor: 'transparent',
   borderTopWidth: 0,
-  height: 78,
-  paddingBottom: 10,
-  paddingTop: 4,
-  borderRadius: 28,
+  height: 82,
+  paddingBottom: 11,
+  paddingTop: 6,
+  borderRadius: 30,
   elevation: 0,
-  shadowColor: '#03170B',
-  shadowOffset: { width: 0, height: 14 },
-  shadowOpacity: 0.18,
-  shadowRadius: 22,
+  shadowColor: '#02180C',
+  shadowOffset: { width: 0, height: 16 },
+  shadowOpacity: 0.22,
+  shadowRadius: 28,
 };
 
 const styles = StyleSheet.create({
@@ -485,11 +488,11 @@ const styles = StyleSheet.create({
   tabBarShell: {
     ...StyleSheet.absoluteFill,
     overflow: 'hidden',
-    borderRadius: 28,
+    borderRadius: 30,
   },
   tabBarTint: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(255,255,255,0.28)',
+    backgroundColor: 'rgba(255,255,255,0.22)',
   },
   tabBarSheen: {
     ...StyleSheet.absoluteFill,
@@ -499,20 +502,27 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: '48%',
+    height: '55%',
   },
   tabBarLimeEdge: {
     position: 'absolute',
     top: 0,
-    left: 22,
-    right: 22,
+    left: 18,
+    right: 18,
     height: 2.5,
     borderRadius: 2,
   },
   tabBarRim: {
     ...StyleSheet.absoluteFill,
-    borderRadius: 28,
+    borderRadius: 30,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.72)',
+    borderColor: 'rgba(255,255,255,0.78)',
+  },
+  tabBarInnerRim: {
+    ...StyleSheet.absoluteFill,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(10,100,35,0.06)',
+    margin: 0.5,
   },
 });

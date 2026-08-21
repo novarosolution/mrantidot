@@ -31,7 +31,7 @@ export function AttendanceAnalyticsCard({
 
   const visitMetrics: MetricDef[] = [
     { key: 'jobs_started', label: 'Jobs started', value: String(analytics.jobsStarted ?? 0) },
-    { key: 'jobs_completed', label: 'Jobs stopped', value: String(analytics.jobsCompleted) },
+    { key: 'jobs_completed', label: 'Jobs completed', value: String(analytics.jobsCompleted) },
     { key: 'on_time', label: 'On-time', value: analytics.onTimeRate != null ? `${analytics.onTimeRate}%` : '—' },
     { key: 'avg_visit', label: 'Avg visit', value: avgVisit },
   ];

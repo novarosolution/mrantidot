@@ -132,7 +132,7 @@ export default function TechDashboard() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Mark absent', style: 'destructive', onPress: () => void markOffToday() },
     ]);
-  }, [copy.techOffDutyBadge]);
+  }, []);
 
   const confirmCheckOut = useCallback(() => {
     Alert.alert('Check out?', 'You will go off duty. Today still counts as present.', [
@@ -255,9 +255,11 @@ export default function TechDashboard() {
                 ? styles.dutyDotLeave
                 : todayStatus === 'came' && onDuty
                   ? styles.dutyDotOn
-                  : todayStatus === 'not_came'
-                    ? styles.dutyDotOff
-                    : styles.dutyDotPending,
+                  : todayStatus === 'came'
+                    ? styles.dutyDotCheckedOut
+                    : todayStatus === 'not_came'
+                      ? styles.dutyDotOff
+                      : styles.dutyDotPending,
             ]}
           />
           <Text style={styles.dutyText}>{dutyLabel}</Text>
@@ -288,7 +290,7 @@ export default function TechDashboard() {
   }
 
   return (
-    <TechScreen header={hero}>
+    <TechScreen>
       <TechScreenList
         data={flatData}
         {...CUSTOMER_LIST_PERF}
@@ -509,6 +511,7 @@ const styles = StyleSheet.create({
   dutyDotOn: { backgroundColor: '#C8F07A' },
   dutyDotOff: { backgroundColor: '#FCA5A5' },
   dutyDotLeave: { backgroundColor: '#93C5FD' },
+  dutyDotCheckedOut: { backgroundColor: 'rgba(255,255,255,0.55)' },
   dutyDotPending: { backgroundColor: 'rgba(255,255,255,0.85)' },
   dutyText: { fontFamily: fonts.bodyBold, fontSize: 11.5, color: colors.white },
   headerGutter: { marginTop: 14 },

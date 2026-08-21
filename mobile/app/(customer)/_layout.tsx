@@ -41,20 +41,21 @@ export default function CustomerLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#0A6423',
-        tabBarInactiveTintColor: '#2F5538',
+        tabBarInactiveTintColor: '#4A7354',
         tabBarStyle: glassTabBarStyle,
         tabBarBackground: () => <GlassTabBarBackground />,
         tabBarLabelStyle: {
           ...typography.tabLabel,
-          fontFamily: fonts.bodyBold,
-          fontSize: 10,
-          letterSpacing: 0.2,
-          marginTop: 2,
+          fontFamily: fonts.bodySemi,
+          fontSize: 10.5,
+          letterSpacing: 0.25,
+          marginTop: 3,
         },
         tabBarItemStyle: {
           paddingTop: 0,
         },
         tabBarButton: (props) => <KitTabBarButton {...props} />,
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color, focused }) => <KitTabBarIcon icon={Tab.home} color={color} focused={focused} /> }} />

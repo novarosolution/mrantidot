@@ -19,7 +19,7 @@ import { textInputDefaults } from '@/components/ui/textInputDefaults';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { localDateKey } from '@/lib/dates';
 import { techGoBack } from '@/lib/routes';
-import type { LeaveRequest, LeaveType } from '@/types/api';
+import type { LeaveRequest, LeaveStatus, LeaveType } from '@/types/api';
 import { colors, fonts, formField, premium, spacing, surfaces } from '@/constants/theme';
 
 const TYPES: { key: LeaveType; label: string }[] = [
@@ -33,6 +33,19 @@ function addDays(key: string, n: number): string {
   const [y, m, d] = key.split('-').map(Number);
   const dt = new Date(y, m - 1, d + n);
   return localDateKey(dt);
+}
+
+function statusTone(status: LeaveStatus): { bg: string; text: string; label: string } {
+  switch (status) {
+    case 'approved':
+      return { bg: colors.soft, text: colors.forest, label: 'Approved' };
+    case 'rejected':
+      return { bg: colors.errorBg, text: colors.error, label: 'Rejected' };
+    case 'cancelled':
+      return { bg: colors.greyBg, text: colors.muted, label: 'Cancelled' };
+    default:
+      return { bg: colors.amberBg, text: colors.amberInk, label: 'Pending' };
+  }
 }
 
 export default function TechLeaveScreen() {
@@ -54,13 +67,17 @@ export default function TechLeaveScreen() {
   }, []);
 
   useEffect(() => {
-    safeAsync(async () => {
-      try {
-        await load();
-      } finally {
-        setLoading(false);
-      }
-    }, undefined, (msg) => setError(msg));
+    safeAsync(
+      async () => {
+        try {
+          await load();
+        } finally {
+          setLoading(false);
+        }
+      },
+      undefined,
+      (msg) => setError(msg),
+    );
   }, [load]);
 
   async function submit() {
@@ -82,16 +99,33 @@ export default function TechLeaveScreen() {
   }
 
   async function cancelLeave(id: string) {
-    try {
-      await api.post(`/leave/${id}/cancel`);
-      Toast.show({ type: 'success', text1: 'Leave cancelled' });
-      await load();
-    } catch (err) {
-      Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not cancel') });
-    }
+    Alert.alert('Cancel leave request?', 'Admin will no longer see this pending request.', [
+      { text: 'Keep', style: 'cancel' },
+      {
+        text: 'Cancel request',
+        style: 'destructive',
+        onPress: () =>
+          void (async () => {
+            try {
+              await api.post(`/leave/${id}/cancel`);
+              Toast.show({ type: 'success', text1: 'Leave cancelled' });
+              await load();
+            } catch (err) {
+              Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not cancel') });
+            }
+          })(),
+      },
+    ]);
   }
 
-  const header = <CustomerPageHeader variant="premium" title="Leave" onBack={() => techGoBack()} />;
+  const header = (
+    <CustomerPageHeader
+      variant="premium"
+      title="Leave"
+      subtitle="Request time off for approval"
+      onBack={() => techGoBack()}
+    />
+  );
 
   if (loading) {
     return (
@@ -108,6 +142,8 @@ export default function TechLeaveScreen() {
       </TechScreen>
     );
   }
+
+  const pendingCount = leaves.filter((l) => l.status === 'pending').length;
 
   return (
     <TechScreen header={header} edges={['left', 'right', 'top']}>
@@ -131,9 +167,11 @@ export default function TechLeaveScreen() {
       >
         <GlassPanel goldEdge tone="light">
           <Text style={styles.cardTitle}>Request leave</Text>
-          <Text style={styles.hint}>Admin must approve. Approved days mark attendance as leave.</Text>
+          <Text style={styles.hint}>
+            Admin must approve. Approved days mark attendance as leave automatically.
+          </Text>
 
-          <Text style={styles.label}>From (YYYY-MM-DD)</Text>
+          <Text style={styles.label}>From</Text>
           <TextInput
             {...textInputDefaults}
             style={styles.input}
@@ -143,7 +181,13 @@ export default function TechLeaveScreen() {
             autoCapitalize="none"
           />
           <View style={styles.quickRow}>
-            <Pressable style={styles.chip} onPress={() => { setFrom(today); setTo(today); }}>
+            <Pressable
+              style={styles.chip}
+              onPress={() => {
+                setFrom(today);
+                setTo(today);
+              }}
+            >
               <Text style={styles.chipText}>Today</Text>
             </Pressable>
             <Pressable
@@ -156,9 +200,27 @@ export default function TechLeaveScreen() {
             >
               <Text style={styles.chipText}>Tomorrow</Text>
             </Pressable>
+            <Pressable
+              style={styles.chip}
+              onPress={() => {
+                setFrom(today);
+                setTo(addDays(today, 2));
+              }}
+            >
+              <Text style={styles.chipText}>3 days</Text>
+            </Pressable>
+            <Pressable
+              style={styles.chip}
+              onPress={() => {
+                setFrom(today);
+                setTo(addDays(today, 6));
+              }}
+            >
+              <Text style={styles.chipText}>1 week</Text>
+            </Pressable>
           </View>
 
-          <Text style={styles.label}>To (YYYY-MM-DD)</Text>
+          <Text style={styles.label}>To</Text>
           <TextInput
             {...textInputDefaults}
             style={styles.input}
@@ -194,32 +256,55 @@ export default function TechLeaveScreen() {
           <Button title="Submit request" variant="premium" onPress={() => void submit()} loading={saving} />
         </GlassPanel>
 
-        <GlassSectionLabel title="Your requests" hint={leaves.length ? `${leaves.length} total` : undefined} />
+        <GlassSectionLabel
+          title="Your requests"
+          hint={
+            leaves.length
+              ? `${leaves.length} total${pendingCount ? ` · ${pendingCount} pending` : ''}`
+              : undefined
+          }
+        />
         {leaves.length === 0 ? (
           <GlassPanel tone="mint">
-            <Text style={styles.empty}>No leave requests yet</Text>
+            <Text style={styles.emptyTitle}>No leave requests yet</Text>
+            <Text style={styles.empty}>Submit above when you need time off.</Text>
           </GlassPanel>
         ) : (
-          leaves.map((l) => (
-            <GlassPanel key={l.id} padded={false} style={styles.rowPanel} tone="light">
-              <View style={styles.row}>
-                <View style={styles.rowBody}>
-                  <Text style={styles.rowTitle}>
-                    {l.from === l.to ? l.from : `${l.from} → ${l.to}`}
-                  </Text>
-                  <Text style={styles.rowSub}>
-                    {l.type} · {l.status}
-                    {l.reason ? ` · ${l.reason}` : ''}
-                  </Text>
+          leaves.map((l) => {
+            const tone = statusTone(l.status);
+            return (
+              <GlassPanel key={l.id} padded={false} style={styles.rowPanel} tone="light">
+                <View style={styles.row}>
+                  <View style={styles.rowBody}>
+                    <View style={styles.rowTop}>
+                      <Text style={styles.rowTitle}>
+                        {l.from === l.to ? l.from : `${l.from} → ${l.to}`}
+                      </Text>
+                      <View style={[styles.statusPill, { backgroundColor: tone.bg }]}>
+                        <Text style={[styles.statusText, { color: tone.text }]}>{tone.label}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.rowSub}>
+                      {l.type.charAt(0).toUpperCase() + l.type.slice(1)}
+                      {l.reason ? ` · ${l.reason}` : ''}
+                    </Text>
+                    {l.adminNote ? (
+                      <Text style={styles.adminNote}>Admin: {l.adminNote}</Text>
+                    ) : null}
+                  </View>
+                  {l.status === 'pending' ? (
+                    <Pressable
+                      onPress={() => void cancelLeave(l.id)}
+                      hitSlop={8}
+                      style={styles.cancelBtn}
+                    >
+                      <Text style={styles.cancel}>Cancel</Text>
+                    </Pressable>
+                  ) : null}
                 </View>
-                {l.status === 'pending' ? (
-                  <Pressable onPress={() => void cancelLeave(l.id)} hitSlop={8} style={styles.cancelBtn}>
-                    <Text style={styles.cancel}>Cancel</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            </GlassPanel>
-          ))
+              </GlassPanel>
+            );
+          })
         )}
       </TechScreenScroll>
     </TechScreen>
@@ -256,7 +341,19 @@ const styles = StyleSheet.create({
   chipOn: { backgroundColor: colors.forest, borderColor: colors.lime },
   chipText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
   chipTextOn: { color: colors.white },
-  empty: { fontFamily: fonts.body, fontSize: 14, color: colors.muted, textAlign: 'center' },
+  emptyTitle: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 14,
+    color: colors.ink,
+    textAlign: 'center',
+  },
+  empty: {
+    marginTop: 4,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.muted,
+    textAlign: 'center',
+  },
   rowPanel: { borderRadius: premium.radiusCard },
   row: {
     flexDirection: 'row',
@@ -265,8 +362,26 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   rowBody: { flex: 1, minWidth: 0 },
-  rowTitle: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.ink },
-  rowSub: { marginTop: 2, fontFamily: fonts.body, fontSize: 12, color: colors.muted },
+  rowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  rowTitle: { flex: 1, fontFamily: fonts.bodySemi, fontSize: 14, color: colors.ink },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  statusText: { fontFamily: fonts.bodySemi, fontSize: 11 },
+  rowSub: { marginTop: 4, fontFamily: fonts.body, fontSize: 12, color: colors.muted },
+  adminNote: {
+    marginTop: 4,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    color: colors.forest,
+  },
   cancelBtn: {
     paddingHorizontal: 10,
     paddingVertical: 6,

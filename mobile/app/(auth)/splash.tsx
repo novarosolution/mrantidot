@@ -87,10 +87,20 @@ export default function SplashScreen() {
   }, [phase, ready, user]);
 
   const brandName = useMemo(() => content.branding.name, [content.branding.name]);
+  const tagline = useMemo(
+    () => content.branding.tagline || 'Trusted pest control & home services',
+    [content.branding.tagline],
+  );
+  const trustChips = useMemo(
+    () => content.onboarding.trustChips,
+    [content.onboarding.trustChips],
+  );
 
   return (
     <LocationLaunchScreen
       brandName={brandName}
+      tagline={tagline}
+      trustChips={trustChips}
       cityLabel={cityLabel}
       areaLabel={areaLabel}
       phase={phase}

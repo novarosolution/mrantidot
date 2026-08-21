@@ -1,9 +1,10 @@
-import { safeGoBack, techRoutes, appPush } from '@/lib/routes';
+import { techRoutes, appPush } from '@/lib/routes';
 import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AnalyticsStatGrid, type AnalyticsStatItem } from '@/components/kit/AnalyticsStatGrid';
 import { AttendanceAnalyticsCard } from '@/components/kit/AttendanceAnalyticsCard';
 import { TechnicianDayCalendar } from '@/components/kit/TechnicianDayCalendar';
+import { TechManageHub } from '@/components/kit/TechManageHub';
 import { TechSectionTitle } from '@/components/kit/TechPageKit';
 import { TechProfileHero } from '@/components/kit/TechProfileHero';
 import { TechScreenScroll, techScreenStyles } from '@/components/kit/TechScreenKit';
@@ -47,6 +48,7 @@ export function TechnicianProfilePanel({
 }) {
   const verifyJob = bookings.find((b) => b.status === 'awaiting_verification');
   const activeJob = bookings.find((b) => b.status === 'in_progress');
+  const openJobs = bookings.filter((b) => !['completed', 'cancelled'].includes(b.status)).length;
 
   const statItems: AnalyticsStatItem[] = stats
     ? [
@@ -57,7 +59,7 @@ export function TechnicianProfilePanel({
           icon: AppIcons.techStats.assigned,
           iconBg: colors.soft,
           iconColor: colors.forest,
-          onPress: () => safeGoBack(techRoutes.home),
+          onPress: () => appPush(techRoutes.home),
         },
         {
           key: 'active',
@@ -76,7 +78,15 @@ export function TechnicianProfilePanel({
           iconBg: '#E8F5EC',
           iconColor: colors.forest,
           onPress: () => verifyJob && appPush(techRoutes.job(verifyJob.id)),
-        }
+        },
+        {
+          key: 'done',
+          label: 'Completed',
+          value: String(stats.completed),
+          icon: AppIcons.techStats.done,
+          iconBg: colors.soft,
+          iconColor: colors.forest,
+        },
       ]
     : [];
 
@@ -97,6 +107,15 @@ export function TechnicianProfilePanel({
         todayStatus={todayStatus}
         onDuty={onDuty}
       />
+
+      <View style={styles.block}>
+        <TechManageHub
+          activeJobId={activeJob?.id}
+          verifyJobId={verifyJob?.id}
+          verifyCount={bookings.filter((b) => b.status === 'awaiting_verification').length}
+          jobCount={openJobs}
+        />
+      </View>
 
       {stats?.paySummary ? (
         <View style={styles.block}>
@@ -134,27 +153,6 @@ export function TechnicianProfilePanel({
           monthKey={month}
           onMonthChange={onMonthChange}
         />
-      </View>
-
-      <View style={styles.block}>
-        <Pressable
-          style={({ pressed }) => [styles.leaveLink, pressed && styles.logoutPressed]}
-          onPress={() => appPush(techRoutes.leave)}
-        >
-          <PremiumIcon
-            icon={AppIcons.ui.calendar}
-            variant="soft"
-            size="md"
-            color={colors.forest}
-            bg={colors.soft}
-            boxSize={38}
-          />
-          <View style={styles.leaveCopy}>
-            <Text style={styles.leaveTitle}>Leave</Text>
-            <Text style={styles.leaveSub}>Request time off for admin approval</Text>
-          </View>
-          <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={16} color={colors.muted} />
-        </Pressable>
       </View>
 
       {onLogout ? (
@@ -258,20 +256,6 @@ const styles = StyleSheet.create({
     borderColor: '#F0D0C8',
     ...homeShadow.soft,
   },
-  leaveLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: spacing.md,
-    borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
-    ...homeShadow.soft,
-  },
-  leaveCopy: { flex: 1, minWidth: 0 },
-  leaveTitle: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.ink },
-  leaveSub: { marginTop: 2, fontFamily: fonts.body, fontSize: 12, color: colors.muted },
   logoutPressed: { opacity: 0.92, transform: [{ scale: 0.99 }] },
   logoutText: { fontFamily: fonts.bodySemi, fontSize: 15, color: colors.error },
 });

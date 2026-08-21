@@ -7,7 +7,7 @@ import { techRoutes, appPush } from '@/lib/routes';
 
 const Hub = AppIcons.techHub;
 
-/** Profile tab — shortcuts to jobs & tools (no duplicate stats). */
+/** Profile tools — jobs, leave, and urgent work shortcuts. */
 export function TechManageHub({
   activeJobId,
   verifyJobId,
@@ -23,7 +23,7 @@ export function TechManageHub({
     {
       key: 'jobs',
       label: 'Open jobs',
-      desc: `${jobCount} assigned`,
+      desc: jobCount > 0 ? `${jobCount} assigned` : 'View schedule',
       icon: Hub.jobs,
       grad: IconGradients.forest,
       onPress: () => appPush(techRoutes.home),
@@ -31,7 +31,7 @@ export function TechManageHub({
     {
       key: 'active',
       label: 'Active job',
-      desc: activeJobId ? 'Continue work' : 'None now',
+      desc: activeJobId ? 'Continue work' : 'None right now',
       icon: Hub.active,
       grad: IconGradients.gold,
       onPress: () => activeJobId && appPush(techRoutes.job(activeJobId)),
@@ -48,12 +48,12 @@ export function TechManageHub({
       badge: verifyCount > 0 ? verifyCount : undefined,
     },
     {
-      key: 'calendar',
-      label: 'Calendar',
-      desc: 'Schedule view',
-      icon: Hub.allJobs,
+      key: 'leave',
+      label: 'Leave',
+      desc: 'Request time off',
+      icon: AppIcons.ui.calendar,
       grad: IconGradients.forest,
-      onPress: () => appPush(techRoutes.profile),
+      onPress: () => appPush(techRoutes.leave),
     },
   ];
 
@@ -64,11 +64,20 @@ export function TechManageHub({
         {items.map((item) => (
           <Pressable
             key={item.key}
-            style={({ pressed }) => [styles.tile, item.disabled && styles.disabled, pressed && !item.disabled && styles.pressed]}
+            style={({ pressed }) => [
+              styles.tile,
+              item.disabled && styles.disabled,
+              pressed && !item.disabled && styles.pressed,
+            ]}
             onPress={item.onPress}
             disabled={item.disabled}
           >
-            <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.goldEdge} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+            <LinearGradient
+              colors={['#8FD03C', '#27A747']}
+              style={styles.goldEdge}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+            />
             <PremiumIcon icon={item.icon} variant="gradient" gradient={item.grad} size="md" boxSize={42} />
             <View style={styles.labelRow}>
               <Text style={styles.label}>{item.label}</Text>
