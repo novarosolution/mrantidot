@@ -478,6 +478,59 @@ export interface BookingAmount {
   total: number;
 }
 
+/** Client / admin service invoice with full booking details. */
+export interface BookingInvoice {
+  invoiceNumber: string;
+  issuedAt: string;
+  brand: { name: string; tagline: string };
+  support: { phone: string; email: string; hours?: string };
+  booking: {
+    id: string;
+    status: string;
+    createdAt?: string;
+    completedAt?: string;
+    scheduleLabel: string;
+    scheduleDate: string;
+    scheduleSlot: string;
+    scheduleTime?: string;
+    address: string;
+    propertyType?: string;
+    propertyTypeLabel?: string;
+    paymentMethod: string;
+    paymentMethodLabel: string;
+    couponCode?: string;
+  };
+  customer: {
+    id: string;
+    name: string;
+    phone?: string;
+    email?: string;
+    city?: string;
+  };
+  technician?: {
+    id: string;
+    name: string;
+    phone?: string;
+  };
+  service: {
+    id: string;
+    name: string;
+    category?: string;
+    shortDesc?: string;
+    iconKey?: string;
+    serviceTypes: string[];
+    basePrice?: number;
+  };
+  steps: Array<{
+    title: string;
+    status: string;
+    photoCount: number;
+    capturedAt?: string;
+  }>;
+  amount: BookingAmount;
+  text: string;
+}
+
 export interface AvailableTechnician {
   id: string;
   name: string;

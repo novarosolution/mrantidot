@@ -111,6 +111,12 @@ const PEOPLE_LINKS = [
 
 const SYSTEM_LINKS = [
   {
+    icon: AppIcons.ui.download,
+    label: 'Data export',
+    desc: 'Download all bookings, people & catalog',
+    href: adminRoutes.dataExport,
+  },
+  {
     icon: AppIcons.ui.settings,
     label: 'Settings',
     desc: 'Profile, password & preferences',
@@ -163,7 +169,7 @@ export default function TeamHubScreen() {
           ))}
         </View>
 
-        <AdminSectionTitle title="Account" hint="Your admin profile" />
+        <AdminSectionTitle title="System" hint="Export & admin account" />
         <View style={styles.links}>
           {SYSTEM_LINKS.map((l) => (
             <AdminHubLink key={l.href} icon={l.icon} label={l.label} desc={l.desc} onPress={() => appPush(l.href)} />

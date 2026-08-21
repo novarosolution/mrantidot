@@ -22,6 +22,7 @@ import { PendingScheduleCard } from '@/components/kit/PendingScheduleCard';
 import { ScheduleEditorForm } from '@/components/kit/ScheduleEditorForm';
 import { BookingFactsCard } from '@/components/kit/BookingFactsCard';
 import { BookingPriceBreakdown } from '@/components/kit/BookingPriceBreakdown';
+import { BookingInvoiceCard } from '@/components/kit/BookingInvoiceCard';
 import { BookingStatusBanner } from '@/components/kit/BookingStatusBanner';
 import { BookingTrackingTimeline } from '@/components/kit/BookingTrackingTimeline';
 import { JobProgressCard } from '@/components/kit/JobProgressCard';
@@ -41,6 +42,7 @@ import {
   bookingCustomerName,
   bookingRequestedScheduleDisplay,
   bookingScheduleDisplay,
+  bookingServiceName,
   bookingStepsDone,
   bookingTechnicianName,
   isOperationsPhase,
@@ -368,8 +370,20 @@ export default function AdminBookingDetailScreen() {
 
         <Card variant="premium" style={styles.priceCard}>
           <Text style={styles.section}>Payment</Text>
-          <BookingPriceBreakdown amount={booking.amount} />
+          <BookingPriceBreakdown
+            amount={booking.amount}
+            serviceName={bookingServiceName(booking)}
+            serviceDesc={
+              booking.service && typeof booking.service === 'object'
+                ? booking.service.shortDesc
+                : undefined
+            }
+          />
         </Card>
+
+        {booking.status !== 'cancelled' ? (
+          <BookingInvoiceCard bookingId={booking.id} />
+        ) : null}
 
         <OtpStatusCard workOtp={adminOtp} bookingId={booking.id} onUpdated={load} />
 

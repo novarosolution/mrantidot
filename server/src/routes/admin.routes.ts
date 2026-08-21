@@ -38,10 +38,20 @@ import {
   payConfigFromUser,
   resolveTechEarning,
 } from '../utils/techPay';
+import { buildAdminExport } from '../utils/adminExport';
 
 export const adminRouter = Router();
 
 adminRouter.use(requireAuth, requireRole('admin'));
+
+/** Full business data export — JSON + CSV sheets (no passwords / live OTPs). */
+adminRouter.get(
+  '/export',
+  asyncHandler(async (_req, res) => {
+    const bundle = await buildAdminExport();
+    res.json(bundle);
+  }),
+);
 
 function runValidation(
   req: Parameters<typeof validationResult>[0],

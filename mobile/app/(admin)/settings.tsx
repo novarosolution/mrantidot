@@ -113,6 +113,27 @@ export default function AdminSettingsScreen() {
       <GlassPanel padded={false}>
         <Pressable
           style={({ pressed }) => [styles.logoutCard, pressed && styles.pressed]}
+          onPress={() => appPush(adminRoutes.dataExport)}
+        >
+          <PremiumIcon
+            icon={AppIcons.ui.download}
+            variant="soft"
+            size="md"
+            color={colors.forest}
+            bg={colors.soft}
+            boxSize={40}
+          />
+          <View style={styles.exportCopy}>
+            <Text style={styles.exportTitle}>Download all data</Text>
+            <Text style={styles.exportHint}>CSV & JSON backup of the business</Text>
+          </View>
+          <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size="sm" color={colors.forest} />
+        </Pressable>
+      </GlassPanel>
+
+      <GlassPanel padded={false}>
+        <Pressable
+          style={({ pressed }) => [styles.logoutCard, pressed && styles.pressed]}
           onPress={async () => {
             await logout();
             appReplace(authRoutes.login);
@@ -148,4 +169,7 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.9 },
   logoutTitle: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.error },
+  exportCopy: { flex: 1, minWidth: 0 },
+  exportTitle: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.ink },
+  exportHint: { marginTop: 2, fontFamily: fonts.body, fontSize: 12, color: colors.muted },
 });

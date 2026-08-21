@@ -9,6 +9,7 @@ import { requireAuth, requireRole } from '../middleware/auth';
 import { AppError } from '../utils/AppError';
 import { asyncHandler } from '../middleware/error';
 import { formatBooking, formatBookingForRole } from '../utils/format';
+import { buildBookingInvoice } from '../utils/invoice';
 import {
   activateNextStep,
   allStepsDone,
@@ -288,6 +289,19 @@ bookingsRouter.get(
   }),
 );
 
+/** Premium client invoice with full service & charge details. */
+bookingsRouter.get(
+  '/:id/invoice',
+  param('id').isMongoId(),
+  (req, res, next) => runValidation(req, res, next),
+  asyncHandler(async (req, res) => {
+    const booking = await loadBooking(req.params.id);
+    assertBookingAccess(req.user!, booking);
+    const invoice = await buildBookingInvoice(booking);
+    res.json({ invoice });
+  }),
+);
+
 bookingsRouter.patch(
   '/:id/assign',
   requireRole('admin'),
@@ -404,6 +418,14 @@ bookingsRouter.post(
     } catch (e) {
       await booking.save(); // persist failed-attempt / lockout state
       throw new AppError(400, e instanceof Error ? e.message : 'Invalid end code');
+    }
+    // Lock technician pay at completion (same as admin completeBooking).
+    if (booking.technicianId && booking.technicianEarning == null) {
+      const tech = await User.findById(booking.technicianId).select('payMode payPercent payFlat');
+      booking.technicianEarning = computeTechEarning(
+        booking.amount?.total ?? 0,
+        payConfigFromUser(tech),
+      );
     }
     await booking.save();
     await incrementTechnicianJobsDone(booking.technicianId);

@@ -14,6 +14,7 @@ import {
 import { BookingFactsCard } from '@/components/kit/BookingFactsCard';
 import { PendingScheduleCard } from '@/components/kit/PendingScheduleCard';
 import { BookingPriceBreakdown } from '@/components/kit/BookingPriceBreakdown';
+import { BookingInvoiceCard } from '@/components/kit/BookingInvoiceCard';
 import { BookingTrackingTimeline } from '@/components/kit/BookingTrackingTimeline';
 import { JobProgressCard } from '@/components/kit/JobProgressCard';
 import { OtpEntrySheet } from '@/components/kit/OtpEntrySheet';
@@ -340,10 +341,25 @@ export default function CustomerBookingDetailScreen() {
               showPhotos={false}
             />
             <View style={styles.priceInset}>
-              <BookingPriceBreakdown amount={booking.amount} compact />
+              <BookingPriceBreakdown
+                amount={booking.amount}
+                compact
+                serviceName={bookingServiceName(booking)}
+                serviceDesc={
+                  booking.service && typeof booking.service === 'object'
+                    ? booking.service.shortDesc
+                    : undefined
+                }
+              />
             </View>
           </BookingDetailSection>
         </FadeSlideIn>
+
+        {booking.status !== 'cancelled' ? (
+          <FadeSlideIn delay={110}>
+            <BookingInvoiceCard bookingId={booking.id} />
+          </FadeSlideIn>
+        ) : null}
 
         {startOtp && booking.status === 'confirmed' ? (
           <FadeSlideIn delay={120} style={styles.sectionWrap}>

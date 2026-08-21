@@ -39,6 +39,7 @@ export default function AdminLayout() {
       <Stack.Screen name="booking/[id]" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="settings" />
+      <Stack.Screen name="data-export" />
       <Stack.Screen name="reviews" />
       <Stack.Screen name="leave" />
       <Stack.Screen name="payroll" />

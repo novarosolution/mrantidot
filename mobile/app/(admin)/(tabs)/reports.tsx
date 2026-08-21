@@ -373,6 +373,25 @@ export default function AdminReportsScreen() {
         <AnalyticsStatGrid items={analyticsGrid} glass />
       </ReportsSectionCard>
 
+      <View style={styles.exportWrap}>
+        <GlassPanel>
+          <View style={styles.exportRow}>
+            <View style={styles.exportCopy}>
+              <Text style={styles.exportTitle}>Download all admin data</Text>
+              <Text style={styles.exportHint}>Full CSV / JSON backup of the business</Text>
+            </View>
+            <Pressable
+              style={({ pressed }) => [styles.exportBtn, pressed && styles.pressed]}
+              onPress={() => appPush(adminRoutes.dataExport)}
+              accessibilityRole="button"
+              accessibilityLabel="Open data export"
+            >
+              <PremiumIcon icon={AppIcons.ui.download} variant="plain" size="sm" color={colors.forest} strokeWidth={2.2} />
+            </Pressable>
+          </View>
+        </GlassPanel>
+      </View>
+
       {a ? (
         <ReportsSectionCard title="Reviews, offers & payments" hint="Satisfaction, offers & how customers pay" glass>
           <ReportsInsightGrid
@@ -468,6 +487,25 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.72)',
     borderWidth: 1.5,
     borderColor: '#8FD03C',
+  },
+  exportWrap: { paddingHorizontal: spacing.md, marginTop: spacing.md },
+  exportRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  exportCopy: { flex: 1, minWidth: 0 },
+  exportTitle: {
+    fontFamily: fonts.display,
+    fontSize: 15,
+    letterSpacing: -0.2,
+    color: colors.ink,
+  },
+  exportHint: {
+    marginTop: 3,
+    fontFamily: fonts.body,
+    fontSize: 12.5,
+    color: colors.muted,
   },
   pressed: { opacity: 0.88, transform: [{ scale: 0.97 }] },
   loadingRow: {

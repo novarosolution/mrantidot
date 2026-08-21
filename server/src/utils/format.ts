@@ -157,6 +157,7 @@ function formatBookingForTechnician(
     address: base.address,
     status: base.status,
     assignmentMode: base.assignmentMode,
+    paymentMethod: base.paymentMethod,
     steps: base.steps,
     problemPhotos: base.problemPhotos,
     otpRequired: otpRequiredForBooking(booking),

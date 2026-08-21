@@ -120,6 +120,7 @@ export const adminRoutes = {
   reviews: '/(admin)/reviews',
   leave: '/(admin)/leave',
   payroll: '/(admin)/payroll',
+  dataExport: '/(admin)/data-export',
 } as const;
 
 export type AdminRoute = (typeof adminRoutes)[keyof typeof adminRoutes] | ReturnType<
@@ -152,6 +153,7 @@ export function adminBackFallback(pathname?: string): string {
   if (pathname.includes('/booking/')) return adminRoutes.bookings;
   if (pathname.includes('/notifications')) return ADMIN_TEAM;
   if (pathname.includes('/settings')) return ADMIN_TEAM;
+  if (pathname.includes('/data-export')) return ADMIN_TEAM;
   if (pathname.includes('/content')) return ADMIN_TEAM;
   if (pathname.includes('/reviews')) return ADMIN_TEAM;
   if (pathname.includes('/services')) return ADMIN_TEAM;
