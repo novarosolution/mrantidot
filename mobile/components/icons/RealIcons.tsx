@@ -1,5 +1,5 @@
-import { memo, type ReactNode } from 'react';
-import Svg, { Circle, Ellipse, G, Path, Rect, type SvgProps } from 'react-native-svg';
+import { memo, useId, type ReactNode } from 'react';
+import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, Rect, Stop, type SvgProps } from 'react-native-svg';
 import type { LucideIcon } from 'lucide-react-native';
 
 /** Lucide-compatible props so custom icons work inside PremiumIcon. */
@@ -20,19 +20,13 @@ function toNum(v: number | string | undefined, fallback: number): number {
   return fallback;
 }
 
-function softBody(color: string, fill: string): string {
-  if (fill && fill !== 'transparent') return fill;
-  /** Stronger soft fill so silhouettes stay readable on light + dark. */
-  if (color.startsWith('#') && color.length === 7) return `${color}5C`;
-  if (color.startsWith('#') && color.length === 9) return color;
-  if (color.startsWith('rgb')) return color;
-  return 'transparent';
-}
-
-function softStrong(color: string, fill: string): string {
-  if (fill && fill !== 'transparent') return fill;
-  if (color.startsWith('#') && color.length === 7) return `${color}7A`;
-  return softBody(color, fill);
+/** Lighten a #RRGGBB color toward white by `amt` (0-1). Other formats pass through unchanged. */
+function lighten(color: string, amt: number): string {
+  if (!(color.startsWith('#') && color.length === 7)) return color;
+  const num = Number.parseInt(color.slice(1), 16);
+  const mix = (c: number) => Math.round(c + (255 - c) * amt);
+  const hex = (c: number) => mix(c).toString(16).padStart(2, '0');
+  return `#${hex((num >> 16) & 0xff)}${hex((num >> 8) & 0xff)}${hex(num & 0xff)}`;
 }
 
 function createRealIcon(
@@ -52,14 +46,32 @@ function createRealIcon(
     const stroke = Math.max(1.4, Math.min(2.7, toNum(strokeWidth, 2) * (px < 18 ? 1.08 : 1)));
     const tint = String(color);
     const fillColor = fill && fill !== 'transparent' ? fill : 'transparent';
+    const hasOverrideFill = fillColor !== 'transparent';
+    const gid = useId().replace(/:/g, '');
+    const top = lighten(tint, 0.5);
+
     return (
       <Svg width={px} height={px} viewBox="0 0 24 24" fill="none" accessibilityLabel={name} {...rest}>
+        {!hasOverrideFill ? (
+          <Defs>
+            {/* Soft/strong body fills get a subtle top-light gradient for depth — bottom
+                stop keeps the original flat-fill opacity so overall icon weight is unchanged. */}
+            <LinearGradient id={`s${gid}`} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={top} stopOpacity={0.5} />
+              <Stop offset="1" stopColor={tint} stopOpacity={0.36} />
+            </LinearGradient>
+            <LinearGradient id={`t${gid}`} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={top} stopOpacity={0.64} />
+              <Stop offset="1" stopColor={tint} stopOpacity={0.48} />
+            </LinearGradient>
+          </Defs>
+        ) : null}
         {draw({
           color: tint,
           stroke,
           fill: fillColor,
-          soft: softBody(tint, fillColor),
-          strong: softStrong(tint, fillColor),
+          soft: hasOverrideFill ? fillColor : `url(#s${gid})`,
+          strong: hasOverrideFill ? fillColor : `url(#t${gid})`,
         })}
       </Svg>
     );
