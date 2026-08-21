@@ -634,7 +634,10 @@ export interface TechnicianStats {
   awaitingVerification?: number;
   rating: number;
   jobsDone: number;
+  /** Earnings for the selected month (schedule.date in range). */
   earnings: number;
+  monthEarnings?: number;
+  earningsAllTime?: number;
   paySummary?: string;
   payMode?: 'percent' | 'flat';
   payPercent?: number;

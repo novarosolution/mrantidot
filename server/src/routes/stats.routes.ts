@@ -430,7 +430,7 @@ statsRouter.get(
         Booking.countDocuments({ technicianId: techId, status: 'completed' }),
         Booking.countDocuments({ technicianId: techId, status: 'awaiting_verification' }),
         Booking.find({ technicianId: tech._id, status: 'completed' }).select(
-          'amount technicianEarning',
+          'amount technicianEarning schedule.date',
         ),
         Booking.find({
           technicianId: tech._id,
@@ -438,10 +438,20 @@ statsRouter.get(
         }),
       ]);
     const techPay = payConfigFromUser(tech);
-    const earnings = completedBookings.reduce(
+    const earningsAllTime = completedBookings.reduce(
       (sum, b) => sum + resolveTechEarning(b, techPay),
       0,
     );
+    const monthCompleted = completedBookings.filter((b) => {
+      const d = b.schedule?.date;
+      return d != null && d >= from && d <= to;
+    });
+    const monthEarnings = monthCompleted.reduce(
+      (sum, b) => sum + resolveTechEarning(b, techPay),
+      0,
+    );
+    // Headline earnings follow the selected month (matches attendance / visit analytics).
+    const earnings = monthEarnings;
     const attendanceRecords = await loadAttendanceForRange(tech._id, from, to);
     const attendance = buildAttendanceCalendar(attendanceRecords, from, to, today);
     const attendanceStats = computeAttendanceAnalytics(attendance, today);
@@ -457,6 +467,8 @@ statsRouter.get(
       rating: technicianPublicRating(tech),
       jobsDone: Math.max(tech.jobsDone ?? 0, completed),
       earnings,
+      earningsAllTime,
+      monthEarnings,
       paySummary: formatPaySummary(techPay),
       payMode: techPay.payMode ?? 'percent',
       payPercent: techPay.payPercent ?? 100,

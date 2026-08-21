@@ -803,6 +803,14 @@ bookingsRouter.patch(
         await booking.save();
         throw new AppError(400, e instanceof Error ? e.message : 'Invalid end code');
       }
+      // Lock technician pay at completion (same as complete-work / admin completeBooking).
+      if (booking.technicianId && booking.technicianEarning == null) {
+        const tech = await User.findById(booking.technicianId).select('payMode payPercent payFlat');
+        booking.technicianEarning = computeTechEarning(
+          booking.amount?.total ?? 0,
+          payConfigFromUser(tech),
+        );
+      }
       await booking.save();
       await incrementTechnicianJobsDone(booking.technicianId);
       await notifyWorkOtpEvent(booking, 'work_completed');

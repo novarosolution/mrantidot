@@ -94,6 +94,7 @@ export function getApiErrorMessage(error: unknown, fallback = 'Something went wr
     if (status === 403) return '403 Forbidden';
     if (status === 404) return '404 Not Found';
     if (status === 408) return '408 Request Timeout';
+    if (status === 413) return 'Photo is too large for the server.';
     if (status === 422) return 'Please check your input and try again.';
     if (status === 429) return 'Too many attempts. Try again later.';
     if (status === 500) return '500 Internal Server Error';
@@ -145,13 +146,26 @@ api.interceptors.request.use(async (req) => {
   }
 
   if (typeof FormData !== 'undefined' && req.data instanceof FormData) {
-    const headers = req.headers as { delete?: (name: string) => void } & Record<string, unknown>;
+    // RN file uploads ({ uri, name, type }) only work reliably over XHR.
+    // The default fetch adapter often sends an empty multipart body → "No images uploaded".
+    req.adapter = 'xhr';
+    req.timeout = req.timeout && req.timeout > 120_000 ? req.timeout : 120_000;
+
+    // Default JSON Content-Type must be cleared so the runtime can set multipart boundary.
+    const headers = req.headers as {
+      delete?: (name: string) => void;
+      set?: (name: string, value: unknown) => void;
+    } & Record<string, unknown>;
     if (typeof headers.delete === 'function') {
       headers.delete('Content-Type');
       headers.delete('content-type');
     } else {
       delete headers['Content-Type'];
       delete headers['content-type'];
+    }
+    // Axios 1.x AxiosHeaders: false disables the header entirely.
+    if (typeof headers.set === 'function') {
+      headers.set('Content-Type', false);
     }
   }
 
