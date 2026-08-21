@@ -55,7 +55,7 @@ export const DEFAULT_CUSTOMER_UI_COPY: CustomerUiCopy = {
   profileStatSaved: 'SAVED',
   profileStatPay: 'PAY',
   profileMenuBookings: 'My Bookings',
-  profileMenuBookingsSub: 'Track, reschedule & rate visits',
+  profileMenuBookingsSub: 'Track visits & rate completed jobs',
   profileMenuAddresses: 'Saved Addresses',
   profileMenuAddressesSub: 'Home, office & more',
   profileMenuPayments: 'Payment Methods',

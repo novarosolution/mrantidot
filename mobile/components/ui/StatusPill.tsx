@@ -5,7 +5,7 @@ import { adminType, colors, surfaces } from '@/constants/theme';
 
 const LABELS: Partial<Record<BookingStatus, string>> = {
   in_progress: 'In progress',
-  awaiting_verification: 'Review',
+  awaiting_verification: 'Awaiting code',
 };
 
 const PILL_COLORS: Record<BookingStatus, { bg: string; text: string }> = {

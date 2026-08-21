@@ -1,4 +1,4 @@
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,7 +20,7 @@ import { JobProgressCard } from '@/components/kit/JobProgressCard';
 import { OtpEntrySheet } from '@/components/kit/OtpEntrySheet';
 import { getActiveCustomerOtp, WorkOtpCard } from '@/components/kit/WorkOtpCard';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
-import { GlassBackdrop } from '@/components/kit/GlassScreenKit';
+import { GlassBackdrop, glassTabBarStyle } from '@/components/kit/GlassScreenKit';
 import { Button } from '@/components/ui/Button';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
@@ -55,6 +55,7 @@ function customerTrackingSteps(
 }
 
 export default function CustomerBookingDetailScreen() {
+  const navigation = useNavigation();
   const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
   const bookingCopy = useBookingCopy();
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -128,11 +129,15 @@ export default function CustomerBookingDetailScreen() {
   useFocusEffect(
     useCallback(() => {
       focusedRef.current = true;
+      // Hide floating tab bar so sticky CTAs stay tappable (same as tech job).
+      const tabsNav = navigation.getParent()?.getParent() ?? navigation.getParent();
+      tabsNav?.setOptions({ tabBarStyle: { display: 'none' } });
       refresh();
       return () => {
         focusedRef.current = false;
+        tabsNav?.setOptions({ tabBarStyle: glassTabBarStyle });
       };
-    }, [refresh]),
+    }, [navigation, refresh]),
   );
 
   const liveStatus = booking ? isBookingLive(booking.status) : false;

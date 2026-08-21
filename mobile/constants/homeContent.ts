@@ -18,7 +18,7 @@ export const DEFAULT_HOME_CONFIG: HomeConfig = {
   bookSlideTitle: 'Book pest control & home services',
   bookSlideCta: 'Book Now',
   bookSlideFallbackSub: 'Certified experts · Same-day slots',
-  promoCodeHint: 'ANTIDOT20',
+  promoCodeHint: 'ANTIDOT100',
   quickLabels: {
     book: 'Book',
     bookings: 'Bookings',

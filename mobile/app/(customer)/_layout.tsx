@@ -15,9 +15,11 @@ const Tab = AppIcons.customerTab;
 const INCOMPLETE_PROFILE_ALLOWED = new Set([
   'settings',
   'booking',
+  'bookings',
   'notifications',
   'help',
   'faq',
+  'addresses',
 ]);
 
 export default function CustomerLayout() {

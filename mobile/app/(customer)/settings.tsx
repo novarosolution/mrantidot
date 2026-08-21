@@ -68,7 +68,16 @@ export default function SettingsScreen() {
   }
 
   return (
-    <GlassScreen header={<CustomerPageHeader variant="premium" title={ui.settingsScreenTitle} subtitle="Your account & preferences" showBack />}>
+    <GlassScreen
+      header={
+        <CustomerPageHeader
+          variant="premium"
+          title={ui.settingsScreenTitle}
+          subtitle="Your account & preferences"
+          showBack={!isProfileIncomplete(user)}
+        />
+      }
+    >
       <GlassPanel padded={false}>
         <View style={styles.accountWrap}>
           <UserAccountCard compact embedded />
