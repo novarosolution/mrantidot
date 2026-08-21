@@ -19,6 +19,18 @@ function collectFiles(req: Request): Express.Multer.File[] {
 function multerMiddleware(req: Request, res: Response, next: NextFunction): void {
   uploadImages(req, res, (err: unknown) => {
     if (err) {
+      const code =
+        err && typeof err === 'object' && 'code' in err
+          ? String((err as { code?: string }).code ?? '')
+          : '';
+      if (code === 'LIMIT_FILE_SIZE') {
+        next(new AppError(400, 'Photo is too large. Max size is 12 MB.'));
+        return;
+      }
+      if (code === 'LIMIT_UNEXPECTED_FILE') {
+        next(new AppError(400, 'Unexpected upload field. Use photo / photos / images.'));
+        return;
+      }
       next(new AppError(400, err instanceof Error ? err.message : 'Upload failed'));
       return;
     }

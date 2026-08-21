@@ -4,7 +4,8 @@ import type { PickedImage } from '@/lib/upload';
 
 const PICKER_OPTIONS: ImagePicker.ImagePickerOptions = {
   mediaTypes: ['images'],
-  quality: 0.7,
+  // Keep uploads under the server limit on mid-range Android cameras.
+  quality: 0.65,
 };
 
 export async function pickImagesFromLibrary(maxCount: number): Promise<PickedImage[]> {

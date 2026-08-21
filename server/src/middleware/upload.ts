@@ -7,7 +7,8 @@ if (!fs.existsSync(env.uploadDir)) {
   fs.mkdirSync(env.uploadDir, { recursive: true });
 }
 
-const MAX_SIZE = 5 * 1024 * 1024;
+/** Phone cameras often exceed 5MB even at mid quality — allow up to 12MB. */
+const MAX_SIZE = 12 * 1024 * 1024;
 
 const EXT_BY_MIME: Record<string, string> = {
   'image/jpeg': '.jpg',
