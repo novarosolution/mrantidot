@@ -55,7 +55,7 @@ export function mergeHomePromo(incoming?: HomePromo | null): HomePromo {
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
   support: {
-    phone: '+91 90000 00000',
+    phone: '+91 67007 00106',
     email: 'support@mrantidot.com',
     whatsapp: '',
     hours: 'Open 24/7',
