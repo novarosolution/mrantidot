@@ -4,7 +4,7 @@ import { GlassTabBarBackground, glassTabBarStyle } from '@/components/kit/GlassS
 import { KitTabBarIcon } from '@/components/kit/PremiumIcon';
 import { Spinner } from '@/components/ui/Spinner';
 import { AppIcons } from '@/constants/appIcons';
-import { colors, fonts, typography } from '@/constants/theme';
+import { fonts, typography } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { appHref, authRoutes, homeRouteForRole } from '@/lib/routes';
 

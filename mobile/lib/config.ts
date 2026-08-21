@@ -44,14 +44,16 @@ function resolveApiUrl(): string {
 
 const apiUrl = resolveApiUrl();
 
-console.log('[config] API resolved', {
-  apiUrl,
-  EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL ?? null,
-  EXPO_PUBLIC_API_URL_FORCE: process.env.EXPO_PUBLIC_API_URL_FORCE ?? null,
-  expoConfigExtra: Constants.expoConfig?.extra?.apiUrl ?? null,
-  manifestExtra: (Constants as { manifest?: { extra?: { apiUrl?: string } } }).manifest?.extra?.apiUrl ?? null,
-  __DEV__,
-});
+if (__DEV__) {
+  console.log('[config] API resolved', {
+    apiUrl,
+    EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL ?? null,
+    EXPO_PUBLIC_API_URL_FORCE: process.env.EXPO_PUBLIC_API_URL_FORCE ?? null,
+    expoConfigExtra: Constants.expoConfig?.extra?.apiUrl ?? null,
+    manifestExtra: (Constants as { manifest?: { extra?: { apiUrl?: string } } }).manifest?.extra?.apiUrl ?? null,
+    __DEV__,
+  });
+}
 
 export const config = {
   apiUrl,

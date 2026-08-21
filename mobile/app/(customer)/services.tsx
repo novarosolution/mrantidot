@@ -243,7 +243,7 @@ export default function ServicesListScreen() {
           </View>
           {avgRating ? (
             <View style={styles.heroMetaRow}>
-              <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={11} color="#FFFFFF" fill="#8FD03C" />
+              <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={11} color={colors.white} fill="#8FD03C" />
               <Text style={styles.heroMeta}>
                 {avgRating.toFixed(1)} avg{totalBookings > 0 ? ` · ${formatBookings(totalBookings)}` : ''}
               </Text>
@@ -302,7 +302,7 @@ export default function ServicesListScreen() {
             style={({ pressed }) => [styles.catChip, on && styles.catChipOn, pressed && styles.pressedSm]}
           >
             <View style={[styles.catChipIcon, on && styles.catChipIconOn]}>
-              <PremiumIcon icon={Icon} variant="plain" size={15} color={on ? '#FFFFFF' : '#1B873E'} strokeWidth={2} />
+              <PremiumIcon icon={Icon} variant="plain" size={15} color={on ? colors.white : '#1B873E'} strokeWidth={2} />
             </View>
             <Text style={[styles.catChipText, on && styles.catChipTextOn]}>{c.label}</Text>
           </Pressable>
@@ -329,7 +329,7 @@ export default function ServicesListScreen() {
               onPress={() => setServiceType(k === 'all' ? 'all' : k)}
               style={({ pressed }) => [styles.pestChip, on && styles.pestChipOn, pressed && styles.pressedSm]}
             >
-              <PremiumIcon icon={Icon} variant="plain" size={13} color={on ? '#FFFFFF' : '#38623C'} strokeWidth={2} />
+              <PremiumIcon icon={Icon} variant="plain" size={13} color={on ? colors.white : '#38623C'} strokeWidth={2} />
               <Text style={[styles.pestChipText, on && styles.pestChipTextOn]}>{label}</Text>
             </Pressable>
           );
@@ -367,7 +367,7 @@ export default function ServicesListScreen() {
                     </View>
                     {rating > 0 ? (
                       <View style={styles.spotRateRow}>
-                        <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={11} color="#FFFFFF" fill="#FFFFFF" />
+                        <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={11} color={colors.white} fill={colors.white} />
                         <Text style={styles.spotRate}>
                           {rating.toFixed(1)}
                           {bookings > 0 ? ` · ${formatBookings(bookings)}` : ''}
@@ -377,7 +377,7 @@ export default function ServicesListScreen() {
                   </View>
                   <View style={styles.spotMain}>
                     <View style={styles.spotIcon}>
-                      <ServiceIcon iconKey={s.iconKey} size={26} color="#FFFFFF" />
+                      <ServiceIcon iconKey={s.iconKey} size={26} color={colors.white} />
                     </View>
                     <View style={styles.spotInfo}>
                       <Text style={styles.spotName} numberOfLines={2}>
@@ -451,7 +451,7 @@ export default function ServicesListScreen() {
 
   const trustBanner = (
     <View style={styles.trustCard}>
-      <PremiumIcon icon={AppIcons.ui.shieldCheck} variant="gradient" size={22} color="#FFFFFF" strokeWidth={1.8} boxSize={46} />
+      <PremiumIcon icon={AppIcons.ui.shieldCheck} variant="gradient" size={22} color={colors.white} strokeWidth={1.8} boxSize={46} />
       <View style={styles.trustBody}>
         <Text style={styles.trustTitle}>Every booking is protected</Text>
         <Text style={styles.trustSub}>100% satisfaction guarantee on all {services.length} services</Text>
@@ -525,9 +525,9 @@ export default function ServicesListScreen() {
             onPress={() => appPush(sharedRoutes.bookPath(item.id))}
             hitSlop={6}
           >
-            <LinearGradient colors={['#209640', '#0A6423']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bookPill}>
+            <LinearGradient colors={['#209640', DEEP]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bookPill}>
               <Text style={styles.bookPillText}>BOOK</Text>
-              <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={12} color="#FFFFFF" strokeWidth={2.6} />
+              <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={12} color={colors.white} strokeWidth={2.6} />
             </LinearGradient>
           </Pressable>
         </View>
@@ -585,7 +585,7 @@ export default function ServicesListScreen() {
       />
       {hasFilters ? (
         <Pressable style={({ pressed }) => [pressed && styles.pressedSm]} onPress={resetFilters}>
-          <LinearGradient colors={['#209640', '#0A6423']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.clearBtn}>
+          <LinearGradient colors={['#209640', DEEP]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.clearBtn}>
             <Text style={styles.clearBtnText}>Clear filters</Text>
           </LinearGradient>
         </Pressable>
@@ -663,7 +663,7 @@ const styles = StyleSheet.create({
     fontSize: 30,
     lineHeight: 33,
     letterSpacing: -0.5,
-    color: '#FFFFFF',
+    color: colors.white,
   },
   heroRight: { alignItems: 'flex-end' },
   countPill: {
@@ -677,7 +677,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  countNum: { fontFamily: fonts.displayExtra, fontSize: 23, color: '#FFFFFF' },
+  countNum: { fontFamily: fonts.displayExtra, fontSize: 23, color: colors.white },
   countLb: { fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 1, color: 'rgba(255,255,255,0.62)' },
   heroMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 9 },
   heroMeta: { fontFamily: fonts.bodyBold, fontSize: 11, color: 'rgba(255,255,255,0.72)' },
@@ -713,7 +713,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 13,
-    backgroundColor: '#EAF6E3',
+    backgroundColor: colors.soft,
     borderWidth: 1,
     borderColor: '#DBF1D1',
     alignItems: 'center',
@@ -748,7 +748,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.55)',
   },
   catChipOn: {
-    backgroundColor: '#0A6423',
+    backgroundColor: DEEP,
     borderColor: '#064D1B',
     shadowColor: '#03170B',
     shadowOffset: { width: 0, height: 6 },
@@ -760,13 +760,13 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#EAF6E3',
+    backgroundColor: colors.soft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   catChipIconOn: { backgroundColor: 'rgba(255,255,255,0.14)' },
   catChipText: { fontFamily: fonts.bodyBold, fontSize: 13, color: '#1F4129' },
-  catChipTextOn: { color: '#FFFFFF' },
+  catChipTextOn: { color: colors.white },
   pestChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -778,9 +778,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.55)',
   },
-  pestChipOn: { backgroundColor: '#0A6423', borderColor: '#064D1B' },
+  pestChipOn: { backgroundColor: DEEP, borderColor: '#064D1B' },
   pestChipText: { fontFamily: fonts.bodyBold, fontSize: 12, color: '#38623C' },
-  pestChipTextOn: { color: '#FFFFFF' },
+  pestChipTextOn: { color: colors.white },
 
   spotBlock: { marginTop: 16 },
   spotRow: { paddingHorizontal: 20, gap: SPOT_GAP },
@@ -813,7 +813,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  spotTagText: { fontFamily: fonts.bodyBold, fontSize: 9.5, letterSpacing: 1.2, color: '#FFFFFF' },
+  spotTagText: { fontFamily: fonts.bodyBold, fontSize: 9.5, letterSpacing: 1.2, color: colors.white },
   spotRateRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   spotRate: { fontFamily: fonts.bodyBold, fontSize: 11, color: 'rgba(255,255,255,0.72)' },
   spotMain: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 13 },
@@ -828,11 +828,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   spotInfo: { flex: 1, minWidth: 0 },
-  spotName: { fontFamily: fonts.displayExtra, fontSize: 17, lineHeight: 20, color: '#FFFFFF' },
+  spotName: { fontFamily: fonts.displayExtra, fontSize: 17, lineHeight: 20, color: colors.white },
   spotSub: { marginTop: 3, fontFamily: fonts.bodySemi, fontSize: 11, color: 'rgba(255,255,255,0.65)' },
   spotFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 },
   fromLabelDark: { fontFamily: fonts.bodyBold, fontSize: 9.5, letterSpacing: 1.1, color: 'rgba(255,255,255,0.55)' },
-  spotPrice: { fontFamily: fonts.displayExtra, fontSize: 20, color: '#FFFFFF' },
+  spotPrice: { fontFamily: fonts.displayExtra, fontSize: 20, color: colors.white },
   spotBook: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -850,7 +850,7 @@ const styles = StyleSheet.create({
   spotBookText: { fontFamily: fonts.bodyBold, fontSize: 11.5, letterSpacing: 0.8, color: DEEP },
   dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 9 },
   dot: { width: 6, height: 6, borderRadius: 999, backgroundColor: '#CBE3BF' },
-  dotOn: { width: 20, backgroundColor: '#0A6423' },
+  dotOn: { width: 20, backgroundColor: DEEP },
 
   sortBar: {
     flexDirection: 'row',
@@ -868,7 +868,7 @@ const styles = StyleSheet.create({
   segment: { flexDirection: 'row', backgroundColor: '#E6F4DE', borderRadius: 999, padding: 3 },
   segBtn: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
   segBtnOn: {
-    backgroundColor: '#0A6423',
+    backgroundColor: DEEP,
     shadowColor: '#03170B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -876,7 +876,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   segText: { fontFamily: fonts.bodyBold, fontSize: 11, color: MUTED },
-  segTextOn: { color: '#FFFFFF' },
+  segTextOn: { color: colors.white },
   viewToggle: {
     width: 34,
     height: 34,
@@ -912,7 +912,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 14,
     zIndex: 2,
   },
-  popBadgeText: { fontFamily: fonts.bodyBold, fontSize: 8.5, letterSpacing: 1, color: '#FFFFFF' },
+  popBadgeText: { fontFamily: fonts.bodyBold, fontSize: 8.5, letterSpacing: 1, color: colors.white },
   cardIcon: {
     alignItems: 'flex-start',
     justifyContent: 'center',
@@ -958,7 +958,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
-  bookPillText: { fontFamily: fonts.bodyBold, fontSize: 10.5, letterSpacing: 0.8, color: '#FFFFFF' },
+  bookPillText: { fontFamily: fonts.bodyBold, fontSize: 10.5, letterSpacing: 0.8, color: colors.white },
 
   rowCard: {
     flexDirection: 'row',
@@ -1001,7 +1001,7 @@ const styles = StyleSheet.create({
 
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, paddingVertical: 36 },
   clearBtn: { borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11 },
-  clearBtnText: { fontFamily: fonts.bodyBold, fontSize: 12.5, color: '#FFFFFF' },
+  clearBtnText: { fontFamily: fonts.bodyBold, fontSize: 12.5, color: colors.white },
 
   trustCard: {
     flexDirection: 'row',

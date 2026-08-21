@@ -20,7 +20,7 @@ import { formatSocialProof } from '@/lib/display';
 import { serviceDisplayRating } from '@/lib/ratings';
 import { safeGoBack, customerRoutes, sharedRoutes, appPush } from '@/lib/routes';
 import type { Service, ServiceReview, ServiceStats } from '@/types/api';
-import { fonts, headerTopPad, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, gradients, headerTopPad, spacing, surfaces } from '@/constants/theme';
 
 function SectionKicker({ label }: { label: string }) {
   return (
@@ -152,7 +152,7 @@ export default function ServiceDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         <LinearGradient
-          colors={['#0A6423', '#064D1B', '#043813']}
+          colors={[...gradients.premiumHero]}
           locations={[0, 0.52, 1]}
           style={[styles.hero, { paddingTop: headerTopPad(insets.top) }]}
           start={{ x: 0.15, y: 0 }}
@@ -209,7 +209,7 @@ export default function ServiceDetailScreen() {
               onPress={() => safeGoBack(customerRoutes.services)}
               hitSlop={10}
             >
-              <PremiumIcon icon={AppIcons.ui.chevronLeft} variant="plain" size={20} color="#FFFFFF" strokeWidth={2.2} />
+              <PremiumIcon icon={AppIcons.ui.chevronLeft} variant="plain" size={20} color={colors.white} strokeWidth={2.2} />
             </Pressable>
             <Text style={styles.heroTitle} numberOfLines={2}>
               {service.name}
@@ -218,12 +218,12 @@ export default function ServiceDetailScreen() {
 
           <View style={styles.heroMetaRow}>
             <View style={styles.heroIcon}>
-              <ServiceIcon iconKey={service.iconKey} size={30} color="#FFFFFF" />
+              <ServiceIcon iconKey={service.iconKey} size={30} color={colors.white} />
             </View>
             <View style={styles.heroText}>
               {socialProof ? (
                 <View style={styles.ratingRow}>
-                  <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={12} color="#FFFFFF" fill="#FFFFFF" />
+                  <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={12} color={colors.white} fill={colors.white} />
                   <Text style={styles.rating}>{socialProof}</Text>
                 </View>
               ) : null}
@@ -335,7 +335,7 @@ export default function ServiceDetailScreen() {
               style={styles.bookBtn}
             >
               <Text style={styles.bookBtnText}>Book now</Text>
-              <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={16} color="#FFFFFF" strokeWidth={2.4} />
+              <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={16} color={colors.white} strokeWidth={2.4} />
             </LinearGradient>
           </Pressable>
         </View>
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displayExtra,
     fontSize: 22,
     letterSpacing: -0.3,
-    color: '#FFFFFF',
+    color: colors.white,
   },
   heroMetaRow: { flexDirection: 'row', gap: 14, alignItems: 'center', marginTop: 18 },
   heroIcon: {
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displayExtra,
     fontSize: 30,
     letterSpacing: -0.6,
-    color: '#FFFFFF',
+    color: colors.white,
   },
   priceHint: { fontFamily: fonts.bodySemi, fontSize: 12, color: 'rgba(255,255,255,0.65)' },
   tagsRow: {
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  reviewInitial: { fontFamily: fonts.displayExtra, fontSize: 14, color: '#FFFFFF' },
+  reviewInitial: { fontFamily: fonts.displayExtra, fontSize: 14, color: colors.white },
   reviewNameCol: { gap: 2 },
   reviewName: { fontFamily: fonts.bodyBold, fontSize: 13, color: '#0B2213' },
   starsRow: { flexDirection: 'row', gap: 2 },
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 8,
   },
-  bookBtnText: { fontFamily: fonts.displayExtra, fontSize: 15, color: '#FFFFFF' },
+  bookBtnText: { fontFamily: fonts.displayExtra, fontSize: 15, color: colors.white },
   pressed: { transform: [{ scale: 0.98 }], opacity: 0.95 },
   pressedSm: { transform: [{ scale: 0.92 }] },
   spacing: { height: spacing.md },

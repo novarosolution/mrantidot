@@ -732,13 +732,122 @@ export const DEFAULT_APP_CONFIG: IAppConfig = {
     trustChips: ['Verified pros', 'On-time service', '4.8★ rated'],
   },
   legal: {
-    termsMarkdown:
-      '## Terms of Service\n\nBy using Mr Antidot you agree to our booking, payment, and cancellation policies. Please contact support for the full terms.',
-    privacyMarkdown:
-      '## Privacy Policy\n\nWe respect your privacy. Your data is used only to deliver and improve your service experience.',
+    termsMarkdown: `## Terms of Service
+
+**Last updated:** August 2026
+
+These Terms govern your use of the Mr Antidot app and booking platform ("Service"). By creating an account or booking a service, you agree to these Terms.
+
+### Using the platform
+
+Mr Antidot connects customers with trained pest control and home service technicians. Provide accurate contact and address details so a technician can reach you. You must be 18 or older to create an account.
+
+### Bookings & scheduling
+
+- Submitting a booking sends a request for a visit window — our team confirms the final schedule and notifies you
+- You can cancel any time before a technician starts work, at no charge
+- Once treatment has started, a booking can no longer be cancelled
+- Rescheduling is available from your booking details screen or by contacting support
+
+### Pricing & payment
+
+All prices are shown in Indian Rupees (₹) and include 18% GST, calculated automatically at checkout. Coupon codes are applied at booking and follow the terms of each individual offer, such as minimum order value, expiry, and usage limits.
+
+Payment is collected by your technician at the time of service, using your selected method (UPI, card, or cash). Mr Antidot does not store your card or bank details.
+
+### Service verification
+
+Each booking uses a start code and a completion code shared between you and your technician, along with photo documentation of the work. Do not share these codes with anyone other than your assigned technician.
+
+### Your responsibilities
+
+- Provide safe access to the treatment area and disclose known hazards (pets, allergies, pregnancy, fragile items) before the visit
+- Keep children and pets away from treated areas until your technician confirms it is safe
+- Report any issue with a completed service promptly so we can make it right
+
+### Our guarantee
+
+We stand behind every booking with a satisfaction guarantee. If a service does not meet the standard we promise, contact support and we will arrange a follow-up visit or resolution.
+
+### Reviews
+
+Ratings and reviews you submit must reflect your genuine experience. We may remove reviews that are abusive, fraudulent, or unrelated to the service provided.
+
+### Account suspension
+
+We may suspend or close accounts that violate these Terms, provide false information, or misuse the platform, including abuse toward technicians or support staff.
+
+### Liability
+
+Technicians are trained and background-checked, but operate as independent service providers. Mr Antidot is not liable for indirect or consequential losses beyond the value of the booking, except where required by law.
+
+### Changes to these Terms
+
+We may update these Terms as the Service evolves. Continued use after an update means you accept the revised Terms. We will communicate material changes in-app.
+
+### Contact
+
+Questions about these Terms? Reach us using the contact details on the Help screen.`,
+    privacyMarkdown: `## Privacy Policy
+
+**Last updated:** August 2026
+
+This Privacy Policy explains what information Mr Antidot collects, how we use it, and the choices you have. We handle your data in line with India's Digital Personal Data Protection Act, 2023.
+
+### Information we collect
+
+- Account details: name, phone number, email, and password
+- Service details: saved addresses, property type, and booking history
+- Location: your device location, with permission, to match you with nearby technicians and confirm on-site arrival
+- Photos: before/after treatment photos captured by your technician for quality verification
+- Payment preference: your selected payment method (UPI, card, or cash) — we do not store card or bank numbers
+- Usage data: app interactions and device information that help us fix bugs and improve performance
+
+### How we use your information
+
+We use your information to create and manage your bookings, assign and guide technicians, send booking updates and notifications, provide customer support, and improve our services. We do not sell your personal information to third parties.
+
+### Camera & location permissions
+
+The app requests camera access so technicians can document service photos, and location access to show nearby availability and verify on-site visits. You can manage these permissions from your device settings at any time; declining them may limit booking features.
+
+### Who we share data with
+
+- The technician assigned to your booking, so they can complete the visit
+- Service providers who help us run the platform, such as hosting and notifications, under confidentiality obligations
+- Law enforcement or regulators, only when required by law
+
+### Data retention
+
+We keep your account and booking data for as long as your account is active, and for a reasonable period afterward to meet legal, accounting, or dispute-resolution needs. You can request deletion at any time.
+
+### Your rights
+
+You can access, correct, or request deletion of your personal data, and withdraw consent for optional permissions like location or camera. Contact support to make a request; we will respond within a reasonable time.
+
+### Security
+
+We use industry-standard measures, including encrypted connections, hashed passwords, and access controls, to protect your data. No system is 100% secure, so we encourage you to use a strong, unique password.
+
+### Children's privacy
+
+Mr Antidot is not directed at children under 18. We do not knowingly collect data from minors.
+
+### Changes to this policy
+
+We may update this Privacy Policy as our practices evolve. We will note material changes in-app.
+
+### Contact
+
+For privacy questions or data requests, reach us using the contact details on the Help screen.`,
   },
-  aboutMarkdown:
-    '## About Mr Antidot\n\nMr Antidot connects you with verified pest control and home service professionals. We are committed to safe, reliable, and guaranteed service.',
+  aboutMarkdown: `## About Mr Antidot
+
+Mr Antidot connects your home or business with trained, background-checked pest control and home service technicians. From general pest control and termite treatment to deep cleaning, every booking is backed by our satisfaction guarantee.
+
+We built this app to make booking simple and transparent — see upfront pricing with GST included, track your technician's progress in real time, and verify every visit with photo documentation and secure start and completion codes.
+
+Have a question or a service we do not cover yet? Reach out from the Help screen — we are always listening.`,
   faq: [
     { q: 'How do I book a service?', a: 'Pick a service from the home screen, choose a time slot and address, and confirm your booking.' },
     { q: 'Are technicians verified?', a: 'Yes. Every technician is background-checked and trained before joining the platform.' },

@@ -88,11 +88,6 @@ function useSplashEnter() {
   };
 }
 
-/** Optional subtle entrance — no transform so focus/keyboard stays stable. */
-export function AuthAnimatedField({ children }: { index?: number; children: ReactNode }) {
-  return <View>{children}</View>;
-}
-
 /** Full-screen branded splash (app open + boot). */
 export function AuthSplashLayout({
   brandName,
@@ -736,8 +731,3 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
 });
-
-/** @deprecated use AuthTrustStrip inline in splash */
-export function AuthTrustStrip() {
-  return null;
-}

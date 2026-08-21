@@ -152,11 +152,13 @@ api.interceptors.request.use(async (req) => {
     }
   }
 
-  try {
-    const fullUrl = axios.getUri(req);
-    console.log('[api→]', (req.method ?? 'GET').toUpperCase(), fullUrl);
-  } catch {
-    console.log('[api→]', (req.method ?? 'GET').toUpperCase(), req.baseURL, req.url);
+  if (__DEV__) {
+    try {
+      const fullUrl = axios.getUri(req);
+      console.log('[api→]', (req.method ?? 'GET').toUpperCase(), fullUrl);
+    } catch {
+      console.log('[api→]', (req.method ?? 'GET').toUpperCase(), req.baseURL, req.url);
+    }
   }
 
   return req;
@@ -164,11 +166,14 @@ api.interceptors.request.use(async (req) => {
 
 api.interceptors.response.use(
   (res) => {
-    console.log('[api←]', res.status, {
-      url: axios.getUri(res.config),
-      headers: res.headers,
-      body: res.data,
-    });
+    // Dev-only — body/headers can carry auth tokens and PII, never trace them in release builds.
+    if (__DEV__) {
+      console.log('[api←]', res.status, {
+        url: axios.getUri(res.config),
+        headers: res.headers,
+        body: res.data,
+      });
+    }
 
     const method = res.config.method?.toUpperCase();
     if (method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
@@ -178,14 +183,16 @@ api.interceptors.response.use(
   },
   async (error: AxiosError<ApiErrorBody>) => {
     const url = requestUrl(error);
-    console.error('[api←ERR]', {
-      code: error.code,
-      message: error.message,
-      stack: error.stack,
-      url,
-      status: error.response?.status,
-      body: error.response?.data,
-    });
+    if (__DEV__) {
+      console.error('[api←ERR]', {
+        code: error.code,
+        message: error.message,
+        stack: error.stack,
+        url,
+        status: error.response?.status,
+        body: error.response?.data,
+      });
+    }
 
     const message = getApiErrorMessage(error);
     const silent401 = error.config?.silent401 === true;

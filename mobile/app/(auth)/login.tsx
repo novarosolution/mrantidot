@@ -101,7 +101,6 @@ export default function LoginScreen() {
       appReplace(homeRouteForRole(signedIn.role));
     } catch (err) {
       const message = getApiErrorMessage(err, 'Check your credentials and try again');
-      console.error('[login]', err);
       setPasswordError(message === 'Invalid credentials' ? 'Wrong phone/email or password' : message);
       appToast.error(ui.authLoginErrorToast, message);
     } finally {

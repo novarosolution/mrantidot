@@ -19,7 +19,7 @@ import { api, screenLoadConfig } from '@/lib/api';
 import { useAppContent } from '@/context/AppContentContext';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { AppConfig, BookingCopyConfig, CustomerUiCopy, HomeConfig, HomePromo, Service } from '@/types/api';
-import { DEFAULT_BOOKING_COPY, BOOKING_COPY_ADMIN_GROUPS, getBookingCopy, type BookingCopyFieldKey } from '@/constants/bookingCopy';
+import { DEFAULT_BOOKING_COPY, BOOKING_COPY_ADMIN_GROUPS, type BookingCopyFieldKey } from '@/constants/bookingCopy';
 import {
   CUSTOMER_UI_ADMIN_GROUPS,
   DEFAULT_CUSTOMER_UI_COPY,
@@ -819,7 +819,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     shadowColor: '#03170B',
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.16,
@@ -843,7 +843,7 @@ const styles = StyleSheet.create({
   label: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: colors.muted, marginTop: spacing.sm, marginBottom: 8 },
   chips: { flexDirection: 'row', marginBottom: spacing.sm },
   chip: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
     paddingHorizontal: 12,
@@ -890,7 +890,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 11,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
     alignItems: 'center',

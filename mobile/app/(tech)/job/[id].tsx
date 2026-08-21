@@ -53,7 +53,7 @@ import { mediaUrl } from '@/lib/images';
 import { MAX_STEP_PHOTOS, stepPhotoUrls } from '@/lib/stepPhotos';
 import { uploadImages, type PickedImage } from '@/lib/upload';
 import type { Booking, BookingStep } from '@/types/api';
-import { colors, fonts, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, spacing } from '@/constants/theme';
 
 export default function TechJobScreen() {
   const copy = useTechCopy();

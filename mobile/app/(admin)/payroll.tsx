@@ -11,7 +11,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { api, safeAsync, screenLoadConfig } from '@/lib/api';
 import { adminRoutes, appPush } from '@/lib/routes';
 import type { PayrollRow } from '@/types/api';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, fonts, premium } from '@/constants/theme';
 
 export default function AdminPayrollScreen() {
   const [rows, setRows] = useState<PayrollRow[]>([]);

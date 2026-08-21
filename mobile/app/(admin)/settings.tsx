@@ -12,7 +12,7 @@ import { AppIcons } from '@/constants/appIcons';
 import { useAuth } from '@/context/AuthContext';
 import { api, getApiErrorMessage } from '@/lib/api';
 import { adminRoutes, authRoutes, appPush, appReplace } from '@/lib/routes';
-import { colors, fonts, premium, premiumType, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, premiumType, spacing, surfaces } from '@/constants/theme';
 
 export default function AdminSettingsScreen() {
   const { user, logout, refreshMe } = useAuth();
