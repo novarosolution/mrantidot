@@ -16,13 +16,13 @@ import {
   customerScrollProps,
 } from '@/components/kit/GlassScreenKit';
 import { adminShadow } from '@/components/kit/homeUi';
-import { surfaces, spacing } from '@/constants/theme';
+import { colors, surfaces, spacing } from '@/constants/theme';
 
 /** Reusable gold accent bar for admin cards and strips. */
 export function AdminGoldBar({ height = 3, style }: { height?: number; style?: StyleProp<ViewStyle> }) {
   return (
     <LinearGradient
-      colors={['#8FD03C', '#27A747']}
+      colors={[colors.limeBright, colors.green]}
       style={[{ height, width: '100%' }, style]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 0 }}

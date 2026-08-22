@@ -57,12 +57,12 @@ export function ServiceGrid({
 
                 <View style={styles.footer}>
                   <Text style={styles.price}>₹{s.basePrice}</Text>
-                  <LinearGradient colors={['#30B84F', '#0A6423']} style={styles.arrow}>
+                  <LinearGradient colors={[colors.greenBright, colors.forest]} style={styles.arrow}>
                     <PremiumIcon
                       icon={AppIcons.ui.arrowRight}
                       variant="plain"
                       size={14}
-                      color="#FFFFFF"
+                      color={colors.white}
                       strokeWidth={IconStroke.bold}
                     />
                   </LinearGradient>

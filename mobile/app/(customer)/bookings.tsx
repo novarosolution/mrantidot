@@ -123,7 +123,7 @@ export default function MyBookingsScreen() {
         <View style={styles.heroLeft}>
           <View style={styles.eyebrowRow}>
             <LinearGradient
-              colors={['#8FD03C', '#68D03C']}
+              colors={[colors.limeBright, '#68D03C']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.eyebrowBar}
@@ -138,7 +138,7 @@ export default function MyBookingsScreen() {
           onPress={() => appPush(customerRoutes.services)}
           accessibilityLabel="Book a service"
         >
-          <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size={20} color="#043813" strokeWidth={2.5} />
+          <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size={20} color={colors.forestDeep} strokeWidth={2.5} />
         </Pressable>
       </View>
     </HeroDarkSlice>
@@ -166,7 +166,7 @@ export default function MyBookingsScreen() {
           <View style={styles.sectionPad}>
             <View style={styles.kickerRow}>
               <LinearGradient
-                colors={['#8FD03C', '#27A747']}
+                colors={[colors.limeBright, colors.green]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.eyebrowBar}
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     fontSize: 30,
     lineHeight: 33,
     letterSpacing: -0.6,
-    color: '#FFFFFF',
+    color: colors.white,
   },
   heroSub: {
     marginTop: 6,
@@ -277,10 +277,10 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: '#8FD03C',
+    backgroundColor: colors.limeBright,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#043813',
+    shadowColor: colors.forestDeep,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.25,
     shadowRadius: 12,

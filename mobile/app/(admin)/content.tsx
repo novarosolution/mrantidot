@@ -285,7 +285,11 @@ export default function AdminContentScreen() {
                 <View style={styles.flex}>
                   <Text style={styles.toggleLabel}>Show on home</Text>
                 </View>
-                <ToggleSwitch value={promo.active} onToggle={() => setPromo({ ...promo, active: !promo.active })} />
+                <ToggleSwitch
+                  value={promo.active}
+                  onToggle={() => setPromo({ ...promo, active: !promo.active })}
+                  accessibilityLabel="Home promo active"
+                />
               </View>
               <IconInput label="Badge text" value={promo.badge} onChangeText={(badge) => setPromo({ ...promo, badge })} />
               <IconInput label="Headline" value={promo.title} onChangeText={(title) => setPromo({ ...promo, title })} />
@@ -481,7 +485,12 @@ export default function AdminContentScreen() {
                       onChangeText={(category) => setChip(i, { category })}
                     />
                   </View>
-                  <Pressable style={styles.removeBtn} onPress={() => removeChip(i)}>
+                  <Pressable
+                    style={styles.removeBtn}
+                    onPress={() => removeChip(i)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Remove category filter"
+                  >
                     <PremiumIcon icon={AppIcons.ui.trash} variant="plain" size="sm" color={colors.error} />
                   </Pressable>
                 </View>
@@ -643,6 +652,8 @@ export default function AdminContentScreen() {
                   </View>
                   <Pressable
                     style={styles.removeBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Remove onboarding slide"
                     onPress={() =>
                       setAppConfig((a) => ({
                         ...a,
@@ -731,6 +742,8 @@ export default function AdminContentScreen() {
                   </View>
                   <Pressable
                     style={styles.removeBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Remove FAQ item"
                     onPress={() => setAppConfig((a) => ({ ...a, faq: a.faq.filter((_, idx) => idx !== i) }))}
                   >
                     <PremiumIcon icon={AppIcons.ui.trash} variant="plain" size="sm" color={colors.error} />
@@ -774,7 +787,12 @@ function StringListEditor({
               onChange(next);
             }}
           />
-          <Pressable style={styles.tagRemove} onPress={() => onChange(items.filter((_, idx) => idx !== i))}>
+          <Pressable
+            style={styles.tagRemove}
+            onPress={() => onChange(items.filter((_, idx) => idx !== i))}
+            accessibilityRole="button"
+            accessibilityLabel="Remove list item"
+          >
             <PremiumIcon icon={AppIcons.ui.close} variant="plain" size="sm" color={colors.muted} />
           </Pressable>
         </View>
@@ -820,7 +838,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
     backgroundColor: colors.white,
-    shadowColor: '#03170B',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.16,
     shadowRadius: 20,

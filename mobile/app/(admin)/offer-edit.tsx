@@ -34,6 +34,7 @@ export default function OfferEditScreen() {
   const [maxUses, setMaxUses] = useState('');
   const [minOrderAmount, setMinOrderAmount] = useState('');
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Partial<Record<'code' | 'description' | 'discount', string>>>({});
   const { loading, error, runLoad, reload } = useScreenLoad(!!id);
 
   const load = useCallback(async () => {
@@ -92,17 +93,15 @@ export default function OfferEditScreen() {
   }
 
   async function save() {
-    if (!code.trim() || !description.trim()) {
-      Toast.show({ type: 'error', text1: 'Code and description are required' });
-      return;
-    }
+    const next: Partial<Record<'code' | 'description' | 'discount', string>> = {};
+    if (!code.trim()) next.code = 'Required';
+    if (!description.trim()) next.description = 'Required';
     const amount = parseFloat(discount);
-    if (Number.isNaN(amount) || amount <= 0) {
-      Toast.show({ type: 'error', text1: 'Enter a valid discount' });
-      return;
-    }
-    if (discountType === 'percent' && amount > 100) {
-      Toast.show({ type: 'error', text1: 'Percent discount cannot exceed 100' });
+    if (Number.isNaN(amount) || amount <= 0) next.discount = 'Enter a valid discount';
+    else if (discountType === 'percent' && amount > 100) next.discount = 'Cannot exceed 100%';
+    setErrors(next);
+    if (Object.keys(next).length > 0) {
+      Toast.show({ type: 'error', text1: 'Fix the highlighted fields' });
       return;
     }
     setSaving(true);
@@ -180,12 +179,12 @@ export default function OfferEditScreen() {
       >
         <View style={styles.previewWrap}>
           <LinearGradient
-            colors={['#1B873E', '#0A6423', '#043813']}
+            colors={[colors.headerGreen, colors.forest, colors.forestDeep]}
             style={styles.preview}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.previewAccent} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+            <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.previewAccent} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
             <Text style={styles.previewEyebrow}>CHECKOUT PREVIEW</Text>
             <Text style={styles.previewCode}>{code.trim() ? code.trim().toUpperCase() : 'CODE'}</Text>
             <Text style={styles.previewDiscount}>{previewDiscount}</Text>
@@ -198,12 +197,25 @@ export default function OfferEditScreen() {
         <AdminFormCard>
           <Text style={styles.sectionTitle}>Basics</Text>
           <Text style={styles.sectionHint}>Code and message shown at checkout</Text>
-          <IconInput label="Coupon code" value={code} onChangeText={setCode} autoCapitalize="characters" />
+          <IconInput
+            label="Coupon code"
+            value={code}
+            onChangeText={(t) => {
+              setCode(t);
+              if (errors.code) setErrors((e) => ({ ...e, code: undefined }));
+            }}
+            autoCapitalize="characters"
+            error={errors.code}
+          />
           <IconInput
             label="Description"
             value={description}
-            onChangeText={setDescription}
+            onChangeText={(t) => {
+              setDescription(t);
+              if (errors.description) setErrors((e) => ({ ...e, description: undefined }));
+            }}
             placeholder="e.g. Flat ₹50 off first booking"
+            error={errors.description}
           />
         </AdminFormCard>
 
@@ -222,8 +234,12 @@ export default function OfferEditScreen() {
           <IconInput
             label={discountType === 'percent' ? 'Discount (%)' : 'Discount (₹)'}
             value={discount}
-            onChangeText={setDiscount}
+            onChangeText={(t) => {
+              setDiscount(t);
+              if (errors.discount) setErrors((e) => ({ ...e, discount: undefined }));
+            }}
             keyboardType="numeric"
+            error={errors.discount}
           />
         </AdminFormCard>
 
@@ -305,7 +321,7 @@ const styles = StyleSheet.create({
   previewDiscount: {
     fontFamily: fonts.bodySemi,
     fontSize: 14,
-    color: '#8FD03C',
+    color: colors.limeBright,
     marginTop: 4,
   },
   previewDesc: {

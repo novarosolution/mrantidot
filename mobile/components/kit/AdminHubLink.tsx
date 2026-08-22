@@ -33,9 +33,9 @@ export function AdminHubLink({
               icon={icon}
               variant={featured ? 'premium' : 'mint'}
               size="lg"
-              color={featured ? '#FFFFFF' : accent}
+              color={featured ? colors.white : accent}
               bg={accentBg}
-              bgTo="#FFFFFF"
+              bgTo={colors.white}
               boxSize={46}
             />
             <View style={styles.body}>

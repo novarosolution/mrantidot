@@ -73,7 +73,7 @@ export function AuthField({
                 icon={Icon}
                 variant="plain"
                 size={15}
-                color={focused ? '#1A8734' : '#25A443'}
+                color={focused ? colors.forestMid : '#25A443'}
                 strokeWidth={2.15}
               />
             </View>
@@ -97,7 +97,14 @@ export function AuthField({
             onBlur={() => setFocused(false)}
           />
           {secure ? (
-            <Pressable onPress={() => setShowPassword((v) => !v)} style={styles.eyeBtn} hitSlop={12}>
+            <Pressable
+              onPress={() => setShowPassword((v) => !v)}
+              style={styles.eyeBtn}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+              accessibilityState={{ checked: showPassword }}
+            >
               {showPassword ? (
                 <PremiumIcon icon={AppIcons.ui.eyeOff} variant="plain" size={17} color="#5C8A63" />
               ) : (
@@ -106,13 +113,13 @@ export function AuthField({
             </Pressable>
           ) : filled && !error ? (
             <View style={styles.tick}>
-              <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={10} color="#FFFFFF" strokeWidth={3.5} />
+              <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={10} color={colors.white} strokeWidth={3.5} />
             </View>
           ) : null}
         </View>
         {focused ? (
           <LinearGradient
-            colors={['#8FD03C', '#1A8734']}
+            colors={[colors.limeBright, colors.forestMid]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.fieldLine}
@@ -165,7 +172,7 @@ export const authScreenStyles = StyleSheet.create({
     color: '#5C8A63',
   },
   footerLink: {
-    color: '#1A8734',
+    color: colors.forestMid,
     fontFamily: fonts.bodyBold,
     fontSize: 13.5,
   },
@@ -177,7 +184,7 @@ export const authScreenStyles = StyleSheet.create({
   textLinkLabel: {
     fontFamily: fonts.bodySemi,
     fontSize: 14,
-    color: '#1A8734',
+    color: colors.forestMid,
   },
 });
 
@@ -233,7 +240,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: '#EAF6E3',
+    backgroundColor: colors.soft,
     borderWidth: 1,
     borderColor: '#DBF1D1',
     alignItems: 'center',
@@ -270,7 +277,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: '#EAF6E3',
+    backgroundColor: colors.soft,
     alignItems: 'center',
     justifyContent: 'center',
   },

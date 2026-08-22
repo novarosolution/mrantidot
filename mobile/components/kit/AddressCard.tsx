@@ -39,7 +39,7 @@ function AddressCardComponent({
             icon={icon}
             variant={selected ? 'premium' : 'mint'}
             size={18}
-            color={selected ? '#FFFFFF' : colors.forest}
+            color={selected ? colors.white : colors.forest}
             boxSize={44}
           />
           <View style={styles.body}>
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 999,
-    backgroundColor: '#EAF6E3',
+    backgroundColor: colors.soft,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
   },
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     borderColor: surfaces.glassBorderStrong,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
   },
   radioOn: {
     backgroundColor: colors.forest,

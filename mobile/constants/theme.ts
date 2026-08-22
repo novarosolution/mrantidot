@@ -6,6 +6,20 @@ export const colors = {
   deep: '#02180C',
   green: '#27A747',
   forest: '#0A6423',
+  /** Mid forest used in CTAs / price — same as gradients.goldCta[2] */
+  forestMid: '#1A8734',
+  /** Header green — same as gradients.header[0] */
+  headerGreen: '#1B873E',
+  /** Bright lime accent — same as gradients.goldBar[0] */
+  limeBright: '#8FD03C',
+  /** Primary gradient start — same as gradients.primary[0] */
+  greenBright: '#30B84F',
+  /** Deepest green in premium heroes — same as gradients.premiumHero[2] */
+  forestDeep: '#043813',
+  /** Default shadow ink — same as shadows.*.shadowColor */
+  shadow: '#03170B',
+  /** Soft status mint — same as statusColors.pending.bg */
+  mint: '#EEF8E6',
   lime: '#E9F8E3',
   /** Soft mint screen wash — pairs with forest/lime brand greens */
   bg: '#F6FAF2',
@@ -116,7 +130,7 @@ export const typography = {
     fontSize: 20,
     lineHeight: 26,
     letterSpacing: -0.4,
-    color: '#1A8734',
+    color: colors.forestMid,
   } as TextStyle,
   tabLabel: {
     fontFamily: fonts.bodySemi,
@@ -666,35 +680,35 @@ export const shadows: {
   soft: ViewStyle;
 } = {
   soft: {
-    shadowColor: '#03170B',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 4,
   },
   card: {
-    shadowColor: '#03170B',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.14,
     shadowRadius: 18,
     elevation: 7,
   },
   elevated: {
-    shadowColor: '#03170B',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.18,
     shadowRadius: 22,
     elevation: 10,
   },
   floating: {
-    shadowColor: '#03170B',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 16 },
     shadowOpacity: 0.2,
     shadowRadius: 26,
     elevation: 12,
   },
   hero: {
-    shadowColor: '#02180C',
+    shadowColor: colors.deep,
     shadowOffset: { width: 0, height: 18 },
     shadowOpacity: 0.26,
     shadowRadius: 28,
@@ -703,13 +717,13 @@ export const shadows: {
 };
 
 export const gradients = {
-  primary: ['#30B84F', '#25A443'] as const,
-  header: ['#1B873E', '#064D1B'] as const,
-  headerDark: ['#0A6423', '#043813'] as const,
-  premiumHero: ['#0A6423', '#064D1B', '#043813'] as const,
-  bookHero: ['#0A6423', '#064D1B', '#043813'] as const,
-  goldCta: ['#30B84F', '#25A443', '#1A8734'] as const,
-  goldBar: ['#8FD03C', '#27A747'] as const,
+  primary: [colors.greenBright, '#25A443'] as const,
+  header: [colors.headerGreen, '#064D1B'] as const,
+  headerDark: [colors.forest, colors.forestDeep] as const,
+  premiumHero: [colors.forest, '#064D1B', colors.forestDeep] as const,
+  bookHero: [colors.forest, '#064D1B', colors.forestDeep] as const,
+  goldCta: [colors.greenBright, '#25A443', colors.forestMid] as const,
+  goldBar: [colors.limeBright, colors.green] as const,
   otp: ['#68D03C', '#25A443'] as const,
   secondary: ['#6BB5A8', '#3A9688', '#2A756A'] as const,
   sky: ['#6BB5A8', '#3A9688', '#2A756A'] as const,
@@ -725,7 +739,7 @@ export const premium = {
   radiusButton: 18,
   radiusInput: 18,
   shadowSoft: {
-    shadowColor: '#03170B',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.14,
     shadowRadius: 18,
@@ -839,17 +853,17 @@ export const design = {
 };
 
 export const statusColors: Record<BookingStatus, { bg: string; text: string }> = {
-  pending: { bg: '#EEF8E6', text: colors.forest },
+  pending: { bg: colors.mint, text: colors.forest },
   confirmed: { bg: colors.soft, text: colors.green },
-  in_progress: { bg: '#EEF8E6', text: colors.forest },
-  awaiting_verification: { bg: '#EEF8E6', text: colors.forest },
+  in_progress: { bg: colors.mint, text: colors.forest },
+  awaiting_verification: { bg: colors.mint, text: colors.forest },
   completed: { bg: colors.greyBg, text: colors.muted },
   cancelled: { bg: colors.errorBg, text: colors.error },
 };
 
 export const headerStyle = {
   headerStyle: { backgroundColor: colors.forest },
-  headerTintColor: '#FFFFFF',
+  headerTintColor: colors.white,
   headerTitleStyle: { fontFamily: fonts.displaySemi, fontSize: 17, letterSpacing: -0.25 },
 };
 

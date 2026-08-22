@@ -1,3 +1,4 @@
+import { colors } from '@/constants/theme';
 import { useId } from 'react';
 import Svg, {
   Defs,
@@ -12,7 +13,7 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
  * Soft mint screen wash — keep in sync with `colors.bg` / `surfaces.glassScreenBase`.
  * No 3D models. Cards stay white on top of this.
  */
-export const MESH_BASE = '#F6FAF2';
+export const MESH_BASE = colors.bg;
 export const MESH_BASE_DEEP = '#EEF6E8';
 
 /**
@@ -47,15 +48,15 @@ function DarkMeshBg({ hero }: { hero?: boolean }) {
   const h = hero ? Math.min(H * 0.52, 440) : H;
 
   return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#02180C', overflow: 'hidden' }]} pointerEvents="none">
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.deep, overflow: 'hidden' }]} pointerEvents="none">
       <Svg width={W} height={h} style={StyleSheet.absoluteFill}>
         <Defs>
           <SvgLinear id={`darkWash-${uid}`} x1="18%" y1="0%" x2="82%" y2="100%">
-            <Stop offset="0%" stopColor="#27A747" />
-            <Stop offset="28%" stopColor="#1B873E" />
-            <Stop offset="55%" stopColor="#0A6423" />
+            <Stop offset="0%" stopColor={colors.green} />
+            <Stop offset="28%" stopColor={colors.headerGreen} />
+            <Stop offset="55%" stopColor={colors.forest} />
             <Stop offset="82%" stopColor="#043816" />
-            <Stop offset="100%" stopColor="#02180C" />
+            <Stop offset="100%" stopColor={colors.deep} />
           </SvgLinear>
           <RadialGradient id={`darkHot-${uid}`} cx="86%" cy="6%" rx="52%" ry="40%">
             <Stop offset="0%" stopColor="rgba(220,255,150,0.42)" />

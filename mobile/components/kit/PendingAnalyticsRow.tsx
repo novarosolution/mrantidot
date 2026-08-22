@@ -22,7 +22,7 @@ export function PendingAnalyticsRow({
 
   return (
     <Pressable style={({ pressed }) => [styles.row, pressed && styles.pressed]} onPress={onPress}>
-      <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.edge} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+      <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.edge} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
       <View style={styles.icon}>
         <PremiumIcon icon={AppIcons.ui.clock} variant="mint" size="sm" color={colors.forest} boxSize={40} />
       </View>
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
     borderColor: adminSurfaces.cardBorder,
     marginBottom: spacing.sm,
     overflow: 'hidden',
-    shadowColor: '#03170B',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.14,
     shadowRadius: 16,
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: '#EEF8E6',
+    backgroundColor: colors.mint,
     borderWidth: 1,
     borderColor: adminSurfaces.cardBorder,
     alignItems: 'center',
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemi,
     fontSize: 10,
     color: colors.forest,
-    backgroundColor: '#EEF8E6',
+    backgroundColor: colors.mint,
     borderWidth: 1,
     borderColor: '#D8EDC8',
     paddingHorizontal: 8,

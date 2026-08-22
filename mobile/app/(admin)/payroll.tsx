@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { formatRupee } from '@/components/kit/format';
 import { GlassPanel, customerScrollProps } from '@/components/kit/GlassScreenKit';
@@ -11,9 +12,26 @@ import { Spinner } from '@/components/ui/Spinner';
 import { api, safeAsync, screenLoadConfig } from '@/lib/api';
 import { adminRoutes, appPush } from '@/lib/routes';
 import type { PayrollRow } from '@/types/api';
-import { colors, fonts, premium } from '@/constants/theme';
+import { colors, fonts, premium, spacing } from '@/constants/theme';
+
+function monthKey(d = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function shiftMonth(key: string, delta: number): string {
+  const [y, m] = key.split('-').map(Number);
+  const d = new Date(y, (m ?? 1) - 1 + delta, 1);
+  return monthKey(d);
+}
+
+function monthLabel(key: string): string {
+  const [y, m] = key.split('-').map(Number);
+  const d = new Date(y, (m ?? 1) - 1, 1);
+  return d.toLocaleString('en-IN', { month: 'short', year: 'numeric' });
+}
 
 export default function AdminPayrollScreen() {
+  const [month, setMonth] = useState(() => monthKey());
   const [rows, setRows] = useState<PayrollRow[]>([]);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -23,6 +41,17 @@ export default function AdminPayrollScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const periodChips = useMemo(() => {
+    const current = monthKey();
+    return [0, -1, -2, -3].map((delta) => {
+      const key = shiftMonth(current, delta);
+      return {
+        key,
+        label: delta === 0 ? 'This month' : monthLabel(key),
+      };
+    });
+  }, []);
+
   const load = useCallback(async () => {
     setError(null);
     const res = await api.get<{
@@ -31,15 +60,19 @@ export default function AdminPayrollScreen() {
       totalEarnings: number;
       totalJobs: number;
       technicians: PayrollRow[];
-    }>('/admin/payroll', screenLoadConfig);
+    }>('/admin/payroll', {
+      ...screenLoadConfig,
+      params: { month },
+    });
     setRows(res.data.technicians);
     setFrom(res.data.from);
     setTo(res.data.to);
     setTotalEarnings(res.data.totalEarnings);
     setTotalJobs(res.data.totalJobs);
-  }, []);
+  }, [month]);
 
   useEffect(() => {
+    setLoading(true);
     safeAsync(
       async () => {
         try {
@@ -54,7 +87,14 @@ export default function AdminPayrollScreen() {
   }, [load]);
 
   return (
-    <AdminListShell title="Payroll" subtitle="Technician earnings this period" backFallback={adminRoutes.team}>
+    <AdminListShell title="Payroll" subtitle="Technician earnings by month" backFallback={adminRoutes.team}>
+      <View style={styles.periodBar}>
+        <AdminFilterChips
+          chips={periodChips}
+          selected={month}
+          onSelect={(key) => setMonth(key)}
+        />
+      </View>
       {loading ? (
         <Spinner />
       ) : error && rows.length === 0 ? (
@@ -80,30 +120,43 @@ export default function AdminPayrollScreen() {
         >
           <View style={styles.summaryShell}>
             <LinearGradient
-              colors={['#1B873E', '#0A6423', '#043813']}
+              colors={[colors.headerGreen, colors.forest, colors.forestDeep]}
               style={styles.summary}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.summaryGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+              <LinearGradient
+                colors={[colors.limeBright, colors.green]}
+                style={styles.summaryGold}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              />
               <Text style={styles.period}>
                 {from} → {to}
               </Text>
               <Text style={styles.total}>{formatRupee(totalEarnings)}</Text>
-              <Text style={styles.sub}>{totalJobs} completed jobs this period</Text>
+              <Text style={styles.sub}>{totalJobs} completed jobs · {monthLabel(month)}</Text>
             </LinearGradient>
           </View>
 
           {rows.map((r) => (
             <Pressable
               key={r.technicianId}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${r.name} profile`}
               onPress={() => appPush(adminRoutes.technician(r.technicianId))}
               style={({ pressed }) => [pressed && styles.pressed]}
             >
               <GlassPanel goldEdge tone="light" style={styles.card}>
                 <View style={styles.rowTop}>
                   <View style={styles.avatar}>
-                    <PremiumIcon icon={AppIcons.ui.user} variant="premium" size={18} color="#FFFFFF" boxSize={42} />
+                    <PremiumIcon
+                      icon={AppIcons.ui.user}
+                      variant="premium"
+                      size={18}
+                      color={colors.white}
+                      boxSize={42}
+                    />
                   </View>
                   <View style={styles.rowBody}>
                     <Text style={styles.name}>{r.name}</Text>
@@ -124,6 +177,7 @@ export default function AdminPayrollScreen() {
 }
 
 const styles = StyleSheet.create({
+  periodBar: { paddingHorizontal: spacing.md, paddingBottom: spacing.xs },
   content: { gap: 12 },
   summaryShell: {
     borderRadius: premium.radiusCard,

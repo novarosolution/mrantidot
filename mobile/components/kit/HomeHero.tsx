@@ -17,7 +17,7 @@ import { AppIcons } from '@/constants/appIcons';
 import { useAuth } from '@/context/AuthContext';
 import { useLocation } from '@/context/LocationContext';
 import { homeGreetingName } from '@/lib/profile-display';
-import { fonts, headerTopPad, surfaces } from '@/constants/theme';
+import { colors, fonts, headerTopPad, surfaces } from '@/constants/theme';
 import { textInputDefaults } from '@/components/ui/textInputDefaults';
 import { homeShadow } from '@/components/kit/homeUi';
 import { customerRoutes, appPush } from '@/lib/routes';
@@ -116,7 +116,7 @@ export function HomeHero({
                 {eyebrow}
               </Text>
               <LinearGradient
-                colors={['#C8F07A', '#8FD03C']}
+                colors={['#C8F07A', colors.limeBright]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.brandRule}
@@ -128,8 +128,10 @@ export function HomeHero({
                 style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
                 onPress={() => appPush(customerRoutes.notifications)}
                 hitSlop={4}
+                accessibilityRole="button"
+                accessibilityLabel={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
               >
-                <PremiumIcon icon={AppIcons.ui.bell} variant="plain" size={18} color="#FFFFFF" strokeWidth={2} fill="rgba(255,255,255,0.22)" />
+                <PremiumIcon icon={AppIcons.ui.bell} variant="plain" size={18} color={colors.white} strokeWidth={2} fill="rgba(255,255,255,0.22)" />
                 {unread > 0 ? (
                   <Animated.View
                     style={[
@@ -147,8 +149,10 @@ export function HomeHero({
                 style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
                 onPress={() => appPush(customerRoutes.profile)}
                 hitSlop={4}
+                accessibilityRole="button"
+                accessibilityLabel="Open profile"
               >
-                <LinearGradient colors={['#E8F9D4', '#8FD03C']} style={StyleSheet.absoluteFill} start={{ x: 0.2, y: 0 }} end={{ x: 0.9, y: 1 }} />
+                <LinearGradient colors={['#E8F9D4', colors.limeBright]} style={StyleSheet.absoluteFill} start={{ x: 0.2, y: 0 }} end={{ x: 0.9, y: 1 }} />
                 <Text style={styles.avatarText}>{initial}</Text>
               </Pressable>
             </View>
@@ -168,12 +172,14 @@ export function HomeHero({
             style={({ pressed }) => [styles.location, pressed && styles.pressed]}
             onPress={() => void refreshLocation()}
             disabled={locating}
+            accessibilityRole="button"
+            accessibilityLabel={locating ? 'Finding location' : 'Refresh location'}
           >
             <View style={styles.locationIcon}>
               {locating ? (
-                <ActivityIndicator size="small" color="#0A6423" />
+                <ActivityIndicator size="small" color={colors.forest} />
               ) : (
-                <PremiumIcon icon={AppIcons.ui.mapPin} variant="plain" size={13} color="#0A6423" strokeWidth={2.4} fill="rgba(10,100,35,0.18)" />
+                <PremiumIcon icon={AppIcons.ui.mapPin} variant="plain" size={13} color={colors.forest} strokeWidth={2.4} fill="rgba(10,100,35,0.18)" />
               )}
             </View>
             <Text style={styles.locationText} numberOfLines={1}>
@@ -200,8 +206,8 @@ export function HomeHero({
             pointerEvents="none"
           />
           <View style={styles.searchWrap}>
-            <LinearGradient colors={['#EAF6E3', '#D4EEC4']} style={styles.searchIcon}>
-              <PremiumIcon icon={AppIcons.ui.search} variant="plain" size={17} color="#0A6423" strokeWidth={2.3} fill="rgba(10,100,35,0.16)" />
+            <LinearGradient colors={[colors.soft, '#D4EEC4']} style={styles.searchIcon}>
+              <PremiumIcon icon={AppIcons.ui.search} variant="plain" size={17} color={colors.forest} strokeWidth={2.3} fill="rgba(10,100,35,0.16)" />
             </LinearGradient>
             <TextInput
               style={styles.search}
@@ -216,12 +222,24 @@ export function HomeHero({
               multiline={false}
             />
             {query.length > 0 ? (
-              <Pressable style={styles.clearBtn} onPress={() => onChangeQuery('')} hitSlop={8}>
+              <Pressable
+                style={styles.clearBtn}
+                onPress={() => onChangeQuery('')}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+              >
                 <PremiumIcon icon={AppIcons.ui.close} variant="plain" size={14} color="#5C8A63" />
               </Pressable>
             ) : (
-              <Pressable style={styles.goBtn} onPress={onSubmitSearch} hitSlop={6}>
-                <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={14} color="#FFFFFF" strokeWidth={2.6} />
+              <Pressable
+                style={styles.goBtn}
+                onPress={onSubmitSearch}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel="Search"
+              >
+                <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={14} color={colors.white} strokeWidth={2.6} />
               </Pressable>
             )}
           </View>
@@ -258,7 +276,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.brand,
     fontSize: 22,
     letterSpacing: -0.55,
-    color: '#FFFFFF',
+    color: colors.white,
   },
   brandRule: {
     width: 28,
@@ -275,7 +293,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.34)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#02180C',
+    shadowColor: colors.deep,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.22,
     shadowRadius: 10,
@@ -288,9 +306,9 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#8FD03C',
+    backgroundColor: colors.limeBright,
     borderWidth: 1.5,
-    borderColor: '#0A6423',
+    borderColor: colors.forest,
   },
   avatar: {
     width: 42,
@@ -305,7 +323,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontFamily: fonts.displayExtra,
     fontSize: 15,
-    color: '#043813',
+    color: colors.forestDeep,
   },
   greetBlock: {
     marginTop: 18,
@@ -322,7 +340,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     lineHeight: 36,
     letterSpacing: -0.85,
-    color: '#FFFFFF',
+    color: colors.white,
   },
   greetSub: {
     marginTop: 4,
@@ -351,7 +369,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -359,7 +377,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontFamily: fonts.bodySemi,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: colors.white,
   },
   pressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
   searchOuter: {
@@ -399,7 +417,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 11,
-    backgroundColor: '#EAF6E3',
+    backgroundColor: colors.soft,
     borderWidth: 1,
     borderColor: '#DBF1D1',
     alignItems: 'center',
@@ -409,7 +427,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 11,
-    backgroundColor: '#1A8734',
+    backgroundColor: colors.forestMid,
     alignItems: 'center',
     justifyContent: 'center',
   },

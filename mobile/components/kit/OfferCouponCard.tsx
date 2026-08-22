@@ -44,7 +44,7 @@ export function OfferCouponCard({
         style={({ pressed }) => [styles.wrap, pressed && !disabled && styles.pressed]}
       >
       <LinearGradient
-        colors={['#1A8734', '#0A6423']}
+        colors={[colors.forestMid, colors.forest]}
         style={styles.leftPanel}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderRadius: premium.radiusCard,
     overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
   },
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 9,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
     alignItems: 'center',
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: '#EAF6E3',
+    backgroundColor: colors.soft,
     borderWidth: 1,
     borderColor: 'rgba(143,208,60,0.5)',
   },
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 999,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
     alignItems: 'center',

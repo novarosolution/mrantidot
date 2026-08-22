@@ -16,7 +16,7 @@ export function ProfileMenuSection({
     <View style={[styles.wrap, style]}>
       {title ? (
         <View style={styles.titleRow}>
-          <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.titleAccent} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+          <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.titleAccent} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
           <Text style={styles.title}>{title}</Text>
         </View>
       ) : null}

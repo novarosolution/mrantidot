@@ -64,6 +64,8 @@ export function CustomerPageHeader({
       {showBack ? (
         <Pressable
           onPress={handleBack}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
           style={({ pressed }) => [
             styles.backBtn,
             onDark ? styles.backBtnOnDark : styles.backBtnLight,
@@ -159,7 +161,7 @@ export function CustomerPageHeader({
       {content}
       {children}
       <LinearGradient
-        colors={['#8FD03C', '#27A747']}
+        colors={[colors.limeBright, colors.green]}
         style={styles.lightEdge}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}

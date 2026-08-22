@@ -5,7 +5,6 @@ import { HomeSectionTitle } from '@/components/kit/HomeSectionTitle';
 
 export function HomeServicesSection({
   title,
-  actionLabel,
   onAction,
   chips,
   selectedCategory,

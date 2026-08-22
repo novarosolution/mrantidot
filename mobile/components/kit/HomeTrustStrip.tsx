@@ -19,18 +19,18 @@ export function HomeTrustStrip({
       <View style={styles.shell}>
         <View style={styles.pill}>
           <LinearGradient
-            colors={['#FFFFFF', '#F5FBF2', '#EAF6E3']}
+            colors={[colors.white, '#F5FBF2', colors.soft]}
             style={StyleSheet.absoluteFill}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           />
           <View style={styles.iconShell}>
-            <LinearGradient colors={['#8FD03C', '#1A8734']} style={styles.icon} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}>
+            <LinearGradient colors={[colors.limeBright, colors.forestMid]} style={styles.icon} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}>
               <PremiumIcon
                 icon={AppIcons.ui.shieldCheck}
                 variant="plain"
                 size={14}
-                color="#FFFFFF"
+                color={colors.white}
                 strokeWidth={2.4}
                 fill="rgba(255,255,255,0.35)"
               />
@@ -67,11 +67,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(180,220,165,0.95)',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
   },
   iconShell: {
     borderRadius: 15,
-    shadowColor: '#0A6423',
+    shadowColor: colors.forest,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.28,
     shadowRadius: 8,

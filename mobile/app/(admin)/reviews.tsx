@@ -21,6 +21,7 @@ type ReviewFilter = 'all' | 'visible' | 'hidden';
 export default function AdminReviewsScreen() {
   const [reviews, setReviews] = useState<AdminReview[]>([]);
   const [filter, setFilter] = useState<ReviewFilter>('all');
+  const [busyId, setBusyId] = useState<string | null>(null);
   const { loading, error, refreshing, runLoad, reload, refresh } = useScreenLoad();
 
   const load = useCallback(async (skipCache = false) => {
@@ -53,15 +54,19 @@ export default function AdminReviewsScreen() {
   }, [reviews]);
 
   const toggleHidden = useCallback(async (r: AdminReview) => {
+    if (busyId) return;
     const next = !r.hidden;
+    setBusyId(r.id);
     setReviews((prev) => prev.map((x) => (x.id === r.id ? { ...x, hidden: next } : x)));
     try {
       await api.patch(`/admin/reviews/${r.id}`, { hidden: next });
     } catch {
       setReviews((prev) => prev.map((x) => (x.id === r.id ? { ...x, hidden: r.hidden } : x)));
       Alert.alert('Error', 'Could not update review');
+    } finally {
+      setBusyId(null);
     }
-  }, []);
+  }, [busyId]);
 
   const header = useMemo(
     () => (
@@ -125,11 +130,24 @@ export default function AdminReviewsScreen() {
               </Text>
             ) : null}
             <View style={styles.actions}>
-              <Pressable onPress={() => appPush(adminRoutes.booking(item.bookingId))}>
+              <Pressable
+                onPress={() => appPush(adminRoutes.booking(item.bookingId))}
+                accessibilityRole="button"
+                accessibilityLabel="Open booking"
+                hitSlop={8}
+              >
                 <Text style={styles.link}>Booking</Text>
               </Pressable>
-              <Pressable onPress={() => void toggleHidden(item)}>
-                <Text style={styles.link}>{item.hidden ? 'Show' : 'Hide'}</Text>
+              <Pressable
+                onPress={() => void toggleHidden(item)}
+                disabled={busyId === item.id}
+                accessibilityRole="button"
+                accessibilityLabel={item.hidden ? 'Show review' : 'Hide review'}
+                hitSlop={8}
+              >
+                <Text style={[styles.link, busyId === item.id && styles.linkBusy]}>
+                  {busyId === item.id ? '…' : item.hidden ? 'Show' : 'Hide'}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -149,7 +167,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(226,240,216,0.95)',
     borderTopWidth: 3,
-    borderTopColor: '#8FD03C',
+    borderTopColor: colors.limeBright,
     ...shadows.card,
   },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -157,4 +175,5 @@ const styles = StyleSheet.create({
   comment: { fontFamily: fonts.body, fontSize: 13, color: colors.ink, marginTop: 8, lineHeight: 18 },
   actions: { flexDirection: 'row', gap: 16, marginTop: 12 },
   link: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
+  linkBusy: { opacity: 0.5 },
 });

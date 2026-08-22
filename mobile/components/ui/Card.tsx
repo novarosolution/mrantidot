@@ -29,7 +29,7 @@ function GlassFill({ accent }: { accent?: 'gold' | 'lime' | null }) {
       />
       {accent ? (
         <LinearGradient
-          colors={accent === 'gold' ? ['#27A747', '#1A8734'] : ['#8FD03C', '#27A747']}
+          colors={accent === 'gold' ? [colors.green, colors.forestMid] : [colors.limeBright, colors.green]}
           style={styles.accentBar}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}

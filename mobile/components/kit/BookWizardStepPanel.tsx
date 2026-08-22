@@ -24,7 +24,7 @@ export function BookWizardStepPanel({
   return (
     <FadeSlideIn trigger={animTrigger}>
       <View style={styles.root}>
-        <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+        <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
         <LinearGradient
           colors={['rgba(255,255,255,0.94)', 'rgba(244,250,238,0.88)', 'rgba(234,246,227,0.72)']}
           locations={[0, 0.55, 1]}
@@ -69,7 +69,7 @@ export function BookWizardSection({
     <View style={styles.section}>
       <View style={styles.sectionHead}>
         <LinearGradient
-          colors={['#1A8734', '#0A6423']}
+          colors={[colors.forestMid, colors.forest]}
           style={[styles.stepBadge, compact && styles.stepBadgeCompact]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -89,12 +89,12 @@ export function BookWizardSection({
 const styles = StyleSheet.create({
   root: {
     borderRadius: premium.radiusCard,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
     overflow: 'hidden',
     marginBottom: spacing.md,
-    shadowColor: '#03170B',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.07,
     shadowRadius: 10,
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   panel: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 16,
     padding: spacing.md,
     borderWidth: 1,

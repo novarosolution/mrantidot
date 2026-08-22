@@ -21,16 +21,16 @@ type ConfettiSpec = {
 
 const CONFETTI: ConfettiSpec[] = [
   { left: '8%', delay: 0, color: colors.lime, w: 7, h: 10 },
-  { left: '18%', delay: 80, color: '#8FD03C', w: 6, h: 9 },
+  { left: '18%', delay: 80, color: colors.limeBright, w: 6, h: 9 },
   { left: '28%', delay: 40, color: colors.green, w: 8, h: 11 },
   { left: '38%', delay: 120, color: colors.white, w: 5, h: 8 },
   { left: '48%', delay: 20, color: colors.lime, w: 7, h: 10 },
-  { left: '58%', delay: 100, color: '#30B84F', w: 6, h: 9 },
+  { left: '58%', delay: 100, color: colors.greenBright, w: 6, h: 9 },
   { left: '68%', delay: 60, color: colors.green, w: 8, h: 12 },
   { left: '78%', delay: 140, color: colors.white, w: 5, h: 8 },
   { left: '88%', delay: 30, color: colors.lime, w: 7, h: 10 },
   { left: '14%', delay: 160, color: colors.green, w: 6, h: 9 },
-  { left: '44%', delay: 180, color: '#8FD03C', w: 7, h: 10 },
+  { left: '44%', delay: 180, color: colors.limeBright, w: 7, h: 10 },
   { left: '74%', delay: 200, color: colors.lime, w: 6, h: 9 },
 ] as const;
 
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
     borderTopWidth: 3,
-    borderTopColor: '#8FD03C',
+    borderTopColor: colors.limeBright,
     ...premium.shadowSoft,
   },
   cardTitle: {

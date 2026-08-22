@@ -6,9 +6,9 @@ import { colors, fonts, spacing } from '@/constants/theme';
 
 const STATUS_COLORS: Partial<Record<BookingStatus, string>> = {
   pending: '#C15B31',
-  confirmed: '#27A747',
-  in_progress: '#0A6423',
-  awaiting_verification: '#8FD03C',
+  confirmed: colors.green,
+  in_progress: colors.forest,
+  awaiting_verification: colors.limeBright,
   completed: colors.forest,
   cancelled: colors.muted,
 };

@@ -44,8 +44,8 @@ const VARIANT_META: Record<
     accentSoft: 'rgba(31,154,62,0.14)',
     iconColor: colors.forest,
     badgeColor: colors.green,
-    gradient: ['#0A6423', '#27A747'],
-    progress: '#27A747',
+    gradient: [colors.forest, colors.green],
+    progress: colors.green,
     border: 'rgba(180,220,165,0.95)',
   },
   error: {

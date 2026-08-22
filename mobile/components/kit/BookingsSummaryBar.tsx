@@ -1,11 +1,11 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useBookingCopy } from '@/lib/schedule-copy';
-import { fonts, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, spacing, surfaces } from '@/constants/theme';
 
 type FilterKey = 'active' | 'completed' | 'cancelled';
 
-const DEEP = '#0A6423';
+const DEEP = colors.forest;
 const BORDER = '#E2F0D8';
 
 export function BookingsSummaryBar({
@@ -32,7 +32,7 @@ export function BookingsSummaryBar({
   return (
     <View style={styles.wrap}>
       <LinearGradient
-        colors={['#8FD03C', '#27A747', '#0A6423']}
+        colors={[colors.limeBright, colors.green, colors.forest]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.topBar}
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     backgroundColor: surfaces.glass,
     borderWidth: 1,
     borderColor: BORDER,
-    shadowColor: '#043813',
+    shadowColor: colors.forestDeep,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
     shadowRadius: 18,
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 8,
     marginBottom: 5,
-    backgroundColor: '#EEF8E6',
+    backgroundColor: colors.mint,
     borderWidth: 1,
     borderColor: '#D8EDC8',
   },
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: DEEP,
   },
-  valueOn: { color: '#FFFFFF' },
+  valueOn: { color: colors.white },
   label: {
     fontFamily: fonts.bodyBold,
     fontSize: 11,

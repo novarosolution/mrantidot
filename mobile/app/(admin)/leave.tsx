@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { GlassPanel, customerScrollProps } from '@/components/kit/GlassScreenKit';
+import { Button } from '@/components/ui/Button';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
@@ -23,6 +24,7 @@ export default function AdminLeaveScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -49,16 +51,21 @@ export default function AdminLeaveScreen() {
   }, [load]);
 
   async function decide(id: string, action: 'approve' | 'reject') {
+    if (busyId) return;
+    setBusyId(`${id}:${action}`);
     try {
       await api.post(`/leave/${id}/${action}`);
       Toast.show({ type: 'success', text1: action === 'approve' ? 'Leave approved' : 'Leave rejected' });
       await load();
     } catch (err) {
       Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not update leave') });
+    } finally {
+      setBusyId(null);
     }
   }
 
   function confirm(id: string, action: 'approve' | 'reject') {
+    if (busyId) return;
     Alert.alert(
       action === 'approve' ? 'Approve leave?' : 'Reject leave?',
       action === 'approve' ? 'Attendance will be marked as leave for these dates.' : undefined,
@@ -110,29 +117,48 @@ export default function AdminLeaveScreen() {
               <Text style={styles.empty}>No {filter} leave requests</Text>
             </GlassPanel>
           ) : (
-            leaves.map((l) => (
-              <GlassPanel key={l.id} goldEdge tone="light" style={styles.card}>
-                <Text style={styles.name}>{l.technicianName || 'Technician'}</Text>
-                <Text style={styles.meta}>
-                  {l.from === l.to ? l.from : `${l.from} → ${l.to}`} · {l.type}
-                </Text>
-                {l.reason ? <Text style={styles.reason}>{l.reason}</Text> : null}
-                {l.status === 'pending' ? (
-                  <View style={styles.actions}>
-                    <Pressable style={styles.approve} onPress={() => confirm(l.id, 'approve')}>
-                      <Text style={styles.approveText}>Approve</Text>
-                    </Pressable>
-                    <Pressable style={styles.reject} onPress={() => confirm(l.id, 'reject')}>
-                      <Text style={styles.rejectText}>Reject</Text>
-                    </Pressable>
-                  </View>
-                ) : (
-                  <View style={styles.statusPill}>
-                    <Text style={styles.status}>{l.status}</Text>
-                  </View>
-                )}
-              </GlassPanel>
-            ))
+            leaves.map((l) => {
+              const approving = busyId === `${l.id}:approve`;
+              const rejecting = busyId === `${l.id}:reject`;
+              const rowBusy = Boolean(busyId?.startsWith(`${l.id}:`));
+              return (
+                <GlassPanel key={l.id} goldEdge tone="light" style={styles.card}>
+                  <Text style={styles.name}>{l.technicianName || 'Technician'}</Text>
+                  <Text style={styles.meta}>
+                    {l.from === l.to ? l.from : `${l.from} → ${l.to}`} · {l.type}
+                  </Text>
+                  {l.reason ? <Text style={styles.reason}>{l.reason}</Text> : null}
+                  {l.status === 'pending' ? (
+                    <View style={styles.actions}>
+                      <Button
+                        title="Approve"
+                        variant="premium"
+                        size="md"
+                        fullWidth={false}
+                        style={styles.actionBtn}
+                        loading={approving}
+                        disabled={rowBusy}
+                        onPress={() => confirm(l.id, 'approve')}
+                      />
+                      <Button
+                        title="Reject"
+                        variant="danger"
+                        size="md"
+                        fullWidth={false}
+                        style={styles.actionBtn}
+                        loading={rejecting}
+                        disabled={rowBusy}
+                        onPress={() => confirm(l.id, 'reject')}
+                      />
+                    </View>
+                  ) : (
+                    <View style={styles.statusPill}>
+                      <Text style={styles.status}>{l.status}</Text>
+                    </View>
+                  )}
+                </GlassPanel>
+              );
+            })
           )}
         </ScrollView>
       )}
@@ -160,22 +186,5 @@ const styles = StyleSheet.create({
   },
   status: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, textTransform: 'capitalize' },
   actions: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  approve: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: colors.forest,
-  },
-  approveText: { fontFamily: fonts.bodyBold, color: colors.white },
-  reject: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: colors.errorBg,
-    borderWidth: 1,
-    borderColor: 'rgba(179,63,40,0.2)',
-  },
-  rejectText: { fontFamily: fonts.bodyBold, color: colors.error },
+  actionBtn: { flex: 1 },
 });

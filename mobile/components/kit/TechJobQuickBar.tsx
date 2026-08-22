@@ -3,7 +3,7 @@ import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { homeShadow } from '@/components/kit/homeUi';
 import { AppIcons, IconGradients } from '@/constants/appIcons';
-import { colors, fonts, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, spacing } from '@/constants/theme';
 import { techRoutes, appPush } from '@/lib/routes';
 
 /** Jobs tab — only urgent work actions (no duplicate manage grid). */

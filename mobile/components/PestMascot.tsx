@@ -1,3 +1,4 @@
+import { colors } from '@/constants/theme';
 import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
 
 /** Pest mascot — shield bug (transparent, for tiles & animation). */
@@ -7,8 +8,8 @@ export function PestMascot({ size = 64 }: { size?: number }) {
       <Circle cx="40" cy="28" r="11" fill="#1E8E4E" />
       <Ellipse cx="40" cy="46" rx="13" ry="15" fill="#A8E04E" />
       <Ellipse cx="40" cy="46" rx="13" ry="15" fill="#1E8E4E" opacity={0.15} />
-      <Circle cx="36" cy="27" r="2.2" fill="#FFFFFF" />
-      <Circle cx="44" cy="27" r="2.2" fill="#FFFFFF" />
+      <Circle cx="36" cy="27" r="2.2" fill={colors.white} />
+      <Circle cx="44" cy="27" r="2.2" fill={colors.white} />
       <Circle cx="36.5" cy="27.5" r="1" fill="#14532D" />
       <Circle cx="44.5" cy="27.5" r="1" fill="#14532D" />
       <Path d="M36 31 Q40 34 44 31" stroke="#14532D" strokeWidth="1.4" strokeLinecap="round" />

@@ -5,7 +5,7 @@ import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { AppIcons } from '@/constants/appIcons';
 import { SERVICE_TYPE_KEYS, type ServiceTypeKey } from '@/constants/serviceTypes';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
-import { fonts } from '@/constants/theme';
+import { colors, fonts } from '@/constants/theme';
 import { customerRoutes, sharedRoutes, appPush } from '@/lib/routes';
 import { homeShadow } from '@/components/kit/homeUi';
 
@@ -58,7 +58,7 @@ export function CustomerServiceTypeSection({
           onPress={() => appPush(customerRoutes.services)}
         >
           <Text style={styles.moreText}>View all {SERVICE_TYPE_KEYS.length} treatments</Text>
-          <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={14} color="#1A8734" strokeWidth={2.4} />
+          <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={14} color={colors.forestMid} strokeWidth={2.4} />
         </Pressable>
       ) : null}
     </View>
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   moreText: {
     fontFamily: fonts.bodySemi,
     fontSize: 13,
-    color: '#1A8734',
+    color: colors.forestMid,
   },
   pressed: { transform: [{ scale: 0.94 }] },
 });

@@ -31,7 +31,7 @@ export function TechPriorityBanner({
                 icon={AppIcons.techAlert.verify}
                 variant="plain"
                 size="md"
-                color="#FFFFFF"
+                color={colors.white}
                 strokeWidth={2.3}
                 fill="rgba(255,255,255,0.28)"
               />
@@ -43,7 +43,7 @@ export function TechPriorityBanner({
                 {bookingServiceName(verifyJob)} · {bookingScheduleDisplay(verifyJob)}
               </Text>
             </View>
-            <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size="sm" color="#FFFFFF" strokeWidth={2.5} />
+            <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size="sm" color={colors.white} strokeWidth={2.5} />
           </LinearGradient>
         </View>
       </Pressable>
@@ -66,7 +66,7 @@ export function TechPriorityBanner({
               icon={AppIcons.techAlert.overdue}
               variant="plain"
               size="md"
-              color="#FFFFFF"
+              color={colors.white}
               strokeWidth={2.3}
               fill="rgba(255,255,255,0.28)"
             />
@@ -78,7 +78,7 @@ export function TechPriorityBanner({
               {bookingServiceName(job)} · {bookingScheduleDisplay(job)}
             </Text>
           </View>
-          <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size="sm" color="#FFFFFF" strokeWidth={2.5} />
+          <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size="sm" color={colors.white} strokeWidth={2.5} />
         </LinearGradient>
       </View>
     </Pressable>

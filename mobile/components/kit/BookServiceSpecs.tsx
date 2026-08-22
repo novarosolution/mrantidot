@@ -23,7 +23,7 @@ export function BookServiceSpecs({
   return (
     <View style={[styles.wrap, compact && styles.wrapCompact]}>
       <LinearGradient
-        colors={['#FFFFFF', '#F7FAF6']}
+        colors={[colors.white, '#F7FAF6']}
         style={[styles.card, compact && styles.cardCompact]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}

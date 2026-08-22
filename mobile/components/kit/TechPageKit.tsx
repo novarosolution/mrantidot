@@ -27,7 +27,7 @@ export function TechSectionTitle({
         <View style={styles.sectionText}>
           <View style={styles.titleCol}>
             <LinearGradient
-              colors={['#8FD03C', '#27A747']}
+              colors={[colors.limeBright, colors.green]}
               start={{ x: 0, y: 0 }}
               end={{ x: 0, y: 1 }}
               style={styles.sectionAccent}
@@ -187,7 +187,7 @@ export function TechQuickLink({
 }) {
   return (
     <Pressable style={({ pressed }) => [styles.quickLink, pressed && styles.pressed]} onPress={onPress}>
-      <PremiumIcon icon={icon} variant="mint" size="sm" color={colors.forest} bg={colors.soft} bgTo="#FFFFFF" boxSize={28} />
+      <PremiumIcon icon={icon} variant="mint" size="sm" color={colors.forest} bg={colors.soft} bgTo={colors.white} boxSize={28} />
       <Text style={styles.quickLabel}>{label}</Text>
     </Pressable>
   );

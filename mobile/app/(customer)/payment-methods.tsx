@@ -9,10 +9,9 @@ import {
   Text,
   View,
 } from 'react-native';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
 import Toast from 'react-native-toast-message';
 import { CustomerListShell, listShellStyles } from '@/components/kit/CustomerListShell';
+import { FabButton } from '@/components/kit/FabButton';
 import { PaymentMethodCard } from '@/components/kit/PaymentMethodCard';
 import { IconInput } from '@/components/kit/IconInput';
 import { Button } from '@/components/ui/Button';
@@ -25,7 +24,7 @@ import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { PaymentMethodRecord } from '@/types/api';
-import { colors, design, fonts, premium, radius, spacing } from '@/constants/theme';
+import { colors, design, fonts, premium, spacing } from '@/constants/theme';
 
 export default function PaymentMethodsScreen() {
   const ui = useCustomerUiCopy();
@@ -104,11 +103,7 @@ export default function PaymentMethodsScreen() {
     <CustomerListShell
       title={ui.paymentsScreenTitle}
       accountStrip
-      rightAction={
-        <Pressable style={styles.fab} onPress={openAdd}>
-          <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size={22} color={colors.white} />
-        </Pressable>
-      }
+      rightAction={<FabButton onPress={openAdd} accessibilityLabel="Add payment method" />}
     >
       {loading ? (
         <Spinner />
@@ -133,13 +128,25 @@ export default function PaymentMethodsScreen() {
               <PaymentMethodCard method={item} />
               <View style={styles.actions}>
                 {!item.isDefault ? (
-                  <Pressable onPress={() => void setDefault(item)}>
+                  <Pressable
+                    onPress={() => void setDefault(item)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Set as default payment method"
+                    hitSlop={8}
+                    style={styles.actionHit}
+                  >
                     <Text style={styles.actionText}>Set default</Text>
                   </Pressable>
                 ) : (
                   <Text style={styles.defaultHint}>Default</Text>
                 )}
-                <Pressable onPress={() => confirmDelete(item)}>
+                <Pressable
+                  onPress={() => confirmDelete(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove payment method"
+                  hitSlop={8}
+                  style={styles.actionHit}
+                >
                   <Text style={[styles.actionText, styles.deleteText]}>Remove</Text>
                 </Pressable>
               </View>
@@ -168,19 +175,12 @@ export default function PaymentMethodsScreen() {
 }
 
 const styles = StyleSheet.create({
-  fab: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.sm,
-    backgroundColor: colors.forest,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   item: { marginBottom: spacing.sm },
   actions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs, paddingHorizontal: spacing.xs },
+  actionHit: { minHeight: 44, justifyContent: 'center' },
   actionText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.green },
   deleteText: { color: colors.error },
-  defaultHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted },
+  defaultHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, alignSelf: 'center' },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(11, 34, 19, 0.48)', justifyContent: 'flex-end' },
   modal: {
     ...design.modalCard,

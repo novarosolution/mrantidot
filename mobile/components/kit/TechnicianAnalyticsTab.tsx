@@ -107,7 +107,7 @@ export function TechnicianAnalyticsTab({
   return (
     <View style={styles.wrap}>
       <View style={styles.toolbarCard}>
-        <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.toolbarGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+        <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.toolbarGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
         <Text style={styles.toolbarEyebrow}>ANALYTICS</Text>
         <Text style={styles.toolbarTitle}>{monthLabel}</Text>
         <Text style={styles.toolbarHint}>Attendance, earnings & job pipeline</Text>
@@ -169,7 +169,7 @@ export function TechnicianAnalyticsTab({
           icon={AppIcons.ui.star}
           value={stats.reviewCount > 0 ? String(stats.reviewCount) : '—'}
           label="Reviews"
-          iconBg={'#EEF8E6'}
+          iconBg={colors.mint}
           iconColor={colors.forest}
         />
         <KpiCard
@@ -267,7 +267,7 @@ export function TechnicianAnalyticsTab({
             icon={AppIcons.ui.clock}
             value={String(globalPending?.count ?? 0)}
             label="Pending (all)"
-            iconBg={'#EEF8E6'}
+            iconBg={colors.mint}
             iconColor={colors.forest}
             onPress={() => onMetricPress('pending_global')}
           />
@@ -275,7 +275,7 @@ export function TechnicianAnalyticsTab({
             icon={AppIcons.ui.clock}
             value={String(globalPending?.periodCount ?? 0)}
             label={`This month`}
-            iconBg={'#EEF8E6'}
+            iconBg={colors.mint}
             iconColor={colors.forest}
             onPress={() => onMetricPress('pending_global')}
           />
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     borderRadius: premium.radiusButton,
     backgroundColor: colors.white,
     borderWidth: 1.5,
-    borderColor: '#8FD03C',
+    borderColor: colors.limeBright,
   },
   exportText: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest },
   kpiRow: {

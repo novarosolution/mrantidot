@@ -143,7 +143,13 @@ export function PaymentCouponField({
           onBlur={() => setFocused(false)}
         />
         {value.length > 0 ? (
-          <Pressable onPress={() => onChangeText('')} hitSlop={8} style={styles.clearBtn}>
+          <Pressable
+            onPress={() => onChangeText('')}
+            hitSlop={8}
+            style={styles.clearBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Clear coupon"
+          >
             <PremiumIcon icon={AppIcons.ui.close} variant="plain" size={16} color={colors.muted} />
           </Pressable>
         ) : null}

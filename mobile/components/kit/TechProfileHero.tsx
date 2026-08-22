@@ -80,7 +80,7 @@ export function TechProfileHero({
   const identity = (
     <View style={styles.identityRow}>
       <LinearGradient colors={[...gradients.avatarRing]} style={styles.compactAvatarRing}>
-        <LinearGradient colors={['#30B84F', '#0A6423']} style={styles.compactAvatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+        <LinearGradient colors={[colors.greenBright, colors.forest]} style={styles.compactAvatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <Text style={styles.compactAvatarText}>{initial}</Text>
         </LinearGradient>
       </LinearGradient>
@@ -148,7 +148,7 @@ export function TechProfileHero({
         >
           <View style={styles.eyebrowRow}>
             <LinearGradient
-              colors={['#C8F07A', '#8FD03C']}
+              colors={['#C8F07A', colors.limeBright]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.eyebrowBar}
@@ -180,7 +180,7 @@ export function TechProfileHero({
           <GlassPanel style={styles.card} padded={false} tone="light" intensity={42} goldEdge>
             <View style={styles.cardInner}>
               <LinearGradient colors={[...gradients.avatarRing]} style={styles.avatarRing}>
-                <LinearGradient colors={['#30B84F', '#0A6423']} style={styles.avatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <LinearGradient colors={[colors.greenBright, colors.forest]} style={styles.avatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                   <Text style={styles.avatarText}>{initial}</Text>
                 </LinearGradient>
               </LinearGradient>
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 34,
     letterSpacing: -0.6,
-    color: '#FFFFFF',
+    color: colors.white,
   },
   bannerSub: {
     fontFamily: fonts.body,
@@ -305,12 +305,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   dutyCentered: { alignSelf: 'center' },
-  dutyOn: { backgroundColor: '#EEF8E6', borderColor: surfaces.glassBorderStrong },
+  dutyOn: { backgroundColor: colors.mint, borderColor: surfaces.glassBorderStrong },
   dutyOff: { backgroundColor: '#FEF2F2', borderColor: 'rgba(220,38,38,0.2)' },
   dutyLeave: { backgroundColor: '#EFF6FF', borderColor: 'rgba(59,130,246,0.25)' },
   dutyPending: { backgroundColor: '#FFF8E8', borderColor: 'rgba(245,184,46,0.35)' },
   dutyDot: { width: 6, height: 6, borderRadius: 3 },
-  dutyDotOn: { backgroundColor: '#27A747' },
+  dutyDotOn: { backgroundColor: colors.green },
   dutyDotOff: { backgroundColor: '#DC2626' },
   dutyDotLeave: { backgroundColor: '#3B82F6' },
   dutyDotPending: { backgroundColor: '#F5B82E' },
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: '#EEF8E6',
+    backgroundColor: colors.mint,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
   },
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: '#F6FAF2',
+    backgroundColor: colors.bg,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
     maxWidth: '100%',

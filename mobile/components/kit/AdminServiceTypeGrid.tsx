@@ -24,7 +24,7 @@ export function AdminServiceTypeGrid({
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-      <LinearGradient colors={['#1B873E', '#0A6423', '#043813']} locations={[0, 0.55, 1]} style={styles.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+      <LinearGradient colors={[colors.headerGreen, colors.forest, colors.forestDeep]} locations={[0, 0.55, 1]} style={styles.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
         <Text style={styles.heroKicker}>Service catalog</Text>
         <Text style={styles.heroTitle}>{activeCount} active services</Text>
         <Text style={styles.heroSub}>{services.length} total · tap a pest type</Text>

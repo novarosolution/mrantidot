@@ -20,11 +20,16 @@ export function PromoBanner({
   promo?: HomePromo | null;
   onPress?: () => void;
 }) {
-  const p = promo?.active !== false ? { ...DEFAULT_PROMO, ...promo, active: true } : null;
+  const p = promo?.active === true ? { ...DEFAULT_PROMO, ...promo, active: true } : null;
   if (!p?.title?.trim()) return null;
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={p.ctaLabel ? `${p.title}. ${p.ctaLabel}` : p.title}
+      style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}
+    >
       <LinearGradient colors={[...gradients.premiumHero]} style={styles.banner} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
         <View style={styles.glow} />
         <View style={styles.content}>

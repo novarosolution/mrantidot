@@ -219,7 +219,7 @@ export default function TechDashboard() {
         <View style={styles.heroLeft}>
           <View style={styles.eyebrowRow}>
             <LinearGradient
-              colors={['#C8F07A', '#8FD03C']}
+              colors={['#C8F07A', colors.limeBright]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.eyebrowBar}
@@ -407,7 +407,7 @@ export default function TechDashboard() {
               <TechScreenGutter style={styles.sectionHeadWrap}>
                 <View style={styles.sectionHead}>
                   <LinearGradient
-                    colors={isOverdue ? ['#C15B31', '#9E3F1C'] : ['#8FD03C', '#27A747']}
+                    colors={isOverdue ? ['#C15B31', '#9E3F1C'] : [colors.limeBright, colors.green]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.sectionAccent}

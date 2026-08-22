@@ -122,7 +122,7 @@ export function BookingInvoiceCard({
   return (
     <Animated.View style={[styles.shell, compact && styles.shellCompact, enterStyle]}>
       <LinearGradient
-        colors={['#1A8A3C', '#0A6423', '#043816']}
+        colors={['#1A8A3C', colors.forest, '#043816']}
         locations={[0, 0.55, 1]}
         start={{ x: 0.12, y: 0 }}
         end={{ x: 0.9, y: 1 }}

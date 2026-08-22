@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, fonts, premiumType, spacing } from '@/constants/theme';
+import { colors, premiumType, spacing } from '@/constants/theme';
 
 export function Chip({
   label,

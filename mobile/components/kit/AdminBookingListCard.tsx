@@ -43,7 +43,7 @@ export const AdminBookingListCard = memo(function AdminBookingListCard({
             <StatusPill status={item.status} />
           </View>
           <View style={styles.main}>
-            <ServiceIcon iconKey={iconKey} size={20} variant="premium" boxSize={46} color="#FFFFFF" />
+            <ServiceIcon iconKey={iconKey} size={20} variant="premium" boxSize={46} color={colors.white} />
             <View style={styles.flex}>
               <Text style={styles.svc} numberOfLines={1}>
                 {bookingServiceName(item)}

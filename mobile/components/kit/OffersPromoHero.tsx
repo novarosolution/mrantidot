@@ -22,7 +22,7 @@ export function OffersPromoHero({
     <View style={styles.wrap}>
       <View style={styles.shell}>
         <LinearGradient
-          colors={['#27A747', '#0A6423', '#043813']}
+          colors={[colors.green, colors.forest, colors.forestDeep]}
           locations={[0, 0.55, 1]}
           style={styles.card}
           start={{ x: 0.1, y: 0 }}
@@ -47,7 +47,7 @@ export function OffersPromoHero({
           <View style={styles.rim} pointerEvents="none" />
 
           <View style={styles.iconShell}>
-            <LinearGradient colors={['#FFFFFF', '#EAF6E3']} style={styles.icon}>
+            <LinearGradient colors={[colors.white, colors.soft]} style={styles.icon}>
               <PremiumIcon
                 icon={AppIcons.quick.offers}
                 variant="plain"
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   },
   iconShell: {
     borderRadius: 18,
-    shadowColor: '#02180C',
+    shadowColor: colors.deep,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.22,
     shadowRadius: 10,
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...customerType.promoTitle,
-    color: '#FFFFFF',
+    color: colors.white,
     marginTop: 6,
   },
   sub: {

@@ -40,7 +40,7 @@ export function KpiCard({
     <>
       <AdminGoldBar />
       <View style={styles.content}>
-        <PremiumIcon icon={icon} variant="mint" size="md" color={iconColor} bg={iconBg} bgTo="#FFFFFF" boxSize={40} />
+        <PremiumIcon icon={icon} variant="mint" size="md" color={iconColor} bg={iconBg} bgTo={colors.white} boxSize={40} />
         <Text style={styles.value}>{value}</Text>
         <Text style={styles.label}>{label}</Text>
         {isMeaningfulDelta(delta) ? (

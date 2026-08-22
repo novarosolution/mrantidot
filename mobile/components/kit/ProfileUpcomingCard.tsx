@@ -38,7 +38,7 @@ export function ProfileUpcomingCard({
             icon={AppIcons.profile.bookings}
             variant="premium"
             size={18}
-            gradient={['#30B84F', '#1B873E', '#043813']}
+            gradient={[colors.greenBright, colors.headerGreen, colors.forestDeep]}
             boxSize={46}
           />
           <View style={styles.info}>

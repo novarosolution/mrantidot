@@ -9,13 +9,12 @@ import {
   Text,
   View,
 } from 'react-native';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
 import Toast from 'react-native-toast-message';
 import { AddressCard } from '@/components/kit/AddressCard';
 import { AddressLocateButton } from '@/components/kit/AddressLocateButton';
 import { LocationBanner } from '@/components/kit/LocationChip';
 import { CustomerListShell, listShellStyles } from '@/components/kit/CustomerListShell';
+import { FabButton } from '@/components/kit/FabButton';
 import { IconInput } from '@/components/kit/IconInput';
 import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
 import { Button } from '@/components/ui/Button';
@@ -28,7 +27,7 @@ import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
 import { useLocation } from '@/context/LocationContext';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { SavedAddress } from '@/types/api';
-import { colors, design, fonts, premium, radius, spacing } from '@/constants/theme';
+import { colors, design, fonts, premium, spacing } from '@/constants/theme';
 
 export default function AddressesScreen() {
   const ui = useCustomerUiCopy();
@@ -136,11 +135,7 @@ export default function AddressesScreen() {
     }
   }
 
-  const addFab = (
-    <Pressable style={styles.fab} onPress={openAdd}>
-      <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size={22} color={colors.white} />
-    </Pressable>
-  );
+  const addFab = <FabButton onPress={openAdd} accessibilityLabel="Add address" />;
 
   return (
     <CustomerListShell title={ui.addressesScreenTitle} accountStrip rightAction={addFab}>
@@ -171,11 +166,23 @@ export default function AddressesScreen() {
               <AddressCard address={item} onPress={() => !item.isDefault && void setDefault(item)} />
               <View style={styles.actions}>
                 {!item.isDefault ? (
-                  <Pressable onPress={() => void setDefault(item)}>
+                  <Pressable
+                    onPress={() => void setDefault(item)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Set as default address"
+                    hitSlop={8}
+                    style={styles.actionHit}
+                  >
                     <Text style={styles.actionText}>Set as default</Text>
                   </Pressable>
                 ) : null}
-                <Pressable onPress={() => confirmDelete(item)}>
+                <Pressable
+                  onPress={() => confirmDelete(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete address"
+                  hitSlop={8}
+                  style={styles.actionHit}
+                >
                   <Text style={[styles.actionText, styles.deleteText]}>Delete</Text>
                 </Pressable>
               </View>
@@ -196,7 +203,11 @@ export default function AddressesScreen() {
             <IconInput label="Pincode (optional)" value={pincode} onChangeText={setPincode} keyboardType="numeric" />
             <View style={styles.defaultRow}>
               <Text style={styles.defaultLabel}>Set as default address</Text>
-              <ToggleSwitch value={isDefault} onToggle={() => setIsDefault((v) => !v)} />
+              <ToggleSwitch
+                value={isDefault}
+                onToggle={() => setIsDefault((v) => !v)}
+                accessibilityLabel="Set as default address"
+              />
             </View>
             <Button title="Save address" variant="premium" onPress={saveAddress} loading={saving} />
             <Button title="Cancel" variant="secondary" onPress={() => setModalOpen(false)} style={{ marginTop: spacing.sm }} />
@@ -208,15 +219,8 @@ export default function AddressesScreen() {
 }
 
 const styles = StyleSheet.create({
-  fab: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.sm,
-    backgroundColor: colors.forest,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   actions: { flexDirection: 'row', gap: spacing.md, marginTop: -4, marginBottom: spacing.sm, paddingHorizontal: spacing.xs },
+  actionHit: { minHeight: 44, justifyContent: 'center' },
   actionText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.green },
   deleteText: { color: colors.error },
   modalBackdrop: {

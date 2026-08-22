@@ -86,7 +86,7 @@ export function AdminSectionTitle({
       <View style={adminStyles.sectionRow}>
         <View style={adminStyles.titleCol}>
           <LinearGradient
-            colors={['#8FD03C', '#27A747']}
+            colors={[colors.limeBright, colors.green]}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={adminStyles.sectionAccent}
@@ -161,7 +161,7 @@ export const adminStyles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: 'rgba(180,220,165,0.95)',
     alignItems: 'center',

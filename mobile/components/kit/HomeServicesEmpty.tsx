@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { fonts } from '@/constants/theme';
+import { colors, fonts } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
@@ -34,5 +34,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
   },
-  btnText: { fontFamily: fonts.bodyBold, fontSize: 13, color: '#FFFFFF' },
+  btnText: { fontFamily: fonts.bodyBold, fontSize: 13, color: colors.white },
 });

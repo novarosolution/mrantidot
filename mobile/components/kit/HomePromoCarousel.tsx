@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import type { HomeConfig, HomePromo } from '@/types/api';
-import { fonts } from '@/constants/theme';
+import { colors, fonts } from '@/constants/theme';
 import { homeShadow } from '@/components/kit/homeUi';
 import { DEFAULT_HOME_CONFIG } from '@/constants/homeContent';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
@@ -51,8 +51,8 @@ export function HomePromoCarousel({
   const ref = useRef<ScrollView>(null);
   const holding = useRef(false);
 
-  const offerOn = promo?.active !== false && Boolean(promo?.title?.trim());
-  const code = homeConfig?.promoCodeHint?.trim() || DEFAULT_HOME_CONFIG.promoCodeHint!;
+  const offerOn = promo?.active === true && Boolean(promo?.title?.trim());
+  const code = homeConfig?.promoCodeHint?.trim() || '';
   const bookTitle = homeConfig?.bookSlideTitle?.trim() || DEFAULT_HOME_CONFIG.bookSlideTitle!;
   const bookCta = homeConfig?.bookSlideCta?.trim() || DEFAULT_HOME_CONFIG.bookSlideCta!;
   const bookSub =
@@ -73,7 +73,7 @@ export function HomePromoCarousel({
             title: promo!.title!.trim(),
             cta: promo?.ctaLabel?.trim() || 'Claim offer',
             tone: 'offer' as const,
-            code,
+            code: code || undefined,
           },
         ]
       : []),
@@ -120,8 +120,8 @@ export function HomePromoCarousel({
               key={slide.key}
               colors={
                 slide.tone === 'green'
-                  ? ['#3CC85A', '#1B873E', '#053A16']
-                  : ['#1B873E', '#0A6423', '#02180C']
+                  ? ['#3CC85A', colors.headerGreen, '#053A16']
+                  : [colors.headerGreen, colors.forest, colors.deep]
               }
               locations={[0, 0.42, 1]}
               style={[styles.slide, { width: SLIDE_W }]}
@@ -167,11 +167,13 @@ export function HomePromoCarousel({
                     </View>
                   ) : null}
                   <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={slide.cta}
                     style={({ pressed }) => [pressed && { transform: [{ scale: 0.96 }] }]}
                     onPress={slide.tone === 'green' ? onBook : onClaimOffer}
                   >
                     <LinearGradient
-                      colors={['#FFFFFF', '#F2FAEE']}
+                      colors={[colors.white, '#F2FAEE']}
                       style={styles.cta}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
@@ -191,7 +193,7 @@ export function HomePromoCarousel({
                   icon={slide.tone === 'offer' ? AppIcons.ui.percent : AppIcons.brand}
                   variant="glass"
                   size={34}
-                  color="#FFFFFF"
+                  color={colors.white}
                   strokeWidth={1.85}
                   boxSize={78}
                 />
@@ -262,7 +264,7 @@ const styles = StyleSheet.create({
     fontSize: 23,
     lineHeight: 28,
     letterSpacing: -0.65,
-    color: '#FFFFFF',
+    color: colors.white,
   },
   codePill: {
     alignSelf: 'flex-start',
@@ -277,7 +279,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: 12,
     letterSpacing: 1.1,
-    color: '#FFFFFF',
+    color: colors.white,
   },
   subPill: {
     alignSelf: 'flex-start',
@@ -305,5 +307,5 @@ const styles = StyleSheet.create({
   },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 12 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(11,114,40,0.18)' },
-  dotOn: { width: 20, backgroundColor: '#1A8734' },
+  dotOn: { width: 20, backgroundColor: colors.forestMid },
 });

@@ -142,8 +142,18 @@ export const AdminOfferCard = memo(function AdminOfferCard({
         </Pressable>
 
         <View style={styles.actions}>
-          <ToggleSwitch value={offer.active} onToggle={onToggle} />
-          <Pressable style={styles.editBtn} onPress={onEdit} hitSlop={8} accessibilityLabel="Edit offer">
+          <ToggleSwitch
+            value={offer.active}
+            onToggle={onToggle}
+            accessibilityLabel={offer.active ? 'Deactivate offer' : 'Activate offer'}
+          />
+          <Pressable
+            style={styles.editBtn}
+            onPress={onEdit}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Edit offer"
+          >
             <PremiumIcon icon={AppIcons.ui.edit} variant="plain" size="sm" color={colors.forest} strokeWidth={2.2} />
           </Pressable>
         </View>

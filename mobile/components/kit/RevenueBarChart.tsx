@@ -31,7 +31,7 @@ export function RevenueBarChart({
           return (
             <View key={`${b.label}-${i}`} style={styles.col}>
               <LinearGradient
-                colors={isLast ? ['#8FD03C', '#27A747'] : ['#1B873E', '#0A6423']}
+                colors={isLast ? [colors.limeBright, colors.green] : [colors.headerGreen, colors.forest]}
                 style={[styles.bar, { height: `${pct}%` }]}
               />
               <Text style={styles.month}>{b.label}</Text>
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   title: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
   chip: {
-    backgroundColor: '#EEF8E6',
+    backgroundColor: colors.mint,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,

@@ -33,7 +33,7 @@ function PaymentMethodCardComponent({
             icon={icon}
             variant={selected ? 'premium' : 'mint'}
             size={20}
-            color={selected ? '#FFFFFF' : colors.forest}
+            color={selected ? colors.white : colors.forest}
             boxSize={40}
           />
           <View style={styles.body}>
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     borderColor: surfaces.glassBorderStrong,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
   },
   radioOn: { borderColor: colors.forest },
   radioDot: {

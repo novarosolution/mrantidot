@@ -9,7 +9,7 @@ export function ProfileTrustBanner({ guaranteeText, badges }: { guaranteeText: s
 
   return (
     <View style={styles.wrap}>
-      <LinearGradient colors={['#FFFFFF', '#F4FAF6']} style={styles.card} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+      <LinearGradient colors={[colors.white, '#F4FAF6']} style={styles.card} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
         <LinearGradient colors={[...gradients.goldBar]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
         <View style={styles.row}>
           <PremiumIcon icon={AppIcons.ui.shieldCheck} variant="gradient" size={22} color={colors.white} strokeWidth={2} boxSize={48} />

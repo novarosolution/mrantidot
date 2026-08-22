@@ -45,7 +45,7 @@ export function BookingTrackingTimeline({ events }: { events: TrackingEvent[] })
 
   return (
     <View style={styles.wrap}>
-      <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       {sorted.map((item, i) => {
         const icon = EVENT_ICONS[item.event] ?? AppIcons.ui.activity;
         const isLast = i === sorted.length - 1;

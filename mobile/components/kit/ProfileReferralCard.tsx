@@ -18,7 +18,7 @@ export function ProfileReferralCard({
       onPress={() => appPush(customerRoutes.offers)}
     >
       <LinearGradient
-        colors={['#F6FAF2', '#EEF8E6', '#FFFFFF']}
+        colors={[colors.bg, colors.mint, colors.white]}
         style={styles.card}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}

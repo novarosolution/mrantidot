@@ -31,7 +31,7 @@ export default function OffersScreen() {
 
   const brandName = content.branding.name?.trim() || 'Mr Antidot';
   const promoHint =
-    homePromo?.active !== false && homePromo?.title?.trim()
+    homePromo?.active === true && homePromo?.title?.trim()
       ? homePromo.title.trim()
       : content.trust.guaranteeText?.trim();
   const sectionTitle = homeConfig.quickLabels?.offers?.trim() || ui.offersScreenTitle;

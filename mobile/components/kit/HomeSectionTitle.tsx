@@ -19,7 +19,7 @@ export function HomeSectionTitle({
       <View style={styles.row}>
         <View style={styles.titleCol}>
           <LinearGradient
-            colors={['#8FD03C', '#27A747']}
+            colors={[colors.limeBright, colors.green]}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={styles.accent}
@@ -29,7 +29,13 @@ export function HomeSectionTitle({
           </Text>
         </View>
         {onAction ? (
-          <Pressable style={({ pressed }) => [styles.action, pressed && { opacity: 0.82 }]} onPress={onAction} hitSlop={8}>
+          <Pressable
+            style={({ pressed }) => [styles.action, pressed && { opacity: 0.82 }]}
+            onPress={onAction}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="See all"
+          >
             <View style={styles.chevronBtn}>
               <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={14} color={colors.forest} strokeWidth={2.5} />
             </View>
@@ -76,7 +82,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: 'rgba(180,220,165,0.95)',
     alignItems: 'center',

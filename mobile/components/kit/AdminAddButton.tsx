@@ -5,17 +5,17 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { colors } from '@/constants/theme';
 
 /** Circular add action for admin list headers. */
-export function AdminAddButton({ onPress }: { label?: string; onPress: () => void }) {
+export function AdminAddButton({ onPress, label = 'Add' }: { label?: string; onPress: () => void }) {
   return (
     <Pressable
       style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel="Add"
-      hitSlop={6}
+      accessibilityLabel={label}
+      hitSlop={8}
     >
       <LinearGradient
-        colors={['#8FD03C', '#27A747', '#0A6423']}
+        colors={[colors.limeBright, colors.green, colors.forest]}
         style={styles.btn}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -30,7 +30,7 @@ export function AdminAddButton({ onPress }: { label?: string; onPress: () => voi
 
 const styles = StyleSheet.create({
   wrap: {
-    shadowColor: '#043813',
+    shadowColor: colors.forestDeep,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 12,

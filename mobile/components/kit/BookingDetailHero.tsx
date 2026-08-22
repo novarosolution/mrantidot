@@ -145,7 +145,7 @@ export function BookingDetailHero({
           </LinearGradient>
         ) : (
           <LinearGradient
-            colors={['#FFFFFF', '#F6FAF7']}
+            colors={[colors.white, '#F6FAF7']}
             style={[styles.card, styles.cardLight]}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}

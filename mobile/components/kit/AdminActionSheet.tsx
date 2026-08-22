@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     borderTopWidth: 3,
-    borderTopColor: '#8FD03C',
+    borderTopColor: colors.limeBright,
     ...premium.shadowSoft,
   },
   sheetTint: {

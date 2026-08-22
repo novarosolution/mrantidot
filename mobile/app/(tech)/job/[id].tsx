@@ -30,6 +30,7 @@ import { Input } from '@/components/ui/Input';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
 import { Spinner } from '@/components/ui/Spinner';
+import { LiveBadge } from '@/components/ui/LiveBadge';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
@@ -199,7 +200,10 @@ export default function TechJobScreen() {
     setBusy(`step-${index}`);
     try {
       const geo = await readJobGeo();
-      if (!geo) return;
+      if (!geo) {
+        setBusy(null);
+        return;
+      }
 
       const photoUrls = await uploadImages(drafts);
       await api.patch(`/bookings/${id}/steps/${index}`, {
@@ -222,7 +226,7 @@ export default function TechJobScreen() {
     } catch (err) {
       Toast.show({
         type: 'error',
-        text1: 'Upload failed',
+        text1: 'Could not save step',
         text2: getApiErrorMessage(err, 'Check connection and try again'),
       });
     } finally {
@@ -275,7 +279,7 @@ export default function TechJobScreen() {
           subtitle={`Field job · ${bookingScheduleDisplay(booking)}`}
           showBack
           onBack={() => techGoBack(techRoutes.home)}
-          rightAction={headerLive ? <StatusBadge label="● Live" tone="success" /> : null}
+          rightAction={headerLive ? <LiveBadge tone="light" /> : null}
         />
       }
     >
@@ -617,7 +621,7 @@ const styles = StyleSheet.create({
   stepActiveShell: {
     borderRadius: 20,
     borderWidth: 1.6,
-    borderColor: '#27A747',
+    borderColor: colors.green,
   },
   stepInner: { padding: spacing.md },
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },

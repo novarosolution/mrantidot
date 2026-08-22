@@ -135,13 +135,25 @@ export function TechnicianDayCalendar({
       <View style={styles.calendarShell}>
         <GlassPanel style={styles.calendarCard} padded={false} tone="light" intensity={42} goldEdge>
           <View style={styles.calendarInner}>
-            <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+            <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
             <View style={styles.monthHead}>
-              <Pressable onPress={() => shiftMonth(-1)} style={styles.navBtn} hitSlop={8}>
+              <Pressable
+                onPress={() => shiftMonth(-1)}
+                style={styles.navBtn}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Previous month"
+              >
                 <PremiumIcon icon={AppIcons.ui.chevronLeft} variant="plain" size="lg" color={colors.forest} />
               </Pressable>
               <Text style={styles.monthTitle}>{monthLabel(year, month)}</Text>
-              <Pressable onPress={() => shiftMonth(1)} style={styles.navBtn} hitSlop={8}>
+              <Pressable
+                onPress={() => shiftMonth(1)}
+                style={styles.navBtn}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Next month"
+              >
                 <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size="lg" color={colors.forest} />
               </Pressable>
             </View>

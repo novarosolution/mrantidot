@@ -66,7 +66,7 @@ export function TechnicianProfilePanel({
           label: 'Active',
           value: String(stats.inProgress),
           icon: AppIcons.techStats.active,
-          iconBg: '#EEF8E6',
+          iconBg: colors.mint,
           iconColor: colors.green,
           onPress: () => activeJob && appPush(techRoutes.job(activeJob.id)),
         },
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   block: { paddingHorizontal: spacing.md, marginBottom: spacing.md },
   payShell: {
     borderRadius: premium.radiusCard,
-    shadowColor: '#03170B',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.07,
     shadowRadius: 10,

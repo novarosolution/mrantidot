@@ -4,7 +4,7 @@ import { GlassTabBarBackground, glassTabBarStyle } from '@/components/kit/GlassS
 import { KitTabBarIcon } from '@/components/kit/PremiumIcon';
 import { Spinner } from '@/components/ui/Spinner';
 import { AppIcons } from '@/constants/appIcons';
-import { fonts, typography } from '@/constants/theme';
+import { colors, fonts, typography } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { isProfileIncomplete } from '@/lib/profile-display';
 import { appHref, authRoutes, customerRoutes, homeRouteForRole } from '@/lib/routes';
@@ -42,7 +42,7 @@ export default function CustomerLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#0A6423',
+        tabBarActiveTintColor: colors.forest,
         tabBarInactiveTintColor: '#4A7354',
         tabBarStyle: glassTabBarStyle,
         tabBarBackground: () => <GlassTabBarBackground />,

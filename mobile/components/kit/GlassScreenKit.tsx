@@ -125,7 +125,7 @@ export function GlassPanel({
       <View style={styles.panelInnerRim} pointerEvents="none" />
       {goldEdge ? (
         <LinearGradient
-          colors={['#C8F07A', '#8FD03C', '#27A747']}
+          colors={['#C8F07A', colors.limeBright, colors.green]}
           style={styles.goldEdge}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
@@ -273,7 +273,7 @@ export function GlassTabBarBackground() {
         pointerEvents="none"
       />
       <LinearGradient
-        colors={['#C8F07A', '#8FD03C', '#27A747', '#8FD03C', '#C8F07A']}
+        colors={['#C8F07A', colors.limeBright, colors.green, colors.limeBright, '#C8F07A']}
         locations={[0, 0.22, 0.5, 0.78, 1]}
         style={styles.tabBarLimeEdge}
         start={{ x: 0, y: 0 }}
@@ -337,7 +337,7 @@ export const glassTabBarStyle: ViewStyle = {
   paddingTop: 6,
   borderRadius: 30,
   elevation: 0,
-  shadowColor: '#02180C',
+  shadowColor: colors.deep,
   shadowOffset: { width: 0, height: 16 },
   shadowOpacity: 0.22,
   shadowRadius: 28,
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(168,214,150,0.55)',
-    shadowColor: '#03170B',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 16 },
     shadowOpacity: 0.14,
     shadowRadius: 28,

@@ -39,7 +39,7 @@ export function ServiceCatalogCard({
       style={({ pressed }) => [styles.card, { width: w }, pressed && styles.pressed]}
       onPress={onPress}
     >
-      <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <View style={styles.iconWrap}>
         <ServiceIcon iconKey={service.iconKey} size={22} variant="premium" boxSize={52} color={colors.forest} strokeWidth={2.2} />
       </View>

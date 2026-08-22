@@ -41,7 +41,7 @@ export function AdminScreenHeader({
         <View style={styles.textCol}>
           <View style={styles.eyebrowRow}>
             <LinearGradient
-              colors={['#C8F07A', '#8FD03C']}
+              colors={['#C8F07A', colors.limeBright]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.eyebrowBar}
@@ -65,7 +65,7 @@ export function AdminScreenHeader({
           accessibilityLabel="Notifications"
           hitSlop={8}
         >
-          <PremiumIcon icon={AppIcons.ui.bell} variant="plain" size={20} color="#FFFFFF" strokeWidth={2.2} />
+          <PremiumIcon icon={AppIcons.ui.bell} variant="plain" size={20} color={colors.white} strokeWidth={2.2} />
           {unreadCount > 0 ? (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{badge}</Text>
@@ -83,7 +83,7 @@ export function AdminScreenHeader({
           hitSlop={8}
         >
           <LinearGradient
-            colors={['#FFFFFF', '#EAF6E3']}
+            colors={[colors.white, colors.soft]}
             style={styles.avatarBtn}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     lineHeight: 30,
     letterSpacing: -0.55,
-    color: '#FFFFFF',
+    color: colors.white,
   },
   sub: {
     fontFamily: fonts.body,
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.34)',
-    shadowColor: '#02180C',
+    shadowColor: colors.deep,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.22,
     shadowRadius: 10,
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   },
   avatarShell: {
     borderRadius: ACTION / 2,
-    shadowColor: '#02180C',
+    shadowColor: colors.deep,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.22,
     shadowRadius: 10,
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 4,
     borderWidth: 2,
-    borderColor: '#0A6423',
+    borderColor: colors.forest,
   },
   badgeText: {
     fontFamily: fonts.bodyBold,
@@ -188,14 +188,14 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#8FD03C',
+    backgroundColor: colors.limeBright,
     borderWidth: 1.5,
-    borderColor: '#0A6423',
+    borderColor: colors.forest,
   },
   avatarText: {
     fontFamily: fonts.displayExtra,
     fontSize: 17,
-    color: '#043813',
+    color: colors.forestDeep,
     letterSpacing: -0.2,
   },
 });

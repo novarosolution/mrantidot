@@ -6,7 +6,7 @@ import { ServiceIcon } from '@/components/ServiceIcon';
 import { formatSocialProof } from '@/lib/display';
 import { serviceDisplayRating } from '@/lib/ratings';
 import type { Service } from '@/types/api';
-import { colors, customerType, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, customerType, premium, shadows, spacing } from '@/constants/theme';
 
 export function PopularServiceCard({
   service,

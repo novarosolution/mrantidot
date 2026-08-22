@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.72)',
     borderWidth: 1.5,
-    borderColor: '#8FD03C',
+    borderColor: colors.limeBright,
   },
   exportWrap: { paddingHorizontal: spacing.md, marginTop: spacing.md },
   exportRow: {

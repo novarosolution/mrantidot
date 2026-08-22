@@ -26,7 +26,7 @@ function SectionKicker({ label }: { label: string }) {
   return (
     <View style={styles.kickerRow}>
       <LinearGradient
-        colors={['#30B84F', '#1A8734']}
+        colors={[colors.greenBright, colors.forestMid]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.kickerBar}
@@ -208,6 +208,8 @@ export default function ServiceDetailScreen() {
               style={({ pressed }) => [styles.backBtn, pressed && styles.pressedSm]}
               onPress={() => safeGoBack(customerRoutes.services)}
               hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
             >
               <PremiumIcon icon={AppIcons.ui.chevronLeft} variant="plain" size={20} color={colors.white} strokeWidth={2.2} />
             </Pressable>
@@ -237,8 +239,8 @@ export default function ServiceDetailScreen() {
 
         <View style={styles.tagsRow}>
           <View style={[styles.tag, styles.tagMint]}>
-            <PremiumIcon icon={AppIcons.ui.leaf} variant="plain" size={12} color="#1A8734" strokeWidth={2.2} />
-            <Text style={[styles.tagText, { color: '#1A8734' }]}>ECO-SAFE</Text>
+            <PremiumIcon icon={AppIcons.ui.leaf} variant="plain" size={12} color={colors.forestMid} strokeWidth={2.2} />
+            <Text style={[styles.tagText, { color: colors.forestMid }]}>ECO-SAFE</Text>
           </View>
           <View style={[styles.tag, styles.tagPlain]}>
             <PremiumIcon icon={AppIcons.ui.clock} variant="plain" size={12} color="#5C8A63" strokeWidth={2.2} />
@@ -276,7 +278,7 @@ export default function ServiceDetailScreen() {
                     <Text style={styles.stepNumText}>{String(i + 1).padStart(2, '0')}</Text>
                   </LinearGradient>
                   <Text style={styles.stepText}>{t}</Text>
-                  <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={15} color="#30B84F" strokeWidth={2.6} />
+                  <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={15} color={colors.greenBright} strokeWidth={2.6} />
                 </View>
               ))}
             </GlassPanel>
@@ -296,7 +298,7 @@ export default function ServiceDetailScreen() {
                 <View key={r.id} style={styles.reviewCard}>
                   <View style={styles.reviewHead}>
                     <LinearGradient
-                      colors={['#27A747', '#064D1B']}
+                      colors={[colors.green, '#064D1B']}
                       style={styles.reviewAvatar}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
@@ -329,7 +331,7 @@ export default function ServiceDetailScreen() {
             onPress={() => appPush(sharedRoutes.bookPath(service.id))}
           >
             <LinearGradient
-              colors={['#27A747', '#064D1B']}
+              colors={[colors.green, '#064D1B']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.bookBtn}
@@ -435,7 +437,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderWidth: 1,
   },
-  tagMint: { backgroundColor: '#EAF6E3', borderColor: '#D1EEC2' },
+  tagMint: { backgroundColor: colors.soft, borderColor: '#D1EEC2' },
   tagPlain: { backgroundColor: 'rgba(255,255,255,0.82)', borderColor: '#DBF1D1' },
   tagText: { fontFamily: fonts.bodyBold, fontSize: 11, letterSpacing: 0.8 },
   typeBadges: { paddingHorizontal: 20, paddingTop: 10 },
@@ -470,7 +472,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepNumText: { fontFamily: fonts.bodyBold, fontSize: 11.5, color: '#1A8734' },
+  stepNumText: { fontFamily: fonts.bodyBold, fontSize: 11.5, color: colors.forestMid },
   stepText: { flex: 1, fontFamily: fonts.bodySemi, fontSize: 13.5, color: '#1F4129' },
   reviewsRail: { marginHorizontal: -20, marginTop: 11 },
   reviewsRailInner: { paddingHorizontal: 20, gap: 10, paddingBottom: 4 },
@@ -507,7 +509,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   fromLabel: { fontFamily: fonts.bodyBold, fontSize: 9.5, letterSpacing: 1, color: '#86AC80' },
-  footerPrice: { fontFamily: fonts.displayExtra, fontSize: 22, color: '#1A8734' },
+  footerPrice: { fontFamily: fonts.displayExtra, fontSize: 22, color: colors.forestMid },
   bookBtnWrap: { flex: 1 },
   bookBtn: {
     flexDirection: 'row',

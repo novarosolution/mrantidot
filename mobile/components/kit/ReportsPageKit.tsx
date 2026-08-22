@@ -44,7 +44,7 @@ export function ReportsSectionCard({
       <View style={styles.sectionHead}>
         <View style={styles.titleCol}>
           <LinearGradient
-            colors={['#8FD03C', '#27A747']}
+            colors={[colors.limeBright, colors.green]}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={styles.sectionAccent}
@@ -92,7 +92,7 @@ export function ReportsRankList({
   return (
     <View style={flush ? styles.rankFlush : styles.rankCard}>
       {flush ? null : (
-        <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.rankGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+        <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.rankGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       )}
       {items.map((item, index) => {
         const width = `${Math.max(6, (item.value / max) * 100)}%`;
@@ -155,7 +155,7 @@ export function BookingsTrendChart({
   return (
     <View style={flush ? styles.chartFlush : styles.chartCard}>
       {flush ? null : (
-        <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.chartGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+        <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.chartGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       )}
       <View style={styles.chartHead}>
         <Text style={styles.chartTitle}>{title}</Text>
@@ -171,7 +171,7 @@ export function BookingsTrendChart({
             <View key={`${b.label}-${i}`} style={styles.col}>
               <Text style={styles.barCount}>{b.count > 0 ? b.count : ''}</Text>
               <LinearGradient
-                colors={isLast ? ['#8FD03C', '#27A747'] : [colors.forest, colors.green]}
+                colors={isLast ? [colors.limeBright, colors.green] : [colors.forest, colors.green]}
                 style={[styles.bar, { height: `${pct}%` }]}
                 start={{ x: 0, y: 1 }}
                 end={{ x: 0, y: 0 }}
@@ -226,7 +226,7 @@ export function ReportsTeamCard({
   return (
     <View style={flush ? styles.teamFlush : styles.teamCard}>
       {flush ? null : (
-        <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.rankGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+        <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.rankGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       )}
       <View style={styles.teamStats}>
         <View style={styles.teamStat}>
@@ -267,7 +267,7 @@ export function ReportsManageGrid({
     <View style={styles.manageGrid}>
       {items.map(({ key, icon: Icon, label, desc }) => (
         <Pressable key={key} style={({ pressed }) => [styles.manageTile, pressed && styles.pressed]} onPress={() => onPress(key)}>
-          <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.manageGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+          <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.manageGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
           <PremiumIcon icon={Icon} variant="mint" size={18} color={colors.forest} boxSize={36} />
           <Text style={styles.manageLabel}>{label}</Text>
           <Text style={styles.manageDesc} numberOfLines={2}>
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   empty: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, paddingVertical: spacing.sm },
   rankCard: {
     borderRadius: premium.radiusCard,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
     padding: spacing.md,
@@ -317,11 +317,11 @@ const styles = StyleSheet.create({
   rankText: { flex: 1, minWidth: 0 },
   rankTitle: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink },
   rankSub: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 1 },
-  rankTrack: { height: 8, backgroundColor: '#F6FAF2', borderRadius: 5, overflow: 'hidden' },
+  rankTrack: { height: 8, backgroundColor: colors.bg, borderRadius: 5, overflow: 'hidden' },
   rankFill: { height: '100%', borderRadius: 5 },
   chartCard: {
     borderRadius: premium.radiusCard,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
     padding: spacing.md,
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   chartFlush: {},
   chartHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   chartTitle: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
-  chartChip: { backgroundColor: '#EEF8E6', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: surfaces.glassBorderStrong },
+  chartChip: { backgroundColor: colors.mint, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: surfaces.glassBorderStrong },
   chartChipText: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.forest },
   bars: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 110, paddingTop: 8, gap: 6 },
   col: { flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' },
@@ -346,11 +346,11 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: spacing.md,
     borderRadius: premium.radiusCard,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
     borderTopWidth: 3,
-    borderTopColor: '#8FD03C',
+    borderTopColor: colors.limeBright,
     ...adminShadow.tile,
   },
   insightTileGlass: {
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   insightHint: { fontFamily: fonts.body, fontSize: 10, color: colors.muted, marginTop: 2 },
   teamCard: {
     borderRadius: premium.radiusCard,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
     padding: spacing.md,

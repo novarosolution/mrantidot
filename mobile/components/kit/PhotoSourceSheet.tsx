@@ -29,7 +29,13 @@ export function PhotoSourceSheet({
           onPress={(e) => e.stopPropagation()}
         >
           <View style={styles.handle} />
-          <Pressable style={styles.close} onPress={onClose} hitSlop={8}>
+          <Pressable
+            style={styles.close}
+            onPress={onClose}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
             <PremiumIcon icon={AppIcons.ui.close} variant="plain" size={20} color={colors.muted} />
           </Pressable>
 
@@ -38,6 +44,8 @@ export function PhotoSourceSheet({
 
           <Pressable
             style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Take photo"
             onPress={() => {
               onClose();
               onCamera();
@@ -54,6 +62,8 @@ export function PhotoSourceSheet({
 
           <Pressable
             style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Choose from gallery"
             onPress={() => {
               onClose();
               onGallery();

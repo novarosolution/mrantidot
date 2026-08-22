@@ -2,9 +2,24 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { colors, gradients, premium } from '@/constants/theme';
 
-export function ToggleSwitch({ value, onToggle }: { value: boolean; onToggle: () => void }) {
+export function ToggleSwitch({
+  value,
+  onToggle,
+  accessibilityLabel = 'Toggle',
+}: {
+  value: boolean;
+  onToggle: () => void;
+  accessibilityLabel?: string;
+}) {
   return (
-    <Pressable onPress={onToggle} style={styles.hit} hitSlop={6}>
+    <Pressable
+      onPress={onToggle}
+      style={styles.hit}
+      hitSlop={8}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value }}
+      accessibilityLabel={accessibilityLabel}
+    >
       {value ? (
         <LinearGradient colors={[...gradients.primary]} style={styles.trackOn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
           <View style={[styles.thumb, styles.thumbOn]} />
@@ -19,7 +34,13 @@ export function ToggleSwitch({ value, onToggle }: { value: boolean; onToggle: ()
 }
 
 const styles = StyleSheet.create({
-  hit: { padding: 2 },
+  hit: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 2,
+  },
   trackOff: {
     width: 52,
     height: 30,

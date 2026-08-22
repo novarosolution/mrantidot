@@ -56,7 +56,7 @@ export default function AdminCustomerDetailScreen() {
   const summary = (
     <View style={styles.summaryWrap}>
       <View style={styles.profileCard}>
-        <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+        <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
         <View style={styles.statusRow}>
           <Text style={[styles.statusBadge, isDisabled && styles.statusDisabled]}>
             {isDisabled ? 'Account disabled' : 'Active account'}
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: surfaces.glass,
     borderWidth: 1,
-    borderColor: '#8FD03C',
+    borderColor: colors.limeBright,
   },
   actionText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
 });

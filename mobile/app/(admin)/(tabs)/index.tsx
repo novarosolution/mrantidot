@@ -119,7 +119,7 @@ export default function AdminDashboard() {
             icon={AppIcons.adminKpi.pending}
             value={String(stats.byStatus.pending ?? 0)}
             label="Pending"
-            iconBg="#EEF8E6"
+            iconBg={colors.mint}
             iconColor={colors.forest}
             onPress={() => appPush(adminRoutes.bookingsFiltered({ status: 'pending' }))}
           />

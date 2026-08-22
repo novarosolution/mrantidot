@@ -57,7 +57,13 @@ function AdminServiceListCardComponent({
         </Pressable>
         <View style={styles.actions}>
           <ToggleSwitch value={!inactive} onToggle={onToggleActive} />
-          <Pressable style={styles.editBtn} onPress={onEdit} hitSlop={6} accessibilityLabel="Edit service">
+          <Pressable
+            style={styles.editBtn}
+            onPress={onEdit}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="Edit service"
+          >
             <PremiumIcon icon={AppIcons.ui.edit} variant="plain" size="sm" color={colors.forest} strokeWidth={2.2} />
           </Pressable>
           <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size="sm" color={colors.muted} />

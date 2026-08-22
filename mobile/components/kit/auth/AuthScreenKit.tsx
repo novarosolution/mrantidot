@@ -109,7 +109,7 @@ export function AuthSplashLayout({
   return (
     <View style={styles.splashRoot}>
       <LinearGradient
-        colors={['#1A8734', '#0A6423', '#053A18', '#02180C']}
+        colors={[colors.forestMid, colors.forest, '#053A18', colors.deep]}
         locations={[0, 0.28, 0.62, 1]}
         style={[styles.splashGradient, { paddingTop: insets.top + spacing.lg }]}
         start={{ x: 0.15, y: 0 }}
@@ -242,7 +242,7 @@ export function AuthLoginShell({
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <LinearGradient
-        colors={['#1F9A42', '#0A6423', '#043A16', '#02180C']}
+        colors={['#1F9A42', colors.forest, '#043A16', colors.deep]}
         locations={[0, 0.38, 0.72, 1]}
         style={[
           styles.loginHeroBlock,
@@ -277,7 +277,13 @@ export function AuthLoginShell({
         />
 
         {showBack ? (
-          <Pressable style={styles.backBtn} onPress={() => safeGoBack(authRoutes.login)} hitSlop={12}>
+          <Pressable
+            style={styles.backBtn}
+            onPress={() => safeGoBack(authRoutes.login)}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <PremiumIcon icon={AppIcons.ui.chevronLeft} variant="plain" size={22} color={colors.white} />
           </Pressable>
         ) : (
@@ -287,7 +293,7 @@ export function AuthLoginShell({
         <Animated.View style={[styles.heroInner, enter.hero]} pointerEvents="box-none">
           <View style={[styles.brandRow, compact && styles.brandRowCompact]}>
             <LinearGradient
-              colors={['#FFFFFF', '#F4FBF0']}
+              colors={[colors.white, '#F4FBF0']}
               start={{ x: 0.5, y: 0 }}
               end={{ x: 0.5, y: 1 }}
               style={[styles.brandTile, compact && styles.brandTileCompact]}
@@ -312,7 +318,7 @@ export function AuthLoginShell({
         </Animated.View>
 
         <LinearGradient
-          colors={['#B8E86A', '#8FD03C', '#27A747', 'transparent']}
+          colors={['#B8E86A', colors.limeBright, colors.green, 'transparent']}
           locations={[0, 0.35, 0.7, 1]}
           style={styles.heroEdgeBar}
           start={{ x: 0, y: 0 }}
@@ -324,7 +330,7 @@ export function AuthLoginShell({
       <View style={[styles.sheetWrap, compact && styles.sheetWrapCompact]}>
         <View style={styles.sheet}>
           <LinearGradient
-            colors={['#FBFEF9', '#F4FAEF', '#EAF6E3']}
+            colors={['#FBFEF9', '#F4FAEF', colors.soft]}
             locations={[0, 0.55, 1]}
             style={StyleSheet.absoluteFill}
             start={{ x: 0.5, y: 0 }}
@@ -356,7 +362,7 @@ export function AuthSecureNote({ text = '256-bit secure sign-in' }: { text?: str
   return (
     <View style={styles.secureRow}>
       <View style={styles.secureIcon}>
-        <PremiumIcon icon={AppIcons.ui.lock} variant="plain" size={12} color="#1A8734" />
+        <PremiumIcon icon={AppIcons.ui.lock} variant="plain" size={12} color={colors.forestMid} />
       </View>
       <Text style={styles.secureText}>{text}</Text>
     </View>
@@ -439,7 +445,7 @@ const styles = StyleSheet.create({
     borderRadius: 42,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.7)',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -468,7 +474,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 3,
     borderRadius: 2,
-    backgroundColor: '#8FD03C',
+    backgroundColor: colors.limeBright,
   },
   splashTag: {
     fontFamily: fonts.body,
@@ -503,7 +509,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
   },
-  trustDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#8FD03C' },
+  trustDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.limeBright },
   trustText: { fontFamily: fonts.bodySemi, fontSize: 11.5, color: colors.white },
   splashFooter: { alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.xl },
   progressTrack: {
@@ -516,10 +522,10 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 2,
-    backgroundColor: '#8FD03C',
+    backgroundColor: colors.limeBright,
   },
 
-  loginRoot: { flex: 1, backgroundColor: '#02180C' },
+  loginRoot: { flex: 1, backgroundColor: colors.deep },
   loginHeroBlock: {
     overflow: 'hidden',
     paddingBottom: spacing.xl + 36,
@@ -601,7 +607,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.65)',
     overflow: 'hidden',
-    shadowColor: '#02180C',
+    shadowColor: colors.deep,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.32,
     shadowRadius: 16,
@@ -617,7 +623,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.brand,
     fontSize: 27,
     letterSpacing: -0.7,
-    color: '#FFFFFF',
+    color: colors.white,
     lineHeight: 31,
   },
   brandNameCompact: {
@@ -628,7 +634,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 3,
     borderRadius: 2,
-    backgroundColor: '#8FD03C',
+    backgroundColor: colors.limeBright,
   },
   brandSub: {
     fontFamily: fonts.bodySemi,
@@ -641,7 +647,7 @@ const styles = StyleSheet.create({
     fontSize: 36,
     lineHeight: 40,
     letterSpacing: -1.1,
-    color: '#FFFFFF',
+    color: colors.white,
     textShadowColor: 'rgba(0,0,0,0.22)',
     textShadowOffset: { width: 0, height: 6 },
     textShadowRadius: 14,

@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/context/AuthContext';
 import { displayUserEmail, displayUserName } from '@/lib/profile-display';
 import type { UserRole } from '@/types/api';
-import { colors, customerType, fonts, gradients, premium, shadows, spacing } from '@/constants/theme';
+import { colors, customerType, fonts, gradients, shadows, spacing } from '@/constants/theme';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   customer: 'Customer',
@@ -32,7 +32,7 @@ export function UserAccountCard({
   const inner = (
     <View style={styles.inner}>
       <LinearGradient colors={[...gradients.avatarRing]} style={styles.avatarRing}>
-        <LinearGradient colors={['#30B84F', '#0A6423']} style={styles.avatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+        <LinearGradient colors={[colors.greenBright, colors.forest]} style={styles.avatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <Text style={styles.avatarText}>{initial}</Text>
         </LinearGradient>
       </LinearGradient>

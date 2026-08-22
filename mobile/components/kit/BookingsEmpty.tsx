@@ -4,7 +4,7 @@ import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { Button } from '@/components/ui/Button';
 import { useBookingCopy } from '@/lib/schedule-copy';
-import { customerType, spacing } from '@/constants/theme';
+import { colors, customerType, spacing } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
 
 const EMPTY_HINT: Record<'active' | 'completed' | 'cancelled', string> = {
@@ -30,7 +30,7 @@ export function BookingsEmpty({ filter }: { filter: 'active' | 'completed' | 'ca
             icon={AppIcons.quick.bookings}
             variant="ring"
             size={28}
-            color="#0A6423"
+            color={colors.forest}
             strokeWidth={1.9}
             boxSize={72}
           />

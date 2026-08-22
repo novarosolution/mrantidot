@@ -38,7 +38,7 @@ export function BookingsNextHighlight({
             <Text style={styles.badgeText}>{copy.listNextVisitLabel}</Text>
           </View>
           <View style={styles.schedulePill}>
-            <PremiumIcon icon={AppIcons.ui.calendar} variant="plain" size={11} color="#8FD03C" strokeWidth={2.2} />
+            <PremiumIcon icon={AppIcons.ui.calendar} variant="plain" size={11} color={colors.limeBright} strokeWidth={2.2} />
             <Text style={styles.schedulePillText} numberOfLines={1}>
               {bookingScheduleDisplay(booking)}
             </Text>
@@ -46,7 +46,7 @@ export function BookingsNextHighlight({
         </View>
         <View style={styles.row}>
           <View style={styles.icon}>
-            <ServiceIcon iconKey={bookingServiceIconKey(booking)} size={24} color="#FFFFFF" />
+            <ServiceIcon iconKey={bookingServiceIconKey(booking)} size={24} color={colors.white} />
           </View>
           <View style={styles.body}>
             <Text style={styles.name} numberOfLines={2}>
@@ -55,7 +55,7 @@ export function BookingsNextHighlight({
             <Text style={styles.hint}>Tap to view live status & details</Text>
           </View>
           <LinearGradient colors={[...gradients.goldBar]} style={styles.cta}>
-            <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={16} color="#043813" strokeWidth={2.5} />
+            <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={16} color={colors.forestDeep} strokeWidth={2.5} />
           </LinearGradient>
         </View>
       </LinearGradient>
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     ...customerType.pillLabel,
-    color: '#8FD03C',
+    color: colors.limeBright,
   },
   schedulePill: {
     flexDirection: 'row',

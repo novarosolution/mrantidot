@@ -52,6 +52,9 @@ export default function UserEditScreen() {
   const [payFlat, setPayFlat] = useState('0');
   const [protectedAccount, setProtectedAccount] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<
+    Partial<Record<'name' | 'phone' | 'email' | 'password' | 'displayRating', string>>
+  >({});
   const { loading, error, runLoad, reload } = useScreenLoad(!!id);
 
   const load = useCallback(async () => {
@@ -80,16 +83,18 @@ export default function UserEditScreen() {
   const roleLocked = protectedAccount;
 
   async function save() {
-    if (!name.trim() || !email.trim()) {
-      Toast.show({ type: 'error', text1: 'Name and email are required' });
-      return;
+    const next: Partial<Record<'name' | 'phone' | 'email' | 'password' | 'displayRating', string>> = {};
+    if (!name.trim()) next.name = 'Required';
+    if (!email.trim()) next.email = 'Required';
+    if (!phone.trim()) next.phone = 'Required';
+    if (!id && password.length < 8) next.password = 'At least 8 characters';
+    if (role === 'technician' && displayRating.trim()) {
+      const dr = parseFloat(displayRating);
+      if (Number.isNaN(dr) || dr < 0 || dr > 5) next.displayRating = 'Must be between 0 and 5';
     }
-    if (!phone.trim()) {
-      Toast.show({ type: 'error', text1: 'Phone is required' });
-      return;
-    }
-    if (!id && password.length < 8) {
-      Toast.show({ type: 'error', text1: 'Password must be at least 8 characters' });
+    setErrors(next);
+    if (Object.keys(next).length > 0) {
+      Toast.show({ type: 'error', text1: 'Fix the highlighted fields' });
       return;
     }
     setSaving(true);
@@ -106,13 +111,7 @@ export default function UserEditScreen() {
         if (role === 'technician') {
           body.available = available;
           if (displayRating.trim()) {
-            const dr = parseFloat(displayRating);
-            if (Number.isNaN(dr) || dr < 0 || dr > 5) {
-              Toast.show({ type: 'error', text1: 'Public rating must be between 0 and 5' });
-              setSaving(false);
-              return;
-            }
-            body.displayRating = dr;
+            body.displayRating = parseFloat(displayRating);
           } else {
             body.displayRating = null;
           }
@@ -231,22 +230,63 @@ export default function UserEditScreen() {
           <Text style={styles.sectionHint}>Who they are and how they sign in</Text>
           <Text style={styles.label}>Role</Text>
           <AdminFilterChips
-            chips={ROLES.map((r) => ({ key: r.key, label: r.label }))}
+            chips={ROLES.map((r) => ({ key: r.key, label: r.label, disabled: roleLocked }))}
             selected={role}
             onSelect={(key) => {
-              if (!roleLocked) setRole(key as UserRole);
+              if (roleLocked) {
+                Toast.show({
+                  type: 'info',
+                  text1: 'Role locked',
+                  text2: 'The primary admin account cannot change role.',
+                });
+                return;
+              }
+              setRole(key as UserRole);
             }}
           />
+          {roleLocked ? (
+            <Text style={styles.hint}>Primary admin role is locked and cannot be changed.</Text>
+          ) : null}
 
-          <IconInput label="Name" value={name} onChangeText={setName} />
-          <IconInput label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-          <IconInput label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" />
+          <IconInput
+            label="Name"
+            value={name}
+            onChangeText={(t) => {
+              setName(t);
+              if (errors.name) setErrors((e) => ({ ...e, name: undefined }));
+            }}
+            error={errors.name}
+          />
+          <IconInput
+            label="Phone"
+            value={phone}
+            onChangeText={(t) => {
+              setPhone(t);
+              if (errors.phone) setErrors((e) => ({ ...e, phone: undefined }));
+            }}
+            keyboardType="phone-pad"
+            error={errors.phone}
+          />
+          <IconInput
+            label="Email"
+            value={email}
+            onChangeText={(t) => {
+              setEmail(t);
+              if (errors.email) setErrors((e) => ({ ...e, email: undefined }));
+            }}
+            autoCapitalize="none"
+            error={errors.email}
+          />
           <IconInput label="City" value={city} onChangeText={setCity} />
           <IconInput
             label={id ? 'New password (optional)' : 'Password'}
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(t) => {
+              setPassword(t);
+              if (errors.password) setErrors((e) => ({ ...e, password: undefined }));
+            }}
             secure
+            error={errors.password}
           />
 
           {id ? (
@@ -254,7 +294,11 @@ export default function UserEditScreen() {
               <View style={styles.flex}>
                 <Text style={styles.toggleLabel}>Account active</Text>
               </View>
-              <ToggleSwitch value={active} onToggle={() => !roleLocked && setActive((v) => !v)} />
+              <ToggleSwitch
+                value={active}
+                onToggle={() => !roleLocked && setActive((v) => !v)}
+                accessibilityLabel="Account active"
+              />
             </View>
           ) : null}
         </AdminFormCard>
@@ -268,9 +312,13 @@ export default function UserEditScreen() {
                 <IconInput
                   label="Public rating"
                   value={displayRating}
-                  onChangeText={setDisplayRating}
+                  onChangeText={(t) => {
+                    setDisplayRating(t);
+                    if (errors.displayRating) setErrors((e) => ({ ...e, displayRating: undefined }));
+                  }}
                   keyboardType="decimal-pad"
                   placeholder="Empty = real average"
+                  error={errors.displayRating}
                 />
                 {realTechRating != null ? (
                   <Text style={styles.hint}>Real avg: ★ {realTechRating.toFixed(1)}</Text>
@@ -279,7 +327,11 @@ export default function UserEditScreen() {
                   <View style={styles.flex}>
                     <Text style={styles.toggleLabel}>On duty</Text>
                   </View>
-                  <ToggleSwitch value={available} onToggle={() => setAvailable((v) => !v)} />
+                  <ToggleSwitch
+                    value={available}
+                    onToggle={() => setAvailable((v) => !v)}
+                    accessibilityLabel="On duty"
+                  />
                 </View>
               </>
             ) : (

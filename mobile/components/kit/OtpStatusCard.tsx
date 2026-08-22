@@ -24,9 +24,7 @@ function formatWhen(iso?: string): string {
 
 function OtpRow({
   label,
-  type,
   entry,
-  bookingId,
   onUpdated,
   reveal,
   onToggleReveal,
@@ -66,7 +64,13 @@ function OtpRow({
       {!verified ? (
         <View style={styles.actions}>
           {entry.code ? (
-            <Pressable style={styles.iconBtn} onPress={onToggleReveal} hitSlop={8}>
+            <Pressable
+              style={styles.iconBtn}
+              onPress={onToggleReveal}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={reveal ? 'Hide code' : 'Show code'}
+            >
               {reveal ? (
                 <PremiumIcon icon={AppIcons.ui.eyeOff} variant="plain" size="sm" color={colors.forest} />
               ) : (
@@ -85,6 +89,8 @@ function OtpRow({
               onPress={onRegenerate}
               disabled={regenerating}
               hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Regenerate code"
             >
               <PremiumIcon icon={AppIcons.ui.refresh} variant="plain" size="sm" color={colors.forest} />
             </Pressable>
@@ -198,7 +204,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: '#EEF8E6',
+    backgroundColor: colors.mint,
   },
   pendingText: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.forest },
 });

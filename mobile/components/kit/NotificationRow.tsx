@@ -53,7 +53,7 @@ function NotificationRowComponent({
               icon={Icon}
               variant={item.read ? 'glass' : 'premium'}
               size="md"
-              color={item.read ? colors.forest : '#FFFFFF'}
+              color={item.read ? colors.forest : colors.white}
               boxSize={40}
             />
             <View style={styles.body}>

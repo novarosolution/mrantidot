@@ -6,7 +6,7 @@ export function PremiumStatPill({ value, label }: { value: string; label: string
   return (
     <View style={styles.pill}>
       <LinearGradient
-        colors={['#E8F5EC', '#FFFFFF']}
+        colors={['#E8F5EC', colors.white]}
         style={styles.bg}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}

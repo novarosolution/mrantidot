@@ -83,7 +83,7 @@ export function BookingFactsCard({
       {!hideHead ? (
         <>
           <View style={styles.head}>
-            <ServiceIcon iconKey={iconKey} size={22} variant="premium" boxSize={48} color="#FFFFFF" />
+            <ServiceIcon iconKey={iconKey} size={22} variant="premium" boxSize={48} color={colors.white} />
             <View style={styles.flex}>
               <Text style={styles.service}>{bookingServiceName(booking)}</Text>
               <Text style={styles.ref}>{bookingRef(booking.id)}</Text>
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#EEF8E6',
+    backgroundColor: colors.mint,
     borderWidth: 1,
     borderColor: 'rgba(180,220,165,0.95)',
     alignItems: 'center',

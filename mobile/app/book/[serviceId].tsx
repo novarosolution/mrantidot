@@ -289,20 +289,11 @@ export default function BookWizardScreen() {
   }
 
   async function confirm() {
-    if (!service || !propertyType) {
-      Toast.show({ type: 'error', text1: 'Property type is required' });
+    if (!service) {
+      Toast.show({ type: 'error', text1: 'Service unavailable' });
       return;
     }
-    if (!address.trim() && !selectedAddressId) {
-      Toast.show({ type: 'error', text1: 'Address is required' });
-      return;
-    }
-    if (!paymentMethod) {
-      Toast.show({ type: 'error', text1: 'Choose a payment method' });
-      return;
-    }
-    if (couponInvalid) {
-      Toast.show({ type: 'error', text1: 'Invalid coupon code' });
+    if (!validateStep(0) || !validateStep(1) || !validateStep(2) || !validateStep(3)) {
       return;
     }
     setLoading(true);

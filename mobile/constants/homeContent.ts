@@ -18,7 +18,7 @@ export const DEFAULT_HOME_CONFIG: HomeConfig = {
   bookSlideTitle: 'Book pest control & home services',
   bookSlideCta: 'Book Now',
   bookSlideFallbackSub: 'Certified experts · Same-day slots',
-  promoCodeHint: 'ANTIDOT100',
+  promoCodeHint: '',
   quickLabels: {
     book: 'Book',
     bookings: 'Bookings',
@@ -33,7 +33,8 @@ export const DEFAULT_HOME_PROMO: HomePromo = {
   badge: 'Limited offer',
   title: 'Flat 20% off your first booking',
   ctaLabel: 'Claim Offer',
-  active: true,
+  /** Off until CMS turns the banner on — avoids inventing live coupons. */
+  active: false,
 };
 
 /** @deprecated Prefer homeConfig fields from CMS — kept for any residual imports. */

@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { IconGradients } from '@/constants/appIcons';
-import { shadows } from '@/constants/theme';
+import { colors, shadows } from '@/constants/theme';
 
 /** Circular header action — consistent across tab screens. */
 export function HeaderActionButton({
@@ -20,10 +20,11 @@ export function HeaderActionButton({
       style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
       onPress={onPress}
       hitSlop={8}
-      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? 'Action'}
     >
       <LinearGradient colors={[...IconGradients.forest]} style={styles.grad} start={{ x: 0.2, y: 0 }} end={{ x: 0.9, y: 1 }}>
-        <PremiumIcon icon={icon} variant="plain" size="lg" color="#FFFFFF" strokeWidth={2.3} />
+        <PremiumIcon icon={icon} variant="plain" size="lg" color={colors.white} strokeWidth={2.3} />
       </LinearGradient>
     </Pressable>
   );

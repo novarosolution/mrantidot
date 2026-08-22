@@ -107,7 +107,13 @@ export function ServicesFilterPanel({
             onSubmitEditing={onSearchSubmit}
           />
           {search.length > 0 ? (
-            <Pressable onPress={() => onSearchChange('')} hitSlop={8} style={panelStyles.clearBtn}>
+            <Pressable
+              onPress={() => onSearchChange('')}
+              hitSlop={8}
+              style={panelStyles.clearBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
               <PremiumIcon icon={AppIcons.ui.close} variant="plain" size={14} color={colors.muted} />
             </Pressable>
           ) : null}
@@ -183,7 +189,7 @@ export function ServicesStatsStrip({
 }) {
   return (
     <View style={stripStyles.wrap}>
-      <LinearGradient colors={['#FFFFFF', '#F6FAF7']} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+      <LinearGradient colors={[colors.white, '#F6FAF7']} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
       <LinearGradient colors={[...gradients.goldBar]} style={stripStyles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <View style={stripStyles.row}>
         <View style={stripStyles.cell}>

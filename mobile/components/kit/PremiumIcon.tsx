@@ -177,7 +177,7 @@ export function PremiumIcon({
     return (
       <View style={[styles.chevron, style]}>
         <LinearGradient
-          colors={['#FFFFFF', '#F2FAEE', '#EAF6E3']}
+          colors={[colors.white, '#F2FAEE', colors.soft]}
           style={StyleSheet.absoluteFill}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -195,7 +195,7 @@ export function PremiumIcon({
           <View style={styles.tabActiveShell}>
             <View style={styles.tabActiveHalo} pointerEvents="none" />
             <LinearGradient
-              colors={['#A8E04A', '#30B84F', '#0A6423']}
+              colors={['#A8E04A', colors.greenBright, colors.forest]}
               style={styles.tabActive}
               start={{ x: 0.15, y: 0 }}
               end={{ x: 0.88, y: 1 }}
@@ -212,7 +212,7 @@ export function PremiumIcon({
               <Glyph
                 Icon={Icon}
                 px={px}
-                color="#FFFFFF"
+                color={colors.white}
                 stroke={opticalStroke(px, 'bold')}
                 fill="rgba(255,255,255,0.4)"
               />
@@ -252,7 +252,7 @@ export function PremiumIcon({
       >
         <View style={[styles.ringInner, { borderRadius: Math.max(8, r - 3) }]}>
           <LinearGradient
-            colors={['#FFFFFF', '#F7FCF4', '#EEF8E8']}
+            colors={[colors.white, '#F7FCF4', '#EEF8E8']}
             style={StyleSheet.absoluteFill}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -295,7 +295,7 @@ export function PremiumIcon({
           <Glyph
             Icon={Icon}
             px={px}
-            color="#FFFFFF"
+            color={colors.white}
             stroke={opticalStroke(px, 'bold')}
             fill="rgba(255,255,255,0.28)"
           />
@@ -339,7 +339,7 @@ export function PremiumIcon({
 
   const box = boxSize ?? 50;
   const r = tileRadius(box);
-  const softFrom = bg ?? (variant === 'mint' ? '#EAF6E3' : '#FFFFFF');
+  const softFrom = bg ?? (variant === 'mint' ? colors.soft : colors.white);
   const softTo = bgTo ?? (variant === 'mint' ? '#CDEAC4' : '#F2FAEE');
 
   return (
@@ -384,7 +384,7 @@ export function KitTabBarIcon({
       icon={icon}
       variant="tab"
       size={focused ? 21 : 20}
-      color={focused ? '#FFFFFF' : color}
+      color={focused ? colors.white : color}
       focused={focused}
     />
   );
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   gradShell: {
-    shadowColor: '#043813',
+    shadowColor: colors.forestDeep,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.38,
     shadowRadius: 16,
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
   },
   tabActiveShell: {
     borderRadius: 17,
-    shadowColor: '#0A6423',
+    shadowColor: colors.forest,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.42,
     shadowRadius: 14,

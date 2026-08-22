@@ -22,8 +22,8 @@ export function AdminSectionTabs({
 }) {
   return (
     <View style={styles.wrap}>
-      <LinearGradient colors={['#FFFFFF', '#F6FAF2']} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
-      <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <LinearGradient colors={[colors.white, colors.bg]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+      <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -37,12 +37,12 @@ export function AdminSectionTabs({
               {selected ? (
                 <View style={styles.tabOnShell}>
                   <LinearGradient
-                    colors={['#8FD03C', '#1A8734', '#0A6423']}
+                    colors={[colors.limeBright, colors.forestMid, colors.forest]}
                     start={{ x: 0.1, y: 0 }}
                     end={{ x: 0.9, y: 1 }}
                     style={[styles.tab, styles.tabOn]}
                   >
-                    <PremiumIcon icon={Icon} variant="plain" size={14} color="#FFFFFF" strokeWidth={2.3} fill="rgba(255,255,255,0.28)" />
+                    <PremiumIcon icon={Icon} variant="plain" size={14} color={colors.white} strokeWidth={2.3} fill="rgba(255,255,255,0.28)" />
                     <Text style={[styles.label, styles.labelOn]} numberOfLines={1}>
                       {tab.label}
                     </Text>

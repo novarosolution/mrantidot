@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { spacing, surfaces } from '@/constants/theme';
+import { colors, spacing, surfaces } from '@/constants/theme';
 
 const BLUR_IOS = Platform.OS === 'ios';
 
@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderTopWidth: 1,
     borderTopColor: surfaces.glassBorderStrong,
-    shadowColor: '#03170B',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: -10 },
     shadowOpacity: 0.16,
     shadowRadius: 20,

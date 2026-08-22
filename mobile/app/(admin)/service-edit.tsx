@@ -39,6 +39,9 @@ export default function ServiceEditScreen() {
   const [realRating, setRealRating] = useState<number | null>(null);
   const [reviewCount, setReviewCount] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<
+    Partial<Record<'name' | 'shortDesc' | 'basePrice' | 'rating' | 'serviceTypes', string>>
+  >({});
   const { loading, error, runLoad, reload } = useScreenLoad(!!id);
 
   const load = useCallback(async () => {
@@ -78,22 +81,17 @@ export default function ServiceEditScreen() {
   }, [id, load, runLoad]);
 
   async function save() {
-    if (!name.trim() || !shortDesc.trim()) {
-      Toast.show({ type: 'error', text1: 'Name and description are required' });
-      return;
-    }
-    if (serviceTypes.length === 0) {
-      Toast.show({ type: 'error', text1: 'Select at least one pest type' });
-      return;
-    }
+    const next: Partial<Record<'name' | 'shortDesc' | 'basePrice' | 'rating' | 'serviceTypes', string>> = {};
+    if (!name.trim()) next.name = 'Required';
+    if (!shortDesc.trim()) next.shortDesc = 'Required';
+    if (serviceTypes.length === 0) next.serviceTypes = 'Select at least one pest type';
     const price = parseFloat(basePrice);
-    if (Number.isNaN(price) || price <= 0) {
-      Toast.show({ type: 'error', text1: 'Enter a valid base price' });
-      return;
-    }
+    if (Number.isNaN(price) || price <= 0) next.basePrice = 'Enter a valid base price';
     const ratingNum = parseFloat(rating);
-    if (Number.isNaN(ratingNum) || ratingNum < 0 || ratingNum > 5) {
-      Toast.show({ type: 'error', text1: 'Rating must be between 0 and 5' });
+    if (Number.isNaN(ratingNum) || ratingNum < 0 || ratingNum > 5) next.rating = 'Must be between 0 and 5';
+    setErrors(next);
+    if (Object.keys(next).length > 0) {
+      Toast.show({ type: 'error', text1: next.serviceTypes || 'Fix the highlighted fields' });
       return;
     }
     setSaving(true);
@@ -177,31 +175,67 @@ export default function ServiceEditScreen() {
 
         <PremiumSectionHeader title="Pest control types" style={styles.sectionHead} />
         <AdminFormCard style={styles.form}>
-          <ServiceTypePicker value={serviceTypes} onChange={setServiceTypes} />
+          <ServiceTypePicker
+            value={serviceTypes}
+            onChange={(v) => {
+              setServiceTypes(v);
+              if (errors.serviceTypes) setErrors((e) => ({ ...e, serviceTypes: undefined }));
+            }}
+          />
+          {errors.serviceTypes ? <Text style={styles.fieldError}>{errors.serviceTypes}</Text> : null}
         </AdminFormCard>
 
         <PremiumSectionHeader title="Details" style={styles.sectionHead} />
         <AdminFormCard style={styles.form}>
-          <IconInput label="Name" value={name} onChangeText={setName} />
+          <IconInput
+            label="Name"
+            value={name}
+            onChangeText={(t) => {
+              setName(t);
+              if (errors.name) setErrors((e) => ({ ...e, name: undefined }));
+            }}
+            error={errors.name}
+          />
           <Text style={styles.label}>Category</Text>
           <AdminFilterChips
             chips={CATEGORIES.map((c) => ({ key: c.key, label: c.label }))}
             selected={category}
             onSelect={(key) => setCategory(key as ServiceCategory)}
           />
-          <IconInput label="Base price" value={basePrice} onChangeText={setBasePrice} keyboardType="numeric" />
+          <IconInput
+            label="Base price"
+            value={basePrice}
+            onChangeText={(t) => {
+              setBasePrice(t);
+              if (errors.basePrice) setErrors((e) => ({ ...e, basePrice: undefined }));
+            }}
+            keyboardType="numeric"
+            error={errors.basePrice}
+          />
           <IconInput
             label="Public rating"
             value={rating}
-            onChangeText={setRating}
+            onChangeText={(t) => {
+              setRating(t);
+              if (errors.rating) setErrors((e) => ({ ...e, rating: undefined }));
+            }}
             keyboardType="decimal-pad"
+            error={errors.rating}
           />
           {id ? (
             <Text style={styles.realHint}>
               Real avg: {realRating != null ? `★ ${realRating.toFixed(1)} (${reviewCount})` : '—'}
             </Text>
           ) : null}
-          <IconInput label="Short description" value={shortDesc} onChangeText={setShortDesc} />
+          <IconInput
+            label="Short description"
+            value={shortDesc}
+            onChangeText={(t) => {
+              setShortDesc(t);
+              if (errors.shortDesc) setErrors((e) => ({ ...e, shortDesc: undefined }));
+            }}
+            error={errors.shortDesc}
+          />
           <IconInput label="Steps (comma-separated)" value={steps} onChangeText={setSteps} />
         </AdminFormCard>
       </ScrollView>
@@ -213,6 +247,12 @@ const styles = StyleSheet.create({
   sectionHead: { marginTop: 0, paddingHorizontal: 0, marginBottom: spacing.xs },
   form: { marginBottom: spacing.md },
   label: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, marginTop: spacing.sm, marginBottom: 6 },
+  fieldError: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 12,
+    color: colors.error,
+    marginTop: spacing.xs,
+  },
   realHint: {
     fontFamily: fonts.body,
     fontSize: 12,

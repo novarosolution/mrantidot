@@ -31,7 +31,7 @@ export function HomeCategoryFilter({
           >
             {on ? (
               <LinearGradient
-                colors={['#30B84F', '#1A8734', '#0A6423']}
+                colors={[colors.greenBright, colors.forestMid, colors.forest]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={[styles.chip, styles.chipOn]}

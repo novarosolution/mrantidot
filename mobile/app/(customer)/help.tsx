@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   resourcesHeader: { paddingHorizontal: spacing.md, marginBottom: spacing.sm },
   resourcesTitle: { fontFamily: fonts.displayExtra, fontSize: 16, color: colors.ink },
   rule: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm, gap: spacing.sm },
-  ruleAccent: { width: 24, height: 2, borderRadius: 2, backgroundColor: '#8FD03C' },
+  ruleAccent: { width: 24, height: 2, borderRadius: 2, backgroundColor: colors.limeBright },
   ruleLine: { flex: 1, height: 1, backgroundColor: colors.border },
   row: {
     flexDirection: 'row',

@@ -54,6 +54,7 @@ export default function TechLeaveScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [from, setFrom] = useState(today);
   const [to, setTo] = useState(today);
@@ -80,7 +81,17 @@ export default function TechLeaveScreen() {
     );
   }, [load]);
 
+  function isValidDateKey(value: string): boolean {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const [y, m, d] = value.split('-').map(Number);
+    return localDateKey(new Date(y, m - 1, d)) === value;
+  }
+
   async function submit() {
+    if (!isValidDateKey(from) || !isValidDateKey(to)) {
+      Alert.alert('Invalid dates', 'Use YYYY-MM-DD, or pick Today / Tomorrow / 3 days / 1 week.');
+      return;
+    }
     if (to < from) {
       Alert.alert('Invalid dates', 'End date must be on or after start date');
       return;
@@ -99,6 +110,7 @@ export default function TechLeaveScreen() {
   }
 
   async function cancelLeave(id: string) {
+    if (cancellingId) return;
     Alert.alert('Cancel leave request?', 'Admin will no longer see this pending request.', [
       { text: 'Keep', style: 'cancel' },
       {
@@ -106,12 +118,16 @@ export default function TechLeaveScreen() {
         style: 'destructive',
         onPress: () =>
           void (async () => {
+            if (cancellingId) return;
+            setCancellingId(id);
             try {
               await api.post(`/leave/${id}/cancel`);
               Toast.show({ type: 'success', text1: 'Leave cancelled' });
               await load();
             } catch (err) {
               Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not cancel') });
+            } finally {
+              setCancellingId(null);
             }
           })(),
       },
@@ -177,12 +193,14 @@ export default function TechLeaveScreen() {
             {...textInputDefaults}
             style={styles.input}
             value={from}
-            onChangeText={setFrom}
+            editable={false}
             placeholder={today}
-            autoCapitalize="none"
+            accessibilityLabel={`Leave from ${from}`}
           />
           <View style={styles.quickRow}>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Leave today"
               style={styles.chip}
               onPress={() => {
                 setFrom(today);
@@ -192,6 +210,8 @@ export default function TechLeaveScreen() {
               <Text style={styles.chipText}>Today</Text>
             </Pressable>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Leave tomorrow"
               style={styles.chip}
               onPress={() => {
                 const t = addDays(today, 1);
@@ -202,6 +222,8 @@ export default function TechLeaveScreen() {
               <Text style={styles.chipText}>Tomorrow</Text>
             </Pressable>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Leave for 3 days"
               style={styles.chip}
               onPress={() => {
                 setFrom(today);
@@ -211,6 +233,8 @@ export default function TechLeaveScreen() {
               <Text style={styles.chipText}>3 days</Text>
             </Pressable>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Leave for 1 week"
               style={styles.chip}
               onPress={() => {
                 setFrom(today);
@@ -226,9 +250,9 @@ export default function TechLeaveScreen() {
             {...textInputDefaults}
             style={styles.input}
             value={to}
-            onChangeText={setTo}
+            editable={false}
             placeholder={today}
-            autoCapitalize="none"
+            accessibilityLabel={`Leave until ${to}`}
           />
 
           <Text style={styles.label}>Type</Text>
@@ -236,6 +260,9 @@ export default function TechLeaveScreen() {
             {TYPES.map((t) => (
               <Pressable
                 key={t.key}
+                accessibilityRole="button"
+                accessibilityState={{ selected: type === t.key }}
+                accessibilityLabel={`${t.label} leave`}
                 style={[styles.chip, type === t.key && styles.chipOn]}
                 onPress={() => setType(t.key)}
               >
@@ -294,13 +321,16 @@ export default function TechLeaveScreen() {
                     ) : null}
                   </View>
                   {l.status === 'pending' ? (
-                    <Pressable
+                    <Button
+                      title={cancellingId === l.id ? '…' : 'Cancel'}
+                      variant="danger"
+                      size="sm"
+                      fullWidth={false}
+                      loading={cancellingId === l.id}
+                      disabled={Boolean(cancellingId)}
                       onPress={() => void cancelLeave(l.id)}
-                      hitSlop={8}
                       style={styles.cancelBtn}
-                    >
-                      <Text style={styles.cancel}>Cancel</Text>
-                    </Pressable>
+                    />
                   ) : null}
                 </View>
               </GlassPanel>
@@ -384,10 +414,7 @@ const styles = StyleSheet.create({
     color: colors.forest,
   },
   cancelBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: colors.errorBg,
+    minWidth: 88,
+    paddingHorizontal: 4,
   },
-  cancel: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.error },
 });

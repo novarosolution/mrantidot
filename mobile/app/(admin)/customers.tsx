@@ -69,7 +69,7 @@ export default function AdminCustomersScreen() {
         flush
         items={[
           { label: 'Total', value: summary.total, color: colors.forest },
-          { label: 'New', value: summary.new, color: '#27A747' },
+          { label: 'New', value: summary.new, color: colors.green },
           { label: 'VIP', value: summary.vip, color: colors.forest },
         ]}
       />
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     padding: 13,
     borderTopWidth: 3,
-    borderTopColor: '#8FD03C',
+    borderTopColor: colors.limeBright,
     borderColor: '#E2F0D8',
   },
   cardDisabled: { opacity: 0.65 },
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 11,
-    backgroundColor: '#EEF8E6',
+    backgroundColor: colors.mint,
     alignItems: 'center',
     justifyContent: 'center',
   },

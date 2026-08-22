@@ -41,7 +41,11 @@ export function mergeHomeConfig(incoming?: Partial<HomeConfig> | null): HomeConf
 
 export function mergeHomePromo(incoming?: HomePromo | null): HomePromo {
   if (!incoming || incoming.active === false) {
-    return { ...DEFAULT_HOME_PROMO, active: incoming?.active !== false };
+    return {
+      ...DEFAULT_HOME_PROMO,
+      ...incoming,
+      active: false,
+    };
   }
   return {
     ...DEFAULT_HOME_PROMO,
@@ -83,7 +87,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
         icon: 'shield',
       },
     ],
-    trustChips: ['Verified pros', 'On-time service', '4.8★ rated'],
+        trustChips: ['Verified pros', 'On-time service', 'Eco-safe care'],
   },
   legal: { termsMarkdown: '', privacyMarkdown: '' },
   aboutMarkdown: '',

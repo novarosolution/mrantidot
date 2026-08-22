@@ -19,7 +19,7 @@ import type { Booking } from '@/types/api';
 import { colors, customerType, fonts, statusColors } from '@/constants/theme';
 
 const BORDER = 'rgba(180,220,165,0.95)';
-const DEEP = '#0A6423';
+const DEEP = colors.forest;
 
 function stepProgress(booking: Booking): number | null {
   const steps = booking.steps ?? [];
@@ -59,12 +59,12 @@ export const BookingListCard = memo(function BookingListCard({
             {isLive ? (
               <View style={styles.iconLiveShell}>
                 <LinearGradient
-                  colors={['#8FD03C', '#1A8734', '#0A6423']}
+                  colors={[colors.limeBright, colors.forestMid, colors.forest]}
                   start={{ x: 0.1, y: 0 }}
                   end={{ x: 0.9, y: 1 }}
                   style={styles.icon}
                 >
-                  <ServiceIcon iconKey={iconKey} size={22} color="#FFFFFF" strokeWidth={2.2} />
+                  <ServiceIcon iconKey={iconKey} size={22} color={colors.white} strokeWidth={2.2} />
                   <View style={styles.liveDot} />
                 </LinearGradient>
               </View>
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#C8F07A',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: colors.white,
   },
   body: { flex: 1, minWidth: 0 },
   titleRow: {

@@ -18,8 +18,8 @@ import { colors, fonts, premium, spacing } from '@/constants/theme';
 
 type Phase = 'detecting' | 'found' | 'denied';
 
-const { width: W, height: H } = Dimensions.get('window');
-const LIME = '#8FD03C';
+const { height: H } = Dimensions.get('window');
+const LIME = colors.limeBright;
 const FALLBACK_TRUST = ['Verified pros', 'Eco-safe', 'On-time'];
 
 export function LocationLaunchScreen({
@@ -251,7 +251,7 @@ export function LocationLaunchScreen({
             >
               <View style={styles.markInner}>
                 <LinearGradient
-                  colors={['#FFFFFF', '#F3FAEE']}
+                  colors={[colors.white, '#F3FAEE']}
                   style={StyleSheet.absoluteFill}
                   start={{ x: 0.5, y: 0 }}
                   end={{ x: 0.5, y: 1 }}
@@ -293,7 +293,7 @@ export function LocationLaunchScreen({
           <View style={styles.progressTrack}>
             <Animated.View style={[styles.progressFill, { width: progressW }]}>
               <LinearGradient
-                colors={['#C8F07A', LIME, '#27A747']}
+                colors={['#C8F07A', LIME, colors.green]}
                 start={{ x: 0, y: 0.5 }}
                 end={{ x: 1, y: 0.5 }}
                 style={StyleSheet.absoluteFill}
@@ -309,7 +309,7 @@ export function LocationLaunchScreen({
               onPress={onContinue}
             >
               <LinearGradient
-                colors={['#B4E85A', LIME, '#27A747']}
+                colors={['#B4E85A', LIME, colors.green]}
                 locations={[0, 0.42, 1]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}

@@ -6,7 +6,7 @@ import { AppIcons } from '@/constants/appIcons';
 import { PhotoSourceSheet } from '@/components/kit/PhotoSourceSheet';
 import { mergePickedImages, pickImageFromCamera, pickImagesFromLibrary } from '@/lib/pickImages';
 import type { PickedImage } from '@/lib/upload';
-import { colors, fonts, gradients, spacing } from '@/constants/theme';
+import { colors, fonts, spacing } from '@/constants/theme';
 
 const DEFAULT_MAX = 6;
 
@@ -85,6 +85,8 @@ export function AddressPhotoGrid({
               style={styles.removeBtn}
               onPress={() => onChange(photos.filter((p) => p.uri !== photo.uri))}
               hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="Remove photo"
             >
               <PremiumIcon icon={AppIcons.ui.close} variant="plain" size={12} color={colors.white} strokeWidth={3} />
             </Pressable>
@@ -96,6 +98,8 @@ export function AddressPhotoGrid({
             style={({ pressed }) => [styles.emptySlot, pressed && styles.pressed, busy && styles.disabled]}
             onPress={openSheet}
             disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel="Add another photo"
           >
             <PremiumIcon icon={AppIcons.ui.imagePlus} variant="plain" size={20} color={colors.green} />
           </Pressable>

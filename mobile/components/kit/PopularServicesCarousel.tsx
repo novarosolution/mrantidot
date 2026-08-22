@@ -52,7 +52,7 @@ export function PopularServicesCarousel({
               {featured ? (
                 <View style={styles.cardFeaturedShell}>
                   <LinearGradient
-                    colors={['#27A747', '#0A6423', '#043813']}
+                    colors={[colors.green, colors.forest, colors.forestDeep]}
                     style={styles.cardFeatured}
                     start={{ x: 0.05, y: 0 }}
                     end={{ x: 1, y: 1 }}
@@ -82,7 +82,7 @@ export function PopularServicesCarousel({
                         size={22}
                         variant="premium"
                         boxSize={52}
-                        color="#FFFFFF"
+                        color={colors.white}
                       />
                       <View style={styles.info}>
                         <Text style={styles.nameFeatured} numberOfLines={2}>
@@ -100,7 +100,7 @@ export function PopularServicesCarousel({
                       <Text style={styles.priceFeatured}>₹{s.basePrice}</Text>
                       <View style={styles.ctaLight}>
                         <Text style={styles.ctaLightText}>Book</Text>
-                        <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={13} color="#0A6423" strokeWidth={2.6} />
+                        <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={13} color={colors.forest} strokeWidth={2.6} />
                       </View>
                     </View>
                   </LinearGradient>
@@ -116,7 +116,7 @@ export function PopularServicesCarousel({
                         </Text>
                         {rating > 0 ? (
                           <View style={styles.meta}>
-                            <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={11} color="#1A8734" fill="#1A8734" />
+                            <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={11} color={colors.forestMid} fill={colors.forestMid} />
                             <Text style={styles.metaText}>{rating.toFixed(1)}</Text>
                           </View>
                         ) : null}
@@ -124,9 +124,9 @@ export function PopularServicesCarousel({
                     </View>
                     <View style={styles.footer}>
                       <Text style={styles.price}>₹{s.basePrice}</Text>
-                      <LinearGradient colors={['#30B84F', '#1A8734']} style={styles.cta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                      <LinearGradient colors={[colors.greenBright, colors.forestMid]} style={styles.cta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                         <Text style={styles.ctaText}>Book</Text>
-                        <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={13} color="#FFFFFF" strokeWidth={2.6} />
+                        <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={13} color={colors.white} strokeWidth={2.6} />
                       </LinearGradient>
                     </View>
                   </View>
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 0.7,
     textTransform: 'uppercase',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   main: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   info: { flex: 1, minWidth: 0 },
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displayExtra,
     fontSize: 15.5,
     lineHeight: 20,
-    color: '#FFFFFF',
+    color: colors.white,
   },
   name: {
     fontFamily: fonts.displayExtra,
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
-  metaFeatured: { fontFamily: fonts.bodyBold, fontSize: 12.5, color: '#FFFFFF' },
+  metaFeatured: { fontFamily: fonts.bodyBold, fontSize: 12.5, color: colors.white },
   metaText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted },
   footer: {
     flexDirection: 'row',
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   priceFeatured: {
     fontFamily: fonts.displayExtra,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: colors.white,
   },
   price: {
     fontFamily: fonts.displayExtra,
@@ -236,11 +236,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 14,
     paddingHorizontal: 13,
     paddingVertical: 9,
-    shadowColor: '#02180C',
+    shadowColor: colors.deep,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18,
     shadowRadius: 8,
@@ -262,6 +262,6 @@ const styles = StyleSheet.create({
   ctaText: {
     fontFamily: fonts.bodyBold,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: colors.white,
   },
 });

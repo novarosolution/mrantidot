@@ -21,7 +21,7 @@ import { LocationProvider } from '@/context/LocationContext';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { registerGlobalErrorHandlers } from '@/lib/registerGlobalErrorHandlers';
 import { setupDefaultFonts } from '@/lib/setupFonts';
-import { design, fonts } from '@/constants/theme';
+import { colors, design, fonts } from '@/constants/theme';
 
 function AppToastHost() {
   const topOffset = useToastTopOffset();
@@ -111,7 +111,7 @@ const bootStyles = StyleSheet.create({
     width: '42%',
     height: '100%',
     borderRadius: 2,
-    backgroundColor: '#8FD03C',
+    backgroundColor: colors.limeBright,
   },
   text: {
     fontFamily: fonts.bodySemi,

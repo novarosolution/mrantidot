@@ -60,13 +60,14 @@ export function CustomerProfileHero({
               style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
               onPress={() => appPush(customerRoutes.notifications)}
               hitSlop={8}
+              accessibilityRole="button"
               accessibilityLabel="Notifications"
             >
               <PremiumIcon
                 icon={AppIcons.ui.bell}
                 variant="plain"
                 size={18}
-                color="#FFFFFF"
+                color={colors.white}
                 strokeWidth={2}
                 fill="rgba(255,255,255,0.22)"
               />
@@ -76,13 +77,14 @@ export function CustomerProfileHero({
               style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
               onPress={onEdit}
               hitSlop={8}
+              accessibilityRole="button"
               accessibilityLabel="Settings"
             >
               <PremiumIcon
                 icon={AppIcons.ui.settings}
                 variant="plain"
                 size={18}
-                color="#FFFFFF"
+                color={colors.white}
                 strokeWidth={2}
               />
             </Pressable>
@@ -92,7 +94,7 @@ export function CustomerProfileHero({
         <Pressable style={({ pressed }) => [styles.identity, pressed && styles.pressed]} onPress={onEdit}>
           <View style={styles.avatarShell}>
             <LinearGradient
-              colors={['#E8F9D4', '#8FD03C']}
+              colors={['#E8F9D4', colors.limeBright]}
               style={StyleSheet.absoluteFill}
               start={{ x: 0.2, y: 0 }}
               end={{ x: 0.9, y: 1 }}
@@ -165,7 +167,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displayExtra,
     fontSize: 28,
     letterSpacing: -0.9,
-    color: '#FFFFFF',
+    color: colors.white,
   },
   actions: { flexDirection: 'row', gap: 8 },
   iconBtn: {
@@ -187,7 +189,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#C8F07A',
     borderWidth: 1.5,
-    borderColor: '#0A6423',
+    borderColor: colors.forest,
   },
   pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
 
@@ -217,7 +219,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displaySemi,
     fontSize: 20,
     letterSpacing: -0.35,
-    color: '#FFFFFF',
+    color: colors.white,
   },
   meta: {
     fontFamily: fonts.body,
@@ -240,7 +242,7 @@ const styles = StyleSheet.create({
   editChipText: {
     fontFamily: fonts.bodySemi,
     fontSize: 12,
-    color: '#FFFFFF',
+    color: colors.white,
   },
 
   statsOuter: {

@@ -6,7 +6,7 @@ import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import type { Service } from '@/types/api';
-import { fonts, headerTopPad, premiumType, spacing } from '@/constants/theme';
+import { colors, fonts, headerTopPad, premiumType, spacing } from '@/constants/theme';
 export function BookServiceStrip({
   service,
   durationLabel,
@@ -69,7 +69,7 @@ export function BookServiceStrip({
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <PremiumIcon icon={AppIcons.ui.chevronLeft} variant="plain" size={22} color="#FFFFFF" strokeWidth={2.4} />
+            <PremiumIcon icon={AppIcons.ui.chevronLeft} variant="plain" size={22} color={colors.white} strokeWidth={2.4} />
           </Pressable>
           <View style={styles.navText}>
             {title ? (
@@ -101,7 +101,7 @@ export function BookServiceStrip({
       ) : null}
       {resolvedVariant === 'hero' ? (
         <Animated.View style={[styles.row, heroStyle]}>
-          <ServiceIcon iconKey={service.iconKey} size={24} variant="premium" boxSize={56} color="#FFFFFF" />
+          <ServiceIcon iconKey={service.iconKey} size={24} variant="premium" boxSize={56} color={colors.white} />
           <View style={styles.body}>
             <Text style={styles.name} numberOfLines={2}>
               {service.name}
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.34)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#02180C',
+    shadowColor: colors.deep,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -165,12 +165,12 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.8 },
   navText: { flex: 1, minWidth: 0 },
-  navTitle: { ...premiumType.navTitleLight, fontSize: 18, color: '#FFFFFF' },
+  navTitle: { ...premiumType.navTitleLight, fontSize: 18, color: colors.white },
   navTitleSlim: { fontSize: 16 },
   navSub: { ...premiumType.caption, color: 'rgba(255,255,255,0.86)', marginTop: 2, lineHeight: 16 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   body: { flex: 1, minWidth: 0 },
-  name: { ...premiumType.navTitleLight, fontSize: 18, lineHeight: 24, color: '#FFFFFF' },
+  name: { ...premiumType.navTitleLight, fontSize: 18, lineHeight: 24, color: colors.white },
   metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginTop: 10 },
   pricePill: {
     backgroundColor: 'rgba(255,255,255,0.18)',
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 999,
   },
-  price: { fontFamily: fonts.bodySemi, fontSize: 13, color: '#FFFFFF' },
+  price: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.white },
   duration: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   durationText: { fontFamily: fonts.body, fontSize: 12, color: 'rgba(255,255,255,0.92)' },
 });

@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { bookingStatusLabel, bookingStatusMessage } from '@/lib/booking-helpers';
 import type { BookingStatus } from '@/types/api';
-import { colors, fonts, premium, shadows, spacing, statusColors } from '@/constants/theme';
+import { fonts, premium, shadows, spacing, statusColors } from '@/constants/theme';
 
 export function BookingStatusBanner({
   status,

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { CustomerListShell, listShellStyles } from '@/components/kit/CustomerListShell';
 import { NotificationRow } from '@/components/kit/NotificationRow';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
@@ -14,7 +15,7 @@ import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
 import { bookingDetailPath, appPush } from '@/lib/routes';
 import { useAuth } from '@/context/AuthContext';
 import type { AppNotification } from '@/types/api';
-import { colors, fonts, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, surfaces } from '@/constants/theme';
 
 export default function NotificationsScreen() {
   const ui = useCustomerUiCopy();
@@ -74,6 +75,7 @@ export default function NotificationsScreen() {
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
       void api.patch(`/notifications/${n.id}/read`).catch(() => {
         setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: false } : x)));
+        Toast.show({ type: 'error', text1: 'Could not mark as read' });
       });
     }
     if (n.bookingId) {
@@ -88,7 +90,13 @@ export default function NotificationsScreen() {
       title={ui.notificationsScreenTitle}
       rightAction={
         hasUnread ? (
-          <Pressable onPress={markAllRead} disabled={markingAll} style={({ pressed }) => [styles.markAll, pressed && styles.markAllPressed]}>
+          <Pressable
+            onPress={markAllRead}
+            disabled={markingAll}
+            style={({ pressed }) => [styles.markAll, pressed && styles.markAllPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Mark all notifications as read"
+          >
             <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={13} color={colors.forest} strokeWidth={2.6} />
             <Text style={styles.markAllText}>{markingAll ? '…' : 'Mark all'}</Text>
           </Pressable>

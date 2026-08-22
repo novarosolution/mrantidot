@@ -145,8 +145,6 @@ function bookingsInWeek(
   const month = detail.month ?? localDateKey().slice(0, 7);
   const [y, m] = month.split('-').map(Number);
   const lastDay = new Date(y, m, 0).getDate();
-  const from = `${month}-01`;
-  const to = `${month}-${String(lastDay).padStart(2, '0')}`;
   const dates: string[] = [];
   const cur = new Date(y, m - 1, 1);
   const end = new Date(y, m - 1, lastDay);

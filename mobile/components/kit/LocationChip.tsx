@@ -1,11 +1,11 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { fonts } from '@/constants/theme';
+import { colors, fonts } from '@/constants/theme';
 
-const FOREST = '#0A6423';
+const FOREST = colors.forest;
 const BORDER = '#E2F0D8';
-const TILE = '#EEF8E6';
+const TILE = colors.mint;
 
 export function LocationChip({
   label,
@@ -30,9 +30,9 @@ export function LocationChip({
       disabled={!onPress || loading}
     >
       {loading ? (
-        <ActivityIndicator size="small" color={dark ? '#8FD03C' : FOREST} />
+        <ActivityIndicator size="small" color={dark ? colors.limeBright : FOREST} />
       ) : (
-        <PremiumIcon icon={AppIcons.ui.mapPin} variant="plain" size={12} color={dark ? '#8FD03C' : FOREST} strokeWidth={2.2} />
+        <PremiumIcon icon={AppIcons.ui.mapPin} variant="plain" size={12} color={dark ? colors.limeBright : FOREST} strokeWidth={2.2} />
       )}
       <Text style={[styles.text, dark ? styles.textDark : styles.textLight]} numberOfLines={1}>
         {label}
@@ -60,7 +60,7 @@ export function LocationBanner({
 }) {
   return (
     <View style={[styles.banner, embedded && styles.bannerEmbedded]}>
-      <PremiumIcon icon={AppIcons.ui.mapPin} variant="gradient" size={16} color="#FFFFFF" strokeWidth={2.2} boxSize={42} />
+      <PremiumIcon icon={AppIcons.ui.mapPin} variant="gradient" size={16} color={colors.white} strokeWidth={2.2} boxSize={42} />
       <View style={styles.bannerBody}>
         <Text style={styles.bannerLabel}>SERVICE AREA</Text>
         <Text style={styles.bannerValue} numberOfLines={1}>
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
   text: { fontFamily: fonts.bodySemi, fontSize: 12.5, flexShrink: 1 },
-  textDark: { color: '#FFFFFF' },
+  textDark: { color: colors.white },
   textLight: { color: FOREST },
   banner: {
     flexDirection: 'row',
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(226,240,216,0.9)',
     marginBottom: 12,
-    shadowColor: '#043813',
+    shadowColor: colors.forestDeep,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.06,
     shadowRadius: 12,

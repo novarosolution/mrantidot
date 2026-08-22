@@ -39,9 +39,9 @@ export function TechnicianIdentityCard({
 
   return (
     <View style={styles.identityCard}>
-      <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <View style={styles.identityRow}>
-        <LinearGradient colors={['#30B84F', '#0A6423']} style={styles.avatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+        <LinearGradient colors={[colors.greenBright, colors.forest]} style={styles.avatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <Text style={styles.avatarText}>{initials}</Text>
         </LinearGradient>
         <View style={styles.identityText}>
@@ -211,7 +211,7 @@ export function TechnicianViewTabs({
 }) {
   return (
     <View style={styles.tabsWrap}>
-      <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.tabsGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.tabsGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <View style={styles.tabsRow}>
         {VIEW_TABS.map(({ key, label, icon }) => {
           const selected = active === key;
@@ -311,7 +311,7 @@ export function TechnicianProfileHeader({
 export function TechnicianReviewCard({ stars, comment, tags }: { stars: number; comment?: string; tags: string[] }) {
   return (
     <View style={styles.reviewCard}>
-      <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.reviewGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.reviewGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <Text style={styles.reviewStars}>{'★'.repeat(stars)}{'☆'.repeat(5 - stars)}</Text>
       {comment ? <Text style={styles.reviewComment}>{comment}</Text> : null}
       {tags.length > 0 ? <Text style={styles.reviewTags}>{tags.join(' · ')}</Text> : null}

@@ -1,3 +1,4 @@
+import { colors } from '@/constants/theme';
 import type { ReactNode } from 'react';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, type PressableProps, StyleSheet } from 'react-native';
@@ -95,7 +96,7 @@ const styles = StyleSheet.create({
     height: 3.5,
     borderRadius: 3,
     backgroundColor: 'rgba(143,208,60,0.6)',
-    shadowColor: '#8FD03C',
+    shadowColor: colors.limeBright,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.75,
     shadowRadius: 5,

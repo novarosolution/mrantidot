@@ -17,7 +17,6 @@ import { textInputDefaults } from '@/components/ui/textInputDefaults';
 export function OtpEntrySheet({
   visible,
   title,
-  subtitle,
   loading,
   errorTrigger,
   onClose,
@@ -72,7 +71,13 @@ export function OtpEntrySheet({
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
           <View style={styles.handle} />
-          <Pressable style={styles.close} onPress={onClose} hitSlop={8}>
+          <Pressable
+            style={styles.close}
+            onPress={onClose}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
             <PremiumIcon icon={AppIcons.ui.close} variant="plain" size="lg" color={colors.muted} />
           </Pressable>
 

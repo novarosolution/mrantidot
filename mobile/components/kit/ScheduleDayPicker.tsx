@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { nextBookableDays } from '@/lib/dates';
-import { colors, fonts, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, surfaces } from '@/constants/theme';
 
 export function ScheduleDayPicker({
   selectedDate,
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 3,
-    backgroundColor: '#8FD03C',
+    backgroundColor: colors.limeBright,
     marginTop: 6,
   },
   todayDotOn: { backgroundColor: colors.forest },

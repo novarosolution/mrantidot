@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import {  colors, customerType, fonts, premium, shadows, spacing , gradients } from '@/constants/theme';
+import {  colors, customerType, premium, shadows, spacing , gradients } from '@/constants/theme';
 
 export type ProfileStatItem = {
   value: string;
@@ -15,7 +15,7 @@ export function ProfileStatsStrip({ items }: { items: ProfileStatItem[] }) {
   return (
     <View style={styles.wrap}>
       <LinearGradient
-        colors={['#FFFFFF', '#F6FAF7']}
+        colors={[colors.white, '#F6FAF7']}
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}

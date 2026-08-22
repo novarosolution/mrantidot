@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: premium.radiusCard,
     borderTopRightRadius: premium.radiusCard,
     borderTopWidth: 1.5,
-    borderColor: '#8FD03C',
+    borderColor: colors.limeBright,
     padding: spacing.lg,
     paddingBottom: spacing.xl,
     ...premium.shadowSoft,

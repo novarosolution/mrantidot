@@ -166,7 +166,7 @@ export default function LoginScreen() {
             disabled={loading}
           >
             <LinearGradient
-              colors={['#3BC45A', '#1A8734', '#0A6423']}
+              colors={['#3BC45A', colors.forestMid, colors.forest]}
               locations={[0, 0.5, 1]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -181,7 +181,7 @@ export default function LoginScreen() {
               />
               {loading ? (
                 <>
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color={colors.white} />
                   <Text style={styles.ctaText}>Signing in…</Text>
                 </>
               ) : (
@@ -204,7 +204,7 @@ export default function LoginScreen() {
                         icon={AppIcons.ui.arrowRight}
                         variant="plain"
                         size={17}
-                        color="#0A6423"
+                        color={colors.forest}
                         strokeWidth={2.5}
                       />
                     </View>
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     overflow: 'hidden',
     ...premium.shadowSoft,
-    shadowColor: '#0A6423',
+    shadowColor: colors.forest,
     shadowOpacity: 0.34,
     shadowRadius: 18,
     elevation: 11,
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: 16,
     letterSpacing: 0.1,
-    color: '#FFFFFF',
+    color: colors.white,
   },
   ctaChip: {
     width: 42,
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.7)',
   },

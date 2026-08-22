@@ -75,7 +75,14 @@ export const IconInput = forwardRef<
           }}
         />
         {isSecureField ? (
-          <Pressable onPress={() => setShow((s) => !s)} style={styles.eye} hitSlop={12}>
+          <Pressable
+            onPress={() => setShow((s) => !s)}
+            style={styles.eye}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={show ? 'Hide password' : 'Show password'}
+            accessibilityState={{ checked: show }}
+          >
             <PremiumIcon
               icon={show ? AppIcons.ui.eyeOff : AppIcons.ui.eye}
               variant="plain"

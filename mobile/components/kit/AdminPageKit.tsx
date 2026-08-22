@@ -30,7 +30,7 @@ export function AdminQuickGrid({
           <View style={styles.quickShell}>
             <GlassPanel style={styles.quickTile} padded={false} tone="clear" intensity={40} goldEdge>
               <View style={styles.quickInner}>
-                <PremiumIcon icon={Icon} variant="premium" size={18} color="#FFFFFF" boxSize={44} />
+                <PremiumIcon icon={Icon} variant="premium" size={18} color={colors.white} boxSize={44} />
                 <Text style={styles.quickLabel} numberOfLines={1}>
                   {label}
                 </Text>
@@ -48,7 +48,7 @@ export function AdminFilterChips({
   selected,
   onSelect,
 }: {
-  chips: { key: string; label: string }[];
+  chips: { key: string; label: string; disabled?: boolean }[];
   selected: string;
   onSelect: (key: string) => void;
 }) {
@@ -56,28 +56,33 @@ export function AdminFilterChips({
     <View style={styles.chipsWrap}>
       {chips.map((c) => {
         const active = selected === c.key;
+        const locked = Boolean(c.disabled);
         return (
           <Pressable
             key={c.key}
             accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            onPress={() => onSelect(c.key)}
-            style={({ pressed }) => [pressed && styles.chipPressed]}
+            accessibilityState={{ selected: active, disabled: locked }}
+            disabled={locked}
+            onPress={() => {
+              if (locked) return;
+              onSelect(c.key);
+            }}
+            style={({ pressed }) => [pressed && !locked && styles.chipPressed, locked && styles.chipLocked]}
           >
             {active ? (
               <View style={styles.chipActiveShell}>
                 <LinearGradient
-                  colors={['#8FD03C', '#1A8734', '#0A6423']}
+                  colors={[colors.limeBright, colors.forestMid, colors.forest]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={[styles.chip, styles.chipActive]}
+                  style={[styles.chip, styles.chipActive, locked && styles.chipActiveLocked]}
                 >
                   <Text style={[styles.chipText, styles.chipTextActive]}>{c.label}</Text>
                 </LinearGradient>
               </View>
             ) : (
-              <View style={styles.chip}>
-                <Text style={styles.chipText}>{c.label}</Text>
+              <View style={[styles.chip, locked && styles.chipDisabled]}>
+                <Text style={[styles.chipText, locked && styles.chipTextDisabled]}>{c.label}</Text>
               </View>
             )}
           </Pressable>
@@ -159,8 +164,15 @@ const styles = StyleSheet.create({
     borderWidth: 0,
   },
   chipPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
+  chipLocked: { opacity: 0.72 },
+  chipDisabled: {
+    backgroundColor: 'rgba(238,242,238,0.9)',
+    borderColor: 'rgba(92,138,99,0.18)',
+  },
+  chipActiveLocked: { opacity: 0.85 },
   chipText: { ...adminType.chipText, color: colors.ink },
   chipTextActive: { color: colors.white },
+  chipTextDisabled: { color: colors.muted },
   stripOuter: {
     marginHorizontal: spacing.md,
     marginBottom: spacing.sm,
@@ -294,7 +306,7 @@ const hintStyles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: adminSurfaces.chipBorder,
     alignItems: 'center',

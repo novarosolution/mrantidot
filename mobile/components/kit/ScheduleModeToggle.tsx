@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { colors, fonts, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, surfaces } from '@/constants/theme';
 
 export function ScheduleModeToggle({
   mode,

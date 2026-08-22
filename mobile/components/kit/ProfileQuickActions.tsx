@@ -23,7 +23,7 @@ export function ProfileQuickActions() {
             style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
             onPress={() => appPush(a.route)}
           >
-            <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.goldEdge} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+            <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.goldEdge} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
             <PremiumIcon icon={a.icon} variant="gradient" gradient={a.grad} size="xl" boxSize={50} />
             <Text style={styles.label}>{a.label}</Text>
           </Pressable>

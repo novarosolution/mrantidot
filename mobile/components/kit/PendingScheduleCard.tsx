@@ -27,8 +27,8 @@ export function PendingScheduleCard({
 
   return (
     <View style={[styles.wrap, isCustomer && styles.wrapCustomer]}>
-      <LinearGradient colors={['#F6FAF2', '#EEF8E6']} style={styles.card} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}>
-        <LinearGradient colors={['#8FD03C', '#27A747']} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <LinearGradient colors={[colors.bg, colors.mint]} style={styles.card} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}>
+        <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
         <View style={styles.head}>
           <View style={[styles.icon, !isCustomer && styles.iconAdmin]}>
             <PremiumIcon icon={AppIcons.ui.clock} variant="mint" size="md" color={colors.forest} boxSize={44} />
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2F0D8',
   },
-  iconAdmin: { backgroundColor: '#EEF8E6' },
+  iconAdmin: { backgroundColor: colors.mint },
   flex: { flex: 1 },
   title: { fontFamily: fonts.display, fontSize: 14, color: colors.ink },
   mode: { fontFamily: fonts.body, fontSize: 11.5, color: colors.muted, marginTop: 2 },

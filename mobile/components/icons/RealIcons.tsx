@@ -334,7 +334,7 @@ export const HomeRealIcon = createRealIcon('Home', ({ color, stroke, soft, stron
   </G>
 ));
 
-export const ShieldRealIcon = createRealIcon('Shield', ({ color, stroke, soft, strong }) => (
+export const ShieldRealIcon = createRealIcon('Shield', ({ color, stroke, strong }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Path
       d="M12 2.8 4.8 5.8v5.6c0 4.6 3.2 8 7.2 9.6 4-1.6 7.2-5 7.2-9.6V5.8L12 2.8z"
@@ -344,7 +344,7 @@ export const ShieldRealIcon = createRealIcon('Shield', ({ color, stroke, soft, s
   </G>
 ));
 
-export const InspectIcon = createRealIcon('Inspect', ({ color, stroke, soft, strong }) => (
+export const InspectIcon = createRealIcon('Inspect', ({ color, stroke, strong }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Circle cx="10.6" cy="10.6" r="6" fill={strong} />
     <Path d="M15.2 15.2 20.6 20.6" />
@@ -411,7 +411,7 @@ export const SupportRealIcon = createRealIcon('Support', ({ color, stroke, soft,
 ));
 
 /** Leaf / eco. */
-export const LeafRealIcon = createRealIcon('Leaf', ({ color, stroke, soft, strong }) => (
+export const LeafRealIcon = createRealIcon('Leaf', ({ color, stroke, strong }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Path
       d="M5.2 18.4C5.2 10.8 10.4 4.4 19.2 4.4c0 8.8-6.4 14-14 14z"
@@ -431,7 +431,7 @@ export const UserRealIcon = createRealIcon('User', ({ color, stroke, soft, stron
 ));
 
 /** Phone handset. */
-export const PhoneRealIcon = createRealIcon('Phone', ({ color, stroke, soft, strong }) => (
+export const PhoneRealIcon = createRealIcon('Phone', ({ color, stroke, strong }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Path
       d="M7.2 3.8h3.2l1.2 3.2-1.8 1.4a12.4 12.4 0 0 0 5.8 5.8l1.4-1.8 3.2 1.2v3.2c0 .9-.7 1.6-1.6 1.6A15.6 15.6 0 0 1 5.6 5.4c0-.9.7-1.6 1.6-1.6z"
@@ -441,7 +441,7 @@ export const PhoneRealIcon = createRealIcon('Phone', ({ color, stroke, soft, str
 ));
 
 /** Bell. */
-export const BellRealIcon = createRealIcon('Bell', ({ color, stroke, soft, strong }) => (
+export const BellRealIcon = createRealIcon('Bell', ({ color, stroke, strong }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Path
       d="M6.2 16.4h11.6c-.4-1.2-.8-2.4-.8-4.2V10c0-2.8-1.8-5.2-4.4-5.9V3.6a1.2 1.2 0 0 0-2.4 0v.5C7.6 4.8 5.8 7.2 5.8 10v2.2c0 1.8-.4 3-.8 4.2z"
@@ -461,7 +461,7 @@ export const LockRealIcon = createRealIcon('Lock', ({ color, stroke, soft, stron
 ));
 
 /** Mail. */
-export const MailRealIcon = createRealIcon('Mail', ({ color, stroke, soft, strong }) => (
+export const MailRealIcon = createRealIcon('Mail', ({ color, stroke, strong }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Path d="M3.6 6.8h16.8v11.2c0 .9-.7 1.6-1.6 1.6H5.2c-.9 0-1.6-.7-1.6-1.6V6.8z" fill={strong} />
     <Path d="M3.6 7.4 12 13.2l8.4-5.8" />
@@ -469,7 +469,7 @@ export const MailRealIcon = createRealIcon('Mail', ({ color, stroke, soft, stron
 ));
 
 /** Search. */
-export const SearchRealIcon = createRealIcon('Search', ({ color, stroke, soft, strong }) => (
+export const SearchRealIcon = createRealIcon('Search', ({ color, stroke, strong }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Circle cx="10.6" cy="10.6" r="6" fill={strong} />
     <Path d="M15.2 15.2 20.6 20.6" />
@@ -510,7 +510,7 @@ export const FaqBookRealIcon = createRealIcon('FaqBook', ({ color, stroke, soft,
 ));
 
 /** WhatsApp-style chat bubble (support chat). */
-export const ChatRealIcon = createRealIcon('Chat', ({ color, stroke, soft, strong }) => (
+export const ChatRealIcon = createRealIcon('Chat', ({ color, stroke, strong }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Path
       d="M5.2 4.8h13.6c1 0 1.8.8 1.8 1.8v8.2c0 1-.8 1.8-1.8 1.8H10.4L6.2 19.8V16.6H5.2c-1 0-1.8-.8-1.8-1.8V6.6c0-1 .8-1.8 1.8-1.8z"
@@ -521,7 +521,7 @@ export const ChatRealIcon = createRealIcon('Chat', ({ color, stroke, soft, stron
 ));
 
 /** Star. */
-export const StarRealIcon = createRealIcon('Star', ({ color, stroke, soft, strong }) => (
+export const StarRealIcon = createRealIcon('Star', ({ color, stroke, strong }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Path
       d="M12 3.2 14.4 9h6l-4.8 3.6 1.8 6L12 15.4 6.6 18.6l1.8-6L3.6 9h6L12 3.2z"
@@ -594,7 +594,7 @@ export const SettingsRealIcon = createRealIcon('Settings', ({ color, stroke, sof
 ));
 
 /** Clock. */
-export const ClockRealIcon = createRealIcon('Clock', ({ color, stroke, soft, strong }) => (
+export const ClockRealIcon = createRealIcon('Clock', ({ color, stroke, strong }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Circle cx="12" cy="12" r="8.4" fill={strong} />
     <Path d="M12 7.2v5.2l3.4 2" />
@@ -602,7 +602,7 @@ export const ClockRealIcon = createRealIcon('Clock', ({ color, stroke, soft, str
 ));
 
 /** Chat bubble. */
-export const MessageRealIcon = createRealIcon('Message', ({ color, stroke, soft, strong }) => (
+export const MessageRealIcon = createRealIcon('Message', ({ color, stroke, strong }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Path
       d="M4.2 5.4h15.6c.9 0 1.6.7 1.6 1.6v8.4c0 .9-.7 1.6-1.6 1.6H9.2L4.2 20.4V5.4z"
@@ -613,7 +613,7 @@ export const MessageRealIcon = createRealIcon('Message', ({ color, stroke, soft,
 ));
 
 /** Check circle success. */
-export const CheckRealIcon = createRealIcon('Check', ({ color, stroke, soft, strong }) => (
+export const CheckRealIcon = createRealIcon('Check', ({ color, stroke, strong }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Circle cx="12" cy="12" r="8.4" fill={strong} />
     <Path d="M8.2 12.2 10.8 14.8 15.8 9.2" />
@@ -652,7 +652,7 @@ export const ChartRealIcon = createRealIcon('Chart', ({ color, stroke, soft, str
 ));
 
 /** Package / jobs. */
-export const PackageRealIcon = createRealIcon('Package', ({ color, stroke, soft, strong }) => (
+export const PackageRealIcon = createRealIcon('Package', ({ color, stroke, strong }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Path d="M3.6 8.2 12 3.8l8.4 4.4v9.2L12 21.6 3.6 17.4V8.2z" fill={strong} />
     <Path d="M12 12.2v9.4" />
@@ -738,7 +738,7 @@ export const FileRealIcon = createRealIcon('File', ({ color, stroke, soft, stron
 ));
 
 /** Logout / exit. */
-export const LogoutRealIcon = createRealIcon('Logout', ({ color, stroke, soft, strong }) => (
+export const LogoutRealIcon = createRealIcon('Logout', ({ color, stroke, soft }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Path d="M10.4 4.4H6.8c-.9 0-1.6.7-1.6 1.6v12c0 .9.7 1.6 1.6 1.6h3.6" />
     <Path d="M14 8.2 18.4 12 14 15.8" />
@@ -748,7 +748,7 @@ export const LogoutRealIcon = createRealIcon('Logout', ({ color, stroke, soft, s
 ));
 
 /** Warning triangle. */
-export const AlertRealIcon = createRealIcon('Alert', ({ color, stroke, soft, strong }) => (
+export const AlertRealIcon = createRealIcon('Alert', ({ color, stroke, strong }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Path d="M12 3.6 21.2 19.6H2.8L12 3.6z" fill={strong} />
     <Path d="M12 9.4v4.4" />
@@ -757,7 +757,7 @@ export const AlertRealIcon = createRealIcon('Alert', ({ color, stroke, soft, str
 ));
 
 /** Info circle. */
-export const InfoRealIcon = createRealIcon('Info', ({ color, stroke, soft, strong }) => (
+export const InfoRealIcon = createRealIcon('Info', ({ color, stroke, strong }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Circle cx="12" cy="12" r="8.2" fill={strong} />
     <Path d="M12 11.2v5" />
@@ -787,7 +787,7 @@ export const BriefcaseRealIcon = createRealIcon('Briefcase', ({ color, stroke, s
 ));
 
 /** Rupee. */
-export const RupeeRealIcon = createRealIcon('Rupee', ({ color, stroke, soft, strong }) => (
+export const RupeeRealIcon = createRealIcon('Rupee', ({ color, stroke, strong }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Circle cx="12" cy="12" r="8.4" fill={strong} />
     <Path d="M8.4 8.2h7.2M8.4 11h7.2" />
@@ -797,7 +797,7 @@ export const RupeeRealIcon = createRealIcon('Rupee', ({ color, stroke, soft, str
 ));
 
 /** Sun / morning slot. */
-export const SunRealIcon = createRealIcon('Sun', ({ color, stroke, soft, strong }) => (
+export const SunRealIcon = createRealIcon('Sun', ({ color, stroke, strong }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Circle cx="12" cy="12" r="4" fill={strong} />
     <Path d="M12 2.8v2.2M12 19v2.2M2.8 12h2.2M19 12h2.2" />
@@ -818,7 +818,7 @@ export const CloudSunRealIcon = createRealIcon('CloudSun', ({ color, stroke, sof
 ));
 
 /** Error / cancel circle. */
-export const ErrorRealIcon = createRealIcon('Error', ({ color, stroke, soft, strong }) => (
+export const ErrorRealIcon = createRealIcon('Error', ({ color, stroke, strong }) => (
   <G stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
     <Circle cx="12" cy="12" r="8.2" fill={strong} />
     <Path d="M9 9l6 6M15 9l-6 6" />

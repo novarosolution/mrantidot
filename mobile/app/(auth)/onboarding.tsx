@@ -157,7 +157,7 @@ export default function OnboardingScreen() {
   return (
     <View style={styles.root}>
       <LinearGradient
-        colors={['#146B2E', '#0A6423', '#032910']}
+        colors={['#146B2E', colors.forest, '#032910']}
         locations={[0, 0.5, 1]}
         style={[styles.hero, { paddingTop: insets.top + spacing.md }]}
         start={{ x: 0.18, y: 0 }}
