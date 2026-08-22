@@ -111,7 +111,13 @@ export default function LoginScreen() {
   return (
     <>
       <StatusBar style="light" />
-      <AuthLoginShell brandName={brandName} title={ui.authLoginTitle} compact>
+      <AuthLoginShell
+        brandName={brandName}
+        brandTag={content.branding.tagline}
+        title={ui.authLoginTitle}
+        subtitle={ui.authLoginSubtitle}
+        compact
+      >
         <AuthFormSection>
           <AuthField
             label="Email or phone"

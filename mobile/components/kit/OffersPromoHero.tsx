@@ -71,9 +71,11 @@ export function OffersPromoHero({
                 ? `${offerCount} offer${offerCount === 1 ? '' : 's'} available`
                 : fallbackSub || 'Save on your next booking'}
             </Text>
-            <Text style={styles.sub}>
-              {subtitle?.trim() || 'Apply a coupon at checkout — works on any service'}
-            </Text>
+            {offerCount > 0 || subtitle?.trim() ? (
+              <Text style={styles.sub}>
+                {subtitle?.trim() || 'Apply a coupon at checkout — works on any service'}
+              </Text>
+            ) : null}
           </View>
         </LinearGradient>
       </View>

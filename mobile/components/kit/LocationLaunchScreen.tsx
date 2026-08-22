@@ -40,7 +40,7 @@ export function LocationLaunchScreen({
   onContinue?: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const trustLine = (trustChips?.length ? trustChips : FALLBACK_TRUST).slice(0, 3).join('  ·  ');
+  const chips = (trustChips?.length ? trustChips : FALLBACK_TRUST).slice(0, 3);
 
   const stageIn = useRef(new Animated.Value(0)).current;
   const brandIn = useRef(new Animated.Value(0)).current;
@@ -206,13 +206,16 @@ export function LocationLaunchScreen({
   const StatusIcon =
     phase === 'found' ? AppIcons.ui.mapPin : phase === 'denied' ? AppIcons.ui.shieldCheck : AppIcons.ui.sparkles;
 
+  const kicker =
+    phase === 'found' ? 'SERVING YOU' : phase === 'denied' ? 'READY WHEN YOU ARE' : 'LOCATING';
+
   return (
     <View style={styles.root}>
       <PremiumMeshBg variant="hero" />
 
       <Animated.View style={[styles.topSheen, sheenStyle]} pointerEvents="none">
         <LinearGradient
-          colors={['rgba(255,255,255,0.18)', 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0)']}
+          colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.05)', 'rgba(255,255,255,0)']}
           locations={[0, 0.45, 1]}
           style={StyleSheet.absoluteFill}
           start={{ x: 0.5, y: 0 }}
@@ -221,8 +224,8 @@ export function LocationLaunchScreen({
       </Animated.View>
 
       <LinearGradient
-        colors={['rgba(2,24,12,0)', 'rgba(2,24,12,0.22)', 'rgba(2,24,12,0.62)']}
-        locations={[0.28, 0.68, 1]}
+        colors={['rgba(2,24,12,0)', 'rgba(2,24,12,0.28)', 'rgba(2,24,12,0.72)']}
+        locations={[0.22, 0.62, 1]}
         style={styles.bottomFade}
         pointerEvents="none"
       />
@@ -243,7 +246,7 @@ export function LocationLaunchScreen({
             ) : null}
             <View style={styles.halo} />
             <LinearGradient
-              colors={['rgba(255,255,255,0.5)', 'rgba(143,208,60,0.62)', 'rgba(48,184,79,0.2)']}
+              colors={['rgba(255,255,255,0.55)', 'rgba(143,208,60,0.65)', 'rgba(48,184,79,0.22)']}
               locations={[0, 0.48, 1]}
               start={{ x: 0.12, y: 0 }}
               end={{ x: 0.92, y: 1 }}
@@ -251,55 +254,68 @@ export function LocationLaunchScreen({
             >
               <View style={styles.markInner}>
                 <LinearGradient
-                  colors={[colors.white, '#F3FAEE']}
+                  colors={[colors.white, colors.mint]}
                   style={StyleSheet.absoluteFill}
                   start={{ x: 0.5, y: 0 }}
                   end={{ x: 0.5, y: 1 }}
                 />
-                <BrandLogo size={118} animate={false} />
+                <BrandLogo size={118} animate={phase === 'detecting'} />
               </View>
             </LinearGradient>
           </Animated.View>
 
           <Animated.View style={[styles.brandBlock, titleStyle]}>
             <Text style={styles.brand}>{brandName}</Text>
-            <View style={styles.brandRule} />
+            <LinearGradient
+              colors={['rgba(200,240,122,0.2)', LIME, 'rgba(200,240,122,0.2)']}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.brandRule}
+            />
             <Text style={styles.tagline}>{tagline}</Text>
           </Animated.View>
         </View>
 
         <Animated.View style={[styles.footer, footStyle]}>
-          <Animated.View style={[styles.statusBlock, { opacity: statusFade }]}>
-            <View style={styles.statusKickerRow}>
-              <PremiumIcon
-                icon={StatusIcon}
-                variant="plain"
-                size={13}
-                color={LIME}
-                strokeWidth={2.3}
-              />
-              <Text style={styles.statusKicker}>
-                {phase === 'found' ? 'SERVING' : phase === 'denied' ? 'READY WHEN YOU ARE' : 'LOCATING'}
+          <Animated.View style={[styles.statusCard, { opacity: statusFade }]}>
+            <LinearGradient
+              colors={['rgba(255,255,255,0.16)', 'rgba(255,255,255,0.06)']}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+            />
+            <View style={styles.statusInner}>
+              <View style={styles.statusKickerRow}>
+                <View style={styles.statusIconWrap}>
+                  <PremiumIcon
+                    icon={StatusIcon}
+                    variant="plain"
+                    size={14}
+                    color={LIME}
+                    strokeWidth={2.3}
+                  />
+                </View>
+                <Text style={styles.statusKicker}>{kicker}</Text>
+              </View>
+              <Text style={styles.statusTitle} numberOfLines={1}>
+                {statusTitle}
               </Text>
-            </View>
-            <Text style={styles.statusTitle} numberOfLines={1}>
-              {statusTitle}
-            </Text>
-            <Text style={styles.statusBody} numberOfLines={2}>
-              {statusBody}
-            </Text>
-          </Animated.View>
+              <Text style={styles.statusBody} numberOfLines={2}>
+                {statusBody}
+              </Text>
 
-          <View style={styles.progressTrack}>
-            <Animated.View style={[styles.progressFill, { width: progressW }]}>
-              <LinearGradient
-                colors={['#C8F07A', LIME, colors.green]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={StyleSheet.absoluteFill}
-              />
-            </Animated.View>
-          </View>
+              <View style={styles.progressTrack}>
+                <Animated.View style={[styles.progressFill, { width: progressW }]}>
+                  <LinearGradient
+                    colors={['#C8F07A', LIME, colors.green]}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                </Animated.View>
+              </View>
+            </View>
+          </Animated.View>
 
           {phase === 'denied' && onContinue ? (
             <Pressable
@@ -316,10 +332,23 @@ export function LocationLaunchScreen({
                 style={styles.continueBtn}
               >
                 <Text style={styles.continueText}>Continue</Text>
+                <PremiumIcon
+                  icon={AppIcons.ui.arrowRight}
+                  variant="plain"
+                  size={18}
+                  color={colors.white}
+                  strokeWidth={2.4}
+                />
               </LinearGradient>
             </Pressable>
           ) : (
-            <Text style={styles.trustLine}>{trustLine}</Text>
+            <View style={styles.chipRow}>
+              {chips.map((chip) => (
+                <View key={chip} style={styles.chip}>
+                  <Text style={styles.chipText}>{chip}</Text>
+                </View>
+              ))}
+            </View>
           )}
         </Animated.View>
       </View>
@@ -341,7 +370,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: H * 0.46,
+    height: H * 0.5,
   },
   stage: {
     flex: 1,
@@ -416,38 +445,56 @@ const styles = StyleSheet.create({
     textShadowRadius: 16,
   },
   brandRule: {
-    width: 36,
+    width: 48,
     height: 3,
     borderRadius: 2,
-    backgroundColor: LIME,
   },
   tagline: {
     fontFamily: fonts.body,
     fontSize: 15,
     lineHeight: 22,
-    color: 'rgba(255,255,255,0.72)',
+    color: 'rgba(255,255,255,0.74)',
     textAlign: 'center',
     maxWidth: 300,
   },
   footer: {
-    gap: 16,
+    gap: 14,
     paddingBottom: 2,
   },
-  statusBlock: {
+  statusCard: {
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(8,42,20,0.42)',
+  },
+  statusInner: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md + 2,
     alignItems: 'center',
     gap: 6,
   },
   statusKickerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     marginBottom: 2,
+  },
+  statusIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(143,208,60,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(143,208,60,0.28)',
   },
   statusKicker: {
     fontFamily: fonts.bodySemi,
     fontSize: 10.5,
     lineHeight: 14,
-    letterSpacing: 1.2,
+    letterSpacing: 1.25,
     color: LIME,
   },
   statusTitle: {
@@ -462,34 +509,54 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 13.5,
     lineHeight: 19,
-    color: 'rgba(234,246,227,0.7)',
+    color: 'rgba(234,246,227,0.72)',
     textAlign: 'center',
     maxWidth: 300,
+    marginBottom: 6,
   },
   progressTrack: {
+    alignSelf: 'stretch',
     height: 3,
     borderRadius: 2,
     backgroundColor: 'rgba(255,255,255,0.12)',
     overflow: 'hidden',
+    marginTop: 4,
   },
   progressFill: {
     height: '100%',
     borderRadius: 2,
     overflow: 'hidden',
   },
-  trustLine: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 12,
-    letterSpacing: 0.2,
-    color: 'rgba(255,255,255,0.46)',
-    textAlign: 'center',
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
     paddingTop: 2,
     paddingBottom: 4,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  chipText: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 12,
+    letterSpacing: 0.15,
+    color: 'rgba(255,255,255,0.72)',
   },
   continueBtn: {
     borderRadius: premium.radiusButton,
     paddingVertical: 16,
+    paddingHorizontal: spacing.lg,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     shadowColor: LIME,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.32,

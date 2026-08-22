@@ -24,7 +24,7 @@ function routeAfterSplash(user: StoredUser) {
 export default function SplashScreen() {
   const { user, isLoading: authLoading } = useAuth();
   const { content, loaded: contentLoaded } = useAppContent();
-  const { setLocation, refreshLocation, displayLabel, location } = useLocation();
+  const { refreshLocation, displayLabel, location } = useLocation();
 
   const [phase, setPhase] = useState<'detecting' | 'found' | 'denied'>('detecting');
   const startedAt = useRef(Date.now());
@@ -39,10 +39,10 @@ export default function SplashScreen() {
     void refreshLocation({ silent: true })
       .then((loc) => {
         if (cancelled) return;
-        if (!loc.granted && loc.city === 'your area') {
-          setPhase('denied');
-        } else {
+        if (loc.granted || isRealCity(loc.city)) {
           setPhase('found');
+        } else {
+          setPhase('denied');
         }
       })
       .catch(() => {
@@ -110,7 +110,6 @@ export default function SplashScreen() {
       onContinue={() => {
         if (navigated.current) return;
         navigated.current = true;
-        void setLocation({ city: 'your area', area: '', granted: false, updatedAt: Date.now() });
         void (async () => {
           if (user) {
             appReplace(routeAfterSplash(user));

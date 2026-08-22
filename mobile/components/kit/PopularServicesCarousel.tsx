@@ -15,6 +15,7 @@ const CARD_W = 256;
 
 export function PopularServicesCarousel({
   title,
+  actionLabel,
   onAction,
   services,
   onPressItem,
@@ -31,7 +32,7 @@ export function PopularServicesCarousel({
 
   return (
     <View style={styles.wrap}>
-      <HomeSectionTitle title={title} onAction={onAction} />
+      <HomeSectionTitle title={title} actionLabel={actionLabel} onAction={onAction} />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}

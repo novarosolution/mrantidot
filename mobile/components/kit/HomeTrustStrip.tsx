@@ -5,14 +5,20 @@ import { AppIcons } from '@/constants/appIcons';
 import { colors, fonts } from '@/constants/theme';
 import { homeShadow } from '@/components/kit/homeUi';
 
-/** Soft trust line under home content. */
+/** Soft trust line under home content — guarantee and/or CMS badges. */
 export function HomeTrustStrip({
   guaranteeText,
+  badges,
 }: {
   guaranteeText?: string;
   badges?: string[];
 }) {
-  const text = guaranteeText?.trim() || 'Verified pros · Satisfaction guaranteed';
+  const chipList = (badges ?? []).map((b) => b.trim()).filter(Boolean).slice(0, 3);
+  const guarantee = guaranteeText?.trim() || '';
+  const text =
+    chipList.length > 0
+      ? chipList.join(' · ')
+      : guarantee || 'Verified pros · Satisfaction guaranteed';
 
   return (
     <View style={styles.wrap}>
@@ -36,11 +42,16 @@ export function HomeTrustStrip({
               />
             </LinearGradient>
           </View>
-          <Text style={styles.text} numberOfLines={1}>
+          <Text style={styles.text} numberOfLines={2}>
             {text}
           </Text>
         </View>
       </View>
+      {chipList.length > 0 && guarantee && guarantee !== text ? (
+        <Text style={styles.guarantee} numberOfLines={2}>
+          {guarantee}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -51,6 +62,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 8,
     alignItems: 'center',
+    gap: 8,
   },
   shell: {
     maxWidth: '100%',
@@ -91,5 +103,13 @@ const styles = StyleSheet.create({
     color: colors.ink,
     flexShrink: 1,
     paddingRight: 4,
+  },
+  guarantee: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.muted,
+    textAlign: 'center',
+    paddingHorizontal: 8,
   },
 });

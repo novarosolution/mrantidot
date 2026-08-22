@@ -7,15 +7,20 @@ export function ScreenState({
   error,
   onRetry,
   title,
+  loadingLabel,
+  /** When true, use inline spinner (for use inside shells that already have a header). */
+  embedded,
   children,
 }: {
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
   title?: string;
+  loadingLabel?: string;
+  embedded?: boolean;
   children: ReactNode;
 }) {
-  if (loading) return <Spinner fullScreen />;
+  if (loading) return <Spinner fullScreen={!embedded} label={loadingLabel} />;
   if (error) {
     return <ListEmptyRetry title={title} message={error} onRetry={onRetry} />;
   }

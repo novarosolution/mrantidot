@@ -104,7 +104,7 @@ export function AuthSplashLayout({
 }) {
   const insets = useSafeAreaInsets();
   const enter = useSplashEnter();
-  const trustLine = (trustBadges?.length ? trustBadges : ['Secure', 'Eco-safe', 'Verified']).slice(0, 3).join(' · ');
+  const chips = (trustBadges?.length ? trustBadges : ['Secure', 'Eco-safe', 'Verified']).slice(0, 3);
 
   return (
     <View style={styles.splashRoot}>
@@ -164,7 +164,13 @@ export function AuthSplashLayout({
               <Animated.View style={[styles.progressFill, { width: enter.progressWidth }]} />
             </View>
           )}
-          <Text style={styles.splashTrustLine}>{trustLine}</Text>
+          <View style={styles.splashChipRow}>
+            {chips.map((chip) => (
+              <View key={chip} style={styles.splashChip}>
+                <Text style={styles.splashChipText}>{chip}</Text>
+              </View>
+            ))}
+          </View>
         </Animated.View>
       </LinearGradient>
     </View>
@@ -305,8 +311,8 @@ export function AuthLoginShell({
                 {brandName}
               </Text>
               <View style={styles.brandRule} />
-              {tag && !compact ? (
-                <Text style={styles.brandSub} numberOfLines={1}>
+              {tag ? (
+                <Text style={[styles.brandSub, compact && styles.brandSubCompact]} numberOfLines={1}>
                   {tag}
                 </Text>
               ) : null}
@@ -314,7 +320,11 @@ export function AuthLoginShell({
           </View>
 
           <Text style={[styles.heroTitle, compact && styles.heroTitleCompact]}>{title}</Text>
-          {subtitle && !compact ? <Text style={styles.heroDesc}>{subtitle}</Text> : null}
+          {subtitle ? (
+            <Text style={[styles.heroDesc, compact && styles.heroDescCompact]} numberOfLines={2}>
+              {subtitle}
+            </Text>
+          ) : null}
         </Animated.View>
 
         <LinearGradient
@@ -491,6 +501,26 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.48)',
     textAlign: 'center',
   },
+  splashChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  splashChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  splashChipText: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 12,
+    letterSpacing: 0.15,
+    color: 'rgba(255,255,255,0.72)',
+  },
   trustRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -642,6 +672,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.15,
     color: 'rgba(255,255,255,0.68)',
   },
+  brandSubCompact: {
+    fontSize: 11.5,
+  },
   heroTitle: {
     fontFamily: fonts.displayExtra,
     fontSize: 36,
@@ -663,6 +696,11 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.68)',
     marginTop: 10,
     maxWidth: 310,
+  },
+  heroDescCompact: {
+    fontSize: 13.5,
+    lineHeight: 19,
+    marginTop: 6,
   },
   heroEdge: {
     position: 'absolute',

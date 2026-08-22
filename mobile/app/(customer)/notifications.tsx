@@ -6,8 +6,7 @@ import { NotificationRow } from '@/components/kit/NotificationRow';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
+import { ScreenState } from '@/components/ui/ScreenState';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { CACHE_TTL } from '@/lib/apiCache';
@@ -103,26 +102,27 @@ export default function NotificationsScreen() {
         ) : undefined
       }
     >
-      {loading ? (
-        <Spinner />
-      ) : loadError && items.length === 0 ? (
-        <ListEmptyRetry
-          message={loadError}
-          onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
-        />
-      ) : (
+      <ScreenState
+        embedded
+        loading={loading}
+        error={loadError && items.length === 0 ? loadError : null}
+        onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
+        loadingLabel="Loading notifications…"
+      >
         <FlatList
           data={items}
           keyExtractor={(n) => n.id}
           {...CUSTOMER_LIST_PERF}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />}
           contentContainerStyle={items.length === 0 ? listShellStyles.empty : listShellStyles.list}
-          ListEmptyComponent={<EmptyState title="No notifications" message="You're all caught up" />}
+          ListEmptyComponent={
+            <EmptyState title={ui.notificationsEmptyTitle} message={ui.notificationsEmptyMessage} />
+          }
           renderItem={({ item }) => (
             <NotificationRow item={item} onPress={() => void openItem(item)} />
           )}
         />
-      )}
+      </ScreenState>
     </CustomerListShell>
   );
 }

@@ -5,6 +5,8 @@ import { HomeSectionTitle } from '@/components/kit/HomeSectionTitle';
 
 export function HomeServicesSection({
   title,
+  subtitle,
+  actionLabel,
   onAction,
   chips,
   selectedCategory,
@@ -22,7 +24,7 @@ export function HomeServicesSection({
 }) {
   return (
     <View style={styles.wrap}>
-      <HomeSectionTitle title={title} onAction={onAction} />
+      <HomeSectionTitle title={title} subtitle={subtitle} actionLabel={actionLabel} onAction={onAction} />
       <HomeCategoryFilter chips={chips} selected={selectedCategory} onSelect={onSelectCategory} />
       {children}
     </View>

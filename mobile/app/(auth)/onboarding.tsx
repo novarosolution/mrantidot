@@ -188,7 +188,9 @@ export default function OnboardingScreen() {
           </Animated.View>
 
           <Text style={styles.brand}>{brandName}</Text>
-          <Text style={styles.brandTag}>Premium pest control & home care</Text>
+          <Text style={styles.brandTag}>
+            {content.branding?.tagline?.trim() || 'Trusted pest control & home services'}
+          </Text>
         </Animated.View>
       </LinearGradient>
 

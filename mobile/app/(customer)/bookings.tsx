@@ -1,9 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  FlatList,
+  Animated,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -17,6 +17,7 @@ import { BookingsNextHighlight } from '@/components/kit/BookingsNextHighlight';
 import { BookingsSummaryBar } from '@/components/kit/BookingsSummaryBar';
 import { GlassBackdrop, TAB_BAR_SCROLL_PAD, customerScrollProps } from '@/components/kit/GlassScreenKit';
 import { HeroDarkSlice } from '@/components/kit/HeroDarkSlice';
+import { ScreenTopScrim } from '@/components/kit/ScreenTopScrim';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
@@ -48,6 +49,9 @@ export default function MyBookingsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [heroHeight, setHeroHeight] = useState(0);
+  const scrimRevealAt = heroHeight > 0 ? Math.max(heroHeight - insets.top, 1) : 0;
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -114,34 +118,36 @@ export default function MyBookingsScreen() {
   }
 
   const hero = (
-    <HeroDarkSlice
-      style={styles.hero}
-      contentStyle={{ paddingTop: headerTopPad(insets.top), paddingHorizontal: 20, paddingBottom: 36 }}
-      sliceHeight={24}
-    >
-      <View style={styles.heroRow}>
-        <View style={styles.heroLeft}>
-          <View style={styles.eyebrowRow}>
-            <LinearGradient
-              colors={[colors.limeBright, '#68D03C']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.eyebrowBar}
-            />
-            <Text style={styles.eyebrow}>YOUR VISITS</Text>
+    <View onLayout={(e) => setHeroHeight(e.nativeEvent.layout.height)}>
+      <HeroDarkSlice
+        style={styles.hero}
+        contentStyle={{ paddingTop: headerTopPad(insets.top), paddingHorizontal: 20, paddingBottom: 36 }}
+        sliceHeight={24}
+      >
+        <View style={styles.heroRow}>
+          <View style={styles.heroLeft}>
+            <View style={styles.eyebrowRow}>
+              <LinearGradient
+                colors={[colors.limeBright, '#68D03C']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.eyebrowBar}
+              />
+              <Text style={styles.eyebrow}>YOUR VISITS</Text>
+            </View>
+            <Text style={styles.heroTitle}>{bookingCopy.listScreenTitle}</Text>
+            <Text style={styles.heroSub}>{subtitle}</Text>
           </View>
-          <Text style={styles.heroTitle}>{bookingCopy.listScreenTitle}</Text>
-          <Text style={styles.heroSub}>{subtitle}</Text>
+          <Pressable
+            style={({ pressed }) => [styles.bookBtn, pressed && styles.pressedSm]}
+            onPress={() => appPush(customerRoutes.services)}
+            accessibilityLabel="Book a service"
+          >
+            <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size={20} color={colors.forestDeep} strokeWidth={2.5} />
+          </Pressable>
         </View>
-        <Pressable
-          style={({ pressed }) => [styles.bookBtn, pressed && styles.pressedSm]}
-          onPress={() => appPush(customerRoutes.services)}
-          accessibilityLabel="Book a service"
-        >
-          <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size={20} color={colors.forestDeep} strokeWidth={2.5} />
-        </Pressable>
-      </View>
-    </HeroDarkSlice>
+      </HeroDarkSlice>
+    </View>
   );
 
   const listHeader =
@@ -204,7 +210,7 @@ export default function MyBookingsScreen() {
           </View>
         </View>
       ) : (
-        <FlatList
+        <Animated.FlatList
           data={listData}
           keyExtractor={(b) => b.id}
           refreshControl={
@@ -222,6 +228,10 @@ export default function MyBookingsScreen() {
           }
           {...CUSTOMER_LIST_PERF}
           {...customerScrollProps}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+            useNativeDriver: true,
+          })}
+          scrollEventThrottle={16}
           renderItem={({ item }) => (
             <View style={styles.cardPad}>
               <BookingListCard
@@ -233,6 +243,7 @@ export default function MyBookingsScreen() {
         />
       )}
       </SafeAreaView>
+      <ScreenTopScrim scrollY={scrollY} revealAt={scrimRevealAt} />
     </View>
   );
 }

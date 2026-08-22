@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#1E5BB8"
     },
     "android": {
       "package": "com.mrantidot.app",
@@ -24,7 +24,7 @@
         "android.permission.INTERNET"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#0A6423",
+        "backgroundColor": "#1E5BB8",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"

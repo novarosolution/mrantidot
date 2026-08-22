@@ -29,6 +29,7 @@ type Slide = {
   cta: string;
   tone: 'green' | 'offer';
   code?: string;
+  kicker?: string;
 };
 
 export function HomePromoCarousel({
@@ -75,6 +76,7 @@ export function HomePromoCarousel({
             cta: ctaLabelText(promo?.ctaLabel) || 'Claim offer',
             tone: 'offer' as const,
             code: code || undefined,
+            kicker: promo?.badge?.trim() || undefined,
           },
         ]
       : []),
@@ -155,7 +157,8 @@ export function HomePromoCarousel({
               <View style={styles.row}>
                 <View style={styles.body}>
                   <Text style={styles.kicker}>
-                    {slide.tone === 'offer' ? ui.homeCarouselOfferKicker : ui.homeCarouselBookKicker}
+                    {slide.kicker ||
+                      (slide.tone === 'offer' ? ui.homeCarouselOfferKicker : ui.homeCarouselBookKicker)}
                   </Text>
                   <Text style={styles.title} numberOfLines={2}>
                     {slide.title}

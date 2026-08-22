@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import type { LucideIcon } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   Dimensions,
   FlatList,
   Pressable,
@@ -20,6 +21,7 @@ import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { GlassBackdrop, GlassPanel, TAB_BAR_SCROLL_PAD, glassSkin } from '@/components/kit/GlassScreenKit';
 import { HeroDarkSlice } from '@/components/kit/HeroDarkSlice';
+import { ScreenTopScrim } from '@/components/kit/ScreenTopScrim';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
@@ -100,6 +102,9 @@ export default function ServicesListScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [heroHeight, setHeroHeight] = useState(0);
+  const scrimRevealAt = heroHeight > 0 ? Math.max(heroHeight - insets.top, 1) : 0;
 
   useEffect(() => {
     setCategoryLabel((prev) => {
@@ -221,22 +226,23 @@ export default function ServicesListScreen() {
     homeConfig.servicesSubtitle?.trim() || content.branding.tagline || 'Trusted pest control & home services';
 
   const hero = (
-    <HeroDarkSlice
-      style={styles.hero}
-      contentStyle={{ paddingTop: headerTopPad(insets.top), paddingHorizontal: 20, paddingBottom: 58 }}
-      sliceHeight={26}
-    >
-      <View style={styles.heroRow}>
-        <View style={styles.heroLeft}>
-          <View style={styles.eyebrowRow}>
-            <LinearGradient colors={[colors.limeBright, '#68D03C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.eyebrowBar} />
-            <Text style={styles.eyebrow}>{content.branding.name || 'Mr Antidot'}</Text>
+    <View onLayout={(e) => setHeroHeight(e.nativeEvent.layout.height)}>
+      <HeroDarkSlice
+        style={styles.hero}
+        contentStyle={{ paddingTop: headerTopPad(insets.top), paddingHorizontal: 20, paddingBottom: 58 }}
+        sliceHeight={26}
+      >
+        <View style={styles.heroRow}>
+          <View style={styles.heroLeft}>
+            <View style={styles.eyebrowRow}>
+              <LinearGradient colors={[colors.limeBright, '#68D03C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.eyebrowBar} />
+              <Text style={styles.eyebrow}>{content.branding.name || 'Mr Antidot'}</Text>
+            </View>
+            <Text style={styles.heroTitle}>
+              {ui.servicesScreenTitle?.trim() || homeConfig.sectionTitles.services}
+            </Text>
           </View>
-          <Text style={styles.heroTitle}>
-            {ui.servicesScreenTitle?.trim() || homeConfig.sectionTitles.services}
-          </Text>
-        </View>
-        <View style={styles.heroRight}>
+          <View style={styles.heroRight}>
           <View style={styles.countPill}>
             <Text style={styles.countNum}>{visibleServices.length}</Text>
             <Text style={styles.countLb}>SHOWN</Text>
@@ -253,6 +259,7 @@ export default function ServicesListScreen() {
       </View>
       <Text style={styles.heroSub}>{pageSubtitle}</Text>
     </HeroDarkSlice>
+    </View>
   );
 
   const searchBar = (
@@ -613,7 +620,7 @@ export default function ServicesListScreen() {
           />
         </ScrollView>
       ) : (
-        <FlatList
+        <Animated.FlatList
           key={view}
           data={visibleServices}
           keyExtractor={(item) => item.id}
@@ -628,9 +635,14 @@ export default function ServicesListScreen() {
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={emptyBlock}
           renderItem={view === 'grid' ? renderGridItem : renderListItem}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+            useNativeDriver: true,
+          })}
+          scrollEventThrottle={16}
         />
       )}
       </SafeAreaView>
+      <ScreenTopScrim scrollY={scrollY} revealAt={scrimRevealAt} />
     </View>
   );
 }

@@ -8,9 +8,8 @@ import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/Admin
 import { OfferCouponCard } from '@/components/kit/OfferCouponCard';
 import { OffersEmpty } from '@/components/kit/OffersEmpty';
 import { OffersPromoHero } from '@/components/kit/OffersPromoHero';
-import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
+import { ScreenState } from '@/components/ui/ScreenState';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
-import { Spinner } from '@/components/ui/Spinner';
 import { useAppContent } from '@/context/AppContentContext';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
@@ -100,21 +99,15 @@ export default function OffersScreen() {
     />
   );
 
-  const subtitle =
-    offers.length === 0
-      ? promoHint || ui.offersEmptyHint
-      : `${offers.length} coupon${offers.length === 1 ? '' : 's'} available`;
-
   return (
-    <CustomerListShell title={sectionTitle} subtitle={subtitle} showBack={false} rightAction={browseFab}>
-      {loading ? (
-        <Spinner />
-      ) : loadError && offers.length === 0 ? (
-        <ListEmptyRetry
-          message={loadError}
-          onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
-        />
-      ) : (
+    <CustomerListShell title={sectionTitle} showBack={false} rightAction={browseFab}>
+      <ScreenState
+        embedded
+        loading={loading}
+        error={loadError && offers.length === 0 ? loadError : null}
+        onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
+        loadingLabel="Loading offers…"
+      >
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
@@ -128,7 +121,7 @@ export default function OffersScreen() {
             fallbackSub={ui.offersHeroFallbackSub}
             subtitle={
               offers.length === 0
-                ? promoHint
+                ? undefined
                 : homeConfig.promoCodeHint
                   ? `Use code ${homeConfig.promoCodeHint} at checkout`
                   : content.trust.guaranteeText
@@ -136,7 +129,7 @@ export default function OffersScreen() {
           />
 
           {offers.length === 0 ? (
-            <OffersEmpty />
+            <OffersEmpty hint={promoHint || ui.offersEmptyHint} />
           ) : (
             <>
               <PremiumSectionHeader title={couponsTitle} style={styles.section} />
@@ -148,7 +141,7 @@ export default function OffersScreen() {
             </>
           )}
         </ScrollView>
-      )}
+      </ScreenState>
       <AdminActionSheet
         visible={pickFor !== null}
         title={ui.offersPickServiceTitle}

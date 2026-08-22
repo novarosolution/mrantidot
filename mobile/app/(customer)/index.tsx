@@ -227,12 +227,15 @@ export default function CustomerHome() {
         <FadeSlideIn disabled delay={110}>
           <CustomerServiceTypeSection
             title={homeConfig.serviceTypesTitle || HOME_SECTION.serviceTypes}
+            actionLabel={homeConfig.serviceTypesAction}
           />
         </FadeSlideIn>
 
         <FadeSlideIn disabled delay={140} trigger={`${cat}-${debouncedQ}`}>
           <HomeServicesSection
             title={homeConfig.sectionTitles.services}
+            subtitle={homeConfig.servicesSubtitle}
+            actionLabel={homeConfig.servicesActionLabel}
             onAction={() => appPush(customerRoutes.services)}
             chips={homeConfig.categoryChips}
             selectedCategory={cat}
@@ -258,6 +261,7 @@ export default function CustomerHome() {
           ) : popularList.length > 0 ? (
             <PopularServicesCarousel
               title={homeConfig.sectionTitles.popular}
+              actionLabel={homeConfig.popularActionLabel}
               onAction={() => appPush(customerRoutes.services)}
               services={popularList}
               onPressItem={(s) => appPush(sharedRoutes.service(s.id))}
@@ -266,7 +270,10 @@ export default function CustomerHome() {
         </FadeSlideIn>
 
         <FadeSlideIn disabled delay={220}>
-          <HomeTrustStrip guaranteeText={content.trust.guaranteeText} />
+          <HomeTrustStrip
+            guaranteeText={content.trust.guaranteeText}
+            badges={content.trust.badges}
+          />
         </FadeSlideIn>
       </Animated.ScrollView>
       </SafeAreaView>

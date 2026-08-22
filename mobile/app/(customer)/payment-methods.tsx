@@ -17,8 +17,7 @@ import { IconInput } from '@/components/kit/IconInput';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
+import { ScreenState } from '@/components/ui/ScreenState';
 import { api, screenLoadConfig } from '@/lib/api';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
@@ -105,11 +104,13 @@ export default function PaymentMethodsScreen() {
       accountStrip
       rightAction={<FabButton onPress={openAdd} accessibilityLabel="Add payment method" />}
     >
-      {loading ? (
-        <Spinner />
-      ) : error ? (
-        <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
-      ) : (
+      <ScreenState
+        embedded
+        loading={loading}
+        error={error}
+        onRetry={() => void reload(load, error ?? undefined)}
+        loadingLabel="Loading payments…"
+      >
         <FlatList
           data={methods}
           keyExtractor={(m) => m.id}
@@ -122,7 +123,7 @@ export default function PaymentMethodsScreen() {
             />
           }
           contentContainerStyle={methods.length === 0 ? listShellStyles.empty : listShellStyles.list}
-          ListEmptyComponent={<EmptyState title="No payment methods" message="Tap + to add one" />}
+          ListEmptyComponent={<EmptyState title={ui.paymentsEmptyTitle} message={ui.paymentsEmptyMessage} />}
           renderItem={({ item }) => (
             <View style={styles.item}>
               <PaymentMethodCard method={item} />
@@ -153,7 +154,7 @@ export default function PaymentMethodsScreen() {
             </View>
           )}
         />
-      )}
+      </ScreenState>
 
       <Modal visible={modalOpen} animationType="slide" transparent onRequestClose={() => setModalOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setModalOpen(false)}>

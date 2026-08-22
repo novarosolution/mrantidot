@@ -4,28 +4,64 @@ import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons, IconGradients } from '@/constants/appIcons';
 import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
-
-const ACTIONS = [
-  { key: 'book', label: 'Book', icon: AppIcons.quick.book, route: customerRoutes.services, grad: IconGradients.forest },
-  { key: 'bookings', label: 'Bookings', icon: AppIcons.quick.bookings, route: customerRoutes.bookings, grad: IconGradients.teal },
-  { key: 'offers', label: 'Offers', icon: AppIcons.quick.offers, route: customerRoutes.offers, grad: IconGradients.gold },
-  { key: 'help', label: 'Support', icon: AppIcons.quick.support, route: customerRoutes.help, grad: IconGradients.teal },
-];
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { useAppContent } from '@/context/AppContentContext';
 
 export function ProfileQuickActions() {
+  const ui = useCustomerUiCopy();
+  const { homeConfig } = useAppContent();
+  const ql = homeConfig.quickLabels;
+
+  const actions = [
+    {
+      key: 'book',
+      label: ql?.book?.trim() || ui.profileQuickBook,
+      icon: AppIcons.quick.book,
+      route: customerRoutes.services,
+      grad: IconGradients.forest,
+    },
+    {
+      key: 'bookings',
+      label: ql?.bookings?.trim() || ui.profileQuickBookings,
+      icon: AppIcons.quick.bookings,
+      route: customerRoutes.bookings,
+      grad: IconGradients.teal,
+    },
+    {
+      key: 'offers',
+      label: ql?.offers?.trim() || ui.profileQuickOffers,
+      icon: AppIcons.quick.offers,
+      route: customerRoutes.offers,
+      grad: IconGradients.gold,
+    },
+    {
+      key: 'help',
+      label: ql?.help?.trim() || ui.profileQuickSupport,
+      icon: AppIcons.quick.support,
+      route: customerRoutes.help,
+      grad: IconGradients.teal,
+    },
+  ];
+
   return (
     <View style={styles.wrap}>
-      <Text style={styles.sectionLabel}>Quick actions</Text>
       <View style={styles.row}>
-        {ACTIONS.map((a) => (
+        {actions.map((a) => (
           <Pressable
             key={a.key}
             style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
             onPress={() => appPush(a.route)}
           >
-            <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.goldEdge} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+            <LinearGradient
+              colors={[colors.limeBright, colors.green]}
+              style={styles.goldEdge}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+            />
             <PremiumIcon icon={a.icon} variant="gradient" gradient={a.grad} size="xl" boxSize={50} />
-            <Text style={styles.label}>{a.label}</Text>
+            <Text style={styles.label} numberOfLines={1}>
+              {a.label}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -35,16 +71,6 @@ export function ProfileQuickActions() {
 
 const styles = StyleSheet.create({
   wrap: { marginBottom: spacing.md },
-  sectionLabel: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 11,
-    color: colors.muted,
-    letterSpacing: 0.7,
-    textTransform: 'uppercase',
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    marginLeft: spacing.md + 2,
-  },
   row: {
     flexDirection: 'row',
     paddingHorizontal: spacing.md,

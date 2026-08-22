@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { colors, customerType, premium, spacing } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
 
-export function OffersEmpty() {
+export function OffersEmpty({ hint }: { hint?: string }) {
   return (
     <View style={styles.wrap}>
       <GlassPanel style={styles.card} tone="clear" intensity={44} goldEdge padded={false}>
@@ -21,7 +21,8 @@ export function OffersEmpty() {
           />
           <Text style={styles.title}>No offers right now</Text>
           <Text style={styles.message}>
-            New coupons and seasonal deals will show up here. Book a service anytime at regular pricing.
+            {hint?.trim() ||
+              'New coupons and seasonal deals will show up here. Book a service anytime at regular pricing.'}
           </Text>
           <Button
             title="Browse services"

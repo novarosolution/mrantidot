@@ -19,8 +19,7 @@ import { IconInput } from '@/components/kit/IconInput';
 import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
+import { ScreenState } from '@/components/ui/ScreenState';
 import { api, screenLoadConfig } from '@/lib/api';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
@@ -139,11 +138,13 @@ export default function AddressesScreen() {
 
   return (
     <CustomerListShell title={ui.addressesScreenTitle} accountStrip rightAction={addFab}>
-      {loading ? (
-        <Spinner />
-      ) : error ? (
-        <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
-      ) : (
+      <ScreenState
+        embedded
+        loading={loading}
+        error={error}
+        onRetry={() => void reload(load, error ?? undefined)}
+        loadingLabel="Loading addresses…"
+      >
         <FlatList
           data={addresses}
           keyExtractor={(a) => a.id}
@@ -159,7 +160,7 @@ export default function AddressesScreen() {
           }
           contentContainerStyle={addresses.length === 0 ? listShellStyles.empty : listShellStyles.list}
           ListEmptyComponent={
-            <EmptyState title="No saved addresses" message="Tap + to add your first address" />
+            <EmptyState title={ui.addressesEmptyTitle} message={ui.addressesEmptyMessage} />
           }
           renderItem={({ item }) => (
             <View>
@@ -189,7 +190,7 @@ export default function AddressesScreen() {
             </View>
           )}
         />
-      )}
+      </ScreenState>
 
       <Modal visible={modalOpen} animationType="slide" transparent onRequestClose={() => setModalOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setModalOpen(false)}>

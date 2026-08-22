@@ -49,7 +49,7 @@ function BootSplash() {
           <View style={bootStyles.progressTrack}>
             <View style={bootStyles.progressFill} />
           </View>
-          <Text style={bootStyles.text}>Starting…</Text>
+          <Text style={bootStyles.text}>Preparing Mr Antidot…</Text>
         </View>
       }
     />

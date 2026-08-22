@@ -3,7 +3,6 @@ import type { LucideIcon } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
-  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -20,6 +19,10 @@ import {
 } from '@/components/kit/GlassScreenKit';
 import { CustomerProfileHero } from '@/components/kit/CustomerProfileHero';
 import { ProfileUpcomingCard } from '@/components/kit/ProfileUpcomingCard';
+import { ProfileQuickActions } from '@/components/kit/ProfileQuickActions';
+import { ProfileTrustBanner } from '@/components/kit/ProfileTrustBanner';
+import { ProfileSupportCard } from '@/components/kit/ProfileSupportCard';
+import { ProfileMenuSection } from '@/components/kit/ProfileMenuSection';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons, IconGradients } from '@/constants/appIcons';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
@@ -70,10 +73,6 @@ function upcomingEyebrow(booking: Booking): string {
   if (visit && visit < today) return 'Overdue';
   if (visit === today) return 'Today';
   return 'Upcoming';
-}
-
-function digits(v: string): string {
-  return v.replace(/\D/g, '');
 }
 
 function MenuRow({
@@ -194,47 +193,21 @@ export default function ProfileScreen() {
   const stats = [
     {
       value: String(activeCount),
-      label: 'Active',
+      label: ui.profileStatActive,
       icon: AppIcons.profile.bookings,
       onPress: () => appPush(customerRoutes.bookings),
     },
     {
       value: String(completedCount),
-      label: 'Done',
+      label: ui.profileStatDone,
       icon: AppIcons.toast.success,
       onPress: () => appPush(customerRoutes.bookings),
     },
     {
       value: String(savedCount),
-      label: 'Saved',
+      label: ui.profileStatSaved,
       icon: AppIcons.profile.addresses,
       onPress: () => appPush(customerRoutes.addresses),
-    },
-  ];
-
-  const quick: {
-    label: string;
-    icon: LucideIcon;
-    grad: readonly [string, string, string];
-    onPress: () => void;
-  }[] = [
-    {
-      label: 'Book',
-      icon: AppIcons.quick.book,
-      grad: IconGradients.forest,
-      onPress: () => appPush(customerRoutes.services),
-    },
-    {
-      label: 'Bookings',
-      icon: AppIcons.quick.bookings,
-      grad: IconGradients.teal,
-      onPress: () => appPush(customerRoutes.bookings),
-    },
-    {
-      label: 'Offers',
-      icon: AppIcons.quick.offers,
-      grad: IconGradients.gold,
-      onPress: () => appPush(customerRoutes.offers),
     },
   ];
 
@@ -247,41 +220,61 @@ export default function ProfileScreen() {
   }[] = [
     {
       icon: AppIcons.profile.addresses,
-      label: 'Addresses',
+      label: ui.profileMenuAddresses,
       trailing: savedCount > 0 ? String(savedCount) : undefined,
       tone: 'forest',
       onPress: () => appPush(customerRoutes.addresses),
     },
     {
       icon: AppIcons.profile.payments,
-      label: 'Payments',
+      label: ui.profileMenuPayments,
       trailing: paymentCount > 0 ? String(paymentCount) : undefined,
       tone: 'teal',
       onPress: () => appPush(customerRoutes.paymentMethods),
     },
     {
       icon: AppIcons.profile.notifications,
-      label: 'Notifications',
+      label: ui.profileMenuNotifications,
       trailing: unread > 0 ? String(unread) : undefined,
       tone: 'gold',
       onPress: () => appPush(customerRoutes.notifications),
     },
     {
       icon: AppIcons.profile.settings,
-      label: 'Settings',
+      label: ui.profileMenuSettings,
       tone: 'mint',
       onPress: () => appPush(customerRoutes.settings),
     },
   ];
 
   const moreRows = [
-    { icon: AppIcons.profile.help, label: 'Help', tone: 'forest' as const, onPress: () => appPush(customerRoutes.help) },
-    { icon: AppIcons.profile.faq, label: 'FAQ', tone: 'teal' as const, onPress: () => appPush(customerRoutes.faq) },
-    { icon: AppIcons.profile.about, label: 'About', tone: 'gold' as const, onPress: () => appPush(customerRoutes.about) },
-    { icon: AppIcons.profile.terms, label: 'Terms', tone: 'mint' as const, onPress: () => appPush(customerRoutes.terms) },
+    {
+      icon: AppIcons.profile.help,
+      label: ui.profileMenuHelp,
+      tone: 'forest' as const,
+      onPress: () => appPush(customerRoutes.help),
+    },
+    {
+      icon: AppIcons.profile.faq,
+      label: ui.profileMenuFaq,
+      tone: 'teal' as const,
+      onPress: () => appPush(customerRoutes.faq),
+    },
+    {
+      icon: AppIcons.profile.about,
+      label: ui.profileMenuAbout,
+      tone: 'gold' as const,
+      onPress: () => appPush(customerRoutes.about),
+    },
+    {
+      icon: AppIcons.profile.terms,
+      label: ui.profileMenuTerms,
+      tone: 'mint' as const,
+      onPress: () => appPush(customerRoutes.terms),
+    },
     {
       icon: AppIcons.profile.privacy,
-      label: 'Privacy',
+      label: ui.profileMenuPrivacy,
       tone: 'forest' as const,
       onPress: () => appPush(customerRoutes.privacy),
     },
@@ -289,6 +282,8 @@ export default function ProfileScreen() {
 
   const supportPhone = content.support.phone?.trim();
   const supportWa = content.support.whatsapp?.trim() || supportPhone;
+  const guarantee = content.trust.guaranteeText?.trim();
+  const trustBadges = content.trust.badges;
 
   return (
     <View style={styles.root}>
@@ -331,88 +326,31 @@ export default function ProfileScreen() {
             </View>
           ) : null}
 
-          <View style={styles.block}>
-            <View style={styles.quickRow}>
-              {quick.map((qa) => (
-                <Pressable
-                  key={qa.label}
-                  style={({ pressed }) => [styles.quickPress, pressed && styles.pressed]}
-                  onPress={qa.onPress}
-                >
-                  <GlassPanel style={styles.quickTile} padded={false} tone="light" goldEdge>
-                    <View style={styles.quickInner}>
-                      <PremiumIcon icon={qa.icon} variant="premium" size={20} gradient={qa.grad} boxSize={48} />
-                      <Text style={styles.quickLb}>{qa.label}</Text>
-                    </View>
-                  </GlassPanel>
-                </Pressable>
-              ))}
-            </View>
-          </View>
+          <ProfileQuickActions />
 
-          <View style={styles.block}>
-            <Text style={styles.sectionLabel}>Account</Text>
-            <GlassPanel style={styles.card} padded={false} tone="light" goldEdge>
-              {primaryRows.map((r, i) => (
-                <MenuRow key={r.label} {...r} showBorder={i > 0} />
-              ))}
-            </GlassPanel>
-          </View>
+          {guarantee ? (
+            <ProfileTrustBanner guaranteeText={guarantee} badges={trustBadges} />
+          ) : null}
+
+          <ProfileMenuSection title="Account">
+            {primaryRows.map((r, i) => (
+              <MenuRow key={r.label} {...r} showBorder={i > 0} />
+            ))}
+          </ProfileMenuSection>
 
           {(supportPhone || supportWa) && (
-            <View style={styles.block}>
-              <Text style={styles.sectionLabel}>Support</Text>
-              <View style={styles.supportRow}>
-                {supportPhone ? (
-                  <Pressable
-                    style={({ pressed }) => [styles.supportPress, pressed && styles.pressed]}
-                    onPress={() => void Linking.openURL(`tel:${digits(supportPhone)}`)}
-                  >
-                    <GlassPanel style={styles.supportTile} padded={false} tone="mint">
-                      <View style={styles.supportBtn}>
-                        <PremiumIcon
-                          icon={AppIcons.profile.call}
-                          variant="premium"
-                          size={16}
-                          gradient={IconGradients.forest}
-                          boxSize={36}
-                        />
-                        <Text style={styles.supportLb}>Call</Text>
-                      </View>
-                    </GlassPanel>
-                  </Pressable>
-                ) : null}
-                {supportWa ? (
-                  <Pressable
-                    style={({ pressed }) => [styles.supportPress, pressed && styles.pressed]}
-                    onPress={() => void Linking.openURL(`https://wa.me/${digits(supportWa)}`)}
-                  >
-                    <GlassPanel style={styles.supportTile} padded={false} tone="mint">
-                      <View style={styles.supportBtn}>
-                        <PremiumIcon
-                          icon={AppIcons.profile.chat}
-                          variant="premium"
-                          size={16}
-                          gradient={IconGradients.teal}
-                          boxSize={36}
-                        />
-                        <Text style={styles.supportLb}>Chat</Text>
-                      </View>
-                    </GlassPanel>
-                  </Pressable>
-                ) : null}
-              </View>
-            </View>
+            <ProfileSupportCard
+              phone={supportPhone}
+              whatsapp={supportWa}
+              hours={content.support.hours?.trim()}
+            />
           )}
 
-          <View style={styles.block}>
-            <Text style={styles.sectionLabel}>More</Text>
-            <GlassPanel style={styles.card} padded={false} tone="light" goldEdge>
-              {moreRows.map((r, i) => (
-                <MenuRow key={r.label} {...r} showBorder={i > 0} />
-              ))}
-            </GlassPanel>
-          </View>
+          <ProfileMenuSection title="More">
+            {moreRows.map((r, i) => (
+              <MenuRow key={r.label} {...r} showBorder={i > 0} />
+            ))}
+          </ProfileMenuSection>
 
           <Pressable style={({ pressed }) => [styles.logoutPress, pressed && styles.pressed]} onPress={confirmSignOut}>
             <GlassPanel style={styles.logout} padded={false} tone="light">
@@ -445,34 +383,6 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
   block: { paddingHorizontal: 20, marginTop: 18 },
 
-  sectionLabel: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 12,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: colors.forest,
-    marginBottom: 10,
-    paddingHorizontal: 2,
-  },
-
-  quickRow: { flexDirection: 'row', gap: 10 },
-  quickPress: { flex: 1 },
-  quickTile: { borderRadius: 22 },
-  quickInner: {
-    alignItems: 'center',
-    gap: 10,
-    paddingTop: 14,
-    paddingBottom: 12,
-    paddingHorizontal: 4,
-  },
-  quickLb: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 12,
-    letterSpacing: -0.2,
-    color: colors.ink,
-  },
-
-  card: { borderRadius: 22 },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -503,23 +413,6 @@ const styles = StyleSheet.create({
   menuTrail: {
     fontFamily: fonts.bodySemi,
     fontSize: 12,
-    color: colors.forest,
-  },
-
-  supportRow: { flexDirection: 'row', gap: 10 },
-  supportPress: { flex: 1 },
-  supportTile: { borderRadius: 18 },
-  supportBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-  },
-  supportLb: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 14,
     color: colors.forest,
   },
 
