@@ -102,7 +102,8 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md + 2,
+    // Must clear sliceHeight={20} so the slice never paints over the last text line.
+    paddingBottom: spacing.md + 8,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   textCol: { flex: 1, minWidth: 0 },

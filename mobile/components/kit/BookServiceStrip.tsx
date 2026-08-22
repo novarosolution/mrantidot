@@ -126,17 +126,20 @@ const styles = StyleSheet.create({
   shell: {
     marginBottom: -2,
   },
+  // Each paddingBottom must clear its HeroDarkSlice sliceHeight (20 / 16 / 14),
+  // otherwise the slice paints over the last line of text — it is drawn full-height
+  // at the left edge, exactly where the title and subtitle start.
   content: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
-    paddingBottom: spacing.md + 2,
+    paddingBottom: spacing.md + 8,
   },
   contentCompact: {
     paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.md + 4,
   },
   contentSlim: {
-    paddingBottom: spacing.xs,
+    paddingBottom: spacing.md + 2,
   },
   navRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: spacing.md },
   navRowCompact: { marginBottom: 0 },
