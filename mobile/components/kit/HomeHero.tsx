@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  ActivityIndicator,
   Animated,
   Easing,
   Pressable,
@@ -12,6 +11,7 @@ import {
 } from 'react-native';
 import { BrandLogo } from '@/components/BrandLogo';
 import { HeroDarkSlice } from '@/components/kit/HeroDarkSlice';
+import { LocationChip } from '@/components/kit/LocationChip';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { useAuth } from '@/context/AuthContext';
@@ -168,31 +168,14 @@ export function HomeHero({
             </Text>
           </View>
 
-          <Pressable
-            style={({ pressed }) => [styles.location, pressed && styles.pressed]}
-            onPress={() => void refreshLocation()}
-            disabled={locating}
-            accessibilityRole="button"
-            accessibilityLabel={locating ? 'Finding location' : 'Refresh location'}
-          >
-            <View style={styles.locationIcon}>
-              {locating ? (
-                <ActivityIndicator size="small" color={colors.forest} />
-              ) : (
-                <PremiumIcon icon={AppIcons.ui.mapPin} variant="plain" size={13} color={colors.forest} strokeWidth={2.4} fill="rgba(10,100,35,0.18)" />
-              )}
-            </View>
-            <Text style={styles.locationText} numberOfLines={1}>
-              {locating ? ui.homeFindingLocation : displayLabel || ui.homeSetLocation}
-            </Text>
-            <PremiumIcon
-              icon={AppIcons.ui.chevronDown}
-              variant="plain"
-              size={14}
-              color="rgba(255,255,255,0.92)"
-              strokeWidth={2.4}
+          <View style={styles.locationWrap}>
+            <LocationChip
+              variant="dark"
+              label={displayLabel || ui.homeSetLocation}
+              loading={locating}
+              onPress={() => void refreshLocation()}
             />
-          </Pressable>
+          </View>
         </Animated.View>
       </HeroDarkSlice>
 
@@ -350,34 +333,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.05,
     color: 'rgba(255,255,255,0.86)',
   },
-  location: {
+  locationWrap: {
     marginTop: 14,
     alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
     maxWidth: '100%',
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.34)',
-    borderRadius: 999,
-    paddingLeft: 6,
-    paddingRight: 12,
-    paddingVertical: 6,
-  },
-  locationIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  locationText: {
-    flexShrink: 1,
-    fontFamily: fonts.bodySemi,
-    fontSize: 13,
-    color: colors.white,
   },
   pressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
   searchOuter: {

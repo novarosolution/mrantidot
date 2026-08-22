@@ -8,11 +8,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   colors,
-  classic,
   customerType,
   gradients,
   headerTopPad,
-  premium,
   radius,
   spacing,
   surfaces,
@@ -229,15 +227,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   classicRuleGold: {
-    width: 28,
-    height: 2.5,
+    width: 36,
+    height: 3,
     borderRadius: 2,
-    backgroundColor: premium.accentGold,
+    backgroundColor: colors.limeBright,
   },
   classicRuleLine: {
     flex: 1,
     height: StyleSheet.hairlineWidth,
-    backgroundColor: classic.headerGoldLine,
+    backgroundColor: 'rgba(200,240,122,0.35)',
   },
   pressed: { opacity: 0.88, transform: [{ scale: 0.96 }] },
 });

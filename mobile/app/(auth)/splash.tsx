@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { LocationLaunchScreen } from '@/components/kit/LocationLaunchScreen';
 import { useLocation } from '@/context/LocationContext';
+import { isRealCity } from '@/lib/location';
 import { appReplace, authRoutes, customerRoutes, homeRouteForRole } from '@/lib/routes';
 import { isOnboardingDone } from '@/lib/onboarding';
 import { isProfileIncomplete } from '@/lib/profile-display';
@@ -54,7 +55,9 @@ export default function SplashScreen() {
     };
   }, [refreshLocation]);
 
-  const cityLabel = location?.city && location.city !== 'your area' ? location.city : displayLabel ?? undefined;
+  const cityLabel = isRealCity(location?.city)
+    ? location!.city
+    : displayLabel ?? undefined;
   const areaLabel = location?.area?.trim() || undefined;
 
   const ready =

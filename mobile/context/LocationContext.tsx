@@ -4,17 +4,19 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 import {
   fetchLaunchLocation,
-  formatLocationLabel,
   getCachedAppLocation,
   getCachedLaunchCity,
   getCurrentAddress,
+  isRealCity,
   resolvedToAppLocation,
   resolveDisplayCity,
+  resolveDisplayLabel,
   saveAppLocation,
   type AppLocation,
 } from '@/lib/location';
@@ -39,6 +41,28 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   const [cachedCity, setCachedCity] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [locating, setLocating] = useState(false);
+  const autoRefreshDone = useRef(false);
+
+  const setLocation = useCallback(async (loc: AppLocation) => {
+    setLocationState(loc);
+    await saveAppLocation(loc);
+    if (isRealCity(loc.city)) setCachedCity(loc.city);
+  }, []);
+
+  const refreshLocation = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      setLocating(true);
+      try {
+        const loc = await fetchLaunchLocation();
+        await setLocation(loc);
+        return loc;
+      } finally {
+        setLocating(false);
+        if (!opts?.silent) setLoaded(true);
+      }
+    },
+    [setLocation],
+  );
 
   useEffect(() => {
     void (async () => {
@@ -46,26 +70,13 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       setCachedCity(city);
       if (cachedLoc) setLocationState(cachedLoc);
       setLoaded(true);
+      // Always pull a fresh GPS fix after cache paint so chips show the real place.
+      if (!autoRefreshDone.current) {
+        autoRefreshDone.current = true;
+        void refreshLocation({ silent: true });
+      }
     })();
-  }, []);
-
-  const setLocation = useCallback(async (loc: AppLocation) => {
-    setLocationState(loc);
-    await saveAppLocation(loc);
-    if (loc.city && loc.city !== 'your area') setCachedCity(loc.city);
-  }, []);
-
-  const refreshLocation = useCallback(async (opts?: { silent?: boolean }) => {
-    setLocating(true);
-    try {
-      const loc = await fetchLaunchLocation();
-      await setLocation(loc);
-      return loc;
-    } finally {
-      setLocating(false);
-      if (!opts?.silent) setLoaded(true);
-    }
-  }, [setLocation]);
+  }, [refreshLocation]);
 
   const detectAddress = useCallback(async () => {
     setLocating(true);
@@ -85,16 +96,10 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     [cachedCity, location, user?.city],
   );
 
-  const displayLabel = useMemo(() => {
-    const profileCity = user?.city?.trim();
-    if (profileCity) {
-      const area = location?.area?.trim();
-      return area && !profileCity.toLowerCase().includes(area.toLowerCase())
-        ? `${area}, ${profileCity}`
-        : profileCity;
-    }
-    return formatLocationLabel(location) ?? (cachedCity && cachedCity !== 'your area' ? cachedCity : null);
-  }, [cachedCity, location, user?.city]);
+  const displayLabel = useMemo(
+    () => resolveDisplayLabel(user?.city, location, cachedCity),
+    [cachedCity, location, user?.city],
+  );
 
   const value = useMemo(
     (): LocationContextValue => ({

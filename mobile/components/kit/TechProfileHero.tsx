@@ -7,6 +7,7 @@ import { homeShadow } from '@/components/kit/homeUi';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { formatRupee } from '@/components/kit/format';
+import { useLocation } from '@/context/LocationContext';
 import type { DayAttendanceStatus, TechnicianStats } from '@/types/api';
 import { colors, fonts, gradients, headerTopPad, premium, premiumType, spacing, surfaces } from '@/constants/theme';
 
@@ -32,6 +33,8 @@ export function TechProfileHero({
   showStats?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const { displayLabel } = useLocation();
+  const placeLabel = displayLabel || city;
   const initial = name[0]?.toUpperCase() ?? 'T';
   const dutyVariant: 'on' | 'off' | 'leave' | 'pending' =
     todayStatus === 'leave'
@@ -89,11 +92,11 @@ export function TechProfileHero({
           {name}
         </Text>
         <View style={styles.compactMeta}>
-          {city ? (
+          {placeLabel ? (
             <View style={styles.compactMetaItem}>
               <PremiumIcon icon={AppIcons.techProfile.location} variant="plain" size="xs" color={colors.muted} />
               <Text style={styles.compactMetaText} numberOfLines={1}>
-                {city}
+                {placeLabel}
               </Text>
             </View>
           ) : null}
@@ -196,13 +199,13 @@ export function TechProfileHero({
                 <Text style={[styles.dutyText, dutyTextStyle]}>{dutyLabel}</Text>
               </View>
 
-              {(city || phone) && (
+              {(placeLabel || phone) && (
                 <View style={styles.metaRow}>
-                  {city ? (
+                  {placeLabel ? (
                     <View style={styles.metaChip}>
                       <PremiumIcon icon={AppIcons.techProfile.location} variant="plain" size="sm" color={colors.forest} />
                       <Text style={styles.metaText} numberOfLines={1}>
-                        {city}
+                        {placeLabel}
                       </Text>
                     </View>
                   ) : null}

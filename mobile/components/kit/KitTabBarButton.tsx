@@ -95,10 +95,10 @@ const styles = StyleSheet.create({
     width: 26,
     height: 3.5,
     borderRadius: 3,
-    backgroundColor: 'rgba(143,208,60,0.6)',
+    backgroundColor: colors.limeBright,
     shadowColor: colors.limeBright,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.75,
-    shadowRadius: 5,
+    shadowOpacity: 0.55,
+    shadowRadius: 6,
   },
 });

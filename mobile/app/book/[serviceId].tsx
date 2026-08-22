@@ -474,8 +474,19 @@ export default function BookWizardScreen() {
             {step === 2 && (
               <BookWizardStepPanel icon={AppIcons.ui.mapPin} title="Service address" animTrigger={step} compactHeader>
                 {displayLabel ? (
-                  <LocationBanner label={displayLabel} loading={locating} />
-                ) : null}
+                  <LocationBanner
+                    label={displayLabel}
+                    loading={locating}
+                    hint="Tap refresh for live GPS"
+                    onRefresh={() => void detectAddress()}
+                  />
+                ) : (
+                  <LocationBanner
+                    label="Tap refresh to detect your area"
+                    loading={locating}
+                    onRefresh={() => void detectAddress()}
+                  />
+                )}
                 <BookWizardSection step={1} title="Quick fill" compact>
                   <AddressLocateButton loading={locating} onPress={() => void fillAddressFromLocation()} />
                 </BookWizardSection>

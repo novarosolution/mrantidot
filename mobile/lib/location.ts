@@ -34,7 +34,7 @@ const FALLBACK: AppLocation = {
   updatedAt: 0,
 };
 
-const LOCATION_TIMEOUT_MS = 8000;
+const LOCATION_TIMEOUT_MS = 12_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -51,15 +51,37 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-function isRealCity(city?: string): city is string {
-  return Boolean(city?.trim() && city !== 'your area');
+export function isRealCity(city?: string | null): city is string {
+  const v = city?.trim();
+  if (!v) return false;
+  const lower = v.toLowerCase();
+  return lower !== 'your area' && lower !== 'set location' && lower !== 'unknown';
 }
 
+function sameIgnoreCase(a?: string | null, b?: string | null): boolean {
+  return Boolean(a && b && a.trim().toLowerCase() === b.trim().toLowerCase());
+}
+
+/** Prefer locality over state/country so the chip shows a real place. */
 function placeToFields(place: Location.LocationGeocodedAddress) {
   const parts = [place.name, place.street, place.district].filter((v): v is string => Boolean(v));
   const line1 = parts.filter((v, i) => parts.indexOf(v) === i).join(', ');
-  const city = place.city ?? place.subregion ?? place.region ?? '';
-  const area = place.district ?? place.name ?? place.street ?? '';
+  const country = place.country?.trim() || '';
+  const region = place.region?.trim() || '';
+  const subregion = place.subregion?.trim() || '';
+  const cityCandidate = place.city?.trim() || '';
+
+  let city = cityCandidate || subregion;
+  if (!city && region && !sameIgnoreCase(region, country)) {
+    city = region;
+  }
+
+  let area = place.district?.trim() || place.name?.trim() || place.street?.trim() || '';
+  if (area && city && sameIgnoreCase(area, city)) {
+    area = place.street?.trim() || place.name?.trim() || '';
+    if (area && sameIgnoreCase(area, city)) area = '';
+  }
+
   const pincode = place.postalCode ?? '';
   return { line1, city, area, pincode };
 }
@@ -97,21 +119,42 @@ export async function saveAppLocation(loc: AppLocation): Promise<void> {
 
 export function formatLocationLabel(loc?: AppLocation | null): string | null {
   if (!loc) return null;
-  const city = isRealCity(loc.city) ? loc.city : null;
+  const city = isRealCity(loc.city) ? loc.city.trim() : null;
   const area = loc.area?.trim();
-  if (area && city) return `${area}, ${city}`;
+  if (area && city) {
+    if (area.toLowerCase().includes(city.toLowerCase())) return area;
+    return `${area}, ${city}`;
+  }
   return city ?? area ?? null;
 }
 
+/**
+ * Prefer live GPS reverse-geocode over a stale profile city so the UI
+ * shows where the device actually is.
+ */
 export function resolveDisplayCity(
   userCity?: string | null,
   location?: AppLocation | null,
   cachedCity?: string | null,
 ): string | null {
+  if (isRealCity(location?.city)) return location!.city.trim();
+  if (isRealCity(cachedCity)) return cachedCity!.trim();
   const profile = userCity?.trim();
   if (profile) return profile;
-  if (isRealCity(location?.city)) return location!.city;
-  if (isRealCity(cachedCity ?? undefined)) return cachedCity!.trim();
+  return null;
+}
+
+/** Build the full chip/banner label — GPS first, then cache, then profile. */
+export function resolveDisplayLabel(
+  userCity?: string | null,
+  location?: AppLocation | null,
+  cachedCity?: string | null,
+): string | null {
+  const gps = formatLocationLabel(location);
+  if (gps) return gps;
+  if (isRealCity(cachedCity)) return cachedCity!.trim();
+  const profile = userCity?.trim();
+  if (profile) return profile;
   return null;
 }
 
@@ -124,9 +167,11 @@ export async function fetchLaunchLocation(): Promise<AppLocation> {
     );
     if (status !== 'granted') {
       const cached = await getCachedAppLocation();
-      if (cached) return { ...cached, granted: false, updatedAt: Date.now() };
+      if (cached && isRealCity(cached.city)) {
+        return { ...cached, granted: false, updatedAt: Date.now() };
+      }
       const city = await getCachedLaunchCity();
-      if (city) return { city, area: '', granted: false, updatedAt: Date.now() };
+      if (isRealCity(city)) return { city: city!, area: '', granted: false, updatedAt: Date.now() };
       return { ...FALLBACK, updatedAt: Date.now() };
     }
 
@@ -143,10 +188,11 @@ export async function fetchLaunchLocation(): Promise<AppLocation> {
     let pincode = '';
 
     try {
-      const [place] = await Location.reverseGeocodeAsync({ latitude, longitude });
+      const places = await Location.reverseGeocodeAsync({ latitude, longitude });
+      const place = places?.[0];
       if (place) {
         const fields = placeToFields(place);
-        city = fields.city || city;
+        if (isRealCity(fields.city)) city = fields.city;
         area = fields.area;
         line1 = fields.line1;
         pincode = fields.pincode;
@@ -169,9 +215,11 @@ export async function fetchLaunchLocation(): Promise<AppLocation> {
     return loc;
   } catch {
     const cached = await getCachedAppLocation();
-    if (cached) return { ...cached, granted: false, updatedAt: Date.now() };
+    if (cached && isRealCity(cached.city)) {
+      return { ...cached, granted: false, updatedAt: Date.now() };
+    }
     const city = await getCachedLaunchCity();
-    if (city) return { city, area: '', granted: false, updatedAt: Date.now() };
+    if (isRealCity(city)) return { city: city!, area: '', granted: false, updatedAt: Date.now() };
     return { ...FALLBACK, updatedAt: Date.now() };
   }
 }
@@ -204,7 +252,8 @@ export async function getCurrentAddress(): Promise<ResolvedAddress | null> {
   let area = '';
 
   try {
-    const [place] = await Location.reverseGeocodeAsync({ latitude, longitude });
+    const places = await Location.reverseGeocodeAsync({ latitude, longitude });
+    const place = places?.[0];
     if (place) {
       const fields = placeToFields(place);
       line1 = fields.line1;
@@ -218,7 +267,7 @@ export async function getCurrentAddress(): Promise<ResolvedAddress | null> {
 
   const resolved: ResolvedAddress = { line1, city, pincode, lat: latitude, lng: longitude, area };
   await saveAppLocation({
-    city: city || 'your area',
+    city: isRealCity(city) ? city : 'your area',
     area,
     line1: line1 || undefined,
     pincode: pincode || undefined,
@@ -232,7 +281,7 @@ export async function getCurrentAddress(): Promise<ResolvedAddress | null> {
 
 export function resolvedToAppLocation(resolved: ResolvedAddress, granted = true): AppLocation {
   return {
-    city: resolved.city || 'your area',
+    city: isRealCity(resolved.city) ? resolved.city : 'your area',
     area: resolved.area ?? '',
     line1: resolved.line1 || undefined,
     pincode: resolved.pincode || undefined,

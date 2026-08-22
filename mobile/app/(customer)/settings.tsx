@@ -14,6 +14,7 @@ import { AppIcons } from '@/constants/appIcons';
 import { useAuth } from '@/context/AuthContext';
 import { useLocation } from '@/context/LocationContext';
 import { api } from '@/lib/api';
+import { isRealCity } from '@/lib/location';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { displayUserEmail, displayUserName, isProfileIncomplete } from '@/lib/profile-display';
 import { colors, fonts, spacing, surfaces } from '@/constants/theme';
@@ -48,9 +49,9 @@ export default function SettingsScreen() {
 
   async function detectCity() {
     const loc = await detectAddress();
-    if (loc?.city && loc.city !== 'your area') {
-      setCity(loc.city);
-      appToast.success('City updated from GPS');
+    if (isRealCity(loc?.city)) {
+      setCity(loc!.city);
+      appToast.success('Location updated', loc!.area ? `${loc!.area}, ${loc!.city}` : loc!.city);
     }
   }
 
@@ -88,16 +89,15 @@ export default function SettingsScreen() {
         </View>
       </GlassPanel>
 
-      {displayLabel ? (
-        <GlassPanel>
-          <LocationBanner
-            label={displayLabel}
-            loading={locating}
-            onRefresh={() => void detectCity()}
-            embedded
-          />
-        </GlassPanel>
-      ) : null}
+      <GlassPanel>
+        <LocationBanner
+          label={displayLabel || 'Tap refresh to detect your real location'}
+          loading={locating}
+          hint="Uses live GPS — not your saved profile city"
+          onRefresh={() => void detectCity()}
+          embedded
+        />
+      </GlassPanel>
 
       <GlassSectionLabel title="Profile details" hint="Update your contact information" />
       <GlassPanel>
