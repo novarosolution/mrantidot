@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   wrapOverlap: {
-    marginTop: -28,
+    marginTop: -20,
     zIndex: 2,
   },
   card: {

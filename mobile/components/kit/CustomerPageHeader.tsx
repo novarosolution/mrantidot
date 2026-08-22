@@ -110,7 +110,7 @@ export function CustomerPageHeader({
         style={styles.premiumShell}
         contentStyle={[
           styles.premiumContent,
-          { paddingBottom: overlapReserve ? spacing.xl + 28 : spacing.md + 10 },
+          { paddingBottom: overlapReserve ? spacing.xl + 48 : spacing.md + 10 },
         ]}
         sliceHeight={22}
       >
