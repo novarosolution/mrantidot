@@ -87,7 +87,9 @@ export default function RootLayout() {
         <AuthProvider>
           <LocationProvider>
             <AppContentProvider>
-              <StatusBar style="dark" />
+              {/* Every screen opens on a dark forest hero (HeroDarkSlice / auth / launch),
+                  so the clock + battery need light glyphs to stay legible. */}
+              <StatusBar style="light" />
               <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: design.screenBg } }} />
               <AppToastHost />
             </AppContentProvider>

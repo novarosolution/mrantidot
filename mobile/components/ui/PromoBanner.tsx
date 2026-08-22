@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { BrandLogo } from '@/components/BrandLogo';
+import { ctaLabelText } from '@/components/kit/format';
 import type { HomePromo } from '@/types/api';
 import { colors, fonts, gradients, premium, shadows, spacing } from '@/constants/theme';
 
@@ -20,8 +21,10 @@ export function PromoBanner({
   promo?: HomePromo | null;
   onPress?: () => void;
 }) {
-  const p = promo?.active === true ? { ...DEFAULT_PROMO, ...promo, active: true } : null;
-  if (!p?.title?.trim()) return null;
+  const raw = promo?.active === true ? { ...DEFAULT_PROMO, ...promo, active: true } : null;
+  if (!raw?.title?.trim()) return null;
+  // The CTA row renders its own arrow icon, so drop any arrow the admin typed.
+  const p = { ...raw, ctaLabel: ctaLabelText(raw.ctaLabel) };
 
   return (
     <Pressable

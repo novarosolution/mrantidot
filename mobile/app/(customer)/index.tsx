@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, RefreshControl, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeHero } from '@/components/kit/HomeHero';
+import { ScreenTopScrim } from '@/components/kit/ScreenTopScrim';
 import { HomePromoCarousel } from '@/components/kit/HomePromoCarousel';
 import { GlassBackdrop, TAB_BAR_SCROLL_PAD, customerScrollProps } from '@/components/kit/GlassScreenKit';
 import { HomeQuickActions } from '@/components/kit/HomeQuickActions';
@@ -39,6 +40,10 @@ export default function CustomerHome() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [heroHeight, setHeroHeight] = useState(0);
+  /** Scroll offset where the hero's bottom edge reaches the status bar. */
+  const scrimRevealAt = heroHeight > 0 ? Math.max(heroHeight - insets.top, 1) : 0;
 
   const brandName = content.branding.name?.trim() || 'Mr Antidot';
 
@@ -173,26 +178,32 @@ export default function CustomerHome() {
     <View style={styles.rootShell}>
       <GlassBackdrop />
       <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <ScrollView
+      <Animated.ScrollView
         style={styles.root}
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />
         }
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: true,
+        })}
+        scrollEventThrottle={16}
         {...customerScrollProps}
       >
-        <HomeHero
-          topInset={insets.top}
-          brandName={brandName}
-          heroEyebrow={homeConfig.heroEyebrow}
-          heroSubtitle={homeConfig.heroSubtitle}
-          searchPlaceholder={homeConfig.searchPlaceholder}
-          query={q}
-          onChangeQuery={setQ}
-          onSubmitSearch={() => safeAsync(() => loadServices())}
-          unread={unread}
-        />
+        <View onLayout={(e) => setHeroHeight(e.nativeEvent.layout.height)}>
+          <HomeHero
+            topInset={insets.top}
+            brandName={brandName}
+            heroEyebrow={homeConfig.heroEyebrow}
+            heroSubtitle={homeConfig.heroSubtitle}
+            searchPlaceholder={homeConfig.searchPlaceholder}
+            query={q}
+            onChangeQuery={setQ}
+            onSubmitSearch={() => safeAsync(() => loadServices())}
+            unread={unread}
+          />
+        </View>
 
         <FadeSlideIn disabled delay={40}>
           <HomePromoCarousel
@@ -257,8 +268,9 @@ export default function CustomerHome() {
         <FadeSlideIn disabled delay={220}>
           <HomeTrustStrip guaranteeText={content.trust.guaranteeText} />
         </FadeSlideIn>
-      </ScrollView>
+      </Animated.ScrollView>
       </SafeAreaView>
+      <ScreenTopScrim scrollY={scrollY} revealAt={scrimRevealAt} />
     </View>
   );
 }

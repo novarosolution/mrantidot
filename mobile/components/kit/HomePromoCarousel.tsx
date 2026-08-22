@@ -15,6 +15,7 @@ import { AppIcons } from '@/constants/appIcons';
 import type { HomeConfig, HomePromo } from '@/types/api';
 import { colors, fonts } from '@/constants/theme';
 import { homeShadow } from '@/components/kit/homeUi';
+import { ctaLabelText } from '@/components/kit/format';
 import { DEFAULT_HOME_CONFIG } from '@/constants/homeContent';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
@@ -54,7 +55,7 @@ export function HomePromoCarousel({
   const offerOn = promo?.active === true && Boolean(promo?.title?.trim());
   const code = homeConfig?.promoCodeHint?.trim() || '';
   const bookTitle = homeConfig?.bookSlideTitle?.trim() || DEFAULT_HOME_CONFIG.bookSlideTitle!;
-  const bookCta = homeConfig?.bookSlideCta?.trim() || DEFAULT_HOME_CONFIG.bookSlideCta!;
+  const bookCta = ctaLabelText(homeConfig?.bookSlideCta) || DEFAULT_HOME_CONFIG.bookSlideCta!;
   const bookSub =
     homeConfig?.bookSlideFallbackSub?.trim() || DEFAULT_HOME_CONFIG.bookSlideFallbackSub!;
 
@@ -71,7 +72,7 @@ export function HomePromoCarousel({
           {
             key: 'offer',
             title: promo!.title!.trim(),
-            cta: promo?.ctaLabel?.trim() || 'Claim offer',
+            cta: ctaLabelText(promo?.ctaLabel) || 'Claim offer',
             tone: 'offer' as const,
             code: code || undefined,
           },
