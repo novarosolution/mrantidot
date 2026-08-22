@@ -42,7 +42,7 @@ import {
   isVerificationPhase,
 } from '@/lib/booking-helpers';
 import { getCustomerTrackingSteps, getStatusGuidance, useBookingCopy } from '@/lib/schedule-copy';
-import type { Booking, WorkOtpView } from '@/types/api';
+import type { Booking, Review, WorkOtpView } from '@/types/api';
 import { colors, fonts, spacing, surfaces } from '@/constants/theme';
 import { sharedRoutes, appPush } from '@/lib/routes';
 
@@ -81,11 +81,11 @@ export default function CustomerBookingDetailScreen() {
       : { cacheTtlMs: CACHE_TTL.bookingDetail };
     const [bookingRes, reviewRes] = await Promise.allSettled([
       api.get<{ booking: Booking }>(`/bookings/${id}`, { ...screenLoadConfig, ...cacheOpts }),
-      api.get(`/reviews/booking/${id}`, { ...screenLoadConfig, ...cacheOpts }),
+      api.get<{ review: Review | null }>(`/reviews/booking/${id}`, { ...screenLoadConfig, ...cacheOpts }),
     ]);
     if (bookingRes.status !== 'fulfilled') throw bookingRes.reason;
     setBooking(bookingRes.value.data.booking);
-    setHasReview(reviewRes.status === 'fulfilled');
+    setHasReview(reviewRes.status === 'fulfilled' && Boolean(reviewRes.value.data.review));
   }, [id]);
 
   useEffect(() => {

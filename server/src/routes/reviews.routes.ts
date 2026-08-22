@@ -133,9 +133,7 @@ reviewsRouter.get(
       bookingId: req.params.id,
       ...(role === 'admin' ? {} : { hidden: { $ne: true } }),
     });
-    if (!review) {
-      throw new AppError(404, 'Review not found');
-    }
-    res.json({ review: formatReview(review) });
+    // No review yet is a normal state for this existence check, not an error — 200 + null.
+    res.json({ review: review ? formatReview(review) : null });
   }),
 );
