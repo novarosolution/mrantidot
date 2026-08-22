@@ -8,7 +8,7 @@ import { IUser, User } from '../models/User';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { AppError } from '../utils/AppError';
 import { asyncHandler } from '../middleware/error';
-import { formatBooking, formatBookingForRole } from '../utils/format';
+import { formatBookingForRole } from '../utils/format';
 import { buildBookingInvoice } from '../utils/invoice';
 import {
   activateNextStep,

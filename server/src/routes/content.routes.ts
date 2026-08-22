@@ -42,54 +42,6 @@ async function getOrCreateAppDoc() {
   return doc;
 }
 
-function formatHomePromo(doc: Awaited<ReturnType<typeof getOrCreateHomeDoc>>) {
-  const p = doc.homePromo ?? DEFAULT_HOME_PROMO;
-  return {
-    badge: p.badge,
-    title: p.title,
-    ctaLabel: p.ctaLabel,
-    serviceId: p.serviceId ? String(p.serviceId) : undefined,
-    active: p.active !== false,
-  };
-}
-
-function formatHomeConfig(doc: Awaited<ReturnType<typeof getOrCreateHomeDoc>>) {
-  const c = doc.homeConfig ?? DEFAULT_HOME_CONFIG;
-  const titles = c.sectionTitles ?? DEFAULT_HOME_CONFIG.sectionTitles;
-  const ql = c.quickLabels ?? DEFAULT_HOME_CONFIG.quickLabels!;
-  return {
-    featuredServiceId: c.featuredServiceId ? String(c.featuredServiceId) : undefined,
-    sectionTitles: {
-      services: titles.services ?? DEFAULT_HOME_CONFIG.sectionTitles.services,
-      popular: titles.popular ?? DEFAULT_HOME_CONFIG.sectionTitles.popular,
-    },
-    searchPlaceholder: c.searchPlaceholder ?? DEFAULT_HOME_CONFIG.searchPlaceholder,
-    servicesSubtitle: c.servicesSubtitle ?? DEFAULT_HOME_CONFIG.servicesSubtitle,
-    servicesActionLabel: c.servicesActionLabel ?? DEFAULT_HOME_CONFIG.servicesActionLabel,
-    popularActionLabel: c.popularActionLabel ?? DEFAULT_HOME_CONFIG.popularActionLabel,
-    serviceTypesTitle: c.serviceTypesTitle ?? DEFAULT_HOME_CONFIG.serviceTypesTitle,
-    serviceTypesAction: c.serviceTypesAction ?? DEFAULT_HOME_CONFIG.serviceTypesAction,
-    bookSlideTitle: c.bookSlideTitle ?? DEFAULT_HOME_CONFIG.bookSlideTitle,
-    bookSlideCta: c.bookSlideCta ?? DEFAULT_HOME_CONFIG.bookSlideCta,
-    bookSlideFallbackSub: c.bookSlideFallbackSub ?? DEFAULT_HOME_CONFIG.bookSlideFallbackSub,
-    promoCodeHint: c.promoCodeHint ?? DEFAULT_HOME_CONFIG.promoCodeHint,
-    heroEyebrow: c.heroEyebrow ?? DEFAULT_HOME_CONFIG.heroEyebrow,
-    heroSubtitle: c.heroSubtitle ?? DEFAULT_HOME_CONFIG.heroSubtitle,
-    quickLabels: {
-      book: ql.book ?? DEFAULT_HOME_CONFIG.quickLabels!.book,
-      bookings: ql.bookings ?? DEFAULT_HOME_CONFIG.quickLabels!.bookings,
-      offers: ql.offers ?? DEFAULT_HOME_CONFIG.quickLabels!.offers,
-      help: ql.help ?? DEFAULT_HOME_CONFIG.quickLabels!.help,
-    },
-    categoryChips:
-      c.categoryChips?.length > 0 ? c.categoryChips.map((ch) => ({
-          label: ch.label,
-          category: ch.category || undefined,
-        }))
-      : DEFAULT_HOME_CONFIG.categoryChips,
-  };
-}
-
 function mergeHomeConfig(
   current: IHomeConfig,
   patch: Record<string, unknown>,

@@ -7,12 +7,13 @@ if (!fs.existsSync(env.uploadDir)) {
   fs.mkdirSync(env.uploadDir, { recursive: true });
 }
 
-/** Phone cameras often exceed 5MB even at mid quality — allow up to 12MB. */
-const MAX_SIZE = 12 * 1024 * 1024;
+/** Phone cameras often exceed 5MB even at mid quality — allow up to 15MB. */
+const MAX_SIZE = 15 * 1024 * 1024;
 
 const EXT_BY_MIME: Record<string, string> = {
   'image/jpeg': '.jpg',
   'image/jpg': '.jpg',
+  'image/pjpeg': '.jpg',
   'image/png': '.png',
   'image/webp': '.webp',
   'image/gif': '.gif',
@@ -21,18 +22,23 @@ const EXT_BY_MIME: Record<string, string> = {
   'image/bmp': '.bmp',
   'image/avif': '.avif',
   'image/tiff': '.tiff',
+  'image/x-png': '.png',
 };
 
 // SVG is intentionally excluded — it can embed executable <script> content and is a
 // stored-XSS risk once served back from /uploads, and job photos are always raster.
 const IMAGE_EXT = /\.(jpe?g|png|gif|webp|heic|heif|bmp|avif|tiff?)$/i;
 const SVG_MIME = 'image/svg+xml';
+const LOOSE_IMAGE_MIME = /^(application\/octet-stream|binary\/octet-stream)$/i;
 
 function isImageFile(file: Express.Multer.File): boolean {
   const mime = file.mimetype?.toLowerCase() ?? '';
-  if (mime === SVG_MIME || /\.svg$/i.test(file.originalname)) return false;
+  const name = file.originalname ?? '';
+  if (mime === SVG_MIME || /\.svg$/i.test(name)) return false;
   if (mime.startsWith('image/')) return true;
-  return IMAGE_EXT.test(file.originalname);
+  // Android sometimes sends octet-stream; accept when the filename looks like an image.
+  if (LOOSE_IMAGE_MIME.test(mime) && IMAGE_EXT.test(name)) return true;
+  return IMAGE_EXT.test(name);
 }
 
 function safeExtension(file: Express.Multer.File): string {

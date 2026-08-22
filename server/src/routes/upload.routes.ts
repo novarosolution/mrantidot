@@ -24,7 +24,7 @@ function multerMiddleware(req: Request, res: Response, next: NextFunction): void
           ? String((err as { code?: string }).code ?? '')
           : '';
       if (code === 'LIMIT_FILE_SIZE') {
-        next(new AppError(400, 'Photo is too large. Max size is 12 MB.'));
+        next(new AppError(400, 'Photo is too large. Max size is 15 MB.'));
         return;
       }
       if (code === 'LIMIT_UNEXPECTED_FILE') {
@@ -45,7 +45,16 @@ uploadRouter.post(
   asyncHandler(async (req, res) => {
     const uploaded = collectFiles(req);
     if (uploaded.length === 0) {
-      throw new AppError(400, 'No images uploaded');
+      throw new AppError(
+        400,
+        'No images uploaded. Send multipart field "photo" (or photos / images).',
+      );
+    }
+    // Ensure files landed on disk (permission / disk-full edge cases).
+    for (const file of uploaded) {
+      if (!file.path || !file.filename) {
+        throw new AppError(500, 'Upload storage failed. Try again.');
+      }
     }
     res.json({ urls: filesToUrls(uploaded) });
   }),

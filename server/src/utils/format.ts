@@ -1,4 +1,4 @@
-import { Document, Types } from 'mongoose';
+import { Types } from 'mongoose';
 import { IUser } from '../models/User';
 import { IService } from '../models/Service';
 import { IBooking } from '../models/Booking';

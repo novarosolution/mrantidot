@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { Booking, IBooking, IBookingStep } from '../models/Booking';
+import { Booking, IBookingStep } from '../models/Booking';
 import { IService } from '../models/Service';
 import { User } from '../models/User';
 import { AppError } from './AppError';
