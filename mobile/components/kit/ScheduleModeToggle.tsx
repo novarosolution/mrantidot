@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
-import { colors, fonts, surfaces } from '@/constants/theme';
+import { CalendarClock, Clock3 } from 'lucide-react-native';
+import { colors, fonts, ui } from '@/constants/theme';
 
+/** Two side-by-side option cards — 2-hour window vs a specific time. */
 export function ScheduleModeToggle({
   mode,
   onChange,
@@ -14,117 +14,64 @@ export function ScheduleModeToggle({
   standardLabel?: string;
   customLabel?: string;
 }) {
+  const options = [
+    { key: 'standard' as const, label: standardLabel, desc: '2-hour arrival window', Icon: CalendarClock },
+    { key: 'custom' as const, label: customLabel, desc: 'Pick an exact time', Icon: Clock3 },
+  ];
   return (
-    <View style={styles.track}>
-      <Pressable
-        style={[styles.option, mode === 'standard' && styles.optionOn]}
-        onPress={() => onChange('standard')}
-      >
-        <View style={[styles.iconWrap, mode === 'standard' && styles.iconWrapOn]}>
-          <PremiumIcon
-            icon={AppIcons.ui.calendar}
-            variant="plain"
-            size={20}
-            color={mode === 'standard' ? colors.forest : colors.muted}
-          />
-        </View>
-        <View style={styles.textCol}>
-          <Text style={[styles.label, mode === 'standard' && styles.labelOn]}>{standardLabel}</Text>
-          <Text style={[styles.desc, mode === 'standard' && styles.descOn]}>2-hour slots · 24/7</Text>
-        </View>
-        {mode === 'standard' ? (
-          <View style={styles.check}>
-            <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={14} color={colors.white} strokeWidth={3} />
-          </View>
-        ) : null}
-      </Pressable>
-
-      <View style={styles.divider} />
-
-      <Pressable
-        style={[styles.option, mode === 'custom' && styles.optionOn]}
-        onPress={() => onChange('custom')}
-      >
-        <View style={[styles.iconWrap, mode === 'custom' && styles.iconWrapOn]}>
-          <PremiumIcon
-            icon={AppIcons.ui.clock}
-            variant="plain"
-            size={20}
-            color={mode === 'custom' ? colors.forest : colors.muted}
-          />
-        </View>
-        <View style={styles.textCol}>
-          <Text style={[styles.label, mode === 'custom' && styles.labelOn]}>{customLabel}</Text>
-          <Text style={[styles.desc, mode === 'custom' && styles.descOn]}>Any time · 24/7</Text>
-        </View>
-        {mode === 'custom' ? (
-          <View style={styles.check}>
-            <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={14} color={colors.white} strokeWidth={3} />
-          </View>
-        ) : null}
-      </Pressable>
+    <View style={styles.row}>
+      {options.map(({ key, label, desc, Icon }) => {
+        const on = mode === key;
+        return (
+          <Pressable
+            key={key}
+            style={({ pressed }) => [styles.option, on && styles.optionOn, pressed && styles.pressed]}
+            onPress={() => onChange(key)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: on }}
+          >
+            <View style={styles.top}>
+              <Icon size={18} color={on ? ui.brand : ui.textSecondary} strokeWidth={2.1} />
+              <View style={[styles.radio, on && styles.radioOn]}>{on ? <View style={styles.radioDot} /> : null}</View>
+            </View>
+            <Text style={[styles.label, on && styles.labelOn]} numberOfLines={1}>
+              {label}
+            </Text>
+            <Text style={styles.desc} numberOfLines={1}>
+              {desc}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  track: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
-    backgroundColor: surfaces.glass,
-  },
+  row: { flexDirection: 'row', gap: 10 },
   option: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    backgroundColor: 'transparent',
-  },
-  optionOn: {
-    backgroundColor: colors.soft,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: surfaces.glassBorder,
-    marginHorizontal: 14,
-  },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: surfaces.glass,
-    alignItems: 'center',
-    justifyContent: 'center',
+    flex: 1,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.border,
   },
-  iconWrapOn: {
-    borderColor: 'rgba(143,208,60,0.45)',
-    backgroundColor: colors.soft,
-  },
-  textCol: { flex: 1 },
-  label: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 14,
-    color: colors.ink,
-  },
-  labelOn: { color: colors.forest },
-  desc: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: 2,
-  },
-  descOn: { color: colors.forest, opacity: 0.85 },
-  check: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.green,
+  optionOn: { backgroundColor: ui.brandSoft, borderColor: ui.brand, borderWidth: 1.5 },
+  pressed: { opacity: 0.8 },
+  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  radio: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: ui.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  radioOn: { borderColor: ui.brand },
+  radioDot: { width: 9, height: 9, borderRadius: 4.5, backgroundColor: ui.brand },
+  label: { fontFamily: fonts.bodyBold, fontSize: 14, color: ui.text },
+  labelOn: { color: ui.brand },
+  desc: { marginTop: 2, fontFamily: fonts.body, fontSize: 12, color: ui.textSecondary },
 });

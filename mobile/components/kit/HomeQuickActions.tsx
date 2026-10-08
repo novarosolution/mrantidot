@@ -1,92 +1,88 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { AppIcons, IconGradients } from '@/constants/appIcons';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { GlassPanel } from '@/components/kit/GlassScreenKit';
-import { colors, fonts } from '@/constants/theme';
-import { useAppContent } from '@/context/AppContentContext';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppIconImages } from '@/constants/appImageIcons';
+import { colors, fonts, ui } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
-import { homeShadow } from '@/components/kit/homeUi';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { useAppContent } from '@/context/AppContentContext';
 
-const ACTION_META = [
-  {
-    key: 'book' as const,
-    icon: AppIcons.quick.book,
-    route: customerRoutes.services,
-    grad: IconGradients.forest,
-  },
-  {
-    key: 'bookings' as const,
-    icon: AppIcons.quick.bookings,
-    route: customerRoutes.bookings,
-    grad: IconGradients.teal,
-  },
-  {
-    key: 'offers' as const,
-    icon: AppIcons.quick.offers,
-    route: customerRoutes.offers,
-    grad: IconGradients.gold,
-  },
-  {
-    key: 'help' as const,
-    icon: AppIcons.quick.support,
-    route: customerRoutes.help,
-    grad: ['#3A9688', '#2A756A', '#1D5C52'] as const,
-  },
-];
-
-export function HomeQuickActions() {
+/** Home shortcut row — generated mint-tile icons (Book / Bookings / Offers / Help). */
+export function HomeQuickActions({ background }: { background?: string } = {}) {
+  const copy = useCustomerUiCopy();
   const { homeConfig } = useAppContent();
-  const labels = homeConfig.quickLabels;
+  const ql = homeConfig.quickLabels;
+
+  const actions = [
+    {
+      key: 'book',
+      label: ql?.book?.trim() || copy.profileQuickBook,
+      image: AppIconImages.quick.book,
+      route: customerRoutes.services,
+    },
+    {
+      key: 'bookings',
+      label: ql?.bookings?.trim() || copy.profileQuickBookings,
+      image: AppIconImages.quick.bookings,
+      route: customerRoutes.bookings,
+    },
+    {
+      key: 'offers',
+      label: ql?.offers?.trim() || copy.profileQuickOffers,
+      image: AppIconImages.quick.offers,
+      route: customerRoutes.offers,
+    },
+    {
+      key: 'help',
+      label: ql?.help?.trim() || copy.profileQuickSupport,
+      image: AppIconImages.quick.support,
+      route: customerRoutes.help,
+    },
+  ] as const;
 
   return (
-    <View style={styles.wrap}>
-      {ACTION_META.map((a) => {
-        const label = labels?.[a.key] ?? a.key;
-        return (
-          <Pressable
-            key={a.key}
-            style={({ pressed }) => [styles.press, pressed && styles.pressed]}
-            onPress={() => appPush(a.route)}
-          >
-            <GlassPanel style={styles.tile} padded={false} tone="light" intensity={50}>
-              <View style={styles.inner}>
-                <PremiumIcon icon={a.icon} variant="premium" size={22} gradient={a.grad} boxSize={52} />
-                <Text style={styles.label} numberOfLines={1}>
-                  {label}
-                </Text>
-              </View>
-            </GlassPanel>
-          </Pressable>
-        );
-      })}
+    <View style={[styles.row, background ? { backgroundColor: background } : null]}>
+      {actions.map((a) => (
+        <Pressable
+          key={a.key}
+          style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
+          onPress={() => appPush(a.route)}
+          accessibilityRole="button"
+          accessibilityLabel={a.label}
+        >
+          <Image source={a.image} style={styles.icon} resizeMode="cover" />
+          <Text style={styles.label} numberOfLines={1}>
+            {a.label}
+          </Text>
+        </Pressable>
+      ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
+  row: {
     flexDirection: 'row',
+    paddingHorizontal: 16,
     gap: 10,
-    paddingHorizontal: 20,
-    paddingTop: 18,
+    paddingTop: 2,
+    paddingBottom: 18,
+    backgroundColor: colors.white,
   },
-  press: { flex: 1 },
   tile: {
-    borderRadius: 22,
-    ...homeShadow.tile,
-  },
-  inner: {
+    flex: 1,
     alignItems: 'center',
-    gap: 10,
-    paddingTop: 14,
-    paddingBottom: 12,
+    backgroundColor: colors.white,
+    borderRadius: 18,
+    paddingTop: 10,
+    paddingBottom: 9,
     paddingHorizontal: 4,
+    gap: 6,
+    ...ui.shadow,
   },
-  pressed: { transform: [{ scale: 0.95 }] },
+  pressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
+  icon: { width: 42, height: 42, borderRadius: 13 },
   label: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 11.5,
-    letterSpacing: -0.2,
-    color: colors.ink,
+    fontFamily: fonts.bodySemi,
+    fontSize: 12,
+    color: ui.text,
   },
 });

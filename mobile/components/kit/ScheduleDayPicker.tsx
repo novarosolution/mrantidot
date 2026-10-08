@@ -1,7 +1,8 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { nextBookableDays } from '@/lib/dates';
-import { colors, fonts, surfaces } from '@/constants/theme';
+import { colors, fonts, ui } from '@/constants/theme';
 
+/** Day chips — "Today / Tomorrow" then weekday, with the date number (Urban-style date row). */
 export function ScheduleDayPicker({
   selectedDate,
   onSelect,
@@ -22,21 +23,19 @@ export function ScheduleDayPicker({
     >
       {days.map((d, i) => {
         const on = selectedDate === d.date;
-        const isToday = i === 0;
+        const top = i === 0 ? 'Today' : i === 1 ? 'Tmrw' : d.weekday;
         return (
           <Pressable
             key={d.date}
             style={({ pressed }) => [styles.card, on && styles.cardOn, pressed && styles.pressed]}
             onPress={() => onSelect(d.date, i)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={`${i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.weekday}, ${d.month} ${d.dayNum}`}
           >
-            <Text style={[styles.week, on && styles.textOn]}>{d.weekday}</Text>
+            <Text style={[styles.week, on && styles.textOn]}>{top}</Text>
             <Text style={[styles.num, on && styles.textOn]}>{d.dayNum}</Text>
-            <Text style={[styles.month, on && styles.monthOn]}>{d.month}</Text>
-            {isToday ? (
-              <View style={[styles.todayDot, on && styles.todayDotOn]} />
-            ) : (
-              <View style={styles.todaySpacer} />
-            )}
+            <Text style={[styles.month, on && styles.textOn]}>{d.month}</Text>
           </Pressable>
         );
       })}
@@ -45,55 +44,20 @@ export function ScheduleDayPicker({
 }
 
 const styles = StyleSheet.create({
-  row: {
-    gap: 8,
-    paddingVertical: 2,
-    paddingRight: 4,
-  },
+  row: { gap: 8, paddingRight: 4 },
   card: {
     width: 62,
     paddingVertical: 10,
-    paddingHorizontal: 4,
     alignItems: 'center',
-    borderRadius: 16,
-    backgroundColor: surfaces.glass,
-    borderWidth: 1.5,
-    borderColor: surfaces.glassBorderStrong,
+    borderRadius: 14,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.border,
   },
-  cardOn: {
-    backgroundColor: colors.soft,
-    borderColor: colors.forest,
-    borderWidth: 2,
-  },
-  pressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
-  week: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 10,
-    color: colors.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  num: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 20,
-    color: colors.ink,
-    marginTop: 2,
-  },
-  month: {
-    fontFamily: fonts.body,
-    fontSize: 10,
-    color: colors.muted,
-    marginTop: 2,
-  },
-  monthOn: { color: colors.forest },
-  textOn: { color: colors.forest },
-  todayDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: colors.limeBright,
-    marginTop: 6,
-  },
-  todayDotOn: { backgroundColor: colors.forest },
-  todaySpacer: { height: 5, marginTop: 6 },
+  cardOn: { backgroundColor: ui.brandSoft, borderColor: ui.brand, borderWidth: 1.5 },
+  pressed: { opacity: 0.75 },
+  week: { fontFamily: fonts.bodySemi, fontSize: 11.5, color: ui.textSecondary },
+  num: { marginTop: 2, fontFamily: fonts.displayExtra, fontSize: 20, lineHeight: 25, color: ui.text },
+  month: { fontFamily: fonts.bodyMedium, fontSize: 11, color: ui.textTertiary },
+  textOn: { color: ui.brand },
 });

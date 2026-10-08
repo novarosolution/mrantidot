@@ -1,13 +1,10 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useBookingCopy } from '@/lib/schedule-copy';
-import { colors, fonts, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 type FilterKey = 'active' | 'completed' | 'cancelled';
 
-const DEEP = colors.forest;
-const BORDER = '#E2F0D8';
-
+/** Premium segmented filter — full-width capsule with count badges. */
 export function BookingsSummaryBar({
   active,
   completed,
@@ -30,96 +27,71 @@ export function BookingsSummaryBar({
   const values: Record<FilterKey, number> = { active, completed, cancelled };
 
   return (
-    <View style={styles.wrap}>
-      <LinearGradient
-        colors={[colors.limeBright, colors.green, colors.forest]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.topBar}
-      />
-      <View style={styles.row}>
-        {TILES.map((tile, index) => {
-          const on = selected === tile.key;
-          return (
-            <Pressable
-              key={tile.key}
-              onPress={() => onSelect(tile.key)}
-              style={({ pressed }) => [
-                styles.cell,
-                index > 0 && styles.cellBorder,
-                pressed && styles.pressed,
-              ]}
-            >
-              <View style={[styles.valueBox, on && styles.valueBoxOn]}>
-                <Text style={[styles.value, on && styles.valueOn]}>{values[tile.key]}</Text>
-              </View>
-              <Text style={[styles.label, on && styles.labelOn]}>{tile.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+    <View style={styles.shell} accessibilityRole="tablist">
+      {TILES.map((tile) => {
+        const on = selected === tile.key;
+        return (
+          <Pressable
+            key={tile.key}
+            onPress={() => onSelect(tile.key)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={`${tile.label}, ${values[tile.key]}`}
+            style={({ pressed }) => [styles.seg, on && styles.segOn, pressed && styles.pressed]}
+          >
+            <Text style={[styles.label, on && styles.labelOn]} numberOfLines={1}>
+              {tile.label}
+            </Text>
+            <View style={[styles.count, on && styles.countOn]}>
+              <Text style={[styles.countText, on && styles.countTextOn]}>{values[tile.key]}</Text>
+            </View>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    borderRadius: 22,
-    overflow: 'hidden',
-    backgroundColor: surfaces.glass,
-    borderWidth: 1,
-    borderColor: BORDER,
-    shadowColor: colors.forestDeep,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 18,
-    elevation: 6,
-  },
-  topBar: { height: 4, width: '100%' },
-  row: {
+  shell: {
     flexDirection: 'row',
-    paddingVertical: 14,
-    paddingHorizontal: 4,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    padding: 4,
+    borderRadius: 16,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
+    ...ui.shadow,
   },
-  cell: {
+  seg: {
     flex: 1,
-    alignItems: 'center',
-    paddingVertical: 2,
-  },
-  cellBorder: {
-    borderLeftWidth: StyleSheet.hairlineWidth,
-    borderLeftColor: '#EEF5E6',
-  },
-  pressed: { opacity: 0.88, transform: [{ scale: 0.97 }] },
-  valueBox: {
-    minWidth: 42,
-    height: 42,
-    borderRadius: 14,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
-    marginBottom: 5,
-    backgroundColor: colors.mint,
-    borderWidth: 1,
-    borderColor: '#D8EDC8',
+    gap: 6,
+    height: 40,
+    borderRadius: 12,
+    paddingHorizontal: 6,
   },
-  valueBoxOn: {
-    backgroundColor: DEEP,
-    borderColor: DEEP,
-  },
-  value: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 18,
-    color: DEEP,
-  },
-  valueOn: { color: colors.white },
+  segOn: { backgroundColor: ui.brand },
+  pressed: { opacity: 0.88 },
   label: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 0.3,
-    color: '#7A9A7E',
+    fontFamily: fonts.bodySemi,
+    fontSize: 12.5,
+    color: ui.textSecondary,
   },
-  labelOn: { color: DEEP },
+  labelOn: { color: colors.white },
+  count: {
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 6,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: ui.surfaceMuted,
+  },
+  countOn: { backgroundColor: 'rgba(255,255,255,0.22)' },
+  countText: { fontFamily: fonts.bodyBold, fontSize: 11, color: ui.text },
+  countTextOn: { color: colors.white },
 });

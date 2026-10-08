@@ -7,7 +7,6 @@ import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
 import { UserAccountCard } from '@/components/kit/UserAccountCard';
 import { IconInput } from '@/components/kit/IconInput';
 import { AddressLocateButton } from '@/components/kit/AddressLocateButton';
-import { LocationBanner } from '@/components/kit/LocationChip';
 import { GlassPanel, GlassScreen, GlassSectionLabel } from '@/components/kit/GlassScreenKit';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
@@ -16,13 +15,13 @@ import { useLocation } from '@/context/LocationContext';
 import { api } from '@/lib/api';
 import { isRealCity } from '@/lib/location';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
-import { displayUserEmail, displayUserName, isProfileIncomplete } from '@/lib/profile-display';
-import { colors, fonts, spacing, surfaces } from '@/constants/theme';
+import { displayUserEmail, isProfileIncomplete } from '@/lib/profile-display';
+import { fonts, spacing, ui as themeUi } from '@/constants/theme';
 
 export default function SettingsScreen() {
   const ui = useCustomerUiCopy();
   const { user, refreshMe } = useAuth();
-  const { displayLabel, locating, detectAddress } = useLocation();
+  const { locating, detectAddress } = useLocation();
   const [name, setName] = useState(user?.name ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
   const [city, setCity] = useState(user?.city ?? '');
@@ -56,9 +55,23 @@ export default function SettingsScreen() {
   }
 
   async function save() {
+    if (loading) return;
+    if (!name.trim()) {
+      appToast.error('Please enter your name');
+      return;
+    }
+    if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) {
+      appToast.error('Please enter a valid email');
+      return;
+    }
     setLoading(true);
     try {
-      await api.patch('/auth/me', { name, email, city, phone });
+      await api.patch('/auth/me', {
+        name: name.trim(),
+        city: city.trim(),
+        ...(email.trim() ? { email: email.trim() } : {}),
+        ...(phone.trim() ? { phone: phone.trim() } : {}),
+      });
       await refreshMe();
       appToast.success('Profile updated');
     } catch {
@@ -82,31 +95,18 @@ export default function SettingsScreen() {
       <GlassPanel padded={false}>
         <View style={styles.accountWrap}>
           <UserAccountCard compact embedded />
-          <Text style={styles.role}>Signed in as Customer · {displayUserName(user)}</Text>
           {isProfileIncomplete(user) ? (
             <Text style={styles.completeHint}>Complete your profile below for a smoother booking experience.</Text>
           ) : null}
         </View>
       </GlassPanel>
-
-      <GlassPanel>
-        <LocationBanner
-          label={displayLabel || 'Tap refresh to detect your real location'}
-          loading={locating}
-          hint="Uses live GPS — not your saved profile city"
-          onRefresh={() => void detectCity()}
-          embedded
-        />
-      </GlassPanel>
-
       <GlassSectionLabel title="Profile details" hint="Update your contact information" />
       <GlassPanel>
         <IconInput
           label="Full name"
           value={name}
           onChangeText={setName}
-          leftIcon={<PremiumIcon icon={AppIcons.ui.user} variant="plain" size="md" color={colors.muted} />}
-          containerStyle={styles.glassInput}
+          leftIcon={<PremiumIcon icon={AppIcons.ui.user} variant="plain" size="md" color={themeUi.textTertiary} />}
         />
         <IconInput
           label="Email"
@@ -114,23 +114,20 @@ export default function SettingsScreen() {
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
-          leftIcon={<PremiumIcon icon={AppIcons.ui.mail} variant="plain" size="md" color={colors.muted} />}
-          containerStyle={styles.glassInput}
+          leftIcon={<PremiumIcon icon={AppIcons.ui.mail} variant="plain" size="md" color={themeUi.textTertiary} />}
         />
         <IconInput
           label="Phone"
           value={phone}
           onChangeText={setPhone}
           keyboardType="phone-pad"
-          leftIcon={<PremiumIcon icon={AppIcons.techProfile.phone} variant="plain" size="md" color={colors.muted} />}
-          containerStyle={styles.glassInput}
+          leftIcon={<PremiumIcon icon={AppIcons.techProfile.phone} variant="plain" size="md" color={themeUi.textTertiary} />}
         />
         <IconInput
           label="City"
           value={city}
           onChangeText={setCity}
-          leftIcon={<PremiumIcon icon={AppIcons.techProfile.location} variant="plain" size="md" color={colors.muted} />}
-          containerStyle={styles.glassInput}
+          leftIcon={<PremiumIcon icon={AppIcons.techProfile.location} variant="plain" size="md" color={themeUi.textTertiary} />}
         />
         <AddressLocateButton loading={locating} onPress={() => void detectCity()} />
       </GlassPanel>
@@ -147,18 +144,13 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.xs,
   },
-  role: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, textAlign: 'center' },
   completeHint: {
     fontFamily: fonts.body,
     fontSize: 12,
-    color: colors.forest,
+    color: themeUi.brand,
     textAlign: 'center',
     lineHeight: 17,
     paddingHorizontal: spacing.sm,
-  },
-  glassInput: {
-    backgroundColor: surfaces.glassInput,
-    borderColor: surfaces.glassBorderStrong,
   },
   btnWrap: { marginTop: spacing.xs },
 });

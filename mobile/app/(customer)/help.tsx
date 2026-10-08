@@ -1,12 +1,13 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { callPhone, openWhatsApp, sendEmail } from '@/lib/contact';
 import { CustomerContentPage } from '@/components/kit/CustomerContentPage';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { Card } from '@/components/ui/Card';
 import { AppIcons } from '@/constants/appIcons';
 import { useAppContent } from '@/context/AppContentContext';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, spacing, ui as themeUi } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
 
 export default function HelpScreen() {
@@ -15,8 +16,6 @@ export default function HelpScreen() {
   const { support } = content;
   const brandName = content.branding.name?.trim() || 'Mr Antidot';
 
-  const digits = (v: string) => v.replace(/[^\d+]/g, '');
-
   return (
     <CustomerContentPage
       title={ui.helpScreenTitle}
@@ -24,13 +23,27 @@ export default function HelpScreen() {
       sectionTitle={ui.helpContactTitle}
       sectionSubtitle={`Reach the ${brandName} team`}
     >
+      <Pressable
+        style={({ pressed }) => [styles.guideCard, pressed && styles.guidePressed]}
+        onPress={() => appPush(customerRoutes.bookGuide)}
+        accessibilityRole="button"
+        accessibilityLabel="How to book a service"
+      >
+        <PremiumIcon icon={AppIcons.ui.listChecks} variant="mint" size={20} color={themeUi.brand} boxSize={44} />
+        <View style={styles.guideBody}>
+          <Text style={styles.guideTitle}>How to book a service</Text>
+          <Text style={styles.guideSub}>5 easy steps · Start booking with confidence</Text>
+        </View>
+        <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={18} color={themeUi.textTertiary} />
+      </Pressable>
+
       <Card variant="premium" style={styles.card}>
         {support.phone ? (
           <ContactRow
             icon={AppIcons.ui.phone}
             label={ui.helpPhoneLabel}
             value={support.phone}
-            onPress={() => Linking.openURL(`tel:${digits(support.phone)}`)}
+            onPress={() => callPhone(support.phone)}
           />
         ) : null}
         {support.whatsapp ? (
@@ -38,7 +51,7 @@ export default function HelpScreen() {
             icon={AppIcons.ui.message}
             label={ui.helpWhatsappLabel}
             value={support.whatsapp}
-            onPress={() => Linking.openURL(`https://wa.me/${digits(support.whatsapp ?? '')}`)}
+            onPress={() => openWhatsApp(support.whatsapp ?? '')}
           />
         ) : null}
         {support.email ? (
@@ -46,7 +59,7 @@ export default function HelpScreen() {
             icon={AppIcons.ui.mail}
             label={ui.helpEmailLabel}
             value={support.email}
-            onPress={() => Linking.openURL(`mailto:${support.email}`)}
+            onPress={() => sendEmail(support.email)}
           />
         ) : null}
         {support.hours ? (
@@ -87,12 +100,12 @@ function ContactRow({
 }) {
   return (
     <Pressable style={styles.row} onPress={onPress} disabled={!onPress}>
-      <PremiumIcon icon={icon} variant="mint" size={18} color={colors.green} boxSize={36} />
+      <PremiumIcon icon={icon} variant="mint" size={18} color={themeUi.brand} boxSize={36} />
       <View style={styles.rowBody}>
         <Text style={styles.rowLabel}>{label}</Text>
         <Text style={styles.rowValue}>{value}</Text>
       </View>
-      {onPress ? <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={18} color={colors.muted} /> : null}
+      {onPress ? <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={18} color={themeUi.textTertiary} /> : null}
     </Pressable>
   );
 }
@@ -110,27 +123,53 @@ function LinkRow({
 }) {
   return (
     <Pressable style={[styles.row, !last && styles.rowBorder]} onPress={onPress}>
-      <PremiumIcon icon={icon} variant="mint" size={18} color={colors.green} boxSize={36} />
+      <PremiumIcon icon={icon} variant="mint" size={18} color={themeUi.brand} boxSize={36} />
       <Text style={[styles.rowLabel, styles.linkLabel]}>{label}</Text>
-      <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={18} color={colors.muted} />
+      <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={18} color={themeUi.textTertiary} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  guideCard: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: themeUi.hairline,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  guidePressed: { opacity: 0.92, transform: [{ scale: 0.99 }] },
+  guideBody: { flex: 1, minWidth: 0 },
+  guideTitle: {
+    fontFamily: fonts.displaySemi,
+    fontSize: 16,
+    letterSpacing: -0.2,
+    color: themeUi.text,
+  },
+  guideSub: {
+    marginTop: 3,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: themeUi.textSecondary,
+  },
   card: { marginHorizontal: spacing.md, padding: spacing.sm, marginBottom: spacing.md },
   emptySupport: {
     fontFamily: fonts.body,
     fontSize: 13,
-    color: colors.muted,
+    color: themeUi.textSecondary,
     padding: spacing.md,
     lineHeight: 19,
   },
   resourcesHeader: { paddingHorizontal: spacing.md, marginBottom: spacing.sm },
-  resourcesTitle: { fontFamily: fonts.displayExtra, fontSize: 16, color: colors.ink },
+  resourcesTitle: { fontFamily: fonts.displayExtra, fontSize: 16, color: themeUi.text },
   rule: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm, gap: spacing.sm },
-  ruleAccent: { width: 24, height: 2, borderRadius: 2, backgroundColor: colors.limeBright },
-  ruleLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  ruleAccent: { width: 24, height: 2, borderRadius: 2, backgroundColor: themeUi.brand },
+  ruleLine: { flex: 1, height: 1, backgroundColor: themeUi.hairline },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -138,9 +177,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: spacing.sm,
   },
-  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: themeUi.hairline },
   rowBody: { flex: 1, minWidth: 0 },
-  rowLabel: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.muted },
-  linkLabel: { flex: 1, color: colors.ink, fontSize: 15 },
-  rowValue: { fontFamily: fonts.body, fontSize: 14, color: colors.ink, marginTop: 2 },
+  rowLabel: { fontFamily: fonts.bodySemi, fontSize: 13, color: themeUi.textSecondary },
+  linkLabel: { flex: 1, color: themeUi.text, fontSize: 15 },
+  rowValue: { fontFamily: fonts.body, fontSize: 14, color: themeUi.text, marginTop: 2 },
 });

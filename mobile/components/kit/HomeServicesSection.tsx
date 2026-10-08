@@ -26,11 +26,12 @@ export function HomeServicesSection({
     <View style={styles.wrap}>
       <HomeSectionTitle title={title} subtitle={subtitle} actionLabel={actionLabel} onAction={onAction} />
       <HomeCategoryFilter chips={chips} selected={selectedCategory} onSelect={onSelectCategory} />
-      {children}
+      <View style={styles.body}>{children}</View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { paddingTop: 26 },
+  wrap: {},
+  body: { marginTop: 4 },
 });

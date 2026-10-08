@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
-import { colors, fonts, formField, premium, spacing } from '@/constants/theme';
+import { colors, fonts, ui } from '@/constants/theme';
 import { textInputDefaults } from '@/components/ui/textInputDefaults';
 
 function digitAt(value: string, index: number): string {
@@ -11,10 +11,12 @@ export function OtpBoxes({
   value,
   onChange,
   length = 4,
+  autoFocus,
 }: {
   value: string;
   onChange: (v: string) => void;
   length?: number;
+  autoFocus?: boolean;
 }) {
   const inputs = useRef<(TextInput | null)[]>([]);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
@@ -68,6 +70,7 @@ export function OtpBoxes({
               keyboardType="number-pad"
               maxLength={length}
               selectTextOnFocus
+              autoFocus={autoFocus && i === 0}
             />
           </View>
         );
@@ -79,36 +82,31 @@ export function OtpBoxes({
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
+    gap: 12,
   },
   boxWrap: {
     flex: 1,
-    height: 64,
-    borderRadius: formField.radius,
-    borderWidth: formField.borderWidth,
-    borderColor: formField.borderColor,
-    backgroundColor: formField.bgMuted,
+    height: 62,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    backgroundColor: ui.surfaceMuted,
     overflow: 'hidden',
   },
   boxWrapFilled: {
-    backgroundColor: '#E8F5EC',
-    borderColor: 'rgba(30,142,78,0.35)',
+    backgroundColor: ui.brandSoft,
+    borderColor: 'rgba(13,106,43,0.22)',
   },
   boxWrapFocus: {
-    borderColor: formField.borderFocus,
-    backgroundColor: formField.bg,
-    borderWidth: 2,
-    ...premium.shadowFocus,
+    borderColor: ui.brand,
+    backgroundColor: colors.white,
   },
   box: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 28,
-    fontFamily: fonts.displaySemi,
-    letterSpacing: 2,
-    color: colors.ink,
+    fontSize: 26,
+    fontFamily: fonts.displayExtra,
+    color: ui.text,
     height: '100%',
   },
 });

@@ -42,7 +42,7 @@ export const AdminOfferCard = memo(function AdminOfferCard({
     offer.maxUses != null
       ? `${offer.useCount ?? 0}/${offer.maxUses} uses`
       : offer.useCount != null
-        ? `${offer.useCount} uses`
+        ? `${offer.useCount} ${offer.useCount === 1 ? 'use' : 'uses'}`
         : null;
 
   const statusChips = useMemo(() => {

@@ -148,12 +148,15 @@ function buildInvoiceText(invoice: Omit<BookingInvoice, 'text'>): string {
     '',
     '— Charges —',
     `Service         ${rupee(invoice.amount.base)}`,
-    `GST             ${rupee(invoice.amount.gst)}`,
   );
   if (invoice.amount.coupon > 0) {
     lines.push(`Coupon discount -${rupee(invoice.amount.coupon)}`);
   }
-  lines.push(`TOTAL           ${rupee(invoice.amount.total)}`, '');
+  lines.push(
+    `GST (18%)       ${rupee(invoice.amount.gst)}`,
+    `TOTAL           ${rupee(invoice.amount.total)}`,
+    '',
+  );
 
   if (invoice.support.phone || invoice.support.email) {
     lines.push('— Support —');

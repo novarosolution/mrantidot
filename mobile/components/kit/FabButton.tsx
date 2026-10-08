@@ -1,8 +1,7 @@
-import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { colors } from '@/constants/theme';
+import { colors, ui } from '@/constants/theme';
 
 /** Shared circular “+” header action used on addresses / payment methods. */
 export function FabButton({
@@ -20,14 +19,9 @@ export function FabButton({
       accessibilityLabel={accessibilityLabel}
       hitSlop={8}
     >
-      <LinearGradient
-        colors={[colors.limeBright, colors.green, colors.forest]}
-        style={styles.fill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
+      <View style={styles.fill}>
         <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size={22} color={colors.white} />
-      </LinearGradient>
+      </View>
     </Pressable>
   );
 }
@@ -36,8 +30,9 @@ const styles = StyleSheet.create({
   fab: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 14,
     overflow: 'hidden',
+    backgroundColor: ui.brand,
   },
   fill: {
     flex: 1,

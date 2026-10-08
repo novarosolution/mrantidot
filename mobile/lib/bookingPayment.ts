@@ -19,6 +19,6 @@ export const PAYMENT_TYPE_META: Record<
   'upi_card' | 'pay_after',
   { title: string; subtitle: string }
 > = {
-  upi_card: { title: 'UPI / Card', subtitle: 'Pay securely online before the visit' },
-  pay_after: { title: 'Pay after service', subtitle: 'Settle with the technician when done' },
+  upi_card: { title: 'UPI / Card', subtitle: 'Pay by UPI or card at the visit — nothing is charged in the app' },
+  pay_after: { title: 'Pay after service', subtitle: 'Pay cash to the technician once the job is done' },
 };

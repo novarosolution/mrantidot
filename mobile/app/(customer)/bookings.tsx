@@ -1,33 +1,32 @@
-import { LinearGradient } from 'expo-linear-gradient';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Animated,
+  FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { CircleHelp, Plus } from 'lucide-react-native';
 import { BookingListCard } from '@/components/kit/BookingListCard';
 import { BookingsEmpty } from '@/components/kit/BookingsEmpty';
 import { BookingsNextHighlight } from '@/components/kit/BookingsNextHighlight';
 import { BookingsSummaryBar } from '@/components/kit/BookingsSummaryBar';
-import { GlassBackdrop, TAB_BAR_SCROLL_PAD, customerScrollProps } from '@/components/kit/GlassScreenKit';
-import { HeroDarkSlice } from '@/components/kit/HeroDarkSlice';
-import { ScreenTopScrim } from '@/components/kit/ScreenTopScrim';
+import { TAB_BAR_SCROLL_PAD, customerScrollProps } from '@/components/kit/GlassScreenKit';
+import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { bookingDetailPath, customerRoutes, appPush } from '@/lib/routes';
+import { bookingHasTechnician, nextActiveBooking } from '@/lib/booking-helpers';
 import { useBookingCopy } from '@/lib/schedule-copy';
 import { useAuth } from '@/context/AuthContext';
 import type { Booking } from '@/types/api';
 import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
-import { colors, fonts, headerTopPad, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 
 type FilterKey = 'active' | 'completed' | 'cancelled';
 
@@ -40,8 +39,19 @@ function sortBookings(list: Booking[], filter: FilterKey): Booking[] {
   });
 }
 
+function customerActionHint(booking: Booking): string | undefined {
+  if (booking.status === 'awaiting_verification') return 'Share your completion code';
+  if (booking.status === 'confirmed' && bookingHasTechnician(booking)) return 'Expert assigned · share start code on arrival';
+  return undefined;
+}
+
+function sectionLabel(filter: FilterKey): string {
+  if (filter === 'completed') return 'Past visits';
+  if (filter === 'cancelled') return 'Cancelled visits';
+  return 'Upcoming visits';
+}
+
 export default function MyBookingsScreen() {
-  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const bookingCopy = useBookingCopy();
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -49,9 +59,6 @@ export default function MyBookingsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const [heroHeight, setHeroHeight] = useState(0);
-  const scrimRevealAt = heroHeight > 0 ? Math.max(heroHeight - insets.top, 1) : 0;
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -72,6 +79,8 @@ export default function MyBookingsScreen() {
     }, () => setLoading(false));
   }, [load]);
 
+  useStaleFocusRefresh(() => load().catch(() => undefined), 3_000);
+
   const counts = useMemo(
     () => ({
       active: bookings.filter((b) => !['completed', 'cancelled'].includes(b.status)).length,
@@ -90,11 +99,7 @@ export default function MyBookingsScreen() {
     return sortBookings(list, filter);
   }, [bookings, filter]);
 
-  const nextActive = useMemo(() => {
-    const active = bookings.filter((b) => !['completed', 'cancelled'].includes(b.status));
-    if (active.length === 0) return null;
-    return sortBookings(active, 'active')[0] ?? null;
-  }, [bookings]);
+  const nextActive = useMemo(() => nextActiveBooking(bookings), [bookings]);
 
   const listData = useMemo(() => {
     if (filter === 'active' && nextActive) {
@@ -104,7 +109,11 @@ export default function MyBookingsScreen() {
   }, [filtered, filter, nextActive]);
 
   const total = counts.active + counts.completed + counts.cancelled;
-  const subtitle = loading ? 'Loading your visits…' : `${counts.active} active · ${total} total`;
+  const subtitle = loading
+    ? 'Loading your visits…'
+    : total === 0
+      ? 'No visits yet — book your first service'
+      : `${counts.active} active · ${total} total`;
 
   async function onRefresh() {
     setRefreshing(true);
@@ -118,35 +127,31 @@ export default function MyBookingsScreen() {
   }
 
   const hero = (
-    <View onLayout={(e) => setHeroHeight(e.nativeEvent.layout.height)}>
-      <HeroDarkSlice
-        style={styles.hero}
-        contentStyle={{ paddingTop: headerTopPad(insets.top), paddingHorizontal: 20, paddingBottom: 36 }}
-        sliceHeight={24}
-      >
-        <View style={styles.heroRow}>
-          <View style={styles.heroLeft}>
-            <View style={styles.eyebrowRow}>
-              <LinearGradient
-                colors={[colors.limeBright, '#68D03C']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.eyebrowBar}
-              />
-              <Text style={styles.eyebrow}>YOUR VISITS</Text>
-            </View>
-            <Text style={styles.heroTitle}>{bookingCopy.listScreenTitle}</Text>
-            <Text style={styles.heroSub}>{subtitle}</Text>
-          </View>
-          <Pressable
-            style={({ pressed }) => [styles.bookBtn, pressed && styles.pressedSm]}
-            onPress={() => appPush(customerRoutes.services)}
-            accessibilityLabel="Book a service"
-          >
-            <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size={20} color={colors.forestDeep} strokeWidth={2.5} />
-          </Pressable>
-        </View>
-      </HeroDarkSlice>
+    <View style={styles.header}>
+      <View style={styles.heroLeft}>
+        <Text style={styles.kicker}>YOUR VISITS</Text>
+        <Text style={styles.heroTitle}>{bookingCopy.listScreenTitle}</Text>
+        <Text style={styles.heroSub}>{subtitle}</Text>
+      </View>
+      <View style={styles.heroActions}>
+        <Pressable
+          style={({ pressed }) => [styles.guideBtn, pressed && styles.pressedSm]}
+          onPress={() => appPush(customerRoutes.bookGuide)}
+          accessibilityRole="button"
+          accessibilityLabel="How to book a service"
+        >
+          <CircleHelp size={18} color={ui.brand} strokeWidth={2.2} />
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.bookBtn, pressed && styles.pressedSm]}
+          onPress={() => appPush(customerRoutes.services)}
+          accessibilityRole="button"
+          accessibilityLabel="Book a service"
+        >
+          <Plus size={18} color={colors.white} strokeWidth={2.6} />
+          <Text style={styles.bookBtnText}>Book</Text>
+        </Pressable>
+      </View>
     </View>
   );
 
@@ -154,35 +159,30 @@ export default function MyBookingsScreen() {
     bookings.length > 0 ? (
       <View style={styles.headerBlock}>
         {hero}
-        <View style={styles.summaryWrap}>
-          <BookingsSummaryBar
-            active={counts.active}
-            completed={counts.completed}
-            cancelled={counts.cancelled}
-            selected={filter}
-            onSelect={setFilter}
-          />
-        </View>
+        <BookingsSummaryBar
+          active={counts.active}
+          completed={counts.completed}
+          cancelled={counts.cancelled}
+          selected={filter}
+          onSelect={setFilter}
+        />
         {filter === 'active' && nextActive ? (
           <BookingsNextHighlight
             booking={nextActive}
             onPress={() => appPush(bookingDetailPath(user?.role, nextActive.id))}
           />
-        ) : (
+        ) : null}
+        {listData.length > 0 || (filter === 'active' && nextActive) ? (
           <View style={styles.sectionPad}>
-            <View style={styles.kickerRow}>
-              <LinearGradient
-                colors={[colors.limeBright, colors.green]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.eyebrowBar}
-              />
-              <Text style={styles.kickerText}>
-                {filter === 'completed' ? 'COMPLETED' : filter === 'cancelled' ? 'CANCELLED' : 'ALL ACTIVE'}
-              </Text>
-            </View>
+            <Text style={styles.sectionTitle}>{sectionLabel(filter)}</Text>
+            <Text style={styles.sectionCount}>
+              {filter === 'active' && nextActive ? listData.length + 1 : listData.length}{' '}
+              {(filter === 'active' && nextActive ? listData.length + 1 : listData.length) === 1
+                ? 'booking'
+                : 'bookings'}
+            </Text>
           </View>
-        )}
+        ) : null}
       </View>
     ) : (
       <View>{hero}</View>
@@ -190,123 +190,155 @@ export default function MyBookingsScreen() {
 
   return (
     <View style={styles.root}>
-      <GlassBackdrop />
-      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      {loading ? (
-        <View style={styles.flex}>
-          {hero}
-          <View style={styles.loadingBody}>
-            <Spinner />
+      <FocusStatusBar style="dark" />
+      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+        {loading ? (
+          <View style={styles.flex}>
+            {hero}
+            <View style={styles.loadingBody}>
+              <Spinner />
+            </View>
           </View>
-        </View>
-      ) : loadError && bookings.length === 0 ? (
-        <View style={styles.flex}>
-          {hero}
-          <View style={styles.loadingBody}>
-            <ListEmptyRetry
-              message={loadError}
-              onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
-            />
-          </View>
-        </View>
-      ) : (
-        <Animated.FlatList
-          data={listData}
-          keyExtractor={(b) => b.id}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />
-          }
-          contentContainerStyle={[
-            styles.listContent,
-            listData.length === 0 && !(filter === 'active' && nextActive) && styles.listEmptyGrow,
-          ]}
-          ListHeaderComponent={listHeader}
-          ListEmptyComponent={
-            bookings.length === 0 || (listData.length === 0 && !(filter === 'active' && nextActive)) ? (
-              <BookingsEmpty filter={filter} />
-            ) : null
-          }
-          {...CUSTOMER_LIST_PERF}
-          {...customerScrollProps}
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-            useNativeDriver: true,
-          })}
-          scrollEventThrottle={16}
-          renderItem={({ item }) => (
-            <View style={styles.cardPad}>
-              <BookingListCard
-                booking={item}
-                onPress={() => appPush(bookingDetailPath(user?.role, item.id))}
+        ) : loadError && bookings.length === 0 ? (
+          <View style={styles.flex}>
+            {hero}
+            <View style={styles.loadingBody}>
+              <ListEmptyRetry
+                message={loadError}
+                onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
               />
             </View>
-          )}
-        />
-      )}
+          </View>
+        ) : (
+          <FlatList
+            data={listData}
+            keyExtractor={(b) => b.id}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ui.brand} />
+            }
+            contentContainerStyle={[
+              styles.listContent,
+              listData.length === 0 && !(filter === 'active' && nextActive) && styles.listEmptyGrow,
+            ]}
+            ListHeaderComponent={listHeader}
+            ListEmptyComponent={
+              bookings.length === 0 || (listData.length === 0 && !(filter === 'active' && nextActive)) ? (
+                <BookingsEmpty filter={filter} />
+              ) : null
+            }
+            {...CUSTOMER_LIST_PERF}
+            {...customerScrollProps}
+            renderItem={({ item }) => (
+              <View style={styles.cardPad}>
+                <BookingListCard
+                  booking={item}
+                  hint={customerActionHint(item)}
+                  onPress={() => appPush(bookingDetailPath(user?.role, item.id))}
+                />
+              </View>
+            )}
+          />
+        )}
       </SafeAreaView>
-      <ScreenTopScrim scrollY={scrollY} revealAt={scrimRevealAt} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: surfaces.glassScreenBase },
+  root: { flex: 1, backgroundColor: ui.surfaceMuted },
   safe: { flex: 1, backgroundColor: 'transparent' },
   flex: { flex: 1 },
-  listContent: { paddingBottom: TAB_BAR_SCROLL_PAD + 8, flexGrow: 1 },
+  listContent: { paddingBottom: TAB_BAR_SCROLL_PAD + 12, flexGrow: 1 },
   listEmptyGrow: { flexGrow: 1 },
   loadingBody: { flex: 1, justifyContent: 'center', paddingTop: 24 },
   pressedSm: { transform: [{ scale: 0.94 }], opacity: 0.92 },
 
-  hero: {
-    overflow: 'hidden',
+  headerBlock: { marginBottom: 2 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingHorizontal: spacing.md,
+    paddingTop: 10,
+    paddingBottom: 18,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: ui.hairline,
+    marginBottom: 14,
   },
-  heroRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  heroLeft: { flex: 1, paddingRight: 12 },
-  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  eyebrowBar: { width: 16, height: 3, borderRadius: 2 },
-  eyebrow: {
+  heroLeft: { flex: 1, minWidth: 0 },
+  kicker: {
     fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 2.2,
-    color: 'rgba(255,255,255,0.8)',
+    fontSize: 10.5,
+    letterSpacing: 1.1,
+    color: ui.brand,
+    marginBottom: 4,
   },
   heroTitle: {
-    marginTop: 8,
     fontFamily: fonts.displayExtra,
-    fontSize: 30,
-    lineHeight: 33,
-    letterSpacing: -0.6,
-    color: colors.white,
+    fontSize: 28,
+    lineHeight: 34,
+    letterSpacing: -0.8,
+    color: ui.text,
   },
   heroSub: {
-    marginTop: 6,
+    marginTop: 4,
     fontFamily: fonts.body,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.68)',
+    fontSize: 13.5,
+    lineHeight: 19,
+    color: ui.textSecondary,
   },
-  bookBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: colors.limeBright,
+  heroActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 18,
+  },
+  guideBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.forestDeep,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 6,
+    backgroundColor: ui.brandSoft,
+    borderWidth: 1,
+    borderColor: ui.hairline,
   },
+  bookBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    height: 42,
+    paddingLeft: 14,
+    paddingRight: 16,
+    borderRadius: 14,
+    backgroundColor: ui.brand,
+    shadowColor: colors.forest,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  bookBtnText: { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.white },
 
-  headerBlock: { marginBottom: 4 },
-  summaryWrap: { marginTop: -18, zIndex: 4 },
-  sectionPad: { paddingHorizontal: 20, marginTop: 8, marginBottom: 4 },
-  kickerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  kickerText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 1.5,
-    color: '#7A9A7E',
+  sectionPad: {
+    paddingHorizontal: spacing.md,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  sectionTitle: {
+    fontFamily: fonts.display,
+    fontSize: 17,
+    letterSpacing: -0.3,
+    color: ui.text,
+  },
+  sectionCount: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 12.5,
+    color: ui.textTertiary,
   },
   cardPad: { paddingHorizontal: spacing.md },
 });

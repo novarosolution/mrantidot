@@ -23,7 +23,6 @@ export function AdminSectionTabs({
   return (
     <View style={styles.wrap}>
       <LinearGradient colors={[colors.white, colors.bg]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
-      <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         {tabs.map((tab) => {
           const Icon = tab.icon;

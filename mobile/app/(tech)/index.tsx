@@ -8,12 +8,11 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { HeroDarkSlice } from '@/components/kit/HeroDarkSlice';
 import { homeShadow } from '@/components/kit/homeUi';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '@/context/AuthContext';
 import { BookingListCard } from '@/components/kit/BookingListCard';
+import { PremiumAppHeader } from '@/components/kit/PremiumAppHeader';
 import { TechCheckInCard, TechOffDutyCard, TechOnDutyCard } from '@/components/kit/TechPageKit';
 import { TechJobQuickBar } from '@/components/kit/TechJobQuickBar';
 import { TechPriorityBanner } from '@/components/kit/TechPriorityBanner';
@@ -28,15 +27,16 @@ import { localDateKey } from '@/lib/dates';
 import { bookingVisitDate } from '@/lib/booking-helpers';
 import { useTechCopy } from '@/lib/tech-copy';
 import type { AttendanceRecord, Booking, DayAttendanceStatus, TechnicianStats } from '@/types/api';
-import { colors, fonts, headerTopPad, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 import { techRoutes, appPush } from '@/lib/routes';
-import { formatRupee } from '@/components/kit/format';
+import { formatRupeeFull } from '@/components/kit/format';
+import { CheckCircle2, ChevronRight } from 'lucide-react-native';
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 
 type Section = { key: string; title: string; data: Booking[] };
 
 export default function TechDashboard() {
   const copy = useTechCopy();
-  const insets = useSafeAreaInsets();
   const { refreshMe, user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [todayStatus, setTodayStatus] = useState<DayAttendanceStatus>('pending');
@@ -153,6 +153,8 @@ export default function TechDashboard() {
     });
   }, [load]);
 
+  useStaleFocusRefresh(() => load({ skipCache: true }).catch(() => undefined), 3_000);
+
   const today = localDateKey();
 
   const sections = useMemo((): Section[] => {
@@ -210,30 +212,11 @@ export default function TechDashboard() {
             : 'Check in';
 
   const hero = (
-    <HeroDarkSlice
-      style={styles.heroShell}
-      sliceHeight={20}
-      contentStyle={[styles.heroContent, { paddingTop: headerTopPad(insets.top) }]}
-    >
-      <View style={styles.heroRow}>
-        <View style={styles.heroLeft}>
-          <View style={styles.eyebrowRow}>
-            <LinearGradient
-              colors={['#C8F07A', colors.limeBright]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.eyebrowBar}
-            />
-            <Text style={styles.eyebrow}>FIELD WORK</Text>
-          </View>
-          <Text style={styles.heroTitle}>{copy.techJobsTitle}</Text>
-          <Text style={styles.heroSub}>
-            Hi {firstName} · {activeCount} active
-            {stats
-              ? ` · ${stats.earnings >= 1000 ? formatRupee(stats.earnings) : `₹${stats.earnings}`} earned`
-              : ''}
-          </Text>
-        </View>
+    <PremiumAppHeader
+      eyebrow="FIELD WORK"
+      title={copy.techJobsTitle}
+      subtitle={`Hi ${firstName} · ${new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}`}
+      right={
         <View
           style={[
             styles.dutyPill,
@@ -264,8 +247,8 @@ export default function TechDashboard() {
           />
           <Text style={styles.dutyText}>{dutyLabel}</Text>
         </View>
-      </View>
-    </HeroDarkSlice>
+      }
+    />
   );
 
   if (loading) {
@@ -318,20 +301,44 @@ export default function TechDashboard() {
             <TechScreenGutter style={styles.headerGutter}>
               {stats ? (
                 <Pressable
-                  style={styles.earnStrip}
+                  style={({ pressed }) => [styles.earnShell, pressed && styles.pressed]}
                   onPress={() => appPush(techRoutes.profile)}
                   accessibilityRole="button"
+                  accessibilityLabel="Open profile and earnings"
                 >
-                  <View>
-                    <Text style={styles.earnLabel}>This month</Text>
-                    <Text style={styles.earnValue}>
-                      {stats.earnings >= 1000 ? formatRupee(stats.earnings) : `₹${stats.earnings}`}
-                    </Text>
-                    {stats.paySummary ? (
-                      <Text style={styles.earnHint}>{stats.paySummary}</Text>
-                    ) : null}
-                  </View>
-                  <Text style={styles.earnLink}>Profile</Text>
+                  <LinearGradient
+                    colors={[colors.headerGreen, colors.forest, colors.forestDeep]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.earnCard}
+                  >
+                    <View style={styles.earnTop}>
+                      <View style={styles.flex}>
+                        <Text style={styles.earnLabel}>EARNED THIS MONTH</Text>
+                        <Text style={styles.earnValue}>{formatRupeeFull(stats.earnings)}</Text>
+                        {stats.paySummary ? <Text style={styles.earnHint}>{stats.paySummary}</Text> : null}
+                      </View>
+                      <View style={styles.earnChevron}>
+                        <ChevronRight size={18} color={colors.white} strokeWidth={2.4} />
+                      </View>
+                    </View>
+                    <View style={styles.earnStats}>
+                      <View style={styles.earnStat}>
+                        <Text style={styles.earnStatValue}>{activeCount}</Text>
+                        <Text style={styles.earnStatLabel}>Active</Text>
+                      </View>
+                      <View style={styles.earnDivider} />
+                      <View style={styles.earnStat}>
+                        <Text style={styles.earnStatValue}>{stats.jobsDone ?? stats.completed}</Text>
+                        <Text style={styles.earnStatLabel}>Jobs done</Text>
+                      </View>
+                      <View style={styles.earnDivider} />
+                      <View style={styles.earnStat}>
+                        <Text style={styles.earnStatValue}>{stats.rating > 0 ? `★ ${stats.rating.toFixed(1)}` : '—'}</Text>
+                        <Text style={styles.earnStatLabel}>Rating</Text>
+                      </View>
+                    </View>
+                  </LinearGradient>
                 </Pressable>
               ) : null}
 
@@ -392,6 +399,18 @@ export default function TechDashboard() {
                   flush
                 />
               )}
+
+              {activeCount === 0 && bookings.length > 0 ? (
+                <View style={styles.idleCard}>
+                  <View style={styles.idleIcon}>
+                    <CheckCircle2 size={22} color={colors.forest} strokeWidth={2.2} />
+                  </View>
+                  <View style={styles.flex}>
+                    <Text style={styles.idleTitle}>You're all caught up</Text>
+                    <Text style={styles.idleSub}>New jobs appear here as soon as admin assigns them.</Text>
+                  </View>
+                </View>
+              ) : null}
             </TechScreenGutter>
           </View>
         }
@@ -444,35 +463,6 @@ export default function TechDashboard() {
 
 const styles = StyleSheet.create({
   loadingBody: { flex: 1, justifyContent: 'center' },
-  heroShell: { marginBottom: -4 },
-  heroContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 18,
-  },
-  heroRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  heroLeft: { flex: 1, paddingRight: 12 },
-  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  eyebrowBar: { width: 18, height: 3, borderRadius: 2 },
-  eyebrow: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 1.4,
-    color: 'rgba(255,255,255,0.92)',
-  },
-  heroTitle: {
-    marginTop: 8,
-    fontFamily: fonts.displayExtra,
-    fontSize: 30,
-    lineHeight: 33,
-    letterSpacing: -0.6,
-    color: colors.white,
-  },
-  heroSub: {
-    marginTop: 6,
-    fontFamily: fonts.body,
-    fontSize: 13.5,
-    color: 'rgba(255,255,255,0.86)',
-  },
   dutyPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -481,14 +471,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
-    shadowColor: colors.deep,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
+    marginTop: 4,
   },
   dutyOn: {
-    backgroundColor: 'rgba(143,208,60,0.22)',
+    backgroundColor: 'rgba(143,208,60,0.24)',
     borderColor: 'rgba(200,240,122,0.5)',
   },
   dutyCheckedOut: {
@@ -514,54 +500,63 @@ const styles = StyleSheet.create({
   dutyDotCheckedOut: { backgroundColor: 'rgba(255,255,255,0.55)' },
   dutyDotPending: { backgroundColor: 'rgba(255,255,255,0.85)' },
   dutyText: { fontFamily: fonts.bodyBold, fontSize: 11.5, color: colors.white },
-  headerGutter: { marginTop: 14 },
-  earnStrip: {
+  headerGutter: { marginTop: 10 },
+  flex: { flex: 1 },
+  pressed: { opacity: 0.94, transform: [{ scale: 0.99 }] },
+  earnShell: { borderRadius: 22, marginBottom: spacing.sm, ...homeShadow.card },
+  earnCard: { borderRadius: 22, padding: 18, overflow: 'hidden' },
+  earnTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  earnLabel: { fontFamily: fonts.bodyBold, fontSize: 10.5, letterSpacing: 1, color: 'rgba(255,255,255,0.72)' },
+  earnValue: {
+    marginTop: 4,
+    fontFamily: fonts.displayExtra,
+    fontSize: 30,
+    color: colors.white,
+    letterSpacing: -0.8,
+  },
+  earnHint: { marginTop: 2, fontFamily: fonts.body, fontSize: 12, color: 'rgba(255,255,255,0.75)' },
+  earnChevron: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  earnStats: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    marginTop: 16,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  earnStat: { flex: 1, alignItems: 'center' },
+  earnStatValue: { fontFamily: fonts.displayExtra, fontSize: 16, color: colors.white },
+  earnStatLabel: { marginTop: 1, fontFamily: fonts.bodySemi, fontSize: 10.5, color: 'rgba(255,255,255,0.7)' },
+  earnDivider: { width: StyleSheet.hairlineWidth, height: 26, backgroundColor: 'rgba(255,255,255,0.3)' },
+  idleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
     borderRadius: 18,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
-    marginBottom: spacing.sm,
+    borderColor: ui.border,
+    marginTop: spacing.sm,
     ...homeShadow.card,
   },
-  earnLabel: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted },
-  earnValue: {
-    marginTop: 2,
-    fontFamily: fonts.displayExtra,
-    fontSize: 22,
-    color: colors.forest,
-    letterSpacing: -0.4,
-  },
-  earnHint: { marginTop: 2, fontFamily: fonts.body, fontSize: 11, color: colors.muted },
-  earnLink: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest },
-  onDutyCompact: {
-    flexDirection: 'row',
+  idleIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: colors.mint,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 18,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
-    marginBottom: spacing.sm,
-    ...homeShadow.soft,
+    justifyContent: 'center',
   },
-  onDutyCompactText: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 13,
-    color: colors.forest,
-  },
-  onDutyCompactLink: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 12,
-    color: '#9E3F1C',
-  },
-  onDutyCompactDisabled: { opacity: 0.5 },
+  idleTitle: { fontFamily: fonts.bodyBold, fontSize: 14.5, color: ui.text },
+  idleSub: { marginTop: 2, fontFamily: fonts.body, fontSize: 12.5, color: ui.textSecondary },
   sectionHeadWrap: { paddingTop: spacing.sm },
   sectionHead: {
     flexDirection: 'row',
@@ -575,7 +570,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: 13.5,
     letterSpacing: 0.15,
-    color: colors.ink,
+    color: ui.text,
   },
-  sectionHeaderWarn: { color: '#9E3F1C' },
+  sectionHeaderWarn: { color: colors.error },
 });

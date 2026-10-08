@@ -1,5 +1,4 @@
 import { useLocalSearchParams } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
@@ -17,6 +16,8 @@ import { useScreenLoad } from '@/lib/useScreenLoad';
 import { isAccountDisabled } from '@/lib/user-helpers';
 import type { Booking, User } from '@/types/api';
 import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
+import { formatRupeeFull } from '@/components/kit/format';
 
 export default function AdminCustomerDetailScreen() {
   const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
@@ -40,6 +41,8 @@ export default function AdminCustomerDetailScreen() {
     void runLoad(load, 'Could not load customer');
   }, [load, runLoad]);
 
+  useStaleFocusRefresh(() => load().catch(() => undefined), 3_000);
+
   if (loading) return <Spinner fullScreen />;
 
   if (error || !customer) {
@@ -56,7 +59,6 @@ export default function AdminCustomerDetailScreen() {
   const summary = (
     <View style={styles.summaryWrap}>
       <View style={styles.profileCard}>
-        <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
         <View style={styles.statusRow}>
           <Text style={[styles.statusBadge, isDisabled && styles.statusDisabled]}>
             {isDisabled ? 'Account disabled' : 'Active account'}
@@ -66,7 +68,7 @@ export default function AdminCustomerDetailScreen() {
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <PremiumIcon icon={AppIcons.ui.wallet} variant="plain" size="sm" color={colors.forest} strokeWidth={2.2} />
-            <Text style={styles.statValue}>₹{totalSpend}</Text>
+            <Text style={styles.statValue}>{formatRupeeFull(totalSpend)}</Text>
             <Text style={styles.statLabel}>Total spend</Text>
           </View>
           <View style={styles.statCard}>

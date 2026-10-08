@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
@@ -107,7 +106,6 @@ export function TechnicianAnalyticsTab({
   return (
     <View style={styles.wrap}>
       <View style={styles.toolbarCard}>
-        <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.toolbarGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
         <Text style={styles.toolbarEyebrow}>ANALYTICS</Text>
         <Text style={styles.toolbarTitle}>{monthLabel}</Text>
         <Text style={styles.toolbarHint}>Attendance, earnings & job pipeline</Text>

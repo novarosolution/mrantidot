@@ -27,7 +27,8 @@ export type TrackingEventType =
   | 'work_completed'
   | 'cancelled'
   | 'admin_override'
-  | 'schedule_confirmed';
+  | 'schedule_confirmed'
+  | 'rescheduled';
 
 export interface IScheduleRequest {
   date: string;
@@ -198,6 +199,7 @@ const trackingEventSchema = new Schema(
         'cancelled',
         'admin_override',
         'schedule_confirmed',
+        'rescheduled',
       ],
       required: true,
     },

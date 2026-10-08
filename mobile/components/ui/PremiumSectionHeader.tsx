@@ -12,7 +12,7 @@ export function PremiumSectionHeader({
   rightAction,
   style,
   compact,
-  showRule = true,
+  showRule = false,
 }: {
   title: string;
   subtitle?: string;
@@ -22,6 +22,7 @@ export function PremiumSectionHeader({
   style?: object;
   /** Smaller title & spacing for dense home sections. */
   compact?: boolean;
+  /** Accent underline — off by default in the white premium theme. */
   showRule?: boolean;
 }) {
   return (
@@ -35,7 +36,7 @@ export function PremiumSectionHeader({
         {onAction ? (
           <Pressable style={styles.action} onPress={onAction} hitSlop={8}>
             {actionLabel ? <Text style={styles.link}>{actionLabel}</Text> : null}
-            <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size={compact ? 13 : 14} color={colors.forest} strokeWidth={2.5} />
+            <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={compact ? 16 : 18} color={colors.forest} strokeWidth={2.4} fill="none" />
           </Pressable>
         ) : null}
       </View>

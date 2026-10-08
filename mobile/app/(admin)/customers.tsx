@@ -2,11 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
-import { AdminFilterChips, AdminStatStrip } from '@/components/kit/AdminPageKit';
+import { AdminFilterChips, AdminSearchField, AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { Card } from '@/components/ui/Card';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { Input } from '@/components/ui/Input';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { formatRupee } from '@/components/kit/format';
@@ -18,6 +17,7 @@ import { useScreenLoad } from '@/lib/useScreenLoad';
 import { isAccountDisabled } from '@/lib/user-helpers';
 import type { AdminCustomer, AdminCustomersResponse } from '@/types/api';
 import { colors, fonts, spacing } from '@/constants/theme';
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 
 type CustomerFilter = 'all' | 'active' | 'disabled' | 'vip';
 
@@ -45,6 +45,8 @@ export default function AdminCustomersScreen() {
   useEffect(() => {
     void runLoad(load, 'Could not load customers');
   }, [load, runLoad]);
+
+  useStaleFocusRefresh(() => load().catch(() => undefined), 3_000);
 
   const visibleCustomers = useMemo(() => {
     let list = customers;
@@ -74,7 +76,7 @@ export default function AdminCustomersScreen() {
         ]}
       />
       <View style={styles.searchWrap}>
-        <Input label="Search" value={search} onChangeText={setSearch} placeholder="Name, phone, email" />
+        <AdminSearchField value={search} onChangeText={setSearch} placeholder="Search name, phone, email" />
       </View>
       <AdminFilterChips
         chips={[
@@ -165,8 +167,6 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: spacing.sm,
     padding: 13,
-    borderTopWidth: 3,
-    borderTopColor: colors.limeBright,
     borderColor: '#E2F0D8',
   },
   cardDisabled: { opacity: 0.65 },

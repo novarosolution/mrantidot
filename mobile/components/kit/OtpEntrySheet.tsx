@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -68,47 +70,49 @@ export function OtpEntrySheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.handle} />
-          <Pressable
-            style={styles.close}
-            onPress={onClose}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-          >
-            <PremiumIcon icon={AppIcons.ui.close} variant="plain" size="lg" color={colors.muted} />
-          </Pressable>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Pressable style={styles.backdrop} onPress={onClose}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.handle} />
+            <Pressable
+              style={styles.close}
+              onPress={onClose}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
+              <PremiumIcon icon={AppIcons.ui.close} variant="plain" size="lg" color={colors.muted} />
+            </Pressable>
 
-          <View style={styles.iconWrap}>
-            <PremiumIcon icon={AppIcons.ui.key} variant="plain" size="xl" color={colors.white} />
-          </View>
-          <Text style={styles.title}>{title}</Text>
+            <View style={styles.iconWrap}>
+              <PremiumIcon icon={AppIcons.ui.key} variant="plain" size="xl" color={colors.white} />
+            </View>
+            <Text style={styles.title}>{title}</Text>
 
-          <Animated.View style={{ transform: [{ translateX: shake }] }}>
-            <TextInput
-              ref={inputRef}
-              style={styles.input}
-              {...textInputDefaults}
-              value={code}
-              onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
-              keyboardType="number-pad"
-              maxLength={6}
-              placeholder="000000"
-              placeholderTextColor={colors.muted}
-              textAlign="center"
+            <Animated.View style={{ transform: [{ translateX: shake }] }}>
+              <TextInput
+                ref={inputRef}
+                style={styles.input}
+                {...textInputDefaults}
+                value={code}
+                onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
+                keyboardType="number-pad"
+                maxLength={6}
+                placeholder="000000"
+                placeholderTextColor={colors.muted}
+                textAlign="center"
+              />
+            </Animated.View>
+
+            <Button
+              title={loading ? 'Verifying…' : 'Verify code'}
+              onPress={submit}
+              disabled={loading || code.length !== 6}
+              style={styles.submit}
             />
-          </Animated.View>
-
-          <Button
-            title={loading ? 'Verifying…' : 'Verify code'}
-            onPress={submit}
-            disabled={loading || code.length !== 6}
-            style={styles.submit}
-          />
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

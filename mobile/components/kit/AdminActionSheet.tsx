@@ -91,8 +91,6 @@ const styles = StyleSheet.create({
     ...glassSkin.sheet,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    borderTopWidth: 3,
-    borderTopColor: colors.limeBright,
     ...premium.shadowSoft,
   },
   sheetTint: {

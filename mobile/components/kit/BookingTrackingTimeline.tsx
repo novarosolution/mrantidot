@@ -1,11 +1,10 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { trackingEventLabel } from '@/lib/booking-helpers';
 import type { TrackingEvent } from '@/types/api';
-import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 const EVENT_ICONS: Record<string, LucideIcon> = {
   assigned: AppIcons.ui.shieldCheck,
@@ -16,6 +15,8 @@ const EVENT_ICONS: Record<string, LucideIcon> = {
   work_completed: AppIcons.ui.check,
   cancelled: AppIcons.ui.alert,
   admin_override: AppIcons.ui.check,
+  schedule_confirmed: AppIcons.ui.calendarCheck,
+  rescheduled: AppIcons.ui.calendarClock,
 };
 
 function formatTime(iso: string): string {
@@ -45,7 +46,6 @@ export function BookingTrackingTimeline({ events }: { events: TrackingEvent[] })
 
   return (
     <View style={styles.wrap}>
-      <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       {sorted.map((item, i) => {
         const icon = EVENT_ICONS[item.event] ?? AppIcons.ui.activity;
         const isLast = i === sorted.length - 1;
@@ -62,7 +62,7 @@ export function BookingTrackingTimeline({ events }: { events: TrackingEvent[] })
                   icon={icon}
                   variant="plain"
                   size={12}
-                  color={isLast ? colors.white : colors.green}
+                  color={isLast ? colors.white : ui.brand}
                 />
               </View>
               {!isLast ? <View style={styles.line} /> : null}
@@ -80,34 +80,33 @@ export function BookingTrackingTimeline({ events }: { events: TrackingEvent[] })
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: surfaces.glass,
-    borderRadius: premium.radiusCard,
+    backgroundColor: colors.white,
+    borderRadius: 18,
     padding: spacing.md,
     paddingTop: spacing.sm,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.hairline,
     overflow: 'hidden',
-    ...premium.shadowSoft,
+    ...ui.shadow,
   },
-  goldBar: { height: 3, marginHorizontal: -spacing.md, marginTop: -spacing.sm, marginBottom: spacing.sm },
   empty: { padding: spacing.md, alignItems: 'center' },
-  emptyText: { fontFamily: fonts.body, fontSize: 13, color: colors.muted },
+  emptyText: { fontFamily: fonts.body, fontSize: 13, color: ui.textSecondary },
   row: { flexDirection: 'row', alignItems: 'flex-start', minHeight: 52 },
   col: { alignItems: 'center', width: 32, marginRight: spacing.sm },
   dot: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: colors.soft,
+    backgroundColor: ui.brandSoft,
     borderWidth: 1.5,
-    borderColor: colors.green,
+    borderColor: ui.brand,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dotActive: { backgroundColor: colors.forest, borderColor: colors.forest },
-  line: { flex: 1, width: 2, minHeight: 24, backgroundColor: colors.border, marginTop: 4 },
+  dotActive: { backgroundColor: ui.brand, borderColor: ui.brand },
+  line: { flex: 1, width: 2, minHeight: 24, backgroundColor: ui.hairline, marginTop: 4 },
   body: { flex: 1, paddingBottom: spacing.md },
-  label: { fontFamily: fonts.display, fontSize: 13, color: colors.ink },
-  labelActive: { fontFamily: fonts.displayExtra, color: colors.forest },
-  time: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 3 },
+  label: { fontFamily: fonts.display, fontSize: 13, color: ui.text },
+  labelActive: { fontFamily: fonts.displayExtra, color: ui.brand },
+  time: { fontFamily: fonts.body, fontSize: 11, color: ui.textSecondary, marginTop: 3 },
 });

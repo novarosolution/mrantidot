@@ -1,27 +1,29 @@
 import type { LucideIcon } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ImageSourcePropType } from 'react-native';
+import { Search, X } from 'lucide-react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { AdminGoldBar } from '@/components/kit/AdminScreenKit';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { adminShadow } from '@/components/kit/homeUi';
 import { ADMIN_QUICK_COLS, adminGridCellWidth } from '@/lib/adminGrid';
-import { adminSurfaces, adminType, colors, premium, spacing } from '@/constants/theme';
+import { adminSurfaces, adminType, colors, fonts, premium, spacing } from '@/constants/theme';
 
 export function AdminQuickGrid({
   items,
   onPress,
 }: {
-  items: { key: string; icon: LucideIcon; label: string }[];
+  items: { key: string; icon: LucideIcon; label: string; image?: ImageSourcePropType }[];
   onPress: (key: string) => void;
 }) {
-  const tileWidth = adminGridCellWidth(ADMIN_QUICK_COLS);
+  const cols = items.length === 4 ? 4 : ADMIN_QUICK_COLS;
+  const tileWidth = adminGridCellWidth(cols);
 
   return (
     <View style={styles.quickGrid}>
-      {items.map(({ key, icon: Icon, label }) => (
+      {items.map(({ key, icon: Icon, label, image }) => (
         <Pressable
           key={key}
           style={({ pressed }) => [{ width: tileWidth }, pressed && styles.pressed]}
@@ -30,7 +32,7 @@ export function AdminQuickGrid({
           <View style={styles.quickShell}>
             <GlassPanel style={styles.quickTile} padded={false} tone="clear" intensity={40} goldEdge>
               <View style={styles.quickInner}>
-                <PremiumIcon icon={Icon} variant="premium" size={18} color={colors.white} boxSize={44} />
+                <PremiumIcon icon={Icon} image={image} variant="premium" size={18} color={colors.white} boxSize={44} />
                 <Text style={styles.quickLabel} numberOfLines={1}>
                   {label}
                 </Text>
@@ -53,7 +55,13 @@ export function AdminFilterChips({
   onSelect: (key: string) => void;
 }) {
   return (
-    <View style={styles.chipsWrap}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={styles.chipsScroll}
+      contentContainerStyle={styles.chipsWrap}
+      keyboardShouldPersistTaps="handled"
+    >
       {chips.map((c) => {
         const active = selected === c.key;
         const locked = Boolean(c.disabled);
@@ -88,6 +96,42 @@ export function AdminFilterChips({
           </Pressable>
         );
       })}
+    </ScrollView>
+  );
+}
+
+export function AdminSearchField({
+  value,
+  onChangeText,
+  placeholder,
+}: {
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View style={[styles.search, focused && styles.searchFocused]}>
+      <Search size={18} color={focused ? colors.forest : colors.muted} strokeWidth={2.2} />
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.muted}
+        style={styles.searchInput}
+        autoCorrect={false}
+        autoCapitalize="none"
+        returnKeyType="search"
+        clearButtonMode="never"
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        accessibilityLabel={placeholder}
+      />
+      {value ? (
+        <Pressable onPress={() => onChangeText('')} hitSlop={10} accessibilityLabel="Clear search" style={styles.searchClear}>
+          <X size={13} color={colors.white} strokeWidth={3} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -142,11 +186,35 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   quickLabel: { ...adminType.quickLabel, color: colors.ink },
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    height: 48,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: adminSurfaces.cardBorder,
+    marginBottom: spacing.sm,
+    ...adminShadow.soft,
+  },
+  searchFocused: { borderColor: colors.forest },
+  searchInput: { flex: 1, fontFamily: fonts.body, fontSize: 15, color: colors.ink, paddingVertical: 0 },
+  searchClear: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.muted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipsScroll: { flexGrow: 0, marginBottom: spacing.sm, overflow: 'visible' },
   chipsWrap: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
-    marginBottom: spacing.sm,
+    paddingVertical: 4,
+    paddingRight: spacing.md,
   },
   chip: {
     paddingHorizontal: 14,

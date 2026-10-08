@@ -1,8 +1,7 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { colors, fonts, premium, surfaces } from '@/constants/theme';
+import { colors, fonts, ui } from '@/constants/theme';
 
 /** Compact location pill for dark heroes (home) and light surfaces. */
 export function LocationChip({
@@ -31,15 +30,14 @@ export function LocationChip({
     >
       <View style={[styles.iconShell, dark ? styles.iconShellDark : styles.iconShellLight]}>
         {loading ? (
-          <ActivityIndicator size="small" color={dark ? colors.forest : colors.forest} />
+          <ActivityIndicator size="small" color={ui.brand} />
         ) : (
           <PremiumIcon
             icon={AppIcons.ui.mapPin}
             variant="plain"
             size={13}
-            color={colors.forest}
+            color={ui.brand}
             strokeWidth={2.4}
-            fill="rgba(10,100,35,0.16)"
           />
         )}
       </View>
@@ -51,7 +49,7 @@ export function LocationChip({
           icon={AppIcons.ui.refresh}
           variant="plain"
           size={12}
-          color={dark ? 'rgba(255,255,255,0.85)' : colors.muted}
+          color={dark ? 'rgba(255,255,255,0.85)' : ui.textTertiary}
           strokeWidth={2.3}
         />
       ) : null}
@@ -75,25 +73,12 @@ export function LocationBanner({
 }) {
   return (
     <View style={[styles.bannerShell, embedded && styles.bannerShellEmbedded]}>
-      <LinearGradient
-        colors={embedded ? ['transparent', 'transparent'] : ['rgba(255,255,255,0.92)', 'rgba(246,250,242,0.88)']}
-        style={[styles.banner, embedded && styles.bannerEmbedded]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        {!embedded ? (
-          <LinearGradient
-            colors={[colors.limeBright, colors.green]}
-            style={styles.bannerGold}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          />
-        ) : null}
+      <View style={[styles.banner, embedded && styles.bannerEmbedded]}>
         <PremiumIcon
           icon={AppIcons.ui.mapPin}
-          variant="gradient"
+          variant="mint"
           size={16}
-          color={colors.white}
+          color={ui.brand}
           strokeWidth={2.2}
           boxSize={44}
         />
@@ -113,13 +98,13 @@ export function LocationBanner({
             accessibilityLabel="Refresh location"
           >
             {loading ? (
-              <ActivityIndicator size="small" color={colors.forest} />
+              <ActivityIndicator size="small" color={ui.brand} />
             ) : (
-              <PremiumIcon icon={AppIcons.ui.refresh} variant="plain" size={15} color={colors.forest} strokeWidth={2.2} />
+              <PremiumIcon icon={AppIcons.ui.refresh} variant="plain" size={15} color={ui.brand} strokeWidth={2.2} />
             )}
           </Pressable>
         ) : null}
-      </LinearGradient>
+      </View>
     </View>
   );
 }
@@ -142,9 +127,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.34)',
   },
   pillLight: {
-    backgroundColor: colors.mint,
+    backgroundColor: ui.brandSoft,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.hairline,
   },
   iconShell: {
     width: 28,
@@ -159,71 +144,65 @@ const styles = StyleSheet.create({
   iconShellLight: {
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: surfaces.glassBorder,
+    borderColor: ui.hairline,
   },
   pressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
   text: { fontFamily: fonts.bodySemi, fontSize: 13, flexShrink: 1, letterSpacing: -0.1 },
   textDark: { color: colors.white },
-  textLight: { color: colors.forest },
+  textLight: { color: ui.brand },
   bannerShell: {
-    borderRadius: premium.radiusCard,
+    borderRadius: 18,
     marginBottom: 12,
-    ...premium.shadowSoft,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
+    ...ui.shadow,
   },
   bannerShellEmbedded: {
     marginBottom: 0,
     shadowOpacity: 0,
     elevation: 0,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
   },
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     padding: 14,
-    borderRadius: premium.radiusCard,
-    borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
-    overflow: 'hidden',
+    borderRadius: 18,
   },
   bannerEmbedded: {
     backgroundColor: 'transparent',
-    borderWidth: 0,
     padding: 0,
-  },
-  bannerGold: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
   },
   bannerBody: { flex: 1, minWidth: 0 },
   bannerLabel: {
     fontFamily: fonts.bodyBold,
     fontSize: 10,
-    color: colors.muted,
+    color: ui.brand,
     letterSpacing: 1.1,
   },
   bannerValue: {
     fontFamily: fonts.displaySemi,
     fontSize: 15,
-    color: colors.ink,
+    color: ui.text,
     marginTop: 2,
     letterSpacing: -0.2,
   },
   bannerHint: {
     fontFamily: fonts.body,
     fontSize: 11.5,
-    color: colors.muted,
+    color: ui.textSecondary,
     marginTop: 2,
   },
   bannerBtn: {
     width: 42,
     height: 42,
     borderRadius: 14,
-    backgroundColor: colors.mint,
+    backgroundColor: ui.brandSoft,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },

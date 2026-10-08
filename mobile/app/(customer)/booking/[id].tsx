@@ -16,11 +16,10 @@ import { PendingScheduleCard } from '@/components/kit/PendingScheduleCard';
 import { BookingPriceBreakdown } from '@/components/kit/BookingPriceBreakdown';
 import { BookingInvoiceCard } from '@/components/kit/BookingInvoiceCard';
 import { BookingTrackingTimeline } from '@/components/kit/BookingTrackingTimeline';
-import { JobProgressCard } from '@/components/kit/JobProgressCard';
-import { OtpEntrySheet } from '@/components/kit/OtpEntrySheet';
+import { RescheduleSheet } from '@/components/kit/RescheduleSheet';
 import { getActiveCustomerOtp, WorkOtpCard } from '@/components/kit/WorkOtpCard';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
-import { GlassBackdrop, glassTabBarStyle } from '@/components/kit/GlassScreenKit';
+import { useDockTabBarStyle } from '@/components/kit/GlassScreenKit';
 import { Button } from '@/components/ui/Button';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
@@ -43,7 +42,7 @@ import {
 } from '@/lib/booking-helpers';
 import { getCustomerTrackingSteps, getStatusGuidance, useBookingCopy } from '@/lib/schedule-copy';
 import type { Booking, Review, WorkOtpView } from '@/types/api';
-import { colors, fonts, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 import { sharedRoutes, appPush } from '@/lib/routes';
 
 function customerTrackingSteps(
@@ -61,12 +60,11 @@ export default function CustomerBookingDetailScreen() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [hasReview, setHasReview] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [verifying, setVerifying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [rescheduling, setRescheduling] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [regenerating, setRegenerating] = useState<'start' | 'end' | null>(null);
-  const [endOtpOpen, setEndOtpOpen] = useState(false);
-  const [otpErrorTrigger, setOtpErrorTrigger] = useState(0);
   const focusedRef = useRef(false);
   const lastRefresh = useRef(0);
 
@@ -126,18 +124,20 @@ export default function CustomerBookingDetailScreen() {
     }
   }, [load]);
 
+  const dockStyle = useDockTabBarStyle();
   useFocusEffect(
     useCallback(() => {
       focusedRef.current = true;
-      // Hide floating tab bar so sticky CTAs stay tappable (same as tech job).
-      const tabsNav = navigation.getParent()?.getParent() ?? navigation.getParent();
+      // Hide the tab bar so sticky CTAs stay tappable (same as tech job).
+      // Parent = the customer Tabs route that owns this booking stack; its parent is the root stack.
+      const tabsNav = navigation.getParent();
       tabsNav?.setOptions({ tabBarStyle: { display: 'none' } });
       refresh();
       return () => {
         focusedRef.current = false;
-        tabsNav?.setOptions({ tabBarStyle: glassTabBarStyle });
+        tabsNav?.setOptions({ tabBarStyle: dockStyle });
       };
-    }, [navigation, refresh]),
+    }, [navigation, refresh, dockStyle]),
   );
 
   const liveStatus = booking ? isBookingLive(booking.status) : false;
@@ -149,26 +149,14 @@ export default function CustomerBookingDetailScreen() {
     return () => clearInterval(timer);
   }, [liveStatus, refresh]);
 
-  async function completeWithOtp(otp: string) {
-    setVerifying(true);
-    try {
-      await api.post(`/bookings/${id}/complete-work`, { otp });
-      Toast.show({ type: 'success', text1: 'Job completed!' });
-      setEndOtpOpen(false);
-      await load({ skipCache: true });
-    } catch {
-      setOtpErrorTrigger((n) => n + 1);
-    } finally {
-      setVerifying(false);
-    }
-  }
-
   async function regenerateOtp(type: 'start' | 'end') {
     setRegenerating(type);
     try {
       await api.post(`/bookings/${id}/regenerate-otp`, { type });
       Toast.show({ type: 'success', text1: 'New code generated' });
       await load({ skipCache: true });
+    } catch {
+      // error toast shown by the api interceptor
     } finally {
       setRegenerating(null);
     }
@@ -191,14 +179,30 @@ export default function CustomerBookingDetailScreen() {
       await api.patch(`/bookings/${id}/cancel`);
       Toast.show({ type: 'success', text1: 'Booking cancelled' });
       await load();
+    } catch {
+      // error toast shown by the api interceptor
     } finally {
       setCancelling(false);
     }
   }
 
+  async function doReschedule(date: string, slot: string) {
+    setRescheduling(true);
+    try {
+      await api.patch(`/bookings/${id}/reschedule`, { scheduleRequest: { date, slot } });
+      setRescheduleOpen(false);
+      Toast.show({ type: 'success', text1: 'Reschedule requested', text2: 'We’ll confirm the new time shortly.' });
+      await load({ skipCache: true });
+    } catch {
+      // error toast shown by the api interceptor
+    } finally {
+      setRescheduling(false);
+    }
+  }
+
   if (loadError) {
     return (
-      <View style={styles.rootShell}><GlassBackdrop /><SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      <View style={styles.rootShell}><SafeAreaView style={styles.safe} edges={['left', 'right']}>
         <CustomerPageHeader variant="premium" title="Booking" showBack />
         <ListEmptyRetry
           message={loadError}
@@ -210,7 +214,7 @@ export default function CustomerBookingDetailScreen() {
 
   if (!booking) {
     return (
-      <View style={styles.rootShell}><GlassBackdrop /><SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      <View style={styles.rootShell}><SafeAreaView style={styles.safe} edges={['left', 'right']}>
         <CustomerPageHeader variant="premium" title="Your booking" showBack />
         <Spinner />
       </SafeAreaView></View>
@@ -272,28 +276,26 @@ export default function CustomerBookingDetailScreen() {
   const svcId =
     booking.service && typeof booking.service === 'object' ? booking.service.id : undefined;
 
-  const hasStickyActions =
-    isVerificationPhase(booking.status) ||
-    (booking.status === 'completed' && !hasReview) ||
-    canCancelBooking(booking.status) ||
-    (booking.status === 'cancelled' && Boolean(svcId));
+  const canBookAgain =
+    (booking.status === 'cancelled' || booking.status === 'completed') && Boolean(svcId);
+  const canReview = booking.status === 'completed' && !hasReview;
 
   const stickyActionCount = [
-    isVerificationPhase(booking.status),
-    booking.status === 'completed' && !hasReview,
+    canReview,
     canCancelBooking(booking.status),
-    booking.status === 'cancelled' && Boolean(svcId),
+    canCancelBooking(booking.status),
+    canBookAgain,
   ].filter(Boolean).length;
+  const hasStickyActions = stickyActionCount > 0;
 
   return (
-    <View style={styles.rootShell}><GlassBackdrop /><SafeAreaView style={styles.safe} edges={['left', 'right']}>
+    <View style={styles.rootShell}><SafeAreaView style={styles.safe} edges={['left', 'right']}>
       <CustomerPageHeader
         variant="premium"
         title={bookingCopy.detailScreenTitle}
-        subtitle={`${bookingServiceName(booking)} · ${headerSubtitle}`}
+        subtitle={headerSubtitle}
         showBack
         rightAction={headerRight}
-        overlapReserve
       />
       <ScrollView
         contentContainerStyle={[
@@ -301,24 +303,18 @@ export default function CustomerBookingDetailScreen() {
           hasStickyActions && { paddingBottom: 56 + stickyActionCount * 52 + spacing.xl },
         ]}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={colors.green} />
+          <RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={ui.brand} />
         }
       >
         <BookingDetailHero
           booking={booking}
           live={isLive}
-          overlap
           guidance={isSchedulePending(booking) ? undefined : statusGuidance}
+          progress={showLiveProgress && steps.length > 0 ? { done: doneCount, total: steps.length } : null}
         />
 
-        {showLiveProgress && steps.length > 0 ? (
-          <FadeSlideIn delay={60} style={styles.sectionWrap}>
-            <JobProgressCard done={doneCount} total={steps.length} live label={bookingCopy.detailLiveProgressLabel} />
-          </FadeSlideIn>
-        ) : null}
-
         {isSchedulePending(booking) ? (
-          <FadeSlideIn delay={80} style={styles.sectionWrap}>
+          <FadeSlideIn delay={60} style={styles.sectionWrap}>
             <PendingScheduleCard
               variant="customer"
               title={bookingCopy.pendingCustomerTitle}
@@ -334,12 +330,57 @@ export default function CustomerBookingDetailScreen() {
           </FadeSlideIn>
         ) : null}
 
-        <FadeSlideIn delay={100}>
+        {/* Codes are the customer's main action during a visit — keep them right under the status. */}
+        {startOtp && booking.status === 'confirmed' ? (
+          <FadeSlideIn delay={80} style={styles.sectionWrap}>
+            <WorkOtpCard
+              title={bookingCopy.otpStartTitle}
+              subtitle={bookingCopy.otpStartSubtitle}
+              otp={startOtp}
+              onRegenerate={() => void regenerateOtp('start')}
+              regenerating={regenerating === 'start'}
+            />
+          </FadeSlideIn>
+        ) : null}
+
+        {endOtp && isVerificationPhase(booking.status) ? (
+          <FadeSlideIn delay={80} style={styles.sectionWrap}>
+            <WorkOtpCard
+              title={bookingCopy.otpEndTitle}
+              subtitle={bookingCopy.otpEndSubtitle}
+              otp={endOtp}
+              onRegenerate={() => void regenerateOtp('end')}
+              regenerating={regenerating === 'end'}
+            />
+          </FadeSlideIn>
+        ) : null}
+
+        {showStageTimeline ? (
+          <FadeSlideIn delay={100}>
+            <BookingDetailSection title={bookingCopy.trackingSectionTitle} subtitle={bookingCopy.trackingSectionSubtitle}>
+              <BookingStageTracker steps={timeline} />
+            </BookingDetailSection>
+          </FadeSlideIn>
+        ) : null}
+
+        {showLiveProgress && steps.length > 0 ? (
+          <FadeSlideIn delay={110}>
+            <PremiumSectionHeader
+              title={bookingCopy.treatmentStepsTitle}
+              subtitle={bookingCopy.treatmentStepsLiveSubtitle}
+              compact
+            />
+            {steps.map((step, index) => renderStepCard(step, index))}
+          </FadeSlideIn>
+        ) : null}
+
+        <FadeSlideIn delay={120}>
           <BookingDetailSection title={bookingCopy.detailDetailsTitle} subtitle={bookingCopy.detailDetailsSubtitle}>
             <BookingFactsCard
               booking={booking}
               audience="customer"
               hideHead
+              hideSchedule
               embedded
               showTechnician={bookingHasTechnician(booking)}
               showPayment
@@ -360,46 +401,25 @@ export default function CustomerBookingDetailScreen() {
           </BookingDetailSection>
         </FadeSlideIn>
 
-        {booking.status !== 'cancelled' ? (
-          <FadeSlideIn delay={110}>
-            <BookingInvoiceCard bookingId={booking.id} />
-          </FadeSlideIn>
-        ) : null}
-
-        {startOtp && booking.status === 'confirmed' ? (
-          <FadeSlideIn delay={120} style={styles.sectionWrap}>
-            <WorkOtpCard
-              title={bookingCopy.otpStartTitle}
-              subtitle={bookingCopy.otpStartSubtitle}
-              otp={startOtp}
-              onRegenerate={() => void regenerateOtp('start')}
-              regenerating={regenerating === 'start'}
+        {showStepHistory ? (
+          <FadeSlideIn delay={140}>
+            <PremiumSectionHeader
+              title={bookingCopy.treatmentStepsTitle}
+              subtitle={bookingCopy.treatmentStepsDoneSubtitle}
+              compact
             />
+            {steps.map((step, index) => renderStepCard(step, index))}
           </FadeSlideIn>
         ) : null}
 
-        {endOtp && isVerificationPhase(booking.status) ? (
-          <FadeSlideIn delay={140} style={styles.sectionWrap}>
-            <WorkOtpCard
-              title={bookingCopy.otpEndTitle}
-              subtitle={bookingCopy.otpEndSubtitle}
-              otp={endOtp}
-              onRegenerate={() => void regenerateOtp('end')}
-              regenerating={regenerating === 'end'}
-            />
-          </FadeSlideIn>
-        ) : null}
-
-        {showStageTimeline ? (
-          <FadeSlideIn delay={160}>
-            <BookingDetailSection title={bookingCopy.trackingSectionTitle} subtitle={bookingCopy.trackingSectionSubtitle}>
-              <BookingStageTracker steps={timeline} />
-            </BookingDetailSection>
+        {problemPhotos.length > 0 ? (
+          <FadeSlideIn delay={150}>
+            <BookingPhotoGallery photos={problemPhotos} />
           </FadeSlideIn>
         ) : null}
 
         {(booking.tracking?.length ?? 0) > 0 ? (
-          <FadeSlideIn delay={180}>
+          <FadeSlideIn delay={160}>
             <PremiumSectionHeader title={bookingCopy.activitySectionTitle} subtitle={bookingCopy.activitySectionSubtitle} compact />
             <View style={styles.sectionWrap}>
               <BookingTrackingTimeline events={booking.tracking ?? []} />
@@ -407,66 +427,66 @@ export default function CustomerBookingDetailScreen() {
           </FadeSlideIn>
         ) : null}
 
-        {problemPhotos.length > 0 ? (
-          <FadeSlideIn delay={200}>
-            <BookingPhotoGallery photos={problemPhotos} />
-          </FadeSlideIn>
-        ) : null}
-
-        {showLiveProgress || showStepHistory ? (
-          <FadeSlideIn delay={220}>
-            <PremiumSectionHeader
-              title={bookingCopy.treatmentStepsTitle}
-              subtitle={showLiveProgress ? bookingCopy.treatmentStepsLiveSubtitle : bookingCopy.treatmentStepsDoneSubtitle}
-              compact
-            />
-            {steps.map((step, index) => renderStepCard(step, index))}
+        {booking.status !== 'cancelled' ? (
+          <FadeSlideIn delay={170}>
+            <PremiumSectionHeader title="Invoice" compact />
+            <BookingInvoiceCard bookingId={booking.id} summaryOnly />
           </FadeSlideIn>
         ) : null}
       </ScrollView>
 
       {hasStickyActions && (
         <StickyActionBar>
-          {isVerificationPhase(booking.status) && (
-            <Button
-              title={bookingCopy.detailActionEnterCode}
-              variant="premium"
-              onPress={() => setEndOtpOpen(true)}
-              loading={verifying}
-            />
-          )}
-          {booking.status === 'completed' && !hasReview && (
-            <Button title={bookingCopy.detailActionReview} variant="premium" onPress={() => appPush(sharedRoutes.review(booking.id))} />
-          )}
-          {canCancelBooking(booking.status) && (
-            <Button
-              title={bookingCopy.detailActionCancel}
-              variant="secondary"
-              onPress={confirmCancel}
-              loading={cancelling}
-              style={styles.ctaSecondary}
-            />
-          )}
-          {booking.status === 'cancelled' && svcId ? (
-            <Button title={bookingCopy.detailActionBookAgain} variant="premium" onPress={() => appPush(sharedRoutes.bookPath(svcId))} />
-          ) : null}
+          <View style={styles.ctaRow}>
+            {canCancelBooking(booking.status) && (
+              <Button
+                title="Cancel"
+                variant="secondary"
+                onPress={confirmCancel}
+                loading={cancelling}
+                style={styles.ctaHalf}
+              />
+            )}
+            {canBookAgain && svcId ? (
+              <Button
+                title={bookingCopy.detailActionBookAgain}
+                variant={canReview ? 'secondary' : 'premium'}
+                onPress={() => appPush(sharedRoutes.bookPath(svcId))}
+                style={styles.ctaHalf}
+              />
+            ) : null}
+            {canReview && (
+              <Button
+                title={bookingCopy.detailActionReview}
+                variant="premium"
+                onPress={() => appPush(sharedRoutes.review(booking.id))}
+                style={styles.ctaHalf}
+              />
+            )}
+            {canCancelBooking(booking.status) && (
+              <Button
+                title="Reschedule"
+                variant="premium"
+                onPress={() => setRescheduleOpen(true)}
+                style={styles.ctaHalf}
+              />
+            )}
+          </View>
         </StickyActionBar>
       )}
 
-      <OtpEntrySheet
-        visible={endOtpOpen}
-        title="Confirm completion"
-        loading={verifying}
-        errorTrigger={otpErrorTrigger}
-        onClose={() => setEndOtpOpen(false)}
-        onSubmit={(otp) => void completeWithOtp(otp)}
+      <RescheduleSheet
+        visible={rescheduleOpen}
+        loading={rescheduling}
+        onClose={() => setRescheduleOpen(false)}
+        onConfirm={(d, s) => void doReschedule(d, s)}
       />
     </SafeAreaView></View>
   );
 }
 
 const styles = StyleSheet.create({
-  rootShell: { flex: 1, backgroundColor: surfaces.glassScreenBase },
+  rootShell: { flex: 1, backgroundColor: ui.surfaceMuted },
   safe: { flex: 1, backgroundColor: 'transparent' },
   container: { paddingBottom: 120 },
   sectionWrap: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
@@ -485,22 +505,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: 'rgba(168,224,78,0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(168,224,78,0.35)',
+    backgroundColor: ui.brandSoft,
   },
   liveDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.lime,
+    backgroundColor: ui.brand,
   },
   livePillText: {
-    fontFamily: fonts.bodySemi,
+    fontFamily: fonts.bodyBold,
     fontSize: 10,
-    color: colors.lime,
+    color: colors.forest,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
-  ctaSecondary: { marginTop: spacing.sm },
+  ctaRow: { flexDirection: 'row', gap: spacing.sm },
+  ctaHalf: { flex: 1 },
 });

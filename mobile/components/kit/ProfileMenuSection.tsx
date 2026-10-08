@@ -1,7 +1,5 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
-import { GlassPanel } from '@/components/kit/GlassScreenKit';
-import { colors, premiumType, spacing } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 export function ProfileMenuSection({
   title,
@@ -16,13 +14,10 @@ export function ProfileMenuSection({
     <View style={[styles.wrap, style]}>
       {title ? (
         <View style={styles.titleRow}>
-          <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.titleAccent} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
           <Text style={styles.title}>{title}</Text>
         </View>
       ) : null}
-      <GlassPanel padded={false} goldEdge tone="clear" intensity={40} style={styles.card}>
-        {children}
-      </GlassPanel>
+      <View style={styles.card}>{children}</View>
     </View>
   );
 }
@@ -39,16 +34,19 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     marginLeft: 2,
   },
-  titleAccent: {
-    width: 3,
-    height: 14,
-    borderRadius: 2,
-  },
   title: {
-    ...premiumType.heroEyebrow,
-    color: colors.muted,
+    fontFamily: fonts.bodySemi,
+    fontSize: 11,
+    letterSpacing: 0.75,
+    textTransform: 'uppercase',
+    color: ui.textTertiary,
   },
   card: {
-    borderRadius: 22,
+    borderRadius: 18,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
+    overflow: 'hidden',
+    ...ui.shadow,
   },
 });

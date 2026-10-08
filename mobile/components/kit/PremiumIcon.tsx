@@ -1,8 +1,16 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, View, type ColorValue, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Image,
+  StyleSheet,
+  View,
+  type ColorValue,
+  type ImageSourcePropType,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { IconGradients } from '@/constants/appIcons';
-import { colors } from '@/constants/theme';
+import { colors, ui } from '@/constants/theme';
 
 export const IconSize = {
   xs: 14,
@@ -64,8 +72,77 @@ function softFill(color: ColorValue, alphaHex = '4A'): string {
   return 'transparent';
 }
 
+function hexToRgb(hex: string): [number, number, number] | null {
+  if (!hex.startsWith('#')) return null;
+  const h = hex.length === 4 ? hex.slice(1).split('').map((c) => c + c).join('') : hex.slice(1, 7);
+  if (h.length !== 6) return null;
+  const n = Number.parseInt(h, 16);
+  return Number.isFinite(n) ? [(n >> 16) & 255, (n >> 8) & 255, n & 255] : null;
+}
+
+/** Mix a hex colour toward white — `amt` 0 = colour, 1 = white. */
+function tint(hex: string, amt: number): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return '#F2F5F2';
+  const mix = (c: number) => Math.round(c + (255 - c) * amt).toString(16).padStart(2, '0');
+  return `#${mix(rgb[0])}${mix(rgb[1])}${mix(rgb[2])}`;
+}
+
+function luminance(hex: string): number {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return 0.5;
+  const [r, g, b] = rgb.map((c) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** Readable accent from a legacy gradient — the stop closest to a mid-dark tone. */
+function accentFromGradient(stops: readonly string[]): string {
+  return [...stops].sort((a, b) => Math.abs(luminance(a) - 0.15) - Math.abs(luminance(b) - 0.15))[0];
+}
+
+function isLightInk(color: ColorValue): boolean {
+  return typeof color === 'string' && (color.toLowerCase() === '#ffffff' || color.toLowerCase() === '#fff' || color === 'white');
+}
+
+/** Flat tinted icon tile — the premium, Urban-style replacement for glossy gradient tiles. */
+function FlatTile({
+  Icon,
+  px,
+  accent,
+  bg,
+  box,
+  style,
+  onDark,
+}: {
+  Icon: LucideIcon;
+  px: number;
+  accent: string;
+  bg?: string;
+  box: number;
+  style?: StyleProp<ViewStyle>;
+  onDark?: boolean;
+}) {
+  const r = tileRadius(box);
+  return (
+    <View
+      style={[
+        styles.flatTile,
+        { width: box, height: box, borderRadius: r, backgroundColor: onDark ? 'rgba(255,255,255,0.16)' : (bg ?? tint(accent, 0.88)) },
+        style,
+      ]}
+    >
+      <Glyph Icon={Icon} px={px} color={accent} stroke={opticalStroke(px, 'medium')} fill={onDark ? 'rgba(255,255,255,0.22)' : softFill(accent, '26')} />
+    </View>
+  );
+}
+
 /** Auto soft body fill for plain glyphs — richer silhouette at small sizes. */
 function plainSoftFill(color: ColorValue, fill?: string): string | undefined {
+  /** 'none' = crisp outline only (premium line icons). */
+  if (fill === 'none') return 'transparent';
   if (fill && fill !== 'transparent') return fill;
   if (typeof color !== 'string') return undefined;
   const c = color.toLowerCase();
@@ -112,30 +189,25 @@ function TileShine() {
   );
 }
 
-function TileRim({ light = true }: { light?: boolean }) {
-  return (
-    <View
-      style={[styles.tileRim, { borderColor: light ? 'rgba(255,255,255,0.5)' : 'rgba(11,114,40,0.1)' }]}
-      pointerEvents="none"
-    />
-  );
-}
-
 export function PremiumIcon({
   icon: Icon,
+  image,
   variant = 'plain',
   size = 'md',
   color = colors.forest,
   strokeWidth,
   focused,
   bg,
-  bgTo,
+  /** Accepted for older call sites — flat tiles use a single tint. */
+  bgTo: _bgTo,
   gradient,
   boxSize,
   fill,
   style,
 }: {
-  icon: LucideIcon;
+  icon?: LucideIcon;
+  /** Generated mint-tile asset — preferred for content icons when set. */
+  image?: ImageSourcePropType;
   variant?: IconVariant;
   size?: IconSizeKey | number;
   color?: ColorValue;
@@ -149,6 +221,22 @@ export function PremiumIcon({
   style?: StyleProp<ViewStyle>;
 }) {
   const px = resolveSize(size);
+
+  /** Full generated mint tile — skip Lucide chrome when asset is present. */
+  if (image && variant !== 'tab' && variant !== 'chevron') {
+    const box =
+      boxSize ??
+      (variant === 'plain' ? px + 8 : variant === 'premium' ? 52 : variant === 'gradient' ? 48 : 50);
+    const r = Math.round(box * 0.3);
+    return (
+      <View style={[{ width: box, height: box, borderRadius: r, overflow: 'hidden' }, style]}>
+        <Image source={image} style={{ width: box, height: box }} resizeMode="cover" />
+      </View>
+    );
+  }
+
+  if (!Icon) return null;
+
   const weight: IconWeight =
     strokeWidth != null
       ? 'regular'
@@ -176,14 +264,7 @@ export function PremiumIcon({
   if (variant === 'chevron') {
     return (
       <View style={[styles.chevron, style]}>
-        <LinearGradient
-          colors={[colors.white, '#F2FAEE', colors.soft]}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-        <TileShine />
-        <Glyph Icon={Icon} px={px} color={color} stroke={opticalStroke(px, 'bold')} fill={softFill(color, '4A')} />
+        <Glyph Icon={Icon} px={px} color={color} stroke={opticalStroke(px, 'bold')} fill="transparent" />
       </View>
     );
   }
@@ -193,7 +274,6 @@ export function PremiumIcon({
       <View style={[styles.tabWrap, style]}>
         {focused ? (
           <View style={styles.tabActiveShell}>
-            <View style={styles.tabActiveHalo} pointerEvents="none" />
             <LinearGradient
               colors={['#A8E04A', colors.greenBright, colors.forest]}
               style={styles.tabActive}
@@ -201,7 +281,7 @@ export function PremiumIcon({
               end={{ x: 0.88, y: 1 }}
             >
               <LinearGradient
-                colors={['rgba(255,255,255,0.5)', 'rgba(255,255,255,0.1)', 'rgba(0,0,0,0.1)']}
+                colors={['rgba(255,255,255,0.28)', 'rgba(255,255,255,0.06)', 'rgba(0,0,0,0.08)']}
                 locations={[0, 0.42, 1]}
                 style={StyleSheet.absoluteFill}
                 start={{ x: 0.5, y: 0 }}
@@ -220,13 +300,6 @@ export function PremiumIcon({
           </View>
         ) : (
           <View style={styles.tabIdle}>
-            <LinearGradient
-              colors={['rgba(255,255,255,0.92)', 'rgba(234,246,227,0.78)']}
-              style={StyleSheet.absoluteFill}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              pointerEvents="none"
-            />
             <Glyph
               Icon={Icon}
               px={px}
@@ -272,106 +345,29 @@ export function PremiumIcon({
 
   if (variant === 'gradient' || variant === 'premium') {
     const box = boxSize ?? (variant === 'premium' ? 52 : 48);
-    const r = tileRadius(box);
-    const colorsPair = gradient ?? (variant === 'premium' ? IconGradients.lime : IconGradients.forest);
-    return (
-      <View style={[styles.gradShell, { width: box, height: box, borderRadius: r }, style]}>
-        <LinearGradient
-          colors={[...colorsPair]}
-          style={[styles.gradBox, { borderRadius: r }]}
-          start={{ x: 0.1, y: 0 }}
-          end={{ x: 0.92, y: 1 }}
-        >
-          <LinearGradient
-            colors={['rgba(255,255,255,0.42)', 'rgba(255,255,255,0.08)', 'rgba(0,0,0,0.1)']}
-            locations={[0, 0.42, 1]}
-            style={StyleSheet.absoluteFill}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            pointerEvents="none"
-          />
-          <View style={styles.gradHighlight} pointerEvents="none" />
-          <View style={styles.gradRim} pointerEvents="none" />
-          <Glyph
-            Icon={Icon}
-            px={px}
-            color={colors.white}
-            stroke={opticalStroke(px, 'bold')}
-            fill="rgba(255,255,255,0.28)"
-          />
-        </LinearGradient>
-      </View>
-    );
+    const stops = gradient ?? (variant === 'premium' ? IconGradients.lime : IconGradients.forest);
+    return <FlatTile Icon={Icon} px={px} accent={accentFromGradient(stops)} bg={bg} box={box} style={style} />;
   }
 
-  if (variant === 'glass') {
-    const box = boxSize ?? 50;
-    const r = tileRadius(box);
-    return (
-      <View style={[styles.glassBox, { width: box, height: box, borderRadius: r }, style]}>
-        <LinearGradient
-          colors={['rgba(255,255,255,0.98)', 'rgba(240,250,234,0.92)', 'rgba(200,240,122,0.55)']}
-          locations={[0, 0.45, 1]}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-        <LinearGradient
-          colors={['rgba(255,255,255,0.7)', 'rgba(255,255,255,0)', 'rgba(10,100,35,0.06)']}
-          locations={[0, 0.5, 1]}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          pointerEvents="none"
-        />
-        <TileShine />
-        <TileRim />
-        <Glyph
-          Icon={Icon}
-          px={px}
-          color={color}
-          stroke={opticalStroke(px, 'medium')}
-          fill={softFill(color, '4A')}
-        />
-      </View>
-    );
-  }
-
+  // glass / soft / mint — flat tile in the glyph's own tint (translucent white on dark surfaces).
   const box = boxSize ?? 50;
-  const r = tileRadius(box);
-  const softFrom = bg ?? (variant === 'mint' ? colors.soft : colors.white);
-  const softTo = bgTo ?? (variant === 'mint' ? '#CDEAC4' : '#F2FAEE');
-
+  const accent = typeof color === 'string' ? color : colors.forest;
   return (
-    <View style={[styles.softShell, { width: box, height: box, borderRadius: r }, style]}>
-      <LinearGradient
-        colors={[softFrom, softTo]}
-        style={[
-          styles.softBox,
-          {
-            borderRadius: r,
-            borderColor: variant === 'mint' ? 'rgba(143,208,60,0.35)' : 'rgba(198,236,180,0.9)',
-          },
-        ]}
-        start={{ x: 0.08, y: 0 }}
-        end={{ x: 0.95, y: 1 }}
-      >
-        <TileShine />
-        <TileRim />
-        <Glyph
-          Icon={Icon}
-          px={px}
-          color={color}
-          stroke={opticalStroke(px, 'medium')}
-          fill={softFill(color, '4A')}
-        />
-      </LinearGradient>
-    </View>
+    <FlatTile
+      Icon={Icon}
+      px={px}
+      accent={accent}
+      bg={bg ?? (variant === 'mint' ? ui.brandSoft : undefined)}
+      box={box}
+      style={style}
+      onDark={isLightInk(color)}
+    />
   );
 }
 
+/** Docked tab icon — outline when idle, softly filled + heavier stroke when active. */
 export function KitTabBarIcon({
-  icon,
+  icon: Icon,
   color,
   focused,
 }: {
@@ -379,32 +375,21 @@ export function KitTabBarIcon({
   color: ColorValue;
   focused?: boolean;
 }) {
+  const tint = typeof color === 'string' ? color : colors.forest;
   return (
-    <PremiumIcon
-      icon={icon}
-      variant="tab"
-      size={focused ? 21 : 20}
-      color={focused ? colors.white : color}
-      focused={focused}
-    />
+    <View style={styles.tabWrap}>
+      <Icon
+        size={24}
+        color={tint}
+        strokeWidth={focused ? 2.2 : 1.8}
+        fill={focused ? softFill(tint, '2E') : 'transparent'}
+        absoluteStrokeWidth={false}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  softShell: {
-    shadowColor: '#06180B',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.16,
-    shadowRadius: 14,
-    elevation: 5,
-  },
-  softBox: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
   softShine: {
     position: 'absolute',
     top: 0,
@@ -412,116 +397,58 @@ const styles = StyleSheet.create({
     right: 0,
     height: '52%',
   },
-  tileRim: {
-    ...StyleSheet.absoluteFill,
-    borderWidth: 1,
-  },
-  glassBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(180,220,165,0.95)',
-    shadowColor: '#06180B',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
-    elevation: 6,
-  },
-  gradShell: {
-    shadowColor: colors.forestDeep,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.38,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  gradBox: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  gradHighlight: {
-    position: 'absolute',
-    top: 3,
-    left: '18%',
-    right: '18%',
-    height: '28%',
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-  },
-  gradRim: {
-    ...StyleSheet.absoluteFill,
-    borderWidth: 1.2,
-    borderColor: 'rgba(255,255,255,0.42)',
-  },
   chevron: {
     width: 32,
     height: 32,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(180,220,165,0.98)',
-    shadowColor: '#06180B',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
+    borderColor: ui.border,
+    backgroundColor: colors.white,
+  },
+  flatTile: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 44,
+    height: 28,
   },
   tabActiveShell: {
-    borderRadius: 17,
+    borderRadius: 13,
     shadowColor: colors.forest,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.42,
-    shadowRadius: 14,
-    elevation: 12,
-  },
-  tabActiveHalo: {
-    position: 'absolute',
-    top: -5,
-    left: -5,
-    right: -5,
-    bottom: -5,
-    borderRadius: 20,
-    backgroundColor: 'rgba(143,208,60,0.22)',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 9,
+    elevation: 8,
   },
   tabActive: {
-    width: 44,
-    height: 44,
-    borderRadius: 15,
+    width: 46,
+    height: 34,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   tabActiveRim: {
     ...StyleSheet.absoluteFill,
-    borderWidth: 1.25,
-    borderColor: 'rgba(255,255,255,0.48)',
-    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
+    borderRadius: 13,
   },
   tabIdle: {
-    width: 44,
-    height: 44,
+    width: 46,
+    height: 34,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 15,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(180,220,165,0.55)',
-    backgroundColor: 'rgba(255,255,255,0.55)',
   },
   ringOuter: {
     padding: 2.5,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0B7228',
+    shadowColor: colors.forest,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 12,

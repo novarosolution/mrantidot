@@ -1,20 +1,23 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
-import { colors, customerType, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 export function ProfileMenuRow({
   icon: Icon,
+  image,
   label,
   description,
   onPress,
   showBorder,
   tint = colors.forest,
-  iconBg = colors.soft,
+  iconBg = ui.brandSoft,
   badge,
 }: {
-  icon: LucideIcon;
+  icon?: LucideIcon;
+  /** Generated mint-tile image — preferred when available. */
+  image?: ImageSourcePropType;
   label: string;
   description?: string;
   onPress: () => void;
@@ -28,7 +31,11 @@ export function ProfileMenuRow({
       style={({ pressed }) => [styles.row, showBorder && styles.border, pressed && styles.pressed]}
       onPress={onPress}
     >
-      <PremiumIcon icon={Icon} variant="mint" size="md" color={tint} bg={iconBg} boxSize={44} />
+      {image ? (
+        <Image source={image} style={styles.imageIcon} resizeMode="cover" />
+      ) : Icon ? (
+        <PremiumIcon icon={Icon} variant="mint" size="md" color={tint} bg={iconBg} boxSize={40} />
+      ) : null}
       <View style={styles.textCol}>
         <View style={styles.labelRow}>
           <Text style={styles.label} numberOfLines={1}>
@@ -46,7 +53,7 @@ export function ProfileMenuRow({
           </Text>
         ) : null}
       </View>
-      <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size="xs" color={colors.forest} />
+      <ChevronRight size={18} color={ui.textTertiary} strokeWidth={2.2} />
     </Pressable>
   );
 }
@@ -55,16 +62,23 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 13,
     paddingHorizontal: spacing.md,
     gap: 12,
-    minHeight: 64,
+    minHeight: 60,
   },
-  pressed: { backgroundColor: 'rgba(20,83,45,0.04)' },
-  border: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(20,83,45,0.07)' },
+  imageIcon: { width: 40, height: 40, borderRadius: 12 },
+  pressed: { backgroundColor: ui.surfaceMuted },
+  border: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: ui.border },
   textCol: { flex: 1, minWidth: 0 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  label: { ...customerType.menuLabel },
+  label: {
+    fontFamily: fonts.displaySemi,
+    fontSize: 15,
+    lineHeight: 20,
+    letterSpacing: -0.2,
+    color: ui.text,
+  },
   badge: {
     minWidth: 20,
     height: 20,
@@ -75,5 +89,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeText: { fontFamily: fonts.bodyBold, fontSize: 10, color: colors.white },
-  desc: { ...customerType.menuDesc, marginTop: 2 },
+  desc: {
+    marginTop: 2,
+    fontFamily: fonts.body,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: ui.textSecondary,
+  },
 });

@@ -3,8 +3,8 @@ import { Router } from 'express';
 import { body, param, validationResult } from 'express-validator';
 import { Types } from 'mongoose';
 import { Booking, BookingStatus, IBooking, ScheduleMode } from '../models/Booking';
-import { IService, Service } from '../models/Service';
-import { IUser, User } from '../models/User';
+import { Service } from '../models/Service';
+import { User } from '../models/User';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { AppError } from '../utils/AppError';
 import { asyncHandler } from '../middleware/error';
@@ -19,8 +19,8 @@ import {
   resolveTechnicianForBooking,
 } from '../utils/booking';
 import { resolveAddressString } from '../utils/addresses';
-import { incrementOfferUse } from '../utils/coupons';
-import { notifyBookingEvent, notifyAdminsForBooking, notifyWorkOtpEvent } from '../utils/notifications';
+import { releaseOfferUse, reserveOfferUse } from '../utils/coupons';
+import { notifyBookingEvent, notifyAdminsForBooking, notifyUser, notifyWorkOtpEvent } from '../utils/notifications';
 import { computeTechEarning, payConfigFromUser } from '../utils/techPay';
 import { applyStepPhotos, MAX_STEP_PHOTOS, normalizeStepPhotoUrls } from '../utils/stepPhotos';
 import {
@@ -29,6 +29,7 @@ import {
   issueEndOtp,
   issueStartOtp,
   regenerateOtp,
+  reserveOtpAttempt,
   verifyEndOtp,
   verifyStartOtp,
 } from '../utils/workOtp';
@@ -39,6 +40,7 @@ import {
   validateScheduleRequest,
 } from '../utils/schedule';
 import { isPropertyTypeKey } from '../constants/propertyTypes';
+import { localDateKey } from '../utils/dateKey';
 
 export const bookingsRouter = Router();
 
@@ -150,25 +152,32 @@ bookingsRouter.post(
       assignmentMode: 'auto',
     });
 
-    const booking = await Booking.create({
-      customerId: req.user!.id,
-      serviceId: service._id,
-      assignmentMode,
-      scheduleMode,
-      scheduleRequest,
-      schedule,
-      propertyType: req.body.propertyType,
-      address,
-      amount,
-      paymentMethod: req.body.paymentMethod ?? 'upi_card',
-      status: 'pending',
-      steps,
-      problemPhotos: req.body.problemPhotos ?? [],
-      couponCode: req.body.couponCode,
-    });
+    const usesCoupon = Boolean(req.body.couponCode) && amount.coupon > 0;
+    if (usesCoupon && !(await reserveOfferUse(req.body.couponCode))) {
+      throw new AppError(400, 'This coupon has reached its usage limit');
+    }
 
-    if (req.body.couponCode && amount.coupon > 0) {
-      await incrementOfferUse(req.body.couponCode);
+    let booking: IBooking;
+    try {
+      booking = await Booking.create({
+        customerId: req.user!.id,
+        serviceId: service._id,
+        assignmentMode,
+        scheduleMode,
+        scheduleRequest,
+        schedule,
+        propertyType: req.body.propertyType,
+        address,
+        amount,
+        paymentMethod: req.body.paymentMethod ?? 'upi_card',
+        status: 'pending',
+        steps,
+        problemPhotos: req.body.problemPhotos ?? [],
+        couponCode: usesCoupon ? req.body.couponCode : undefined,
+      });
+    } catch (err) {
+      if (usesCoupon) await releaseOfferUse(req.body.couponCode);
+      throw err;
     }
 
     try {
@@ -220,30 +229,35 @@ bookingsRouter.get(
       }
     }
 
+    const q = typeof req.query.q === 'string'
+      ? req.query.q.trim().slice(0, 100).replace(/^#/, '').replace(/^ma-/i, '')
+      : '';
+    if (role === 'admin' && q) {
+      const pattern = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const rx = new RegExp(pattern, 'i');
+      const [users, services] = await Promise.all([
+        User.find({ $or: [{ name: rx }, { phone: rx }] }).select('_id').limit(500),
+        Service.find({ name: rx }).select('_id'),
+      ]);
+      const userIds = users.map((u) => u._id);
+      filter.$or = [
+        { customerId: { $in: userIds } },
+        { technicianId: { $in: userIds } },
+        { serviceId: { $in: services.map((s) => s._id) } },
+        { $expr: { $regexMatch: { input: { $toString: '$_id' }, regex: pattern, options: 'i' } } },
+      ];
+    }
+
     const limit = Math.min(parseInt(String(req.query.limit ?? '200'), 10) || 200, 500);
     const skip = Math.max(parseInt(String(req.query.skip ?? '0'), 10) || 0, 0);
 
-    let bookings = await Booking.find(filter)
+    const bookings = await Booking.find(filter)
       .populate('serviceId')
       .populate('customerId', '-passwordHash')
       .populate('technicianId', '-passwordHash')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
-
-    const q = typeof req.query.q === 'string' ? req.query.q.trim().toLowerCase() : '';
-    if (role === 'admin' && q) {
-      bookings = bookings.filter((b) => {
-        const ref = b._id.toString().slice(-6).toLowerCase();
-        const cust = b.customerId as IUser | Types.ObjectId | undefined;
-        const svc = b.serviceId as IService | Types.ObjectId | undefined;
-        const customerName =
-          cust && typeof cust === 'object' && 'name' in cust ? String(cust.name).toLowerCase() : '';
-        const serviceName =
-          svc && typeof svc === 'object' && 'name' in svc ? String(svc.name).toLowerCase() : '';
-        return ref.includes(q) || customerName.includes(q) || serviceName.includes(q);
-      });
-    }
 
     res.json({ bookings: bookings.map((b) => formatBookingForRole(b, role)) });
   }),
@@ -316,13 +330,18 @@ bookingsRouter.patch(
     if (!technician) {
       throw new AppError(404, 'Technician not found');
     }
-    if (technician.disabled === true || technician.available === false) {
-      throw new AppError(400, 'Technician is not available for assignment');
+    if (technician.disabled === true) {
+      throw new AppError(400, 'Technician account is disabled');
     }
 
     const booking = await Booking.findById(req.params.id);
     if (!booking) {
       throw new AppError(404, 'Booking not found');
+    }
+    // Off-duty only matters for today's visits; leave for future dates is checked below.
+    const visitIsToday = !booking.schedule?.date || booking.schedule.date <= localDateKey();
+    if (technician.available === false && visitIsToday) {
+      throw new AppError(400, 'Technician is off duty today');
     }
     if (booking.status === 'pending') {
       throw new AppError(400, 'Confirm the schedule before assigning a technician');
@@ -375,9 +394,9 @@ bookingsRouter.post(
     if (!booking) throw new AppError(404, 'Booking not found');
     assertTechnicianOwns(req.user!, booking);
     try {
+      await reserveOtpAttempt(booking._id, 'start');
       verifyStartOtp(booking, req.body.otp);
     } catch (e) {
-      await booking.save(); // persist failed-attempt / lockout state
       throw new AppError(400, e instanceof Error ? e.message : 'Invalid start code');
     }
     const noSteps = booking.steps.length === 0;
@@ -405,18 +424,18 @@ bookingsRouter.post(
   asyncHandler(async (req, res) => {
     const booking = await Booking.findById(req.params.id);
     if (!booking) throw new AppError(404, 'Booking not found');
-    const { role, id } = req.user!;
+    const { role } = req.user!;
     if (role === 'customer') {
-      if (refId(booking.customerId) !== id) throw new AppError(403, 'Access denied');
+      throw new AppError(403, 'Share the completion code with your technician to finish the job');
     } else if (role === 'technician') {
       assertTechnicianOwns(req.user!, booking);
     } else if (role !== 'admin') {
       throw new AppError(403, 'Access denied');
     }
     try {
+      await reserveOtpAttempt(booking._id, 'end');
       verifyEndOtp(booking, req.body.otp);
     } catch (e) {
-      await booking.save(); // persist failed-attempt / lockout state
       throw new AppError(400, e instanceof Error ? e.message : 'Invalid end code');
     }
     // Lock technician pay at completion (same as admin completeBooking).
@@ -478,6 +497,9 @@ bookingsRouter.patch(
       if (nextStatus === 'in_progress') {
         throw new AppError(400, 'Use start code verification to begin work');
       }
+      if (nextStatus === 'cancelled') {
+        throw new AppError(403, 'Technicians cannot cancel bookings');
+      }
       if (
         nextStatus === 'awaiting_verification' &&
         booking.steps.length > 0 &&
@@ -487,6 +509,9 @@ bookingsRouter.patch(
       }
     } else if (req.user!.role !== 'admin') {
       throw new AppError(403, 'Access denied');
+    }
+    if (nextStatus === 'in_progress' && !booking.technicianId) {
+      throw new AppError(400, 'Assign a technician before starting the job');
     }
 
     try {
@@ -520,6 +545,7 @@ bookingsRouter.patch(
       await notifyWorkOtpEvent(booking, 'end_otp_ready');
     }
     if (nextStatus === 'cancelled') {
+      await releaseOfferUse(booking.couponCode);
       await notifyBookingEvent(booking, 'cancelled');
     }
 
@@ -750,7 +776,7 @@ bookingsRouter.patch(
           notes: booking.scheduleRequest?.notes,
         };
       } else {
-        appendTracking(booking, 'admin_override', { schedule: booking.schedule });
+        appendTracking(booking, 'rescheduled', { schedule: booking.schedule, by: 'admin' });
       }
       booking.markModified('schedule');
     }
@@ -758,6 +784,13 @@ bookingsRouter.patch(
       booking.address = req.body.address.trim();
     }
     await booking.save();
+    if (req.body.schedule?.date && req.body.schedule?.slot && booking.status !== 'pending') {
+      const summary = formatScheduleSummary(booking.schedule!, booking.scheduleMode);
+      await notifyUser(booking.customerId, 'Visit rescheduled', `Your visit is now on ${summary}.`, 'booking_rescheduled', booking._id);
+      if (booking.technicianId) {
+        await notifyUser(booking.technicianId, 'Job rescheduled', `This job is now on ${summary}.`, 'booking_rescheduled', booking._id);
+      }
+    }
     const populated = await loadBooking(booking._id.toString());
     res.json({ booking: formatBookingForRole(populated, req.user!.role) });
   }),
@@ -789,40 +822,83 @@ bookingsRouter.patch(
       throw new AppError(404, 'Booking not found');
     }
 
-    const { role, id } = req.user!;
-    if (role === 'customer') {
-      if (refId(booking.customerId) !== id) {
-        throw new AppError(403, 'Access denied');
-      }
-      if (!req.body.otp) {
-        throw new AppError(400, 'Completion code is required');
-      }
-      try {
-        verifyEndOtp(booking, req.body.otp);
-      } catch (e) {
-        await booking.save();
-        throw new AppError(400, e instanceof Error ? e.message : 'Invalid end code');
-      }
-      // Lock technician pay at completion (same as complete-work / admin completeBooking).
-      if (booking.technicianId && booking.technicianEarning == null) {
-        const tech = await User.findById(booking.technicianId).select('payMode payPercent payFlat');
-        booking.technicianEarning = computeTechEarning(
-          booking.amount?.total ?? 0,
-          payConfigFromUser(tech),
-        );
-      }
-      await booking.save();
-      await incrementTechnicianJobsDone(booking.technicianId);
-      await notifyWorkOtpEvent(booking, 'work_completed');
-      const populated = await loadBooking(booking._id.toString());
-      res.json({ booking: formatBookingForRole(populated, req.user!.role) });
-      return;
-    }
+    const { role } = req.user!;
     if (role !== 'admin') {
       throw new AppError(403, 'Access denied');
     }
 
     const populated = await completeBooking(booking, true);
+    res.json({ booking: formatBookingForRole(populated, req.user!.role) });
+  }),
+);
+
+bookingsRouter.patch(
+  '/:id/reschedule',
+  requireRole('customer'),
+  param('id').isMongoId(),
+  body('scheduleRequest.date').trim().notEmpty(),
+  body('scheduleRequest.slot').trim().notEmpty(),
+  body('scheduleRequest.notes').optional().trim(),
+  (req, res, next) => runValidation(req, res, next),
+  asyncHandler(async (req, res) => {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      throw new AppError(404, 'Booking not found');
+    }
+    if (refId(booking.customerId) !== req.user!.id) {
+      throw new AppError(403, 'Access denied');
+    }
+    if (!['pending', 'confirmed'].includes(booking.status)) {
+      throw new AppError(400, 'This booking can no longer be rescheduled');
+    }
+
+    const scheduleRequest = {
+      date: String(req.body.scheduleRequest.date).trim(),
+      slot: String(req.body.scheduleRequest.slot).trim(),
+      notes: req.body.scheduleRequest.notes
+        ? String(req.body.scheduleRequest.notes).trim()
+        : booking.scheduleRequest?.notes,
+    };
+    validateScheduleRequest('standard', scheduleRequest);
+
+    const previousTechnicianId = booking.technicianId;
+    booking.scheduleMode = 'standard';
+    booking.scheduleRequest = scheduleRequest;
+    booking.schedule = provisionalScheduleFromRequest('standard', scheduleRequest);
+    booking.status = 'pending';
+    booking.scheduleConfirmedAt = undefined;
+    booking.technicianId = undefined;
+    if (booking.workOtp?.start) {
+      booking.workOtp.start = undefined;
+      booking.markModified('workOtp');
+    }
+    if (booking.otpAttempts) {
+      booking.otpAttempts.start = 0;
+      booking.otpAttempts.startLockedUntil = undefined;
+      booking.markModified('otpAttempts');
+    }
+    appendTracking(booking, 'rescheduled', { schedule: booking.schedule, by: 'customer' });
+    booking.markModified('schedule');
+    await booking.save();
+
+    if (previousTechnicianId) {
+      await notifyUser(
+        previousTechnicianId,
+        'Job rescheduled',
+        'The customer moved this visit. It has been removed from your schedule until it is reassigned.',
+        'booking_rescheduled',
+        booking._id,
+      );
+    }
+
+    await notifyAdminsForBooking(
+      booking._id,
+      'Reschedule requested',
+      `Customer asked to move the visit to ${formatScheduleSummary(booking.schedule!, 'standard')}. Confirm the new time.`,
+      'admin_schedule_pending',
+    );
+
+    const populated = await loadBooking(booking._id.toString());
     res.json({ booking: formatBookingForRole(populated, req.user!.role) });
   }),
 );
@@ -857,6 +933,7 @@ bookingsRouter.patch(
     booking.status = 'cancelled';
     appendTracking(booking, 'cancelled');
     await booking.save();
+    await releaseOfferUse(booking.couponCode);
     await notifyBookingEvent(booking, 'cancelled');
 
     const populated = await loadBooking(booking._id.toString());

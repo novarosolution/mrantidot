@@ -1,7 +1,11 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { BookingAmount } from '@/types/api';
 import { useBookingCopy } from '@/lib/schedule-copy';
-import { colors, fonts, premium, shadows, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, premium, shadows, spacing, surfaces, ui } from '@/constants/theme';
+
+function rupee(n: number): string {
+  return `₹${Math.round(n).toLocaleString('en-IN')}`;
+}
 
 export function BookingPriceBreakdown({
   amount,
@@ -18,7 +22,6 @@ export function BookingPriceBreakdown({
   const copy = useBookingCopy();
   return (
     <View style={[styles.wrap, compact && styles.compact, compact && styles.embedded]}>
-      {!compact ? <View style={styles.goldRule} /> : null}
       <Text style={styles.heading}>{copy.priceBreakdownTitle}</Text>
       {serviceName ? (
         <View style={styles.serviceBlock}>
@@ -30,15 +33,15 @@ export function BookingPriceBreakdown({
           ) : null}
         </View>
       ) : null}
-      <Row label={copy.priceLabelService} value={`₹${amount.base}`} />
-      <Row label={copy.priceLabelGst} value={`₹${amount.gst}`} />
+      <Row label={copy.priceLabelService} value={rupee(amount.base)} />
       {amount.coupon > 0 ? (
-        <Row label={copy.priceLabelCoupon} value={`-₹${amount.coupon}`} valueStyle={styles.discount} />
+        <Row label={copy.priceLabelCoupon} value={`−${rupee(amount.coupon)}`} valueStyle={styles.discount} />
       ) : null}
+      <Row label={copy.priceLabelGst} value={rupee(amount.gst)} />
       <View style={styles.divider} />
       <View style={styles.totalRow}>
         <Text style={styles.totalLabel}>{copy.priceLabelTotal}</Text>
-        <Text style={styles.totalValue}>₹{amount.total}</Text>
+        <Text style={styles.totalValue}>{rupee(amount.total)}</Text>
       </View>
     </View>
   );
@@ -71,18 +74,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...shadows.card,
   },
-  goldRule: {
-    position: 'absolute',
-    top: 0,
-    left: spacing.md,
-    right: spacing.md,
-    height: 2,
-    backgroundColor: premium.accentGold,
-    opacity: 0.55,
-    borderRadius: 1,
-  },
+  /** Embedded inside another card — no clipping, so edge glyphs never get cut. */
   compact: {
     padding: spacing.sm,
+    overflow: 'visible',
     borderWidth: 0,
     shadowOpacity: 0,
     elevation: 0,
@@ -90,9 +85,9 @@ const styles = StyleSheet.create({
   },
   embedded: { paddingHorizontal: 0, paddingTop: 0 },
   heading: {
-    fontFamily: fonts.bodySemi,
+    fontFamily: fonts.bodyBold,
     fontSize: 11,
-    color: colors.muted,
+    color: ui.textTertiary,
     marginBottom: spacing.sm,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
@@ -125,20 +120,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
-    backgroundColor: surfaces.glassSoft,
-    marginHorizontal: -spacing.sm,
-    marginBottom: -spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: surfaces.glassBorder,
+    paddingTop: 2,
   },
   totalLabel: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.ink },
   totalValue: {
     fontFamily: fonts.displayExtra,
     fontSize: 22,
-    color: premium.accentGold,
+    color: ui.text,
     letterSpacing: -0.3,
   },
 });

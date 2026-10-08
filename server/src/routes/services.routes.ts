@@ -38,7 +38,9 @@ function runValidation(
 servicesRouter.get(
   '/',
   asyncHandler(async (req, res) => {
-    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const q = typeof req.query.q === 'string'
+      ? req.query.q.trim().slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      : '';
     const category = typeof req.query.category === 'string' ? req.query.category.trim() : '';
     const type = typeof req.query.type === 'string' ? req.query.type.trim().toLowerCase().replace(/\s+/g, '_') : '';
     const filter: Record<string, unknown> = adminIncludeInactive(req) ? {} : { active: true };

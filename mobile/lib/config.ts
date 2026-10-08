@@ -1,8 +1,10 @@
 import Constants from 'expo-constants';
+import * as Device from 'expo-device';
+import { Platform } from 'react-native';
 
 /**
- * Live AWS API — never fall back to localhost / 10.0.2.2 / 127.0.0.1.
- * Expo Go, emulators, and release APKs all use this public host.
+ * Live AWS API used by release builds and when EXPO_PUBLIC_API_URL_FORCE=true.
+ * Dev builds otherwise talk to the local server (loopback on simulators, Metro host on phones).
  */
 export const LIVE_API_URL = 'http://13.60.23.65:4001';
 
@@ -32,7 +34,26 @@ function fromExpoExtra(): string | undefined {
   return isUsableApiUrl(raw) ? stripSlash(raw.trim()) : undefined;
 }
 
+function fromMetroHost(): string | undefined {
+  const port = process.env.EXPO_PUBLIC_API_PORT || '4001';
+  // Simulators share the Mac's network, so loopback survives Wi‑Fi/hotspot IP changes.
+  if (!Device.isDevice) {
+    return Platform.OS === 'android' ? `http://10.0.2.2:${port}` : `http://localhost:${port}`;
+  }
+  const hostUri =
+    Constants.expoConfig?.hostUri ??
+    (Constants as { expoGoConfig?: { debuggerHost?: string } }).expoGoConfig?.debuggerHost;
+  const host = hostUri?.split(':')[0];
+  if (!host || BLOCKED_HOST.test(host)) return undefined;
+  return `http://${host}:${port}`;
+}
+
 function resolveApiUrl(): string {
+  if (__DEV__ && process.env.EXPO_PUBLIC_API_URL_FORCE !== 'true') {
+    const fromMetro = fromMetroHost();
+    if (fromMetro) return fromMetro;
+  }
+
   const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim();
   if (isUsableApiUrl(fromEnv)) return stripSlash(fromEnv);
 

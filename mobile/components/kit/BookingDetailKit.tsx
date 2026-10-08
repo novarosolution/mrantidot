@@ -1,13 +1,12 @@
-import { LinearGradient } from 'expo-linear-gradient';
-import { type LucideIcon } from 'lucide-react-native';
-import { type ReactNode } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ImageOff, type LucideIcon } from 'lucide-react-native';
+import { type ReactNode, useState } from 'react';
+import { Image, ScrollView, StyleSheet, Text, View, type ImageStyle, type StyleProp } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { mediaUrl } from '@/lib/images';
-import {  colors, fonts, premium, shadows, spacing , gradients, surfaces } from '@/constants/theme';
+import { colors, fonts, premium, shadows, spacing, surfaces } from '@/constants/theme';
 
 const STAGE_ICONS: LucideIcon[] = [
   AppIcons.ui.listChecks,
@@ -33,7 +32,6 @@ export function BookingDetailSection({
     <View style={styles.section}>
       <PremiumSectionHeader title={title} subtitle={subtitle} compact />
       <View style={[styles.card, inset && styles.cardInset]}>
-        <LinearGradient colors={[...gradients.goldBar]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
         {children}
       </View>
     </View>
@@ -47,7 +45,6 @@ export function BookingStageTracker({ steps }: { steps: { title: string; done: b
 
   return (
     <View style={styles.stageWrap}>
-      <LinearGradient colors={[...gradients.goldBar]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <View style={styles.stageHead}>
         <Text style={styles.stageTitle}>Booking journey</Text>
         <View style={styles.stagePctChip}>
@@ -85,6 +82,29 @@ export function BookingStageTracker({ steps }: { steps: { title: string; done: b
   );
 }
 
+/** Booking photo that degrades to a quiet "unavailable" tile instead of an empty box when it fails to load. */
+export function SafePhoto({
+  uri,
+  style,
+  compact,
+}: {
+  uri: string;
+  style: StyleProp<ImageStyle>;
+  /** Icon only — for small thumbnails where the caption won't fit. */
+  compact?: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <View style={[styles.photoFallback, style as object, styles.photoFallbackSurface]} accessibilityLabel="Photo unavailable">
+        <ImageOff size={compact ? 16 : 20} color={colors.muted} strokeWidth={1.8} />
+        {compact ? null : <Text style={styles.photoFallbackText}>Photo unavailable</Text>}
+      </View>
+    );
+  }
+  return <Image source={{ uri }} style={style} onError={() => setFailed(true)} />;
+}
+
 export function BookingTreatmentStepCard({
   index,
   title,
@@ -113,27 +133,25 @@ export function BookingTreatmentStepCard({
 
   return (
     <View style={[styles.treatmentCard, active && styles.treatmentActive]}>
-      <LinearGradient colors={[...gradients.goldBar]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <View style={styles.treatmentHead}>
         <View style={[styles.stepNum, active && styles.stepNumActive]}>
           <Text style={[styles.stepNumText, active && styles.stepNumTextActive]}>{index + 1}</Text>
         </View>
         <View style={styles.treatmentInfo}>
           <Text style={styles.treatmentTitle}>{title}</Text>
-          <Text style={styles.treatmentStatus}>
-            {status === 'done'
-              ? photos.length > 1
-                ? `Completed · ${photos.length} photos`
-                : 'Completed'
-              : active
-                ? 'In progress'
-                : 'Upcoming'}
-          </Text>
+          {/* The badge already says Completed / In progress — the subtitle adds detail instead. */}
+          {status === 'done' && photos.length > 0 ? (
+            <Text style={styles.treatmentStatus}>
+              {photos.length} {photos.length === 1 ? 'photo' : 'photos'} captured
+            </Text>
+          ) : active ? (
+            <Text style={styles.treatmentStatus}>Technician is working on this now</Text>
+          ) : null}
         </View>
         <StatusBadge label={badge.label} tone={badge.tone} />
       </View>
       {photos.length === 1 ? (
-        <Image source={{ uri: mediaUrl(photos[0]) }} style={styles.treatmentPhoto} />
+        <SafePhoto uri={mediaUrl(photos[0])} style={styles.treatmentPhoto} />
       ) : photos.length > 1 ? (
         <ScrollView
           horizontal
@@ -142,7 +160,7 @@ export function BookingTreatmentStepCard({
         >
           {photos.map((url, i) => (
             <View key={`${url}-${i}`} style={styles.treatmentPhotoFrame}>
-              <Image source={{ uri: mediaUrl(url) }} style={styles.treatmentPhotoMulti} />
+              <SafePhoto uri={mediaUrl(url)} style={styles.treatmentPhotoMulti} />
               <View style={styles.photoIndex}>
                 <Text style={styles.photoIndexText}>{i + 1}</Text>
               </View>
@@ -161,11 +179,10 @@ export function BookingPhotoGallery({ photos }: { photos: string[] }) {
     <View style={styles.section}>
       <PremiumSectionHeader title="Problem photos" subtitle={`${photos.length} attached`} compact />
       <View style={[styles.card, styles.cardInset]}>
-        <LinearGradient colors={[...gradients.goldBar]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
           {photos.map((url, i) => (
             <View key={url} style={styles.photoFrame}>
-              <Image source={{ uri: mediaUrl(url) }} style={styles.photo} />
+              <SafePhoto uri={mediaUrl(url)} style={styles.photo} />
               <View style={styles.photoIndex}>
                 <Text style={styles.photoIndexText}>{i + 1}</Text>
               </View>
@@ -180,12 +197,11 @@ export function BookingPhotoGallery({ photos }: { photos: string[] }) {
 const styles = StyleSheet.create({
   section: { marginBottom: spacing.xs },
   card: {
-    backgroundColor: surfaces.glassInput,
+    backgroundColor: colors.white,
     borderRadius: premium.radiusCard,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
     overflow: 'hidden',
-    ...shadows.card,
   },
   cardInset: { marginHorizontal: spacing.md },
   goldBar: { height: 3, width: '100%' },
@@ -293,6 +309,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.soft,
   },
   treatmentGeo: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 6 },
+  /** Keep failed photos compact — no tall empty block. */
+  photoFallback: { height: 88 },
+  photoFallbackSurface: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#F2F4F2',
+  },
+  photoFallbackText: { fontFamily: fonts.bodySemi, fontSize: 11.5, color: colors.muted },
 
   photoRow: { gap: spacing.sm, padding: spacing.md, paddingTop: spacing.sm },
   photoFrame: { position: 'relative' },

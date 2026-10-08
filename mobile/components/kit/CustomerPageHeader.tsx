@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { ArrowLeft } from 'lucide-react-native';
 import { adminGoBack, safeGoBack } from '@/lib/routes';
-import { HeroDarkSlice } from '@/components/kit/HeroDarkSlice';
+import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { type ReactNode } from 'react';
@@ -9,11 +10,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   colors,
   customerType,
-  gradients,
+  fonts,
   headerTopPad,
-  radius,
   spacing,
   surfaces,
+  ui,
 } from '@/constants/theme';
 
 type Variant = 'gradient' | 'light' | 'premium';
@@ -102,44 +103,42 @@ export function CustomerPageHeader({
     </View>
   );
 
-  if (variant === 'premium') {
+  if (variant === 'premium' || variant === 'gradient') {
+    // Urban-style white header — flat, dark type, plain back arrow; status bar flips to dark while focused.
     return (
-      <HeroDarkSlice
-        style={styles.premiumShell}
-        contentStyle={[
-          styles.premiumContent,
-          { paddingBottom: overlapReserve ? spacing.xl + 48 : spacing.md + 10 },
-        ]}
-        sliceHeight={22}
-      >
-        {content}
-        {children}
-        <View style={styles.classicRule}>
-          <View style={styles.classicRuleGold} />
-          <View style={styles.classicRuleLine} />
-        </View>
-      </HeroDarkSlice>
-    );
-  }
-
-  if (variant === 'gradient') {
-    return (
-      <LinearGradient
-        colors={[...gradients.header]}
+      <View
         style={[
-          styles.gradientWrap,
-          { paddingBottom: overlapReserve ? spacing.xl + 28 : spacing.md + 6 },
+          styles.whiteWrap,
+          { paddingTop: insets.top + 6, paddingBottom: overlapReserve ? spacing.xl + 24 : spacing.sm + 4 },
         ]}
-        start={{ x: 0.12, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
       >
-        {content}
-        {children}
-        <View style={styles.classicRule}>
-          <View style={styles.classicRuleGold} />
-          <View style={styles.classicRuleLine} />
+        <FocusStatusBar style="dark" />
+        <View style={styles.whiteRow}>
+          {showBack ? (
+            <Pressable
+              onPress={handleBack}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              style={({ pressed }) => [styles.whiteBack, pressed && styles.whiteBackPressed]}
+              hitSlop={8}
+            >
+              <ArrowLeft size={22} color={ui.text} strokeWidth={2.1} />
+            </Pressable>
+          ) : null}
+          <View style={styles.textCol}>
+            <Text style={showBack ? styles.whiteTitle : styles.whiteTitleLarge} numberOfLines={1}>
+              {title}
+            </Text>
+            {subtitle ? (
+              <Text style={styles.whiteSub} numberOfLines={2}>
+                {subtitle}
+              </Text>
+            ) : null}
+          </View>
+          {rightAction ?? null}
         </View>
-      </LinearGradient>
+        {children}
+      </View>
     );
   }
 
@@ -169,17 +168,42 @@ export function CustomerPageHeader({
 }
 
 const styles = StyleSheet.create({
-  premiumShell: {
-    overflow: 'hidden',
-  },
-  premiumContent: {
+  whiteWrap: {
     paddingHorizontal: spacing.md,
+    backgroundColor: colors.white,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: ui.hairline,
   },
-  gradientWrap: {
-    borderBottomLeftRadius: radius.xl,
-    borderBottomRightRadius: radius.xl,
-    paddingHorizontal: spacing.md,
-    overflow: 'hidden',
+  whiteRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 48 },
+  whiteBack: {
+    width: 40,
+    height: 40,
+    marginLeft: -8,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  whiteBackPressed: { backgroundColor: ui.surfaceMuted },
+  whiteTitle: {
+    fontFamily: fonts.display,
+    fontSize: 19,
+    lineHeight: 25,
+    letterSpacing: -0.35,
+    color: ui.text,
+  },
+  whiteTitleLarge: {
+    fontFamily: fonts.displayExtra,
+    fontSize: 26,
+    lineHeight: 32,
+    letterSpacing: -0.7,
+    color: ui.text,
+  },
+  whiteSub: {
+    marginTop: 2,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    lineHeight: 18,
+    color: ui.textSecondary,
   },
   lightWrap: {
     paddingHorizontal: spacing.md,

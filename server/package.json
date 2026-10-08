@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node --max-old-space-size=512 dist/index.js",
     "seed": "tsx src/seed/seed.ts",
+    "db:reset": "rm -rf .data/mongo && echo 'Local database wiped — demo data reloads on next start (SEED_ON_START=if-empty).'",
     "deploy:check": "bash render-build.sh",
     "typecheck": "tsc --noEmit",
     "test": "bash test/auth.sh && bash test/flow.sh && bash test/features.sh"

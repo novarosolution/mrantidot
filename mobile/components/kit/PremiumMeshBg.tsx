@@ -10,11 +10,11 @@ import Svg, {
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 /**
- * Soft mint screen wash — keep in sync with `colors.bg` / `surfaces.glassScreenBase`.
+ * Screen canvas — keep in sync with `colors.bg` / `surfaces.glassScreenBase` (white).
  * No 3D models. Cards stay white on top of this.
  */
 export const MESH_BASE = colors.bg;
-export const MESH_BASE_DEEP = '#EEF6E8';
+export const MESH_BASE_DEEP = '#F6F7F6';
 
 /**
  * Screen ambient background.

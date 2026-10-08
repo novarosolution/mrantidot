@@ -715,16 +715,21 @@ adminRouter.patch(
     if (typeof req.body.description === 'string') update.description = req.body.description.trim();
     if (typeof req.body.active === 'boolean') update.active = req.body.active;
     if (typeof req.body.discountType === 'string') update.discountType = req.body.discountType;
+    const unset: Record<string, 1> = {};
     if (req.body.expiresAt === null || req.body.expiresAt === '') {
-      update.expiresAt = undefined;
+      unset.expiresAt = 1;
     } else if (req.body.expiresAt) {
       update.expiresAt = new Date(req.body.expiresAt);
     }
-    if (req.body.maxUses === null) update.maxUses = undefined;
+    if (req.body.maxUses === null) unset.maxUses = 1;
     else if (typeof req.body.maxUses === 'number') update.maxUses = req.body.maxUses;
-    if (req.body.minOrderAmount === null) update.minOrderAmount = undefined;
+    if (req.body.minOrderAmount === null) unset.minOrderAmount = 1;
     else if (typeof req.body.minOrderAmount === 'number') update.minOrderAmount = req.body.minOrderAmount;
-    const offer = await Offer.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
+    const offer = await Offer.findByIdAndUpdate(
+      req.params.id,
+      { $set: update, ...(Object.keys(unset).length ? { $unset: unset } : {}) },
+      { new: true, runValidators: true },
+    );
     if (!offer) {
       throw new AppError(404, 'Offer not found');
     }

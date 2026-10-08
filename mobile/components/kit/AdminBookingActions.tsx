@@ -25,6 +25,8 @@ export function AdminBookingActions({
       await api.patch(`/bookings/${booking.id}/status`, { status });
       Toast.show({ type: 'success', text1: 'Process updated' });
       await onUpdated();
+    } catch {
+      // error toast shown by the api interceptor
     } finally {
       setBusy(null);
     }
@@ -36,6 +38,8 @@ export function AdminBookingActions({
       await api.patch(`/bookings/${booking.id}/complete`);
       Toast.show({ type: 'success', text1: 'Booking completed' });
       await onUpdated();
+    } catch {
+      // error toast shown by the api interceptor
     } finally {
       setBusy(null);
     }
@@ -47,6 +51,8 @@ export function AdminBookingActions({
       await api.patch(`/bookings/${booking.id}/cancel`);
       Toast.show({ type: 'success', text1: 'Booking cancelled' });
       await onUpdated();
+    } catch {
+      // error toast shown by the api interceptor
     } finally {
       setBusy(null);
     }
@@ -68,16 +74,18 @@ export function AdminBookingActions({
         onPress: onAssign,
       });
     }
-    actions.push({
-      title: 'Force start job',
-      key: 'in_progress',
-      onPress: () => {
-        Alert.alert('Start job?', 'Marks job in progress and skips start OTP.', [
-          { text: 'Back', style: 'cancel' },
-          { text: 'Start', onPress: () => void setStatus('in_progress') },
-        ]);
-      },
-    });
+    if (booking.technician) {
+      actions.push({
+        title: 'Force start job',
+        key: 'in_progress',
+        onPress: () => {
+          Alert.alert('Start job?', 'Marks job in progress and skips start OTP.', [
+            { text: 'Back', style: 'cancel' },
+            { text: 'Start', onPress: () => void setStatus('in_progress') },
+          ]);
+        },
+      });
+    }
   }
 
   if (booking.status === 'in_progress') {

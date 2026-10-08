@@ -1,10 +1,8 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import type { LucideIcon } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
-  FlatList,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -15,13 +13,13 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { PestImage } from '@/components/kit/ServiceThumb';
 import { AppIcons } from '@/constants/appIcons';
-import { GlassBackdrop, GlassPanel, TAB_BAR_SCROLL_PAD, glassSkin } from '@/components/kit/GlassScreenKit';
-import { HeroDarkSlice } from '@/components/kit/HeroDarkSlice';
-import { ScreenTopScrim } from '@/components/kit/ScreenTopScrim';
+import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
+import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
@@ -36,7 +34,7 @@ import { serviceDisplayRating } from '@/lib/ratings';
 import { SERVICE_TYPE_KEYS, SERVICE_TYPE_LABELS, type ServiceTypeKey } from '@/constants/serviceTypes';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import type { Service, ServiceStats } from '@/types/api';
-import { colors, fonts, headerTopPad, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 import { sharedRoutes, appPush } from '@/lib/routes';
 
 type SortKey = 'popular' | 'rating' | 'price';
@@ -52,12 +50,12 @@ const SPOT_TAGS = ['MOST POPULAR', 'TRENDING', 'TOP CHOICE'];
 const SPOT_CARD_W = 300;
 const SPOT_GAP = 12;
 
-const INK = '#0B2213';
-const MUTED = '#5C8A63';
-const FAINT = '#86AC80';
-const BORDER = '#E3F1DA';
-const SCREEN_BG = surfaces.glassScreenBase;
-const DEEP = colors.forest;
+const INK = ui.text;
+const MUTED = ui.textSecondary;
+const FAINT = ui.textTertiary;
+const BORDER = ui.hairline;
+const SCREEN_BG = ui.surfaceMuted;
+const BRAND = ui.brand;
 
 function serviceRating(service: Service): number {
   return serviceDisplayRating(service);
@@ -83,13 +81,12 @@ function categoryIcon(category?: string): LucideIcon {
 
 function formatBookings(count: number): string {
   if (count >= 1000) return `${(count / 1000).toFixed(1).replace('.0', '')}k+ bookings`;
-  return `${count} bookings`;
+  return `${count} ${count === 1 ? 'booking' : 'bookings'}`;
 }
 
 export default function ServicesListScreen() {
-  const insets = useSafeAreaInsets();
   const { content, homeConfig } = useAppContent();
-  const ui = useCustomerUiCopy();
+  const copy = useCustomerUiCopy();
   const [services, setServices] = useState<Service[]>([]);
   const [statsMap, setStatsMap] = useState<Record<string, ServiceStats>>({});
   const [q, setQ] = useState('');
@@ -103,8 +100,6 @@ export default function ServicesListScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
-  const [heroHeight, setHeroHeight] = useState(0);
-  const scrimRevealAt = heroHeight > 0 ? Math.max(heroHeight - insets.top, 1) : 0;
 
   useEffect(() => {
     setCategoryLabel((prev) => {
@@ -226,30 +221,18 @@ export default function ServicesListScreen() {
     homeConfig.servicesSubtitle?.trim() || content.branding.tagline || 'Trusted pest control & home services';
 
   const hero = (
-    <View onLayout={(e) => setHeroHeight(e.nativeEvent.layout.height)}>
-      <HeroDarkSlice
-        style={styles.hero}
-        contentStyle={{ paddingTop: headerTopPad(insets.top), paddingHorizontal: 20, paddingBottom: 58 }}
-        sliceHeight={26}
-      >
-        <View style={styles.heroRow}>
-          <View style={styles.heroLeft}>
-            <View style={styles.eyebrowRow}>
-              <LinearGradient colors={[colors.limeBright, '#68D03C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.eyebrowBar} />
-              <Text style={styles.eyebrow}>{content.branding.name || 'Mr Antidot'}</Text>
-            </View>
-            <Text style={styles.heroTitle}>
-              {ui.servicesScreenTitle?.trim() || homeConfig.sectionTitles.services}
-            </Text>
-          </View>
-          <View style={styles.heroRight}>
-          <View style={styles.countPill}>
-            <Text style={styles.countNum}>{visibleServices.length}</Text>
-            <Text style={styles.countLb}>SHOWN</Text>
-          </View>
+    <View style={styles.hero}>
+      <View style={styles.heroRow}>
+        <View style={styles.heroLeft}>
+          <Text style={styles.heroTitle}>
+            {copy.servicesScreenTitle?.trim() || homeConfig.sectionTitles.services}
+          </Text>
+          <Text style={styles.heroSub} numberOfLines={2}>
+            {pageSubtitle}
+          </Text>
           {avgRating ? (
             <View style={styles.heroMetaRow}>
-              <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={11} color={colors.white} fill={colors.limeBright} />
+              <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={11} color={INK} fill={INK} />
               <Text style={styles.heroMeta}>
                 {avgRating.toFixed(1)} avg{totalBookings > 0 ? ` · ${formatBookings(totalBookings)}` : ''}
               </Text>
@@ -257,14 +240,12 @@ export default function ServicesListScreen() {
           ) : null}
         </View>
       </View>
-      <Text style={styles.heroSub}>{pageSubtitle}</Text>
-    </HeroDarkSlice>
     </View>
   );
 
   const searchBar = (
     <View style={styles.searchWrap}>
-      <GlassPanel style={styles.searchCard} padded={false} tone="clear" intensity={48}>
+      <View style={styles.searchCard}>
         <View style={styles.searchInner}>
           <PremiumIcon icon={AppIcons.ui.search} variant="plain" size={19} color={MUTED} strokeWidth={1.9} />
           <TextInput
@@ -279,16 +260,16 @@ export default function ServicesListScreen() {
           />
           {hasFilters ? (
             <Pressable style={({ pressed }) => [styles.resetBtn, pressed && styles.pressedSm]} onPress={resetFilters}>
-              <PremiumIcon icon={AppIcons.ui.close} variant="plain" size={12} color={colors.forestMid} strokeWidth={2.4} />
+              <PremiumIcon icon={AppIcons.ui.close} variant="plain" size={12} color={BRAND} strokeWidth={2.4} />
               <Text style={styles.resetText}>RESET</Text>
             </Pressable>
           ) : (
             <View style={styles.filterBadge}>
-              <PremiumIcon icon={AppIcons.ui.filters} variant="plain" size={16} color={colors.headerGreen} strokeWidth={1.9} />
+              <PremiumIcon icon={AppIcons.ui.filters} variant="plain" size={16} color={BRAND} strokeWidth={1.9} />
             </View>
           )}
         </View>
-      </GlassPanel>
+      </View>
     </View>
   );
 
@@ -309,7 +290,7 @@ export default function ServicesListScreen() {
             style={({ pressed }) => [styles.catChip, on && styles.catChipOn, pressed && styles.pressedSm]}
           >
             <View style={[styles.catChipIcon, on && styles.catChipIconOn]}>
-              <PremiumIcon icon={Icon} variant="plain" size={15} color={on ? colors.white : colors.headerGreen} strokeWidth={2} />
+              <PremiumIcon icon={Icon} variant="plain" size={15} color={on ? colors.white : BRAND} strokeWidth={2} />
             </View>
             <Text style={[styles.catChipText, on && styles.catChipTextOn]}>{c.label}</Text>
           </Pressable>
@@ -329,14 +310,17 @@ export default function ServicesListScreen() {
         {(['all', ...availableTypes] as const).map((k) => {
           const on = serviceType === k;
           const label = k === 'all' ? 'All types' : SERVICE_TYPE_LABELS[k];
-          const Icon = k === 'all' ? AppIcons.ui.layoutGrid : SERVICE_TYPE_META[k].icon;
           return (
             <Pressable
               key={k}
               onPress={() => setServiceType(k === 'all' ? 'all' : k)}
               style={({ pressed }) => [styles.pestChip, on && styles.pestChipOn, pressed && styles.pressedSm]}
             >
-              <PremiumIcon icon={Icon} variant="plain" size={13} color={on ? colors.white : '#38623C'} strokeWidth={2} />
+              {k === 'all' ? (
+                <PremiumIcon icon={AppIcons.ui.layoutGrid} variant="plain" size={13} color={on ? colors.white : BRAND} strokeWidth={2} />
+              ) : (
+                <PestImage source={SERVICE_TYPE_META[k].image} size={16} />
+              )}
               <Text style={[styles.pestChipText, on && styles.pestChipTextOn]}>{label}</Text>
             </Pressable>
           );
@@ -361,20 +345,14 @@ export default function ServicesListScreen() {
             const bookings = statsMap[s.id]?.bookingCount ?? 0;
             return (
               <Pressable key={s.id} onPress={() => appPush(sharedRoutes.service(s.id))}>
-                <LinearGradient
-                  colors={[colors.headerGreen, colors.forestDeep]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.spotCard}
-                >
-                  <View style={styles.spotOrb} pointerEvents="none" />
+                <View style={styles.spotCard}>
                   <View style={styles.spotTop}>
                     <View style={styles.spotTag}>
                       <Text style={styles.spotTagText}>{SPOT_TAGS[i] ?? 'FEATURED'}</Text>
                     </View>
                     {rating > 0 ? (
                       <View style={styles.spotRateRow}>
-                        <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={11} color={colors.white} fill={colors.white} />
+                        <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={11} color={BRAND} fill={BRAND} />
                         <Text style={styles.spotRate}>
                           {rating.toFixed(1)}
                           {bookings > 0 ? ` · ${formatBookings(bookings)}` : ''}
@@ -384,7 +362,7 @@ export default function ServicesListScreen() {
                   </View>
                   <View style={styles.spotMain}>
                     <View style={styles.spotIcon}>
-                      <ServiceIcon iconKey={s.iconKey} size={26} color={colors.white} />
+                      <ServiceIcon iconKey={s.iconKey} size={26} variant="premium" boxSize={52} color={BRAND} />
                     </View>
                     <View style={styles.spotInfo}>
                       <Text style={styles.spotName} numberOfLines={2}>
@@ -407,10 +385,10 @@ export default function ServicesListScreen() {
                       hitSlop={6}
                     >
                       <Text style={styles.spotBookText}>BOOK</Text>
-                      <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={13} color={DEEP} strokeWidth={2.6} />
+                      <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={13} color={colors.white} strokeWidth={2.6} />
                     </Pressable>
                   </View>
-                </LinearGradient>
+                </View>
               </Pressable>
             );
           })}
@@ -429,7 +407,7 @@ export default function ServicesListScreen() {
         <Text style={styles.countLabel}>
           {visibleServices.length} {visibleServices.length === 1 ? 'service' : 'services'}
         </Text>
-        <LinearGradient colors={['#68D03C', colors.forestMid]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.countBar} />
+        <View style={styles.countBar} />
       </View>
       <View style={styles.sortRight}>
         <View style={styles.segment}>
@@ -458,7 +436,7 @@ export default function ServicesListScreen() {
 
   const trustBanner = (
     <View style={styles.trustCard}>
-      <PremiumIcon icon={AppIcons.ui.shieldCheck} variant="gradient" size={22} color={colors.white} strokeWidth={1.8} boxSize={46} />
+      <PremiumIcon icon={AppIcons.ui.shieldCheck} variant="mint" size={22} color={BRAND} strokeWidth={1.8} boxSize={46} />
       <View style={styles.trustBody}>
         <Text style={styles.trustTitle}>Every booking is protected</Text>
         <Text style={styles.trustSub}>100% satisfaction guarantee on all {services.length} services</Text>
@@ -494,12 +472,12 @@ export default function ServicesListScreen() {
         onPress={() => appPush(sharedRoutes.service(item.id))}
       >
         {popularIds.has(item.id) ? (
-          <LinearGradient colors={['#68D03C', colors.green]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.popBadge}>
+          <View style={styles.popBadge}>
             <Text style={styles.popBadgeText}>POPULAR</Text>
-          </LinearGradient>
+          </View>
         ) : null}
         <View style={styles.cardIcon}>
-          <ServiceIcon iconKey={item.iconKey} size={24} variant="premium" boxSize={52} color="#0B7228" />
+          <ServiceIcon iconKey={item.iconKey} size={24} variant="premium" boxSize={52} color={BRAND} />
         </View>
         <View style={styles.cardBody}>
           <Text style={styles.cardName} numberOfLines={2}>
@@ -512,7 +490,7 @@ export default function ServicesListScreen() {
             </View>
             {rating > 0 ? (
               <View style={styles.cardMeta}>
-                <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={11} color="#25A443" fill="#25A443" />
+                <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={11} color={BRAND} fill={BRAND} />
                 <Text style={styles.cardMetaRating}>{rating.toFixed(1)}</Text>
               </View>
             ) : null}
@@ -528,14 +506,12 @@ export default function ServicesListScreen() {
             <Text style={styles.cardPrice}>₹{item.basePrice}</Text>
           </View>
           <Pressable
-            style={({ pressed }) => [pressed && styles.pressedSm]}
+            style={({ pressed }) => [styles.bookPill, pressed && styles.pressedSm]}
             onPress={() => appPush(sharedRoutes.bookPath(item.id))}
             hitSlop={6}
           >
-            <LinearGradient colors={['#209640', DEEP]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bookPill}>
-              <Text style={styles.bookPillText}>BOOK</Text>
-              <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={12} color={colors.white} strokeWidth={2.6} />
-            </LinearGradient>
+            <Text style={styles.bookPillText}>BOOK</Text>
+            <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={12} color={colors.white} strokeWidth={2.6} />
           </Pressable>
         </View>
       </Pressable>
@@ -550,7 +526,7 @@ export default function ServicesListScreen() {
         onPress={() => appPush(sharedRoutes.service(item.id))}
       >
         <View style={styles.rowIcon}>
-          <ServiceIcon iconKey={item.iconKey} size={22} variant="glass" boxSize={48} color="#0B7228" />
+          <ServiceIcon iconKey={item.iconKey} size={22} variant="premium" boxSize={48} color={BRAND} />
         </View>
         <View style={styles.rowBody}>
           <View style={styles.rowNameRow}>
@@ -577,7 +553,7 @@ export default function ServicesListScreen() {
             hitSlop={8}
           >
             <Text style={styles.rowBookText}>BOOK</Text>
-            <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={11} color={colors.forestMid} strokeWidth={2.6} />
+            <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={11} color={BRAND} strokeWidth={2.6} />
           </Pressable>
         </View>
       </Pressable>
@@ -591,10 +567,8 @@ export default function ServicesListScreen() {
         message={hasFilters ? 'Try a different search or clear the filters' : 'Check back soon.'}
       />
       {hasFilters ? (
-        <Pressable style={({ pressed }) => [pressed && styles.pressedSm]} onPress={resetFilters}>
-          <LinearGradient colors={['#209640', DEEP]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.clearBtn}>
-            <Text style={styles.clearBtnText}>Clear filters</Text>
-          </LinearGradient>
+        <Pressable style={({ pressed }) => [styles.clearBtn, pressed && styles.pressedSm]} onPress={resetFilters}>
+          <Text style={styles.clearBtnText}>Clear filters</Text>
         </Pressable>
       ) : null}
     </View>
@@ -602,8 +576,8 @@ export default function ServicesListScreen() {
 
   return (
     <View style={styles.rootShell}>
-      <GlassBackdrop />
-      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
+      <FocusStatusBar style="dark" />
+      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       {loading && services.length === 0 ? (
         <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
           {hero}
@@ -628,7 +602,7 @@ export default function ServicesListScreen() {
           columnWrapperStyle={view === 'grid' ? styles.column : undefined}
           {...CUSTOMER_LIST_PERF}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BRAND} />
           }
           ListHeaderComponent={listHeader}
           ListFooterComponent={visibleServices.length > 0 ? trustBanner : null}
@@ -642,7 +616,6 @@ export default function ServicesListScreen() {
         />
       )}
       </SafeAreaView>
-      <ScreenTopScrim scrollY={scrollY} revealAt={scrimRevealAt} />
     </View>
   );
 }
@@ -655,55 +628,26 @@ const styles = StyleSheet.create({
   pressedSm: { transform: [{ scale: 0.94 }] },
   pressedCard: { transform: [{ scale: 0.97 }] },
 
-  hero: {
-    overflow: 'hidden',
-  },
+  hero: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
   heroRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   heroLeft: { flex: 1, paddingRight: 12 },
-  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  eyebrowBar: { width: 18, height: 3, borderRadius: 2 },
-  eyebrow: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 11.5,
-    letterSpacing: 2.6,
-    color: 'rgba(255,255,255,0.82)',
-    textTransform: 'uppercase',
-  },
   heroTitle: {
-    marginTop: 8,
     fontFamily: fonts.displayExtra,
-    fontSize: 30,
-    lineHeight: 33,
-    letterSpacing: -0.5,
-    color: colors.white,
+    fontSize: 26,
+    lineHeight: 32,
+    letterSpacing: -0.7,
+    color: INK,
   },
-  heroRight: { alignItems: 'flex-end' },
-  countPill: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  countNum: { fontFamily: fonts.displayExtra, fontSize: 23, color: colors.white },
-  countLb: { fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 1, color: 'rgba(255,255,255,0.62)' },
-  heroMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 9 },
-  heroMeta: { fontFamily: fonts.bodyBold, fontSize: 11, color: 'rgba(255,255,255,0.72)' },
-  heroSub: { marginTop: 10, fontFamily: fonts.body, fontSize: 13, color: 'rgba(255,255,255,0.68)' },
+  heroMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
+  heroMeta: { fontFamily: fonts.bodySemi, fontSize: 11.5, color: MUTED },
+  heroSub: { marginTop: 4, fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: MUTED },
 
-  searchWrap: { paddingHorizontal: 20, marginTop: -32 },
+  searchWrap: { paddingHorizontal: 20 },
   searchCard: {
-    borderRadius: 19,
-    ...glassSkin.frost,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.14,
-    shadowRadius: 24,
-    elevation: 8,
+    borderRadius: 14,
+    backgroundColor: ui.surfaceMuted,
+    borderWidth: 1,
+    borderColor: ui.surfaceMuted,
   },
   searchInner: {
     flexDirection: 'row',
@@ -725,9 +669,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 13,
-    backgroundColor: colors.soft,
+    backgroundColor: ui.brandSoft,
     borderWidth: 1,
-    borderColor: '#DBF1D1',
+    borderColor: ui.hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -735,14 +679,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#F2FAEE',
+    backgroundColor: ui.brandSoft,
     borderWidth: 1,
-    borderColor: '#DBF1D1',
+    borderColor: ui.hairline,
     borderRadius: 13,
     paddingHorizontal: 12,
     paddingVertical: 11,
   },
-  resetText: { fontFamily: fonts.bodyBold, fontSize: 11, color: colors.forestMid, letterSpacing: 0.4 },
+  resetText: { fontFamily: fonts.bodyBold, fontSize: 11, color: BRAND, letterSpacing: 0.4 },
 
   chipScroll: { marginTop: 14, flexGrow: 0 },
   pestScroll: { marginTop: 9, flexGrow: 0 },
@@ -755,29 +699,24 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingLeft: 8,
     paddingRight: 15,
-    backgroundColor: 'rgba(255,255,255,0.48)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.55)',
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
   },
   catChipOn: {
-    backgroundColor: DEEP,
-    borderColor: '#064D1B',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.22,
-    shadowRadius: 12,
-    elevation: 5,
+    backgroundColor: BRAND,
+    borderColor: BRAND,
   },
   catChipIcon: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: colors.soft,
+    backgroundColor: ui.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  catChipIconOn: { backgroundColor: 'rgba(255,255,255,0.14)' },
-  catChipText: { fontFamily: fonts.bodyBold, fontSize: 13, color: '#1F4129' },
+  catChipIconOn: { backgroundColor: 'rgba(255,255,255,0.18)' },
+  catChipText: { fontFamily: fonts.bodyBold, fontSize: 13, color: ui.text },
   catChipTextOn: { color: colors.white },
   pestChip: {
     flexDirection: 'row',
@@ -786,83 +725,60 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 13,
     paddingVertical: 8,
-    backgroundColor: 'rgba(255,255,255,0.48)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.55)',
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
   },
-  pestChipOn: { backgroundColor: DEEP, borderColor: '#064D1B' },
-  pestChipText: { fontFamily: fonts.bodyBold, fontSize: 12, color: '#38623C' },
+  pestChipOn: { backgroundColor: BRAND, borderColor: BRAND },
+  pestChipText: { fontFamily: fonts.bodyBold, fontSize: 12, color: BRAND },
   pestChipTextOn: { color: colors.white },
 
   spotBlock: { marginTop: 16 },
   spotRow: { paddingHorizontal: 20, gap: SPOT_GAP },
   spotCard: {
     width: SPOT_CARD_W,
-    borderRadius: 26,
+    borderRadius: 22,
     padding: 18,
     overflow: 'hidden',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.24,
-    shadowRadius: 22,
-    elevation: 8,
-  },
-  spotOrb: {
-    position: 'absolute',
-    top: -50,
-    right: -50,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(104,208,60,0.14)',
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
+    ...ui.shadow,
   },
   spotTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   spotTag: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.28)',
+    backgroundColor: ui.brandSoft,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  spotTagText: { fontFamily: fonts.bodyBold, fontSize: 9.5, letterSpacing: 1.2, color: colors.white },
+  spotTagText: { fontFamily: fonts.bodyBold, fontSize: 9.5, letterSpacing: 1.2, color: BRAND },
   spotRateRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  spotRate: { fontFamily: fonts.bodyBold, fontSize: 11, color: 'rgba(255,255,255,0.72)' },
+  spotRate: { fontFamily: fonts.bodyBold, fontSize: 11, color: MUTED },
   spotMain: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 13 },
   spotIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   spotInfo: { flex: 1, minWidth: 0 },
-  spotName: { fontFamily: fonts.displayExtra, fontSize: 17, lineHeight: 20, color: colors.white },
-  spotSub: { marginTop: 3, fontFamily: fonts.bodySemi, fontSize: 11, color: 'rgba(255,255,255,0.65)' },
+  spotName: { fontFamily: fonts.displayExtra, fontSize: 17, lineHeight: 20, color: INK },
+  spotSub: { marginTop: 3, fontFamily: fonts.bodySemi, fontSize: 11, color: MUTED },
   spotFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 },
-  fromLabelDark: { fontFamily: fonts.bodyBold, fontSize: 9.5, letterSpacing: 1.1, color: 'rgba(255,255,255,0.55)' },
-  spotPrice: { fontFamily: fonts.displayExtra, fontSize: 20, color: colors.white },
+  fromLabelDark: { fontFamily: fonts.bodyBold, fontSize: 9.5, letterSpacing: 1.1, color: FAINT },
+  spotPrice: { fontFamily: fonts.displayExtra, fontSize: 20, color: INK },
   spotBook: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    backgroundColor: 'rgba(255,255,255,0.82)',
+    backgroundColor: BRAND,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 11,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.24,
-    shadowRadius: 12,
-    elevation: 4,
   },
-  spotBookText: { fontFamily: fonts.bodyBold, fontSize: 11.5, letterSpacing: 0.8, color: DEEP },
+  spotBookText: { fontFamily: fonts.bodyBold, fontSize: 11.5, letterSpacing: 0.8, color: colors.white },
   dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 9 },
-  dot: { width: 6, height: 6, borderRadius: 999, backgroundColor: '#CBE3BF' },
-  dotOn: { width: 20, backgroundColor: DEEP },
+  dot: { width: 6, height: 6, borderRadius: 999, backgroundColor: ui.hairline },
+  dotOn: { width: 20, backgroundColor: BRAND },
 
   sortBar: {
     flexDirection: 'row',
@@ -875,25 +791,18 @@ const styles = StyleSheet.create({
   },
   sortLeft: { flexShrink: 0 },
   countLabel: { fontFamily: fonts.displayExtra, fontSize: 19, letterSpacing: -0.2, color: INK },
-  countBar: { width: 26, height: 3, borderRadius: 2, marginTop: 6 },
+  countBar: { width: 26, height: 3, borderRadius: 2, marginTop: 6, backgroundColor: BRAND },
   sortRight: { flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
-  segment: { flexDirection: 'row', backgroundColor: '#E6F4DE', borderRadius: 999, padding: 3 },
+  segment: { flexDirection: 'row', backgroundColor: ui.surfaceMuted, borderRadius: 999, padding: 3 },
   segBtn: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
-  segBtnOn: {
-    backgroundColor: DEEP,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
+  segBtnOn: { backgroundColor: BRAND },
   segText: { fontFamily: fonts.bodyBold, fontSize: 11, color: MUTED },
   segTextOn: { color: colors.white },
   viewToggle: {
     width: 34,
     height: 34,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.82)',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: BORDER,
     alignItems: 'center',
@@ -903,17 +812,13 @@ const styles = StyleSheet.create({
   card: {
     position: 'relative',
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.48)',
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.58)',
+    borderColor: ui.hairline,
     borderRadius: 22,
     padding: 14,
     gap: 10,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 3,
+    ...ui.shadow,
   },
   popBadge: {
     position: 'absolute',
@@ -922,6 +827,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderBottomLeftRadius: 14,
+    backgroundColor: BRAND,
     zIndex: 2,
   },
   popBadgeText: { fontFamily: fonts.bodyBold, fontSize: 8.5, letterSpacing: 1, color: colors.white },
@@ -934,11 +840,11 @@ const styles = StyleSheet.create({
   cardMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 5 },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   cardMetaText: { fontFamily: fonts.bodySemi, fontSize: 11, color: FAINT },
-  cardMetaRating: { fontFamily: fonts.bodyBold, fontSize: 11, color: colors.forestMid },
+  cardMetaRating: { fontFamily: fonts.bodyBold, fontSize: 11, color: BRAND },
   perforation: {
     marginHorizontal: -14,
     borderTopWidth: 1.5,
-    borderColor: '#E5F2DD',
+    borderColor: ui.hairline,
     borderStyle: 'dashed',
     position: 'relative',
   },
@@ -955,8 +861,8 @@ const styles = StyleSheet.create({
   notchLeft: { left: -6 },
   notchRight: { right: -6 },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  fromLabel: { fontFamily: fonts.bodyBold, fontSize: 9.5, letterSpacing: 1, color: '#9FBC96' },
-  cardPrice: { fontFamily: fonts.displayExtra, fontSize: 17, color: colors.forestMid },
+  fromLabel: { fontFamily: fonts.bodyBold, fontSize: 9.5, letterSpacing: 1, color: ui.textTertiary },
+  cardPrice: { fontFamily: fonts.displayExtra, fontSize: 17, color: INK },
   bookPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -964,11 +870,7 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     paddingHorizontal: 13,
     paddingVertical: 9,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.28,
-    shadowRadius: 10,
-    elevation: 4,
+    backgroundColor: BRAND,
   },
   bookPillText: { fontFamily: fonts.bodyBold, fontSize: 10.5, letterSpacing: 0.8, color: colors.white },
 
@@ -976,19 +878,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 13,
-    backgroundColor: 'rgba(255,255,255,0.48)',
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.58)',
+    borderColor: ui.hairline,
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginHorizontal: spacing.md,
     marginBottom: 10,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 3,
+    ...ui.shadow,
   },
   rowIcon: {
     alignItems: 'center',
@@ -998,21 +896,26 @@ const styles = StyleSheet.create({
   rowNameRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   rowName: { flexShrink: 1, fontFamily: fonts.bodyBold, fontSize: 14, color: INK },
   hotBadge: {
-    backgroundColor: '#68D03C',
+    backgroundColor: ui.brandSoft,
     borderRadius: 999,
     paddingHorizontal: 7,
     paddingVertical: 2,
   },
-  hotBadgeText: { fontFamily: fonts.bodyBold, fontSize: 8, letterSpacing: 0.8, color: '#064D1B' },
+  hotBadgeText: { fontFamily: fonts.bodyBold, fontSize: 8, letterSpacing: 0.8, color: BRAND },
   rowMeta: { marginTop: 3, fontFamily: fonts.bodySemi, fontSize: 11, color: FAINT },
-  rowRating: { fontFamily: fonts.bodyBold, color: colors.forestMid },
+  rowRating: { fontFamily: fonts.bodyBold, color: BRAND },
   rowRight: { alignItems: 'flex-end' },
-  rowPrice: { fontFamily: fonts.displayExtra, fontSize: 15, color: colors.forestMid },
+  rowPrice: { fontFamily: fonts.displayExtra, fontSize: 15, color: INK },
   rowBook: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  rowBookText: { fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 0.5, color: colors.forestMid },
+  rowBookText: { fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 0.5, color: BRAND },
 
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, paddingVertical: 36 },
-  clearBtn: { borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11 },
+  clearBtn: {
+    borderRadius: 999,
+    paddingHorizontal: 20,
+    paddingVertical: 11,
+    backgroundColor: BRAND,
+  },
   clearBtnText: { fontFamily: fonts.bodyBold, fontSize: 12.5, color: colors.white },
 
   trustCard: {
@@ -1020,35 +923,22 @@ const styles = StyleSheet.create({
     gap: 13,
     marginHorizontal: spacing.md,
     marginTop: 14,
-    backgroundColor: '#EFF9EA',
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: '#D6EFC9',
-    borderRadius: 24,
+    borderColor: ui.hairline,
+    borderRadius: 22,
     padding: 16,
-  },
-  trustIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.22,
-    shadowRadius: 12,
-    elevation: 4,
+    ...ui.shadow,
   },
   trustBody: { flex: 1, minWidth: 0 },
-  trustTitle: { fontFamily: fonts.bodyBold, fontSize: 14.5, color: colors.headerGreen },
-  trustSub: { marginTop: 3, fontFamily: fonts.bodySemi, fontSize: 12, lineHeight: 17, color: '#38623C' },
+  trustTitle: { fontFamily: fonts.bodyBold, fontSize: 14.5, color: ui.text },
+  trustSub: { marginTop: 3, fontFamily: fonts.bodySemi, fontSize: 12, lineHeight: 17, color: ui.textSecondary },
   trustChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 9 },
   trustChip: {
-    backgroundColor: 'rgba(255,255,255,0.82)',
-    borderWidth: 1,
-    borderColor: '#D6EFC9',
+    backgroundColor: ui.brandSoft,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  trustChipText: { fontFamily: fonts.bodyBold, fontSize: 10.5, color: colors.headerGreen },
+  trustChipText: { fontFamily: fonts.bodyBold, fontSize: 10.5, color: BRAND },
 });

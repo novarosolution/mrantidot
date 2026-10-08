@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
@@ -6,7 +5,7 @@ import { AppIcons } from '@/constants/appIcons';
 import { PhotoSourceSheet } from '@/components/kit/PhotoSourceSheet';
 import { mergePickedImages, pickImageFromCamera, pickImagesFromLibrary } from '@/lib/pickImages';
 import type { PickedImage } from '@/lib/upload';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 const DEFAULT_MAX = 6;
 
@@ -61,12 +60,7 @@ export function AddressPhotoGrid({
           onPress={openSheet}
           disabled={remaining <= 0 || busy}
         >
-          <LinearGradient
-            colors={[colors.forest, colors.deep]}
-            style={styles.addGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
+          <View style={styles.addGradient}>
             {busy ? (
               <ActivityIndicator color={colors.white} size="small" />
             ) : (
@@ -75,7 +69,7 @@ export function AddressPhotoGrid({
                 <Text style={styles.addLabel}>Add photo</Text>
               </>
             )}
-          </LinearGradient>
+          </View>
         </Pressable>
 
         {photos.map((photo) => (
@@ -101,13 +95,13 @@ export function AddressPhotoGrid({
             accessibilityRole="button"
             accessibilityLabel="Add another photo"
           >
-            <PremiumIcon icon={AppIcons.ui.imagePlus} variant="plain" size={20} color={colors.green} />
+            <PremiumIcon icon={AppIcons.ui.imagePlus} variant="plain" size={20} color={ui.brand} />
           </Pressable>
         ) : null}
       </View>
 
       <Text style={styles.hint}>
-        {photos.length}/{max}
+        Optional · {photos.length}/{max} photos
       </Text>
 
       <PhotoSourceSheet
@@ -135,16 +129,17 @@ export function AddressConfirmBanner({ address }: { address: string }) {
 
   return (
     <Animated.View style={[styles.banner, { opacity, transform: [{ translateY }] }]}>
-      <LinearGradient
-        colors={['#E8F5EC', colors.white]}
-        style={styles.bannerInner}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <Text style={styles.bannerText} numberOfLines={3}>
-          {address.trim()}
-        </Text>
-      </LinearGradient>
+      <View style={styles.bannerInner}>
+        <View style={styles.bannerIcon}>
+          <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={16} color={colors.white} strokeWidth={2.8} />
+        </View>
+        <View style={styles.bannerCopy}>
+          <Text style={styles.bannerKicker}>ADDRESS READY</Text>
+          <Text style={styles.bannerText} numberOfLines={3}>
+            {address.trim()}
+          </Text>
+        </View>
+      </View>
     </Animated.View>
   );
 }
@@ -158,6 +153,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
+    backgroundColor: ui.brand,
   },
   addLabel: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.white },
   thumbWrap: { position: 'relative', width: 88, height: 88, borderRadius: 18, overflow: 'hidden' },
@@ -179,43 +175,45 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: 'rgba(30,142,78,0.35)',
-    backgroundColor: colors.soft,
+    borderColor: ui.hairline,
+    backgroundColor: ui.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pressed: { opacity: 0.88 },
   disabled: { opacity: 0.5 },
-  hint: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, lineHeight: 16 },
+  hint: { fontFamily: fonts.body, fontSize: 12, color: ui.textSecondary, lineHeight: 16 },
   banner: { marginTop: spacing.xs },
   bannerInner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
     padding: 14,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(30,142,78,0.18)',
-    gap: 4,
+    borderColor: ui.hairline,
+    backgroundColor: ui.brandSoft,
   },
+  bannerIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 11,
+    backgroundColor: ui.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bannerCopy: { flex: 1, minWidth: 0 },
   bannerKicker: {
-    fontFamily: fonts.bodySemi,
+    fontFamily: fonts.bodyBold,
     fontSize: 10,
-    color: colors.green,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: ui.brand,
+    letterSpacing: 1,
   },
   bannerText: {
     fontFamily: fonts.bodySemi,
     fontSize: 14,
-    color: colors.forest,
+    color: ui.text,
     lineHeight: 20,
-    paddingRight: 72,
+    marginTop: 3,
   },
-  readyPill: {
-    position: 'absolute',
-    top: 14,
-    right: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  readyText: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.white },
 });

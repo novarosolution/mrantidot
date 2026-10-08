@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import mongoose from 'mongoose';
 import type { MongoMemoryServer } from 'mongodb-memory-server';
 import { env } from './env';
@@ -16,6 +18,7 @@ function parseMongoTarget(uri: string): { host: string; dbName: string } {
 }
 
 let usingMemoryMongo = false;
+let persistentLocalDb = false;
 
 function wantsMemoryMongo(): boolean {
   const flag = process.env.USE_MEMORY_MONGO?.trim().toLowerCase();
@@ -29,15 +32,47 @@ export function isUsingMemoryMongo(): boolean {
   return usingMemoryMongo;
 }
 
+/** Data dir for the embedded dev database; empty LOCAL_DB_DIR means wipe-on-exit. */
+function localDbDir(): string | null {
+  const raw = process.env.LOCAL_DB_DIR;
+  if (raw !== undefined && raw.trim() === '') return null;
+  return path.resolve(process.cwd(), raw?.trim() || '.data/mongo');
+}
+
 async function startMemoryMongo(): Promise<string> {
   const { MongoMemoryServer } = await import('mongodb-memory-server');
-  memoryServer = await MongoMemoryServer.create({
-    instance: { dbName: 'mrantidot-v2' },
-  });
+  const dbPath = localDbDir();
+  if (dbPath) fs.mkdirSync(dbPath, { recursive: true });
+  try {
+    memoryServer = await MongoMemoryServer.create({
+      instance: {
+        dbName: 'mrantidot-v2',
+        ...(dbPath ? { dbPath, storageEngine: 'wiredTiger' as const } : {}),
+      },
+    });
+  } catch (err) {
+    if (dbPath) {
+      console.error(
+        `[db] Could not open ${dbPath} — is another API server (or "npm run seed") already using it? Stop it and retry.`,
+      );
+    }
+    throw err;
+  }
   const uri = memoryServer.getUri('mrantidot-v2');
   process.env.MONGO_URI = uri;
   usingMemoryMongo = true;
+  persistentLocalDb = Boolean(dbPath);
+  console.log(
+    dbPath
+      ? `[db] Embedded MongoDB — data saved in ${path.relative(process.cwd(), dbPath)} (survives restarts)`
+      : '[db] Embedded MongoDB — temporary, data is wiped when the server stops',
+  );
   return uri;
+}
+
+/** True when the embedded dev database keeps its data on disk between restarts. */
+export function isPersistentLocalDb(): boolean {
+  return persistentLocalDb;
 }
 
 async function connectWithUri(uri: string): Promise<void> {
@@ -60,7 +95,6 @@ export async function connectDb(): Promise<void> {
 
   if (!env.isProduction && wantsMemoryMongo()) {
     const uri = await startMemoryMongo();
-    console.log('[db] Using in-memory MongoDB (USE_MEMORY_MONGO / MONGO_URI=memory)');
     await connectWithUri(uri);
     return;
   }

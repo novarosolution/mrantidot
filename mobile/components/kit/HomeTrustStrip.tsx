@@ -1,115 +1,85 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
-import { colors, fonts } from '@/constants/theme';
-import { homeShadow } from '@/components/kit/homeUi';
+import { BadgeCheck, ShieldCheck } from 'lucide-react-native';
+import { colors, fonts, ui } from '@/constants/theme';
 
-/** Soft trust line under home content — guarantee and/or CMS badges. */
+const DEFAULT_HEADLINE = 'Satisfaction guaranteed';
+const DEFAULT_BADGES = ['Verified pros', 'On-time service', 'Safe chemicals'];
+
+/** Brand promise card closing the home feed. */
 export function HomeTrustStrip({
+  brandName,
   guaranteeText,
   badges,
 }: {
+  brandName?: string;
   guaranteeText?: string;
   badges?: string[];
 }) {
   const chipList = (badges ?? []).map((b) => b.trim()).filter(Boolean).slice(0, 3);
-  const guarantee = guaranteeText?.trim() || '';
-  const text =
-    chipList.length > 0
-      ? chipList.join(' · ')
-      : guarantee || 'Verified pros · Satisfaction guaranteed';
+  const items = chipList.length > 0 ? chipList : DEFAULT_BADGES;
+  const headline = guaranteeText?.split('·')[0]?.trim() || DEFAULT_HEADLINE;
 
   return (
-    <View style={styles.wrap}>
-      <View style={styles.shell}>
-        <View style={styles.pill}>
-          <LinearGradient
-            colors={[colors.white, '#F5FBF2', colors.soft]}
-            style={StyleSheet.absoluteFill}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          />
-          <View style={styles.iconShell}>
-            <LinearGradient colors={[colors.limeBright, colors.forestMid]} style={styles.icon} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}>
-              <PremiumIcon
-                icon={AppIcons.ui.shieldCheck}
-                variant="plain"
-                size={14}
-                color={colors.white}
-                strokeWidth={2.4}
-                fill="rgba(255,255,255,0.35)"
-              />
-            </LinearGradient>
-          </View>
-          <Text style={styles.text} numberOfLines={2}>
-            {text}
-          </Text>
+    <View style={styles.card}>
+      <View style={styles.text}>
+        <Text style={styles.eyebrow}>{(brandName?.trim() || 'Mr Antidot') + ' promise'}</Text>
+        <Text style={styles.headline}>{headline}</Text>
+        <View style={styles.list}>
+          {items.map((label) => (
+            <View key={label} style={styles.item}>
+              <BadgeCheck size={17} color={ui.brand} strokeWidth={2} fill={ui.brandSoft} />
+              <Text style={styles.itemText} numberOfLines={1}>
+                {label}
+              </Text>
+            </View>
+          ))}
         </View>
       </View>
-      {chipList.length > 0 && guarantee && guarantee !== text ? (
-        <Text style={styles.guarantee} numberOfLines={2}>
-          {guarantee}
-        </Text>
-      ) : null}
+      <View style={styles.seal}>
+        <ShieldCheck size={36} color={ui.brand} strokeWidth={1.6} fill={ui.brandSoft} />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    marginTop: 24,
-    marginHorizontal: 20,
-    marginBottom: 8,
-    alignItems: 'center',
-    gap: 8,
-  },
-  shell: {
-    maxWidth: '100%',
-    borderRadius: 999,
-    ...homeShadow.card,
-  },
-  pill: {
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    borderRadius: 999,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(180,220,165,0.95)',
+    gap: 12,
+    marginHorizontal: 16,
+    padding: 20,
+    borderRadius: 22,
     backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
+    ...ui.shadow,
   },
-  iconShell: {
-    borderRadius: 15,
-    shadowColor: colors.forest,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.28,
-    shadowRadius: 8,
-    elevation: 4,
+  text: { flex: 1, minWidth: 0 },
+  eyebrow: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: ui.brand,
   },
-  icon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  headline: {
+    marginTop: 4,
+    fontFamily: fonts.displayExtra,
+    fontSize: 18,
+    lineHeight: 23,
+    letterSpacing: -0.4,
+    color: ui.text,
+  },
+  list: { marginTop: 14, gap: 10 },
+  item: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  itemText: { flexShrink: 1, fontFamily: fonts.bodyMedium, fontSize: 13.5, color: ui.text },
+  seal: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    backgroundColor: ui.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  text: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 13,
-    letterSpacing: -0.1,
-    color: colors.ink,
-    flexShrink: 1,
-    paddingRight: 4,
-  },
-  guarantee: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.muted,
-    textAlign: 'center',
-    paddingHorizontal: 8,
   },
 });

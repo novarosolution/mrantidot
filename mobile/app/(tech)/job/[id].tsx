@@ -1,8 +1,7 @@
-import { useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Image,
   Linking,
   RefreshControl,
   ScrollView,
@@ -16,12 +15,13 @@ import Toast from 'react-native-toast-message';
 import { paramString } from '@/lib/routeParams';
 import { AddressPhotoGrid } from '@/components/kit/AddressPhotoGrid';
 import { BookingFactsCard } from '@/components/kit/BookingFactsCard';
+import { SafePhoto } from '@/components/kit/BookingDetailKit';
 import { BookingStatusBanner } from '@/components/kit/BookingStatusBanner';
 import { BookingTrackingTimeline } from '@/components/kit/BookingTrackingTimeline';
 import { JobProgressCard } from '@/components/kit/JobProgressCard';
 import { OtpEntrySheet } from '@/components/kit/OtpEntrySheet';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
-import { GlassPanel, glassTabBarStyle } from '@/components/kit/GlassScreenKit';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { homeShadow } from '@/components/kit/homeUi';
 import { TechScreen, TechScreenScroll } from '@/components/kit/TechScreenKit';
 import { Button } from '@/components/ui/Button';
@@ -61,7 +61,6 @@ import { techGoBack, techRoutes } from '@/lib/routes';
 
 export default function TechJobScreen() {
   const copy = useTechCopy();
-  const navigation = useNavigation();
   const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [note, setNote] = useState('');
@@ -92,16 +91,19 @@ export default function TechJobScreen() {
     void runLoad(load);
   }, [load, runLoad]);
 
+  useEffect(() => {
+    setStepDrafts({});
+    setNote('');
+    setOtpSheet(null);
+  }, [id]);
+
   useFocusEffect(
     useCallback(() => {
       focusedRef.current = true;
-      const parent = navigation.getParent();
-      parent?.setOptions({ tabBarStyle: { display: 'none' } });
       return () => {
         focusedRef.current = false;
-        parent?.setOptions({ tabBarStyle: glassTabBarStyle });
       };
-    }, [navigation]),
+    }, []),
   );
 
   useEffect(() => {
@@ -154,7 +156,7 @@ export default function TechJobScreen() {
       setOtpErrorTrigger((n) => n + 1);
       Toast.show({
         type: 'error',
-        text1: 'Invalid code',
+        text1: 'Could not verify code',
         text2: getApiErrorMessage(err, 'Check the code with the customer and try again'),
       });
     } finally {
@@ -174,19 +176,31 @@ export default function TechJobScreen() {
       return null;
     }
 
-    const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-    let address = note.trim() || booking.address?.trim() || 'On-site location';
+    if (!(await Location.hasServicesEnabledAsync())) {
+      Toast.show({ type: 'error', text1: 'Location is turned off', text2: 'Turn on GPS to save this step' });
+      return null;
+    }
+
+    const pos = await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 15000)),
+    ]) ?? (await Location.getLastKnownPositionAsync());
+    if (!pos) {
+      Toast.show({ type: 'error', text1: 'Could not get your location', text2: 'Move near a window or outdoors and try again' });
+      return null;
+    }
+
+    let geocoded = '';
     try {
       const [place] = await Location.reverseGeocodeAsync({
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
       });
-      if (place) {
-        address = [place.street, place.city, place.region].filter(Boolean).join(', ') || address;
-      }
+      if (place) geocoded = [place.street, place.city, place.region].filter(Boolean).join(', ');
     } catch {
       /* use fallback address */
     }
+    const address = note.trim() || geocoded || booking.address?.trim() || 'On-site location';
     return { lat: pos.coords.latitude, lng: pos.coords.longitude, address };
   }
 
@@ -279,7 +293,7 @@ export default function TechJobScreen() {
           subtitle={`Field job · ${bookingScheduleDisplay(booking)}`}
           showBack
           onBack={() => techGoBack(techRoutes.home)}
-          rightAction={headerLive ? <LiveBadge tone="light" /> : null}
+          rightAction={headerLive ? <LiveBadge /> : null}
         />
       }
     >
@@ -361,17 +375,9 @@ export default function TechJobScreen() {
                       >
                         <View style={styles.stepInner}>
                           <View style={styles.stepRow}>
-                            {isDone && photos[0] ? (
-                              <View>
-                                <Image source={{ uri: mediaUrl(photos[0]) }} style={styles.thumb} />
-                                <View style={styles.checkOverlay}>
-                                  <PremiumIcon icon={AppIcons.ui.check} variant="plain" size="sm" color="#fff" strokeWidth={3} />
-                                </View>
-                                {photos.length > 1 ? (
-                                  <View style={styles.photoCountBadge}>
-                                    <Text style={styles.photoCountText}>{photos.length}</Text>
-                                  </View>
-                                ) : null}
+                            {isDone ? (
+                              <View style={styles.doneThumb}>
+                                <PremiumIcon icon={AppIcons.ui.check} variant="plain" size="lg" color="#fff" strokeWidth={3} />
                               </View>
                             ) : isActive ? (
                               <View style={styles.camThumb}>
@@ -405,11 +411,7 @@ export default function TechJobScreen() {
                               contentContainerStyle={styles.donePhotoRow}
                             >
                               {photos.map((url, i) => (
-                                <Image
-                                  key={`${url}-${i}`}
-                                  source={{ uri: mediaUrl(url) }}
-                                  style={styles.donePhoto}
-                                />
+                                <SafePhoto key={`${url}-${i}`} uri={mediaUrl(url)} style={styles.donePhoto} compact />
                               ))}
                             </ScrollView>
                           ) : null}
@@ -625,32 +627,26 @@ const styles = StyleSheet.create({
   },
   stepInner: { padding: spacing.md },
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  thumb: { width: 58, height: 58, borderRadius: 13 },
-  checkOverlay: {
-    position: 'absolute',
-    right: -4,
-    bottom: -4,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+  doneThumb: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     backgroundColor: colors.green,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.white,
   },
   camThumb: {
-    width: 58,
-    height: 58,
+    width: 46,
+    height: 46,
     borderRadius: 13,
     backgroundColor: colors.forest,
     alignItems: 'center',
     justifyContent: 'center',
   },
   numThumb: {
-    width: 58,
-    height: 58,
-    borderRadius: 13,
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
@@ -662,21 +658,6 @@ const styles = StyleSheet.create({
   doneTag: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.green, marginTop: 4 },
   activeTag: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.forest, marginTop: 4 },
   geo: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
-  photoCountBadge: {
-    position: 'absolute',
-    left: -4,
-    top: -4,
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    paddingHorizontal: 5,
-    backgroundColor: colors.forest,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.white,
-  },
-  photoCountText: { fontFamily: fonts.bodyBold, fontSize: 10, color: colors.white },
   donePhotoRow: { gap: 8, marginTop: spacing.md, paddingRight: 4 },
   donePhoto: { width: 88, height: 88, borderRadius: 12, backgroundColor: colors.card },
   captureBlock: { marginTop: spacing.md, gap: spacing.sm },

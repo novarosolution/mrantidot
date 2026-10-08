@@ -3,7 +3,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { formatRupee } from '@/components/kit/format';
+import { formatDayKey, formatRupee, plural } from '@/components/kit/format';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { technicianDisplayRating, technicianRealRating } from '@/lib/ratings';
 import type { TechnicianDetailStats, TechnicianMetricKey, User } from '@/types/api';
@@ -39,7 +39,6 @@ export function TechnicianIdentityCard({
 
   return (
     <View style={styles.identityCard}>
-      <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <View style={styles.identityRow}>
         <LinearGradient colors={[colors.greenBright, colors.forest]} style={styles.avatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <Text style={styles.avatarText}>{initials}</Text>
@@ -155,9 +154,9 @@ export function TechnicianMetaLine({
   lastJobDate?: string;
   reviewCount: number;
 }) {
-  const parts = [`${totalJobs} total jobs`];
-  if (lastJobDate) parts.push(`Last job ${lastJobDate}`);
-  if (reviewCount > 0) parts.push(`${reviewCount} reviews`);
+  const parts = [plural(totalJobs, 'total job')];
+  if (lastJobDate) parts.push(`Last job ${formatDayKey(lastJobDate)}`);
+  if (reviewCount > 0) parts.push(plural(reviewCount, 'review'));
   return <Text style={styles.metaLine}>{parts.join(' · ')}</Text>;
 }
 
@@ -211,7 +210,6 @@ export function TechnicianViewTabs({
 }) {
   return (
     <View style={styles.tabsWrap}>
-      <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.tabsGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <View style={styles.tabsRow}>
         {VIEW_TABS.map(({ key, label, icon }) => {
           const selected = active === key;
@@ -311,7 +309,6 @@ export function TechnicianProfileHeader({
 export function TechnicianReviewCard({ stars, comment, tags }: { stars: number; comment?: string; tags: string[] }) {
   return (
     <View style={styles.reviewCard}>
-      <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.reviewGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
       <Text style={styles.reviewStars}>{'★'.repeat(stars)}{'☆'.repeat(5 - stars)}</Text>
       {comment ? <Text style={styles.reviewComment}>{comment}</Text> : null}
       {tags.length > 0 ? <Text style={styles.reviewTags}>{tags.join(' · ')}</Text> : null}

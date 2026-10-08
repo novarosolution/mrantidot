@@ -5,7 +5,7 @@ import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { textInputDefaults } from '@/components/ui/textInputDefaults';
 import type { BookingAmount, Offer } from '@/types/api';
-import { colors, fonts, gradients, premium, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, gradients, premium, spacing, surfaces, ui } from '@/constants/theme';
 
 export function PaymentPriceHero({
   amount,
@@ -14,7 +14,7 @@ export function PaymentPriceHero({
 }) {
   return (
     <LinearGradient
-      colors={['#14532D', '#1A6B3C']}
+      colors={[...gradients.header]}
       style={styles.hero}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -129,7 +129,7 @@ export function PaymentCouponField({
           icon={AppIcons.ui.tag}
           variant="plain"
           size={18}
-          color={applied ? colors.green : invalid ? colors.error : colors.muted}
+          color={applied ? ui.brand : invalid ? colors.error : ui.textTertiary}
         />
         <TextInput
           {...textInputDefaults}
@@ -157,7 +157,7 @@ export function PaymentCouponField({
       {invalid ? <Text style={styles.couponError}>This coupon is not valid</Text> : null}
       {applied ? (
         <View style={styles.couponOk}>
-          <PremiumIcon icon={AppIcons.toast.success} variant="plain" size={15} color={colors.green} />
+          <PremiumIcon icon={AppIcons.toast.success} variant="plain" size={15} color={ui.brand} />
           <Text style={styles.couponOkText}>Applied</Text>
         </View>
       ) : null}
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   },
   offerCode: { fontFamily: fonts.displayExtra, fontSize: 15, color: colors.forest },
   offerCodeOn: { color: colors.forest },
-  offerOff: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.green, marginTop: 2 },
+  offerOff: { fontFamily: fonts.bodySemi, fontSize: 12, color: ui.brand, marginTop: 2 },
   offerOffOn: { color: colors.forest },
   offerDesc: { fontFamily: fonts.body, fontSize: 10.5, color: colors.muted, marginTop: 4, lineHeight: 14 },
   offerDescOn: { color: colors.forest, opacity: 0.85 },
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   },
   couponRowFocused: { backgroundColor: colors.soft, borderColor: colors.forest },
   couponRowError: { borderColor: colors.error, backgroundColor: colors.errorBg },
-  couponRowApplied: { borderColor: colors.green, backgroundColor: colors.soft },
+  couponRowApplied: { borderColor: ui.brand, backgroundColor: ui.brandSoft },
   couponInput: {
     flex: 1,
     fontSize: 15,
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
   },
   couponError: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.error, paddingHorizontal: 4 },
   couponOk: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
-  couponOkText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.green, flex: 1 },
+  couponOkText: { fontFamily: fonts.bodySemi, fontSize: 12, color: ui.brand, flex: 1 },
   secure: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
   readyKicker: {
     fontFamily: fonts.bodySemi,
     fontSize: 10,
-    color: colors.green,
+    color: ui.brand,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },

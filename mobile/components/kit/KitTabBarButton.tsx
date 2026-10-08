@@ -1,4 +1,3 @@
-import { colors } from '@/constants/theme';
 import type { ReactNode } from 'react';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, type PressableProps, StyleSheet } from 'react-native';
@@ -8,7 +7,7 @@ type KitTabBarButtonProps = PressableProps & {
   accessibilityState?: { selected?: boolean };
 };
 
-/** Premium floating tab press target — soft press + active lift + lime glow. */
+/** Premium floating tab press target — soft press + active lift. */
 export function KitTabBarButton(props: KitTabBarButtonProps) {
   const { children, accessibilityState, style: _style, ...rest } = props;
   const focused = Boolean(accessibilityState?.selected);
@@ -62,18 +61,6 @@ export function KitTabBarButton(props: KitTabBarButtonProps) {
       >
         {children}
       </Animated.View>
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.glow,
-          {
-            opacity: focusAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
-            transform: [
-              { scaleX: focusAnim.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }) },
-            ],
-          },
-        ]}
-      />
     </Pressable>
   );
 }
@@ -88,17 +75,5 @@ const styles = StyleSheet.create({
   inner: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  glow: {
-    position: 'absolute',
-    bottom: 5,
-    width: 26,
-    height: 3.5,
-    borderRadius: 3,
-    backgroundColor: colors.limeBright,
-    shadowColor: colors.limeBright,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.55,
-    shadowRadius: 6,
   },
 });

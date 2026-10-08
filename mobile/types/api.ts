@@ -550,7 +550,8 @@ export type TrackingEventType =
   | 'work_completed'
   | 'cancelled'
   | 'admin_override'
-  | 'schedule_confirmed';
+  | 'schedule_confirmed'
+  | 'rescheduled';
 
 export interface TrackingEvent {
   at: string;

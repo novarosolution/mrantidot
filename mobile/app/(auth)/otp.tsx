@@ -1,9 +1,10 @@
 import { Link, Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { AuthField, AuthScreenLayout, authScreenStyles } from '@/components/kit/auth/AuthScreenLayout';
+import { Smartphone } from 'lucide-react-native';
+import { AuthSecureNote } from '@/components/kit/auth/AuthScreenKit';
+import { AuthField, AuthPrimaryButton, AuthScreenLayout, authScreenStyles } from '@/components/kit/auth/AuthScreenLayout';
 import { OtpBoxes } from '@/components/kit/OtpBoxes';
-import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
@@ -12,7 +13,7 @@ import { formatLoginIdentifier } from '@/lib/phone';
 import { appToast } from '@/lib/toast';
 import { appReplace, authRoutes, customerRoutes, homeRouteForRole } from '@/lib/routes';
 import { isProfileIncomplete } from '@/lib/profile-display';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, ui as themeUi } from '@/constants/theme';
 
 function maskPhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
@@ -122,7 +123,7 @@ function OtpScreenBody() {
       brandName={content.branding.name}
       brandTag={content.branding.tagline}
       heading={ui.authOtpTitle}
-      subtitle={ui.authOtpSubtitle}
+      subtitle={sentTo ? ui.authOtpSubtitle : "We'll text a 4-digit code to your mobile"}
       showBack
       footer={
         <>
@@ -135,6 +136,7 @@ function OtpScreenBody() {
     >
       <AuthField
         label="Mobile number"
+        icon={Smartphone}
         value={phone}
         onChangeText={(t) => {
           setPhone(t);
@@ -147,70 +149,74 @@ function OtpScreenBody() {
         onSubmitEditing={() => void sendOtp()}
       />
 
-      <Button
-        title={sentTo ? (timer > 0 ? `Resend in 0:${String(timer).padStart(2, '0')}` : 'Resend code') : 'Send code'}
-        variant="secondary"
-        onPress={() => void sendOtp()}
-        loading={sending}
-        disabled={timer > 0}
-      />
-
       {sentTo ? (
         <View style={styles.codeBlock}>
-          <Text style={styles.codeLabel}>Enter 4-digit code</Text>
-          <OtpBoxes value={code} onChange={(v) => {
-            setCode(v);
-            if (codeError) setCodeError(undefined);
-          }} />
+          <View style={styles.codeHead}>
+            <Text style={styles.codeLabel}>Enter 4-digit code</Text>
+            <Text style={styles.codeSentTo}>Sent to {maskPhone(sentTo)}</Text>
+          </View>
+          <OtpBoxes
+            autoFocus
+            value={code}
+            onChange={(v) => {
+              setCode(v);
+              if (codeError) setCodeError(undefined);
+            }}
+          />
           {codeError ? <Text style={styles.codeError}>{codeError}</Text> : null}
 
-          {timer <= 0 ? (
-            <Pressable onPress={() => void sendOtp()} style={styles.resendLink}>
-              <Text style={styles.resendText}>Didn&apos;t get it? Send again</Text>
-            </Pressable>
-          ) : null}
+          <View style={styles.resendRow}>
+            {timer > 0 ? (
+              <Text style={styles.resendMuted}>Resend code in 0:{String(timer).padStart(2, '0')}</Text>
+            ) : (
+              <Pressable onPress={() => void sendOtp()} disabled={sending} hitSlop={8} accessibilityRole="button">
+                <Text style={styles.resendText}>{sending ? 'Sending…' : "Didn't get it? Resend code"}</Text>
+              </Pressable>
+            )}
+          </View>
 
-          <Button
+          <AuthPrimaryButton
             title={ui.authOtpButton}
-            variant="premium"
-            onPress={() => void verify()}
+            loadingTitle="Verifying…"
             loading={loading}
-            style={styles.verifyBtn}
+            onPress={() => void verify()}
           />
         </View>
-      ) : null}
+      ) : (
+        <View style={styles.sendWrap}>
+          <AuthPrimaryButton
+            title="Send code"
+            loadingTitle="Sending code…"
+            loading={sending}
+            onPress={() => void sendOtp()}
+          />
+        </View>
+      )}
+
+      <AuthSecureNote />
     </AuthScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  codeBlock: {
-    marginTop: spacing.lg,
+  sendWrap: { marginTop: 8 },
+  codeBlock: { marginTop: 6 },
+  codeHead: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
-  codeLabel: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 13,
-    color: colors.ink,
-    marginBottom: spacing.sm,
-  },
+  codeLabel: { fontFamily: fonts.bodySemi, fontSize: 13.5, color: themeUi.text },
+  codeSentTo: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: themeUi.textTertiary },
   codeError: {
+    marginTop: 8,
     fontFamily: fonts.bodySemi,
-    fontSize: 12,
+    fontSize: 12.5,
     color: colors.error,
-    marginTop: spacing.xs,
     textAlign: 'center',
   },
-  resendLink: {
-    alignSelf: 'center',
-    paddingVertical: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  resendText: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 13,
-    color: colors.forest,
-  },
-  verifyBtn: {
-    marginTop: spacing.lg,
-  },
+  resendRow: { alignItems: 'center', paddingTop: 14, paddingBottom: 18 },
+  resendMuted: { fontFamily: fonts.bodyMedium, fontSize: 13, color: themeUi.textTertiary },
+  resendText: { fontFamily: fonts.bodyBold, fontSize: 13.5, color: themeUi.brand },
 });

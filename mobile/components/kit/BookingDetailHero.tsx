@@ -1,40 +1,70 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
-import { ServiceIcon } from '@/components/ServiceIcon';
-import { StatusPill } from '@/components/ui/StatusPill';
 import {
-  bookingRef,
+  BadgeCheck,
+  CalendarCheck,
+  CircleX,
+  Clock3,
+  KeyRound,
+  SprayCan,
+  type LucideIcon,
+} from 'lucide-react-native';
+import { ServiceThumb } from '@/components/kit/ServiceThumb';
+import {
   bookingScheduleDisplay,
   bookingServiceIconKey,
   bookingServiceName,
   bookingStatusLabel,
 } from '@/lib/booking-helpers';
-import type { Booking } from '@/types/api';
-import {  colors, fonts, premium, spacing, typography , gradients } from '@/constants/theme';
-import { homeShadow } from '@/components/kit/homeUi';
+import type { Booking, BookingStatus } from '@/types/api';
+import { colors, fonts, spacing, surfaces, ui } from '@/constants/theme';
 
+/** Status visual — icon + tint per stage (same palette as StatusPill). */
+const STATUS_VISUAL: Record<BookingStatus, { icon: LucideIcon; bg: string; ink: string }> = {
+  pending: { icon: Clock3, bg: colors.amberBg, ink: colors.amberInk },
+  confirmed: { icon: CalendarCheck, bg: colors.blueBg, ink: colors.blue },
+  in_progress: { icon: SprayCan, bg: colors.soft, ink: colors.forest },
+  awaiting_verification: { icon: KeyRound, bg: surfaces.tintInfo, ink: colors.secondaryInk },
+  completed: { icon: BadgeCheck, bg: colors.soft, ink: colors.forest },
+  cancelled: { icon: CircleX, bg: colors.errorBg, ink: colors.error },
+};
+
+function formatAmount(n: number): string {
+  return `₹${n.toLocaleString('en-IN')}`;
+}
+
+/**
+ * Booking status card — what is happening now and what comes next,
+ * live treatment progress, and the service at a glance. Visit / address details live
+ * in the "Booking details" section below so nothing is repeated.
+ */
 export function BookingDetailHero({
   booking,
   live,
-  overlap,
   guidance,
+  progress,
 }: {
   booking: Booking;
   live?: boolean;
-  overlap?: boolean;
   guidance?: string;
+  /** Treatment steps done / total — shown as a progress bar while the visit is live. */
+  progress?: { done: number; total: number } | null;
 }) {
   const enter = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(1)).current;
-  const isDark = Boolean(live);
+  const visual = STATUS_VISUAL[booking.status] ?? STATUS_VISUAL.pending;
+  const StatusIcon = visual.icon;
+  const hint = guidance?.trim();
+  const pct = progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : null;
+  const service =
+    booking.service && typeof booking.service === 'object'
+      ? booking.service
+      : { iconKey: bookingServiceIconKey(booking), serviceTypes: undefined };
 
   useEffect(() => {
     Animated.timing(enter, {
       toValue: 1,
-      duration: 550,
+      duration: 420,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
@@ -44,309 +74,165 @@ export function BookingDetailHero({
     if (!live) return;
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.5, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1.7, duration: 750, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 750, easing: Easing.in(Easing.quad), useNativeDriver: true }),
       ]),
     );
     loop.start();
     return () => loop.stop();
   }, [live, pulse]);
 
-  const cardStyle = {
-    opacity: enter,
-    transform: [
-      { translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) },
-      { scale: enter.interpolate({ inputRange: [0, 1], outputRange: [0.98, 1] }) },
-    ],
-  };
-
-  const statusLabel = bookingStatusLabel(booking.status);
-  const hint = guidance?.trim();
-
-  const topRow = (
-    <View style={styles.top}>
-      <View style={[styles.icon, !isDark && styles.iconLight]}>
-        <ServiceIcon iconKey={bookingServiceIconKey(booking)} size={28} color={isDark ? colors.lime : colors.lime} />
-      </View>
-      <View style={styles.info}>
-        <Text style={[styles.service, !isDark && styles.serviceLight]} numberOfLines={2}>
-          {bookingServiceName(booking)}
-        </Text>
-        <Text style={[styles.ref, !isDark && styles.refLight]}>{bookingRef(booking.id)}</Text>
-      </View>
-      {live ? (
-        <View style={styles.liveBadge}>
-          <Animated.View style={[styles.liveDot, { transform: [{ scale: pulse }] }]} />
-          <Text style={styles.liveText}>Live</Text>
+  return (
+    <Animated.View
+      style={[
+        styles.card,
+        {
+          opacity: enter,
+          transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
+        },
+      ]}
+    >
+      <View style={styles.statusRow}>
+        <View style={[styles.statusIcon, { backgroundColor: visual.bg }]}>
+          <StatusIcon size={22} color={visual.ink} strokeWidth={2} />
         </View>
-      ) : (
-        <StatusPill status={booking.status} />
-      )}
-    </View>
-  );
-
-  const detailRow = (
-    <View style={[styles.detailRow, !isDark && styles.detailRowLight]}>
-      <View style={styles.detailItem}>
-        <Text style={[styles.detailLabel, !isDark && styles.detailLabelLight]}>Visit</Text>
-        <Text style={[styles.schedule, !isDark && styles.scheduleLight]}>{bookingScheduleDisplay(booking)}</Text>
+        <View style={styles.statusText}>
+          <View style={styles.eyebrowRow}>
+            {live ? (
+              <View style={styles.liveDotWrap}>
+                <Animated.View
+                  style={[
+                    styles.liveHalo,
+                    {
+                      transform: [{ scale: pulse }],
+                      opacity: pulse.interpolate({ inputRange: [1, 1.7], outputRange: [0.45, 0] }),
+                    },
+                  ]}
+                />
+                <View style={styles.liveDot} />
+              </View>
+            ) : null}
+            <Text style={[styles.eyebrow, live && styles.eyebrowLive]}>{live ? 'Happening now' : 'Booking status'}</Text>
+          </View>
+          <Text style={styles.statusTitle}>{bookingStatusLabel(booking.status)}</Text>
+        </View>
       </View>
-      {booking.amount?.total ? (
-        <View style={[styles.amountChip, !isDark && styles.amountChipLight]}>
-          <PremiumIcon
-            icon={AppIcons.ui.rupee}
-            variant="plain"
-            size={12}
-            color={isDark ? colors.lime : colors.forest}
-          />
-          <Text style={[styles.amount, !isDark && styles.amountLight]}>{booking.amount.total}</Text>
+
+      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+
+      {pct != null && progress ? (
+        <View style={styles.progressBlock}>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${Math.max(pct, 4)}%` }]} />
+          </View>
+          <View style={styles.progressMeta}>
+            <Text style={styles.progressText}>
+              {progress.done} of {progress.total} treatment steps
+            </Text>
+            <Text style={styles.progressPct}>{pct}%</Text>
+          </View>
         </View>
       ) : null}
-    </View>
-  );
 
-  const addressRow = (
-    <View style={styles.addressRow}>
-      <PremiumIcon
-        icon={AppIcons.ui.mapPin}
-        variant="plain"
-        size={13}
-        color={isDark ? 'rgba(255,255,255,0.9)' : colors.muted}
-      />
-      <Text style={[styles.address, !isDark && styles.addressLight]} numberOfLines={2}>
-        {booking.address}
-      </Text>
-    </View>
-  );
-
-  const statusBanner = hint ? (
-    <View style={[styles.statusBanner, isDark ? styles.statusBannerDark : styles.statusBannerLight]}>
-      <Text style={[styles.statusLabel, isDark ? styles.statusLabelDark : styles.statusLabelLight]}>{statusLabel}</Text>
-      <Text style={[styles.statusHint, isDark ? styles.statusHintDark : styles.statusHintLight]}>{hint}</Text>
-    </View>
-  ) : null;
-
-  return (
-    <View style={[styles.wrap, overlap && styles.wrapOverlap]}>
-      <Animated.View style={cardStyle}>
-        {isDark ? (
-          <LinearGradient
-            colors={['#14532D', '#0E3A20']}
-            style={styles.card}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View style={styles.glow} />
-            <View style={styles.goldLine} />
-            {topRow}
-            {detailRow}
-            {addressRow}
-            {statusBanner}
-          </LinearGradient>
-        ) : (
-          <LinearGradient
-            colors={[colors.white, '#F6FAF7']}
-            style={[styles.card, styles.cardLight]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-          >
-            <LinearGradient colors={[...gradients.goldBar]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
-            {topRow}
-            {detailRow}
-            {addressRow}
-            {statusBanner}
-          </LinearGradient>
-        )}
-      </Animated.View>
-    </View>
+      <View style={styles.serviceRow}>
+        <ServiceThumb service={service} width={52} radius={16} iconSize={26} />
+        <View style={styles.serviceText}>
+          <Text style={styles.serviceName} numberOfLines={2}>
+            {bookingServiceName(booking)}
+          </Text>
+          <Text style={styles.serviceMeta} numberOfLines={1}>
+            {bookingScheduleDisplay(booking)}
+          </Text>
+        </View>
+        {booking.amount?.total ? (
+          <View style={styles.amountCol}>
+            <Text style={styles.amountLabel}>Total</Text>
+            <Text style={styles.amount}>{formatAmount(booking.amount.total)}</Text>
+          </View>
+        ) : null}
+      </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.md,
-  },
-  wrapOverlap: {
-    marginTop: -20,
-    zIndex: 2,
-  },
   card: {
-    borderRadius: premium.radiusCard,
-    padding: spacing.md,
-    overflow: 'hidden',
-    ...homeShadow.promo,
-  },
-  cardLight: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+    padding: spacing.md + 2,
+    borderRadius: 22,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: 'rgba(180,220,165,0.95)',
-    ...homeShadow.card,
+    borderColor: ui.hairline,
+    ...ui.shadow,
   },
-  goldBar: {
-    height: 3,
-    marginHorizontal: -spacing.md,
-    marginTop: -spacing.md,
-    marginBottom: spacing.sm,
-  },
-  glow: {
-    position: 'absolute',
-    top: -30,
-    right: -20,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(168,224,78,0.12)',
-  },
-  goldLine: {
-    position: 'absolute',
-    top: 0,
-    left: spacing.md,
-    right: spacing.md,
-    height: 2,
-    backgroundColor: 'rgba(182,132,28,0.5)',
-    borderRadius: 1,
-  },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    marginTop: 4,
-  },
-  icon: {
-    width: 52,
-    height: 52,
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  statusIcon: {
+    width: 48,
+    height: 48,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
   },
-  iconLight: {
-    backgroundColor: colors.forest,
-    borderColor: colors.forest,
+  statusText: { flex: 1, minWidth: 0 },
+  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  eyebrow: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 10.5,
+    letterSpacing: 0.9,
+    textTransform: 'uppercase',
+    color: ui.textTertiary,
   },
-  info: { flex: 1, minWidth: 0 },
-  service: {
+  eyebrowLive: { color: ui.brand },
+  statusTitle: {
+    marginTop: 2,
     fontFamily: fonts.displayExtra,
-    fontSize: 18,
-    color: colors.white,
-    lineHeight: 24,
-    letterSpacing: -0.2,
+    fontSize: 20,
+    lineHeight: 26,
+    letterSpacing: -0.45,
+    color: ui.text,
   },
-  serviceLight: { color: colors.ink },
-  ref: {
+  hint: {
+    marginTop: 12,
     fontFamily: fonts.body,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.86)',
-    marginTop: 4,
+    fontSize: 13.5,
+    lineHeight: 20,
+    color: ui.textSecondary,
   },
-  refLight: { color: colors.muted },
-  liveBadge: {
+  progressBlock: { marginTop: 14 },
+  progressTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: ui.surfaceMuted,
+    overflow: 'hidden',
+  },
+  progressFill: { height: '100%', borderRadius: 4, backgroundColor: ui.brand },
+  progressMeta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  progressText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: ui.textSecondary },
+  progressPct: { fontFamily: fonts.bodyBold, fontSize: 12.5, color: ui.brand },
+  serviceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: 'rgba(168,224,78,0.22)',
-    borderWidth: 1,
-    borderColor: 'rgba(168,224,78,0.42)',
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.lime,
-  },
-  liveText: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 10,
-    color: colors.lime,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
     gap: 12,
     marginTop: spacing.md,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: ui.border,
   },
-  detailRowLight: { borderTopColor: colors.border },
-  detailItem: { flex: 1 },
-  detailLabel: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.88)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  serviceText: { flex: 1, minWidth: 0 },
+  serviceName: {
+    fontFamily: fonts.display,
+    fontSize: 15.5,
+    lineHeight: 20,
+    letterSpacing: -0.2,
+    color: ui.text,
   },
-  detailLabelLight: { color: colors.muted },
-  schedule: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 14,
-    color: colors.lime,
-    marginTop: 4,
-  },
-  scheduleLight: { color: colors.forest },
-  amountChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(168,224,78,0.25)',
-  },
-  amountChipLight: {
-    backgroundColor: colors.soft,
-    borderColor: 'rgba(20,83,45,0.1)',
-  },
-  amount: {
-    ...typography.price,
-    fontSize: 16,
-    color: colors.lime,
-  },
-  amountLight: { color: colors.forest },
-  addressRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-    marginTop: spacing.sm,
-  },
-  address: {
-    flex: 1,
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.9)',
-    lineHeight: 17,
-  },
-  addressLight: { color: colors.muted },
-  statusBanner: {
-    marginTop: spacing.sm,
-    padding: spacing.sm + 2,
-    borderRadius: 14,
-  },
-  statusBannerDark: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
-  statusBannerLight: {
-    backgroundColor: colors.soft,
-    borderWidth: 1,
-    borderColor: 'rgba(20,83,45,0.08)',
-  },
-  statusLabel: { fontFamily: fonts.bodySemi, fontSize: 13 },
-  statusLabelDark: { color: colors.lime },
-  statusLabelLight: { color: colors.forest },
-  statusHint: { fontFamily: fonts.body, fontSize: 12, marginTop: 4, lineHeight: 17 },
-  statusHintDark: { color: 'rgba(255,255,255,0.85)' },
-  statusHintLight: { color: colors.muted },
+  serviceMeta: { marginTop: 3, fontFamily: fonts.bodyMedium, fontSize: 12.5, color: ui.textSecondary },
+  amountCol: { alignItems: 'flex-end' },
+  amountLabel: { fontFamily: fonts.bodySemi, fontSize: 10.5, letterSpacing: 0.6, color: ui.textTertiary },
+  amount: { marginTop: 1, fontFamily: fonts.displayExtra, fontSize: 17, color: ui.text },
+  liveDotWrap: { width: 8, height: 8, alignItems: 'center', justifyContent: 'center' },
+  liveHalo: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: colors.green },
+  liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: colors.green },
 });

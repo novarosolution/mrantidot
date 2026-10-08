@@ -151,7 +151,8 @@ export default function AdminTechnicianDetailScreen() {
             .then(() => {
               Toast.show({ type: 'success', text1: 'Marked as came' });
               return load();
-            }),
+            })
+            .catch(() => undefined),
       },
       {
         text: 'Absent',
@@ -161,7 +162,8 @@ export default function AdminTechnicianDetailScreen() {
             .then(() => {
               Toast.show({ type: 'success', text1: 'Marked as absent' });
               return load();
-            }),
+            })
+            .catch(() => undefined),
       },
       { text: 'Cancel', style: 'cancel' },
     ]);

@@ -1,13 +1,14 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
+import { AppIconImages } from '@/constants/appImageIcons';
 import {
   PROPERTY_TYPE_GROUPS,
   PROPERTY_TYPE_LABELS,
   type PropertyTypeKey,
 } from '@/constants/propertyTypes';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 const PROPERTY_ICONS: Record<PropertyTypeKey, LucideIcon> = {
   '1bhk': AppIcons.property.home,
@@ -20,6 +21,19 @@ const PROPERTY_ICONS: Record<PropertyTypeKey, LucideIcon> = {
   hotel: AppIcons.property.hotel,
   warehouse: AppIcons.property.warehouse,
   factory: AppIcons.property.factory,
+};
+
+const PROPERTY_IMAGES: Record<PropertyTypeKey, ImageSourcePropType> = {
+  '1bhk': AppIconImages.property.home,
+  '2bhk': AppIconImages.property.home,
+  '3bhk': AppIconImages.property.home,
+  '4bhk': AppIconImages.property.home,
+  bungalow: AppIconImages.property.home,
+  office: AppIconImages.property.apartment,
+  cafe_restaurant: AppIconImages.property.store,
+  hotel: AppIconImages.property.hotel,
+  warehouse: AppIconImages.property.warehouse,
+  factory: AppIconImages.property.factory,
 };
 
 const COLS = 3;
@@ -50,6 +64,7 @@ export function PropertyTypePicker({
           <View style={styles.grid}>
             {group.keys.map((key) => {
               const icon = PROPERTY_ICONS[key] ?? AppIcons.property.home;
+              const image = PROPERTY_IMAGES[key] ?? AppIconImages.property.home;
               const selected = value === key;
               return (
                 <Pressable
@@ -67,9 +82,11 @@ export function PropertyTypePicker({
                   <View style={[styles.iconWrap, selected && styles.iconWrapSelected]}>
                     <PremiumIcon
                       icon={icon}
+                      image={selected ? undefined : image}
                       variant="plain"
                       size={20}
-                      color={selected ? colors.forest : colors.secondaryDark}
+                      color={selected ? colors.white : ui.brand}
+                      boxSize={36}
                     />
                   </View>
                   <Text style={[styles.label, selected && styles.labelSelected]} numberOfLines={2}>
@@ -95,10 +112,8 @@ const styles = StyleSheet.create({
   group: { gap: spacing.sm, width: '100%' },
   groupTitle: {
     fontFamily: fonts.bodySemi,
-    fontSize: 12,
-    color: colors.forest,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    fontSize: 13,
+    color: ui.textSecondary,
   },
   grid: {
     flexDirection: 'row',
@@ -109,36 +124,36 @@ const styles = StyleSheet.create({
   tile: {
     minHeight: 96,
     padding: 12,
-    borderRadius: 16,
+    borderRadius: 14,
     backgroundColor: colors.white,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    borderWidth: 1,
+    borderColor: ui.border,
     alignItems: 'center',
     position: 'relative',
-    ...premium.shadowSoft,
   },
   tileSelected: {
-    borderColor: colors.green,
-    backgroundColor: '#F0FDF4',
+    borderWidth: 1.5,
+    borderColor: ui.brand,
+    backgroundColor: ui.brandSoft,
   },
   iconWrap: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: colors.soft,
+    backgroundColor: ui.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
   },
-  iconWrapSelected: { backgroundColor: colors.lime },
+  iconWrapSelected: { backgroundColor: ui.brand },
   label: {
     fontFamily: fonts.bodySemi,
     fontSize: 11.5,
-    color: colors.ink,
+    color: ui.text,
     textAlign: 'center',
     lineHeight: 15,
   },
-  labelSelected: { color: colors.forest },
+  labelSelected: { color: ui.brand },
   check: {
     position: 'absolute',
     top: 8,
@@ -146,7 +161,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: colors.green,
+    backgroundColor: ui.brand,
     alignItems: 'center',
     justifyContent: 'center',
   },

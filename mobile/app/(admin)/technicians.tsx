@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
-import { AdminStatStrip } from '@/components/kit/AdminPageKit';
-import { Input } from '@/components/ui/Input';
+import { AdminSearchField, AdminStatStrip } from '@/components/kit/AdminPageKit';
+import { formatDayKey, initials } from '@/components/kit/format';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
@@ -16,6 +16,7 @@ import { technicianDisplayRating, technicianRealRating } from '@/lib/ratings';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { AdminTechnician, User } from '@/types/api';
 import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 
 function techStatus(u: User): { label: string; tone: BadgeTone } {
   if (u.disabled === true) return { label: 'Disabled', tone: 'danger' };
@@ -37,6 +38,8 @@ export default function AdminTechniciansScreen() {
   useEffect(() => {
     void runLoad(load, 'Could not load technicians');
   }, [load, runLoad]);
+
+  useStaleFocusRefresh(() => load().catch(() => undefined), 3_000);
 
   const visibleTechnicians = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();
@@ -87,7 +90,7 @@ export default function AdminTechniciansScreen() {
         ]}
       />
       <View style={styles.searchWrap}>
-        <Input label="Search" value={search} onChangeText={setSearch} placeholder="Name, phone, city" />
+        <AdminSearchField value={search} onChangeText={setSearch} placeholder="Search name, phone, city" />
       </View>
     </View>
   );
@@ -118,7 +121,7 @@ export default function AdminTechniciansScreen() {
                 <View style={styles.head}>
                   <View style={styles.avatar}>
                     <Text style={styles.init}>
-                      {item.name.split(' ').map((w) => w[0]).join('').slice(0, 2)}
+                      {initials(item.name)}
                     </Text>
                   </View>
                   <View style={styles.flex}>
@@ -128,7 +131,7 @@ export default function AdminTechniciansScreen() {
                       <Text style={styles.jobHint}>
                         {item.activeJobs ? `${item.activeJobs} active` : null}
                         {item.activeJobs && item.lastJobDate ? ' · ' : null}
-                        {item.lastJobDate ? `Last ${item.lastJobDate}` : null}
+                        {item.lastJobDate ? `Last job ${formatDayKey(item.lastJobDate)}` : null}
                       </Text>
                     ) : null}
                   </View>
@@ -195,8 +198,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.82)',
     borderWidth: 1,
     borderColor: 'rgba(226,240,216,0.95)',
-    borderTopWidth: 3,
-    borderTopColor: colors.green,
     ...shadows.card,
   },
   head: { flexDirection: 'row', alignItems: 'center', gap: 12 },

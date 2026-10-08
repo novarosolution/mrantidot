@@ -7,7 +7,7 @@ import { AppIcons } from '@/constants/appIcons';
 import { Button } from '@/components/ui/Button';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { ServiceIcon } from '@/components/ServiceIcon';
-import { bookingRef } from '@/components/kit/format';
+import { bookingRef, formatRupeeFull } from '@/components/kit/format';
 import {
   bookingCustomerName,
   bookingScheduleDisplay,
@@ -65,7 +65,7 @@ export const AdminBookingListCard = memo(function AdminBookingListCard({
               </View>
             </View>
             <Text style={styles.price}>
-              {item.amount?.total != null ? `₹${item.amount.total}` : '—'}
+              {item.amount?.total != null ? formatRupeeFull(item.amount.total) : '—'}
             </Text>
           </View>
         </Pressable>

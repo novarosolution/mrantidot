@@ -1,43 +1,43 @@
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { BookingStatus } from '@/types/api';
-import { GlassChip } from '@/components/kit/GlassScreenKit';
-import { adminType, colors, surfaces } from '@/constants/theme';
+import { colors, fonts, surfaces } from '@/constants/theme';
 
 const LABELS: Partial<Record<BookingStatus, string>> = {
   in_progress: 'In progress',
   awaiting_verification: 'Awaiting code',
 };
 
+/** Distinct, quiet tints per status — readable at a glance on white cards. */
 const PILL_COLORS: Record<BookingStatus, { bg: string; text: string }> = {
-  pending: { bg: 'rgba(238,248,230,0.72)', text: colors.forest },
-  confirmed: { bg: 'rgba(234,246,227,0.72)', text: colors.green },
-  in_progress: { bg: 'rgba(238,248,230,0.72)', text: colors.forest },
-  awaiting_verification: { bg: 'rgba(238,248,230,0.72)', text: colors.forest },
-  completed: { bg: 'rgba(238,242,238,0.72)', text: colors.muted },
-  cancelled: { bg: 'rgba(251,231,225,0.72)', text: colors.error },
+  pending: { bg: colors.amberBg, text: colors.amberInk },
+  confirmed: { bg: colors.blueBg, text: colors.blue },
+  in_progress: { bg: colors.soft, text: colors.forest },
+  awaiting_verification: { bg: surfaces.tintInfo, text: colors.secondaryInk },
+  completed: { bg: colors.greyBg, text: colors.muted },
+  cancelled: { bg: colors.errorBg, text: colors.error },
 };
 
-/** Translucent glass booking status pill. */
+/** Compact booking status badge. */
 export function StatusPill({ status }: { status: BookingStatus | string }) {
   const key = status as BookingStatus;
   const palette = PILL_COLORS[key] ?? PILL_COLORS.pending;
   const label = LABELS[key] ?? status.replace(/_/g, ' ');
 
   return (
-    <GlassChip style={[styles.pill, { backgroundColor: palette.bg, borderColor: surfaces.glassBorderStrong }]}>
-      <Text style={[styles.text, { color: palette.text }]}>{label}</Text>
-    </GlassChip>
+    <View style={[styles.pill, { backgroundColor: palette.bg }]}>
+      <Text style={[styles.text, { color: palette.text }]} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  pill: { alignSelf: 'flex-start', borderRadius: 999 },
+  pill: { alignSelf: 'flex-start', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
   text: {
-    ...adminType.statLabel,
-    fontSize: 10,
-    letterSpacing: 0.35,
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    letterSpacing: 0.1,
     textTransform: 'capitalize',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
   },
 });

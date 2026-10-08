@@ -1,65 +1,25 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, View, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
-import { colors, premium, radius, shadows, spacing, surfaces } from '@/constants/theme';
+import { colors, premium, radius, spacing, ui } from '@/constants/theme';
 
 interface CardProps extends PressableProps {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
+  /** All variants share the white premium card; kept for older call sites. */
   variant?: 'default' | 'premium' | 'glass' | 'classic';
 }
 
-function GlassFill({ accent }: { accent?: 'gold' | 'lime' | null }) {
-  return (
-    <>
-      <View style={[styles.glassTint, { backgroundColor: 'rgba(255,255,255,0.72)' }]} pointerEvents="none" />
-      <LinearGradient
-        colors={['rgba(255,255,255,0.88)', 'rgba(255,255,255,0.12)', 'rgba(200,240,122,0.18)']}
-        locations={[0, 0.48, 1]}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        pointerEvents="none"
-      />
-      <LinearGradient
-        colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
-        style={styles.topSheen}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        pointerEvents="none"
-      />
-      {accent ? (
-        <LinearGradient
-          colors={accent === 'gold' ? [colors.green, colors.forestMid] : [colors.limeBright, colors.green]}
-          style={styles.accentBar}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          pointerEvents="none"
-        />
-      ) : null}
-    </>
-  );
-}
-
+/** White card with a hairline border — the premium (Urban-style) surface used across screens. */
 export function Card({ children, style, variant = 'glass', onPress, ...props }: CardProps) {
-  const isGlass = variant === 'glass' || variant === 'premium' || variant === 'classic';
-  const accent = variant === 'premium' ? 'gold' : variant === 'classic' ? 'lime' : null;
-  const baseStyle = [isGlass ? styles.glassShell : styles.card, style];
-
-  const body = (
-    <>
-      {isGlass ? <GlassFill accent={accent} /> : null}
-      {children}
-    </>
-  );
+  const baseStyle = [variant === 'default' ? styles.card : styles.outlined, style];
 
   if (onPress) {
     return (
       <Pressable onPress={onPress} style={({ pressed }) => [...baseStyle, pressed && styles.pressed]} {...props}>
-        {body}
+        {children}
       </Pressable>
     );
   }
-  return <View style={baseStyle}>{body}</View>;
+  return <View style={baseStyle}>{children}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -67,35 +27,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: radius.lg,
     padding: spacing.md,
-    ...premium.shadowSoft,
+    ...ui.shadow,
   },
-  glassShell: {
+  outlined: {
     borderRadius: premium.radiusCard,
     padding: spacing.md,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
-    backgroundColor: 'transparent',
-    ...shadows.card,
+    borderColor: ui.hairline,
+    backgroundColor: colors.white,
   },
-  glassTint: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: surfaces.glassPanelTint,
-  },
-  topSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '42%',
-  },
-  accentBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    zIndex: 2,
-  },
-  pressed: { opacity: 0.88, transform: [{ scale: 0.995 }] },
+  pressed: { opacity: 0.88 },
 });

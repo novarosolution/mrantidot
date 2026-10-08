@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { homeShadow } from '@/components/kit/homeUi';
 import { JobVisitCard } from '@/components/kit/JobVisitCard';
@@ -135,7 +134,6 @@ export function TechnicianDayCalendar({
       <View style={styles.calendarShell}>
         <GlassPanel style={styles.calendarCard} padded={false} tone="light" intensity={42} goldEdge>
           <View style={styles.calendarInner}>
-            <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
             <View style={styles.monthHead}>
               <Pressable
                 onPress={() => shiftMonth(-1)}

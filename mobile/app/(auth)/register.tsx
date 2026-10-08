@@ -1,18 +1,7 @@
 import { Link } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Animated,
-  Easing,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { AuthField, AuthScreenLayout, authScreenStyles } from '@/components/kit/auth/AuthScreenLayout';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { AuthField, AuthPrimaryButton, AuthScreenLayout, authScreenStyles } from '@/components/kit/auth/AuthScreenLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
 import { useLocation } from '@/context/LocationContext';
@@ -21,7 +10,7 @@ import { getApiErrorMessage } from '@/lib/api';
 import { appReplace, authRoutes, homeRouteForRole } from '@/lib/routes';
 import { useBrandFill, useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { AppIcons } from '@/constants/appIcons';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
 
 type Errors = Partial<Record<'name' | 'phone' | 'email' | 'password', string>>;
 
@@ -45,29 +34,12 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
 
-  const arrowNudge = useRef(new Animated.Value(0)).current;
+  const cityPrefilled = useRef(false);
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(arrowNudge, {
-          toValue: 1,
-          duration: 1100,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(arrowNudge, {
-          toValue: 0,
-          duration: 1100,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
-  }, [arrowNudge]);
-
-  useEffect(() => {
-    if (displayCity && !city) setCity(displayCity);
-  }, [displayCity, city]);
+    if (cityPrefilled.current || !displayCity) return;
+    cityPrefilled.current = true;
+    setCity((prev) => prev || displayCity);
+  }, [displayCity]);
 
   function clearError(key: keyof Errors) {
     if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }));
@@ -84,7 +56,7 @@ export default function RegisterScreen() {
   }
 
   async function submit() {
-    if (!validate()) return;
+    if (loading || !validate()) return;
 
     setLoading(true);
     try {
@@ -197,110 +169,18 @@ export default function RegisterScreen() {
         onSubmitEditing={() => void submit()}
       />
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={ui.authRegisterButton}
-        style={({ pressed }) => [styles.ctaWrap, pressed && !loading && styles.pressed]}
-        onPress={() => void submit()}
-        disabled={loading}
-      >
-        <LinearGradient
-          colors={['#3BC45A', colors.forestMid, colors.forest]}
-          locations={[0, 0.5, 1]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.cta, loading && styles.ctaLoading]}
-        >
-          <LinearGradient
-            colors={['rgba(255,255,255,0.28)', 'rgba(255,255,255,0)']}
-            style={styles.ctaSheen}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            pointerEvents="none"
-          />
-          {loading ? (
-            <>
-              <ActivityIndicator size="small" color={colors.white} />
-              <Text style={styles.ctaText}>Creating account…</Text>
-            </>
-          ) : (
-            <>
-              <Text style={styles.ctaText}>{ui.authRegisterButton}</Text>
-              <Animated.View
-                style={{
-                  transform: [
-                    {
-                      translateX: arrowNudge.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, 3],
-                      }),
-                    },
-                  ],
-                }}
-              >
-                <View style={styles.ctaChip}>
-                  <PremiumIcon
-                    icon={AppIcons.ui.arrowRight}
-                    variant="plain"
-                    size={17}
-                    color={colors.forest}
-                    strokeWidth={2.5}
-                  />
-                </View>
-              </Animated.View>
-            </>
-          )}
-        </LinearGradient>
-      </Pressable>
+      <View style={styles.ctaWrap}>
+        <AuthPrimaryButton
+          title={ui.authRegisterButton}
+          loadingTitle="Creating account…"
+          loading={loading}
+          onPress={() => void submit()}
+        />
+      </View>
     </AuthScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
   ctaWrap: { marginTop: spacing.sm },
-  pressed: { transform: [{ scale: 0.985 }], opacity: 0.95 },
-  cta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 58,
-    borderRadius: 20,
-    paddingLeft: 22,
-    paddingRight: 8,
-    paddingVertical: 8,
-    overflow: 'hidden',
-    ...premium.shadowSoft,
-    shadowColor: colors.forest,
-    shadowOpacity: 0.34,
-    shadowRadius: 18,
-    elevation: 11,
-  },
-  ctaSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '48%',
-  },
-  ctaLoading: {
-    justifyContent: 'center',
-    gap: 10,
-    paddingRight: 22,
-  },
-  ctaText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 16,
-    letterSpacing: 0.1,
-    color: colors.white,
-  },
-  ctaChip: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.7)',
-  },
 });

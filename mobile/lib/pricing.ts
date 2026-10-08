@@ -35,6 +35,7 @@ export function couponDiscountFromOffers(code: string, offers: Offer[], orderAmo
   return 0;
 }
 
+/** Pass the order amount (subtotal) — with the default ₹0 every discount computes to 0, so any code reads as invalid. */
 export function isValidCoupon(code: string, offers: Offer[], orderAmount = 0): boolean {
   const trimmed = code.trim();
   if (!trimmed) return true;
@@ -47,11 +48,12 @@ export function couponDiscount(code: string): number {
   return FALLBACK_COUPONS[code.trim().toUpperCase()] ?? 0;
 }
 
+/** Must match server computeAmount: coupon off the service price, then 18% GST on the discounted amount. */
 export function computePricing(basePrice: number, couponCode = '', offers: Offer[] = []) {
   const base = basePrice;
-  const gst = Math.round(base * 0.18);
-  const subtotal = base + gst;
-  const coupon = couponDiscountFromOffers(couponCode, offers, subtotal);
-  const total = Math.max(0, subtotal - coupon);
+  const subtotal = base;
+  const coupon = Math.min(base, couponDiscountFromOffers(couponCode, offers, base));
+  const gst = Math.round((base - coupon) * 0.18);
+  const total = base - coupon + gst;
   return { base, gst, coupon, total, subtotal };
 }

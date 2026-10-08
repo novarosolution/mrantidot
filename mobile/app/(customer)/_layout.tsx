@@ -1,10 +1,10 @@
 import { Redirect, Tabs, useSegments } from 'expo-router';
 import { KitTabBarButton } from '@/components/kit/KitTabBarButton';
-import { GlassTabBarBackground, glassTabBarStyle } from '@/components/kit/GlassScreenKit';
+import { GlassTabBarBackground, useDockTabBarStyle } from '@/components/kit/GlassScreenKit';
 import { KitTabBarIcon } from '@/components/kit/PremiumIcon';
 import { Spinner } from '@/components/ui/Spinner';
 import { AppIcons } from '@/constants/appIcons';
-import { colors, fonts, typography } from '@/constants/theme';
+import { colors, fonts, typography, ui } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { isProfileIncomplete } from '@/lib/profile-display';
 import { appHref, authRoutes, customerRoutes, homeRouteForRole } from '@/lib/routes';
@@ -20,11 +20,18 @@ const INCOMPLETE_PROFILE_ALLOWED = new Set([
   'help',
   'faq',
   'addresses',
+  'book-guide',
+  'about',
+  'terms',
+  'privacy',
+  'payment-methods',
+  'services',
 ]);
 
 export default function CustomerLayout() {
   const { user, isLoading } = useAuth();
   const segments = useSegments();
+  const tabBarStyle = useDockTabBarStyle();
 
   if (isLoading) return <Spinner fullScreen />;
   if (!user) return <Redirect href={authRoutes.login} />;
@@ -43,14 +50,14 @@ export default function CustomerLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.forest,
-        tabBarInactiveTintColor: '#4A7354',
-        tabBarStyle: glassTabBarStyle,
+        tabBarInactiveTintColor: ui.textTertiary,
+        tabBarStyle,
         tabBarBackground: () => <GlassTabBarBackground />,
         tabBarLabelStyle: {
           ...typography.tabLabel,
           fontFamily: fonts.bodySemi,
-          fontSize: 10.5,
-          letterSpacing: 0.25,
+          fontSize: 11,
+          letterSpacing: 0.1,
           marginTop: 3,
         },
         tabBarItemStyle: {
@@ -71,6 +78,7 @@ export default function CustomerLayout() {
       <Tabs.Screen name="settings" options={{ href: null }} />
       <Tabs.Screen name="booking" options={{ href: null }} />
       <Tabs.Screen name="help" options={{ href: null }} />
+      <Tabs.Screen name="book-guide" options={{ href: null }} />
       <Tabs.Screen name="faq" options={{ href: null }} />
       <Tabs.Screen name="about" options={{ href: null }} />
       <Tabs.Screen name="terms" options={{ href: null }} />

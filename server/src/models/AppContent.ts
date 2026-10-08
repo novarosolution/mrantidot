@@ -519,7 +519,7 @@ export const DEFAULT_BOOKING_COPY: IBookingCopyConfig = {
   trackingSectionTitle: 'Tracking',
   trackingSectionSubtitle: 'Where your booking stands',
   trackingStepReceived: 'Booking received',
-  trackingStepConfirmed: 'Schedule confirmed',
+  trackingStepConfirmed: 'Confirm visit time',
   trackingStepAssignExpert: 'Assigning service expert',
   trackingStepShareStartCode: 'Share start code',
   trackingStepInProgress: 'Treatment in progress',

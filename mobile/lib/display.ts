@@ -5,12 +5,13 @@ export function formatRating(rating?: number | null): string | null {
   return rating.toFixed(1);
 }
 
+/** "4.8 · 12 bookings" — render the star as an icon next to it. */
 export function formatSocialProof(bookingCount?: number, rating?: number | null): string | null {
   const parts: string[] = [];
   const r = formatRating(rating);
-  if (r) parts.push(`★ ${r}`);
+  if (r) parts.push(r);
   const count = bookingCount ?? 0;
-  if (count > 0) parts.push(`${formatBookingCount(count)} bookings`);
+  if (count > 0) parts.push(`${formatBookingCount(count)} ${count === 1 ? 'booking' : 'bookings'}`);
   return parts.length > 0 ? parts.join(' · ') : null;
 }
 

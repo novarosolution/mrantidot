@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { Types } from 'mongoose';
 import { env } from '../config/env';
-import { IBooking, IWorkOtpEntry, TrackingEventType } from '../models/Booking';
+import { Booking, IBooking, IWorkOtpEntry, TrackingEventType } from '../models/Booking';
 import { User } from '../models/User';
 
 const OTP_LENGTH = 6;
@@ -73,18 +73,28 @@ function isLocked(booking: IBooking, type: 'start' | 'end'): boolean {
   return new Date(lockUntil).getTime() > Date.now();
 }
 
-function recordFailedAttempt(booking: IBooking, type: 'start' | 'end'): void {
-  if (!booking.otpAttempts) {
-    booking.otpAttempts = { start: 0, end: 0 };
+/**
+ * Atomically counts a code attempt before it is checked, so parallel guesses
+ * can't overwrite each other's counter. Throws once the limit is hit and locks the code.
+ */
+export async function reserveOtpAttempt(bookingId: Types.ObjectId | string, type: 'start' | 'end'): Promise<void> {
+  const lockKey = `otpAttempts.${type === 'start' ? 'startLockedUntil' : 'endLockedUntil'}`;
+  const countKey = `otpAttempts.${type}`;
+  const now = new Date();
+  const doc = await Booking.findOneAndUpdate(
+    { _id: bookingId, $or: [{ [lockKey]: { $exists: false } }, { [lockKey]: null }, { [lockKey]: { $lte: now } }] },
+    { $inc: { [countKey]: 1 } },
+    { new: true, projection: { otpAttempts: 1 } },
+  );
+  const lockedMessage = 'Too many failed attempts. Try again later or ask customer for a new code.';
+  if (!doc) throw new Error(lockedMessage);
+  if ((doc.otpAttempts?.[type] ?? 0) > MAX_ATTEMPTS) {
+    await Booking.updateOne(
+      { _id: bookingId },
+      { $set: { [lockKey]: new Date(Date.now() + LOCK_MINUTES * 60 * 1000), [countKey]: 0 } },
+    );
+    throw new Error(lockedMessage);
   }
-  const countKey = type;
-  booking.otpAttempts[countKey] = (booking.otpAttempts[countKey] ?? 0) + 1;
-  if (booking.otpAttempts[countKey]! >= MAX_ATTEMPTS) {
-    const lockKey = type === 'start' ? 'startLockedUntil' : 'endLockedUntil';
-    booking.otpAttempts[lockKey] = new Date(Date.now() + LOCK_MINUTES * 60 * 1000);
-    booking.otpAttempts[countKey] = 0;
-  }
-  booking.markModified('otpAttempts');
 }
 
 function clearAttempts(booking: IBooking, type: 'start' | 'end'): void {
@@ -172,7 +182,6 @@ export function verifyStartOtp(booking: IBooking, code: string): void {
     throw new Error('Start code has expired. Ask the customer to refresh their code.');
   }
   if (!verifyWorkOtp(code, entry.codeHash)) {
-    recordFailedAttempt(booking, 'start');
     throw new Error('Invalid start code');
   }
   entry.verifiedAt = new Date();
@@ -198,7 +207,6 @@ export function verifyEndOtp(booking: IBooking, code: string): void {
     throw new Error('End code has expired. Ask the customer to refresh their code.');
   }
   if (!verifyWorkOtp(code, entry.codeHash)) {
-    recordFailedAttempt(booking, 'end');
     throw new Error('Invalid end code');
   }
   entry.verifiedAt = new Date();

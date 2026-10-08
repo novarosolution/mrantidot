@@ -8,7 +8,7 @@ import { AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminScreenHeader } from '@/components/kit/AdminScreenHeader';
 import { AdminTabScreen } from '@/components/kit/AdminScreenKit';
 import { AnalyticsStatGrid } from '@/components/kit/AnalyticsStatGrid';
-import { formatRupee } from '@/components/kit/format';
+import { formatRupee, formatRupeeFull } from '@/components/kit/format';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { KpiCard } from '@/components/kit/KpiCard';
 import { RevenueBarChart } from '@/components/kit/RevenueBarChart';
@@ -252,7 +252,7 @@ export default function AdminReportsScreen() {
         />
         <KpiCard
           icon={AppIcons.ui.pay}
-          value={`₹${avgOrder}`}
+          value={formatRupeeFull(avgOrder)}
           label="Avg order"
           iconBg={colors.soft}
           iconColor={colors.forest}

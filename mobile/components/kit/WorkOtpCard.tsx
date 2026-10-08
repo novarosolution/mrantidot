@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -8,7 +7,7 @@ import { AppIcons } from '@/constants/appIcons';
 import { appToast } from '@/lib/toast';
 import { Button } from '@/components/ui/Button';
 import type { WorkOtpView } from '@/types/api';
-import { adminType, colors, gradients, premium, spacing, surfaces } from '@/constants/theme';
+import { adminType, buttonTokens, colors, premium, spacing, surfaces } from '@/constants/theme';
 
 export function WorkOtpCard({
   title,
@@ -45,12 +44,12 @@ export function WorkOtpCard({
   }
 
   return (
-    <GlassPanel style={styles.shell} padded={false} tone="light" goldEdge intensity={40}>
+    <GlassPanel style={styles.shell} padded={false} tone="light" intensity={40}>
       <View style={styles.card}>
         <View style={styles.head}>
-          <LinearGradient colors={[...gradients.headerDark]} style={styles.iconWrap} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-            <PremiumIcon icon={AppIcons.ui.key} variant="plain" size="md" color={colors.lime} />
-          </LinearGradient>
+          <View style={[styles.iconWrap, styles.iconWrapSoft]}>
+            <PremiumIcon icon={AppIcons.ui.key} variant="plain" size="md" color={colors.forest} fill="none" />
+          </View>
           <View style={styles.headText}>
             <Text style={styles.title}>{title}</Text>
             {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
@@ -108,9 +107,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
   },
+  iconWrapSoft: { backgroundColor: colors.soft },
   headText: { flex: 1, gap: 2 },
   title: { ...adminType.formTitle, fontSize: 16 },
   subtitle: { ...adminType.formSub, marginTop: 0 },
@@ -140,8 +138,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 12,
-    borderRadius: 16,
+    minHeight: buttonTokens.heightLg,
+    borderRadius: buttonTokens.radius,
     backgroundColor: 'rgba(238,248,230,0.65)',
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,

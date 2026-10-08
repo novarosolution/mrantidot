@@ -1,9 +1,7 @@
 import { type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { customerScrollProps } from '@/components/kit/GlassScreenKit';
-import { colors, fonts, surfaces } from '@/constants/theme';
-import { homeShadow } from '@/components/kit/homeUi';
+import { colors, fonts, surfaces, ui } from '@/constants/theme';
 
 export function HomeCategoryFilter({
   chips,
@@ -29,20 +27,9 @@ export function HomeCategoryFilter({
             style={({ pressed }) => [pressed && { transform: [{ scale: 0.96 }] }]}
             onPress={() => onSelect(c.label)}
           >
-            {on ? (
-              <LinearGradient
-                colors={[colors.greenBright, colors.forestMid, colors.forest]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[styles.chip, styles.chipOn]}
-              >
-                <Text style={[styles.chipText, styles.chipTextOn]}>{c.label}</Text>
-              </LinearGradient>
-            ) : (
-              <View style={styles.chip}>
-                <Text style={styles.chipText}>{c.label}</Text>
-              </View>
-            )}
+            <View style={[styles.chip, on && styles.chipOn]}>
+              <Text style={[styles.chipText, on && styles.chipTextOn]}>{c.label}</Text>
+            </View>
           </Pressable>
         );
       })}
@@ -56,27 +43,28 @@ export function HomeSurface({ children, style }: { children: ReactNode; style?: 
 
 const styles = StyleSheet.create({
   row: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     gap: 8,
-    marginTop: 14,
     paddingBottom: 2,
   },
+  /** Urban-style filter pills — outlined when idle, solid ink when selected. */
   chip: {
+    height: 36,
+    justifyContent: 'center',
     borderRadius: 999,
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: surfaces.glass,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.border,
   },
   chipOn: {
-    borderWidth: 0,
-    ...homeShadow.soft,
+    backgroundColor: ui.text,
+    borderColor: ui.text,
   },
   chipText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 13,
-    color: colors.ink,
+    fontFamily: fonts.bodySemi,
+    fontSize: 13.5,
+    color: ui.text,
   },
   chipTextOn: { color: colors.white },
   surface: {

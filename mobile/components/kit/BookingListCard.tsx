@@ -1,10 +1,6 @@
 import { memo } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { GlassPanel } from '@/components/kit/GlassScreenKit';
-import { homeShadow } from '@/components/kit/homeUi';
-import { AppIcons } from '@/constants/appIcons';
+import { Calendar, ChevronRight, MapPin } from 'lucide-react-native';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import { StatusPill } from '@/components/ui/StatusPill';
 import {
@@ -16,10 +12,8 @@ import {
   isSchedulePending,
 } from '@/lib/booking-helpers';
 import type { Booking } from '@/types/api';
-import { colors, customerType, fonts, statusColors } from '@/constants/theme';
-
-const BORDER = 'rgba(180,220,165,0.95)';
-const DEEP = colors.forest;
+import { formatRupeeFull } from '@/components/kit/format';
+import { colors, fonts, statusColors, ui } from '@/constants/theme';
 
 function stepProgress(booking: Booking): number | null {
   const steps = booking.steps ?? [];
@@ -45,140 +39,126 @@ export const BookingListCard = memo(function BookingListCard({
   const iconKey = bookingServiceIconKey(booking);
   const name = bookingServiceName(booking);
   const customer = showCustomer ? bookingCustomerName(booking) : null;
-  const accent = statusColors[booking.status]?.text ?? colors.green;
+  const accent = statusColors[booking.status]?.text ?? ui.brand;
   const accentBg = statusColors[booking.status]?.bg ?? colors.soft;
   const schedulePending = isSchedulePending(booking);
   const progress = stepProgress(booking);
   const isLive = booking.status === 'in_progress' || booking.status === 'awaiting_verification';
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}>
-      <View style={styles.shell}>
-        <GlassPanel style={styles.cardShell} padded={false} tone="clear" intensity={42}>
-          <View style={styles.card}>
-            {isLive ? (
-              <View style={styles.iconLiveShell}>
-                <LinearGradient
-                  colors={[colors.limeBright, colors.forestMid, colors.forest]}
-                  start={{ x: 0.1, y: 0 }}
-                  end={{ x: 0.9, y: 1 }}
-                  style={styles.icon}
-                >
-                  <ServiceIcon iconKey={iconKey} size={22} color={colors.white} strokeWidth={2.2} />
-                  <View style={styles.liveDot} />
-                </LinearGradient>
-              </View>
-            ) : (
-              <View style={styles.iconPlain}>
-                <ServiceIcon iconKey={iconKey} size={22} color={DEEP} variant="premium" boxSize={48} />
-              </View>
-            )}
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel={`${name}, ${bookingScheduleDisplay(booking)}`}
+    >
+      <View style={styles.inner}>
+        <View style={styles.top}>
+          <View style={styles.iconWrap}>
+            <ServiceIcon iconKey={iconKey} size={28} variant="premium" boxSize={52} />
+            {isLive ? <View style={styles.liveDot} /> : null}
+          </View>
 
-            <View style={styles.body}>
-              <View style={styles.titleRow}>
-                <Text style={styles.name} numberOfLines={compact ? 1 : 2}>
-                  {name}
-                </Text>
-                <StatusPill status={booking.status} />
-              </View>
-
-              {customer ? <Text style={styles.customer}>{customer}</Text> : null}
-
-              <View style={styles.metaRow}>
-                <PremiumIcon icon={AppIcons.ui.calendar} variant="plain" size={12} color={DEEP} strokeWidth={2.3} />
-                <Text style={styles.meta} numberOfLines={1}>
-                  {bookingScheduleDisplay(booking)}
-                </Text>
-              </View>
-
-              {!compact ? (
-                <View style={styles.metaRow}>
-                  <PremiumIcon icon={AppIcons.ui.mapPin} variant="plain" size={12} color={colors.muted} strokeWidth={2.2} />
-                  <Text style={styles.addr} numberOfLines={1}>
-                    {booking.address}
-                  </Text>
-                </View>
-              ) : null}
-
-              {progress !== null && isLive ? (
-                <View style={styles.progressTrack}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      { width: `${Math.round(progress * 100)}%`, backgroundColor: accent },
-                    ]}
-                  />
-                </View>
-              ) : null}
-
-              {schedulePending ? (
-                <View style={[styles.callout, { backgroundColor: accentBg }]}>
-                  <Text style={[styles.calloutText, { color: accent }]}>Pending schedule</Text>
-                </View>
-              ) : null}
-              {hint ? (
-                <View style={[styles.callout, { backgroundColor: accentBg }]}>
-                  <Text style={[styles.calloutText, { color: accent }]}>{hint}</Text>
-                </View>
-              ) : null}
-
-              <View style={styles.footer}>
-                <Text style={styles.ref}>{bookingRef(booking.id)}</Text>
-                {!hideAmount && booking.amount ? (
-                  <Text style={styles.total}>₹{booking.amount.total}</Text>
-                ) : hideAmount && booking.techEarning != null ? (
-                  <Text style={styles.total}>₹{booking.techEarning}</Text>
-                ) : null}
-              </View>
+          <View style={styles.body}>
+            <View style={styles.titleRow}>
+              <Text style={styles.name} numberOfLines={compact ? 1 : 2}>
+                {name}
+              </Text>
+              <StatusPill status={booking.status} />
             </View>
 
-            <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size={14} color={DEEP} strokeWidth={2.4} />
+            {customer ? (
+              <Text style={styles.customer} numberOfLines={1}>
+                {customer}
+              </Text>
+            ) : null}
+
+            <View style={styles.metaRow}>
+              <View style={styles.metaIcon}>
+                <Calendar size={12} color={ui.brand} strokeWidth={2.2} />
+              </View>
+              <Text style={styles.meta} numberOfLines={1}>
+                {bookingScheduleDisplay(booking)}
+              </Text>
+            </View>
+
+            {!compact && booking.address ? (
+              <View style={styles.metaRow}>
+                <View style={styles.metaIconMuted}>
+                  <MapPin size={12} color={ui.textTertiary} strokeWidth={2.2} />
+                </View>
+                <Text style={styles.addr} numberOfLines={1}>
+                  {booking.address}
+                </Text>
+              </View>
+            ) : null}
+
+            {progress !== null && isLive ? (
+              <View style={styles.progressTrack}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    { width: `${Math.round(progress * 100)}%`, backgroundColor: accent },
+                  ]}
+                />
+              </View>
+            ) : null}
+
+            {schedulePending && !hint ? (
+              <View style={[styles.callout, { backgroundColor: accentBg }]}>
+                <Text style={[styles.calloutText, { color: accent }]}>Visit time being confirmed</Text>
+              </View>
+            ) : null}
+            {hint ? (
+              <View style={[styles.callout, { backgroundColor: accentBg }]}>
+                <Text style={[styles.calloutText, { color: accent }]}>{hint}</Text>
+              </View>
+            ) : null}
           </View>
-        </GlassPanel>
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.ref}>{bookingRef(booking.id)}</Text>
+          <View style={styles.footerRight}>
+            {!hideAmount && booking.amount ? (
+              <Text style={styles.total}>{formatRupeeFull(booking.amount.total)}</Text>
+            ) : hideAmount && booking.techEarning != null ? (
+              <Text style={styles.total}>{formatRupeeFull(booking.techEarning)}</Text>
+            ) : null}
+            <View style={styles.chevron}>
+              <ChevronRight size={16} color={ui.brand} strokeWidth={2.4} />
+            </View>
+          </View>
+        </View>
       </View>
     </Pressable>
   );
 });
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: 10 },
-  pressed: { opacity: 0.94, transform: [{ scale: 0.985 }] },
-  shell: {
-    borderRadius: 22,
-    ...homeShadow.card,
-  },
-  cardShell: { borderRadius: 22 },
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    gap: 12,
-  },
-  iconLiveShell: {
-    borderRadius: 16,
-    ...homeShadow.tile,
-  },
-  icon: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginBottom: 12,
+    borderRadius: 20,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
+    borderColor: ui.hairline,
+    overflow: 'hidden',
+    ...ui.shadow,
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
   },
-  iconPlain: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  pressed: { opacity: 0.94, transform: [{ scale: 0.99 }] },
+  inner: { minWidth: 0 },
+  top: { flexDirection: 'row', gap: 12, padding: 14, paddingBottom: 12 },
+  iconWrap: { position: 'relative' },
   liveDot: {
     position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#C8F07A',
+    top: 2,
+    right: 2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.limeBright,
     borderWidth: 2,
     borderColor: colors.white,
   },
@@ -191,69 +171,103 @@ const styles = StyleSheet.create({
   },
   name: {
     flex: 1,
-    ...customerType.cardTitle,
-    color: colors.ink,
+    fontFamily: fonts.display,
+    fontSize: 16,
+    lineHeight: 21,
+    letterSpacing: -0.3,
+    color: ui.text,
   },
   customer: {
-    marginTop: 2,
+    marginTop: 3,
     fontFamily: fonts.bodySemi,
     fontSize: 12,
-    color: colors.muted,
+    color: ui.textSecondary,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 6,
+    gap: 8,
+    marginTop: 8,
+  },
+  metaIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    backgroundColor: ui.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  metaIconMuted: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    backgroundColor: ui.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   meta: {
     flex: 1,
-    ...customerType.listMeta,
-    color: colors.ink,
+    fontFamily: fonts.bodySemi,
+    fontSize: 13,
+    color: ui.text,
   },
   addr: {
     flex: 1,
-    ...customerType.listMetaMuted,
-    color: colors.muted,
+    fontFamily: fonts.body,
+    fontSize: 12.5,
+    color: ui.textSecondary,
   },
   progressTrack: {
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(232,244,218,0.95)',
+    backgroundColor: ui.surfaceMuted,
     overflow: 'hidden',
-    marginTop: 9,
+    marginTop: 12,
   },
   progressFill: { height: '100%', borderRadius: 2 },
   callout: {
-    marginTop: 7,
+    marginTop: 9,
     paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 999,
+    paddingVertical: 5,
+    borderRadius: 8,
     alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: BORDER,
   },
   calloutText: {
     fontFamily: fonts.bodyBold,
-    fontSize: 10,
+    fontSize: 10.5,
     letterSpacing: 0.2,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
-    paddingTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: BORDER,
+    borderTopColor: ui.border,
+    backgroundColor: ui.surfaceMuted,
   },
   ref: {
-    ...customerType.listMetaMuted,
-    fontSize: 11,
-    color: colors.muted,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 11.5,
+    letterSpacing: 0.3,
+    color: ui.textTertiary,
   },
+  footerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   total: {
-    ...customerType.listPrice,
-    color: DEEP,
+    fontFamily: fonts.displayExtra,
+    fontSize: 17,
+    letterSpacing: -0.35,
+    color: ui.brand,
+  },
+  chevron: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

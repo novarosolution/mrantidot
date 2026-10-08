@@ -1,8 +1,10 @@
 import type { User } from '@/types/api';
+import { localDateKey } from '@/lib/dates';
 
-/** Technicians eligible for new booking assignment. */
-export function assignableTechnicians(techs: User[]): User[] {
-  return techs.filter((t) => t.disabled !== true && t.available !== false);
+/** Technicians eligible for a visit; today's off-duty status only blocks today's (or overdue) visits. */
+export function assignableTechnicians(techs: User[], visitDate?: string): User[] {
+  const visitIsToday = !visitDate || visitDate <= localDateKey();
+  return techs.filter((t) => t.disabled !== true && (!visitIsToday || t.available !== false));
 }
 
 /** Whether a user account is disabled for sign-in. */

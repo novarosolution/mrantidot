@@ -1,0 +1,123 @@
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Star } from 'lucide-react-native';
+import { ServiceThumb } from '@/components/kit/ServiceThumb';
+import { serviceDisplayRating } from '@/lib/ratings';
+import { formatRupeeFull } from '@/components/kit/format';
+import type { Service } from '@/types/api';
+import { colors, fonts, ui } from '@/constants/theme';
+
+const THUMB = 96;
+
+/**
+ * Urban-style service row — details on the left, thumbnail on the right with the
+ * "Book" button overlapping its bottom edge.
+ */
+export function ServiceListRow({
+  service,
+  onPress,
+  onBook,
+  showDivider = true,
+  priceLabel,
+}: {
+  service: Service;
+  onPress: () => void;
+  onBook?: () => void;
+  showDivider?: boolean;
+  /** Overrides the "₹{basePrice}" text, e.g. per-sq-ft pricing. */
+  priceLabel?: string;
+}) {
+  const rating = serviceDisplayRating(service);
+  const reviews = service.stats?.reviewCount ?? 0;
+  const desc = service.shortDesc?.trim();
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.row, showDivider && styles.divider, pressed && styles.pressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${service.name}, ₹${service.basePrice}`}
+    >
+      <View style={styles.info}>
+        <Text style={styles.name} numberOfLines={2}>
+          {service.name}
+        </Text>
+        {rating > 0 ? (
+          <View style={styles.ratingRow}>
+            <Star size={12} color={ui.star} fill={ui.star} strokeWidth={1.5} />
+            <Text style={styles.rating}>{rating.toFixed(1)}</Text>
+            {reviews > 0 ? (
+              <Text style={styles.reviews}>
+                ({reviews} {reviews === 1 ? 'review' : 'reviews'})
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+        <Text style={styles.price}>Starts at {priceLabel ?? formatRupeeFull(service.basePrice)}</Text>
+        {desc ? (
+          <Text style={styles.desc} numberOfLines={2}>
+            {desc}
+          </Text>
+        ) : null}
+      </View>
+
+      <View style={styles.media}>
+        <ServiceThumb service={service} width={THUMB} radius={16} iconSize={44} />
+        <Pressable
+          style={({ pressed }) => [styles.book, pressed && styles.bookPressed]}
+          onPress={onBook ?? onPress}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={`Book ${service.name}`}
+        >
+          <Text style={styles.bookText}>Book</Text>
+        </Pressable>
+      </View>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    gap: 16,
+    paddingVertical: 18,
+    marginHorizontal: 16,
+  },
+  divider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: ui.border,
+  },
+  pressed: { opacity: 0.85 },
+  info: { flex: 1, minWidth: 0 },
+  name: {
+    fontFamily: fonts.display,
+    fontSize: 16,
+    lineHeight: 21,
+    letterSpacing: -0.2,
+    color: ui.text,
+  },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  rating: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: ui.text },
+  reviews: { fontFamily: fonts.body, fontSize: 12.5, color: ui.textSecondary },
+  price: { marginTop: 6, fontFamily: fonts.bodyBold, fontSize: 14, color: ui.text },
+  desc: {
+    marginTop: 8,
+    fontFamily: fonts.body,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: ui.textSecondary,
+  },
+  media: { width: THUMB, alignItems: 'center' },
+  book: {
+    marginTop: -16,
+    minWidth: 80,
+    height: 36,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: ui.brand,
+  },
+  bookPressed: { opacity: 0.88 },
+  bookText: { fontFamily: fonts.bodyBold, fontSize: 13.5, color: colors.white },
+});

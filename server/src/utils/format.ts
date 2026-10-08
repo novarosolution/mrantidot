@@ -179,12 +179,26 @@ export function formatBookingForRole(
 ): Record<string, unknown> {
   const base = formatBooking(booking) as Record<string, unknown>;
   if (role === 'customer') {
+    const tech = base.technician && typeof base.technician === 'object'
+      ? (base.technician as Record<string, unknown>)
+      : undefined;
+    const visitActive = ['confirmed', 'in_progress', 'awaiting_verification'].includes(String(base.status));
     return {
       ...base,
       customerId: undefined,
       customer: undefined,
       technicianId: undefined,
-      technician: undefined,
+      technician: tech
+        ? {
+            id: tech.id,
+            name: tech.name,
+            rating: tech.rating,
+            jobsDone: tech.jobsDone,
+            // Phone only while the visit is live — customers shouldn't keep it after the job.
+            phone: visitActive ? tech.phone : undefined,
+          }
+        : undefined,
+      technicianEarning: undefined,
       assignmentMode: undefined,
       steps: sanitizeStepsForCustomer(base.steps as unknown[]),
       workOtp: formatWorkOtpForCustomer(booking),

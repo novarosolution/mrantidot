@@ -120,8 +120,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
-    borderTopWidth: 3,
-    borderTopColor: colors.limeBright,
     backgroundColor: colors.white,
     borderRadius: 18,
   },

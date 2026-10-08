@@ -11,7 +11,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
-import { colors, fonts, gradients, premium, premiumType, spacing, buttonTokens } from '@/constants/theme';
+import { colors, fonts, gradients, premiumType, spacing, buttonTokens, ui } from '@/constants/theme';
 
 interface ButtonProps extends PressableProps {
   title: string;
@@ -117,15 +117,7 @@ export function Button({
       >
         {({ pressed }) => (
           <ButtonShell pressed={pressed} disabled={!!isDisabled} style={[styles.shadow, { borderRadius: sz.radius }]}>
-            <LinearGradient
-              colors={['#33C76A', '#1E8E4E', '#14532D']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.fill, frame]}
-            >
-              <View style={styles.sheen} pointerEvents="none" />
-              {label(colors.white)}
-            </LinearGradient>
+            <View style={[styles.fill, styles.solid, frame]}>{label(colors.white)}</View>
           </ButtonShell>
         )}
       </Pressable>
@@ -143,14 +135,7 @@ export function Button({
       >
         {({ pressed }) => (
           <ButtonShell pressed={pressed} disabled={!!isDisabled} style={[styles.shadow, { borderRadius: sz.radius }]}>
-            <LinearGradient
-              colors={[...gradients.goldCta]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.fill, frame]}
-            >
-              {label(colors.white)}
-            </LinearGradient>
+            <View style={[styles.fill, styles.solid, frame]}>{label(colors.white)}</View>
           </ButtonShell>
         )}
       </Pressable>
@@ -281,23 +266,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  sheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '42%',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
+  /** Solid brand fill — flat, premium primary action (no gloss). */
+  solid: { backgroundColor: ui.brand },
   shadow: {
-    ...premium.shadowSoft,
+    shadowColor: '#0B140F',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 3,
   },
   secondary: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(234,246,227,0.92)',
-    borderWidth: 1,
-    borderColor: 'rgba(198,236,180,0.95)',
+    backgroundColor: ui.brandSoft,
   },
   secondaryPressed: {
     backgroundColor: '#DCEEDE',
@@ -305,9 +286,9 @@ const styles = StyleSheet.create({
   outline: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.55)',
-    borderWidth: buttonTokens.borderWidth,
-    borderColor: colors.forest,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.border,
   },
   outlinePressed: {
     backgroundColor: colors.soft,

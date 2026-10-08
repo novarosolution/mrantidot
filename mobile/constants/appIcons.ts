@@ -2,6 +2,14 @@ import type { LucideIcon } from 'lucide-react-native';
 import {
   Activity,
   ArrowRight,
+  BriefcaseBusiness,
+  CalendarCheck,
+  ChartColumn,
+  CircleUserRound,
+  House,
+  LayoutDashboard,
+  TicketPercent,
+  UsersRound,
   Camera,
   ChevronDown,
   ChevronLeft,
@@ -35,13 +43,11 @@ import {
   BuildingRealIcon,
   CalendarRealIcon,
   CardRealIcon,
-  ChartRealIcon,
   CheckRealIcon,
   ClipboardRealIcon,
   ClockRealIcon,
   CloudSunRealIcon,
   CockroachIcon,
-  DashboardRealIcon,
   ErrorRealIcon,
   FactoryRealIcon,
   FileRealIcon,
@@ -56,7 +62,6 @@ import {
   MessageRealIcon,
   OfferRealIcon,
   OfflineRealIcon,
-  PackageRealIcon,
   PercentRealIcon,
   PhoneDeviceRealIcon,
   PhoneRealIcon,
@@ -100,23 +105,24 @@ export const AppIcons = {
   brand: SprayIcon,
   empty: CockroachIcon,
 
+  /** Tab bars use crisp Lucide line icons (filled when active) — Urban-style dock. */
   customerTab: {
-    home: HomeRealIcon,
-    bookings: ClipboardRealIcon,
-    offers: OfferRealIcon,
-    profile: UserRealIcon,
+    home: House,
+    bookings: CalendarCheck,
+    offers: TicketPercent,
+    profile: CircleUserRound,
   } satisfies Record<string, LucideIcon>,
 
   adminTab: {
-    dashboard: DashboardRealIcon,
-    bookings: ClipboardRealIcon,
-    team: TechRealIcon,
-    reports: ChartRealIcon,
+    dashboard: LayoutDashboard,
+    bookings: CalendarCheck,
+    team: UsersRound,
+    reports: ChartColumn,
   } satisfies Record<string, LucideIcon>,
 
   techTab: {
-    jobs: PackageRealIcon,
-    profile: TechRealIcon,
+    jobs: BriefcaseBusiness,
+    profile: CircleUserRound,
   } satisfies Record<string, LucideIcon>,
 
   quick: {

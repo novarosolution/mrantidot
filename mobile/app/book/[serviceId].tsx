@@ -1,49 +1,40 @@
 import { useLocalSearchParams } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Building2, CalendarClock, Camera, CircleCheck, CreditCard, MapPin, Tag } from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { paramString } from '@/lib/routeParams';
-import { GlassBackdrop } from '@/components/kit/GlassScreenKit';
+import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
 import { BookTimePicker } from '@/components/kit/BookTimePicker';
 import { ScheduleDayPicker } from '@/components/kit/ScheduleDayPicker';
 import { ScheduleModeToggle } from '@/components/kit/ScheduleModeToggle';
-import { ScheduleSelectionBanner } from '@/components/kit/ScheduleSelectionBanner';
-import { ScheduleSection, ScheduleStepPanel } from '@/components/kit/ScheduleStepPanel';
-import { ScheduleSlotPicker } from '@/components/kit/ScheduleSlotPicker';
+import { ScheduleSlotPicker, firstOpenSlot } from '@/components/kit/ScheduleSlotPicker';
 import { AddressCard } from '@/components/kit/AddressCard';
+import {
+  AddressDetailsForm,
+  EMPTY_ADDRESS_FORM,
+  addressFormValid,
+  composeAddressLine,
+  type AddressFormValues,
+} from '@/components/kit/AddressDetailsForm';
 import { AddressConfirmBanner, AddressPhotoGrid } from '@/components/kit/AddressPhotoGrid';
 import { AddressLocateButton } from '@/components/kit/AddressLocateButton';
 import { LocationBanner } from '@/components/kit/LocationChip';
-import { AddressManualField } from '@/components/kit/AddressManualField';
-import { BookWizardSection, BookWizardStepPanel } from '@/components/kit/BookWizardStepPanel';
+import { ConfirmPhotoStrip } from '@/components/kit/ConfirmStepKit';
 import {
-  ConfirmDetailsList,
-  ConfirmPhotoStrip,
-  ConfirmTotalCard,
-} from '@/components/kit/ConfirmStepKit';
+  BookBillSummary,
+  BookCheckoutBar,
+  BookFlowHeader,
+  BookInfoNote,
+  BookOfferList,
+  BookReviewRow,
+  BookSection,
+  BookServiceSummary,
+} from '@/components/kit/BookFlowKit';
 import { PropertyTypePicker } from '@/components/kit/PropertyTypePicker';
-import { BookServiceSpecs } from '@/components/kit/BookServiceSpecs';
-import { BookServiceStrip } from '@/components/kit/BookServiceStrip';
-import { BookingActionBar } from '@/components/kit/BookingActionBar';
 import { BookPaymentPicker } from '@/components/kit/BookPaymentPicker';
-import {
-  PaymentCouponField,
-  PaymentOfferList,
-  PaymentPriceHero,
-} from '@/components/kit/PaymentStepKit';
-import { BookPriceRibbon } from '@/components/kit/BookPriceRibbon';
-import { WizardStepBar } from '@/components/kit/WizardStepBar';
+import { PaymentCouponField } from '@/components/kit/PaymentStepKit';
 import { FadeSlideHorizontal } from '@/components/ui/FadeSlideIn';
 import { Input } from '@/components/ui/Input';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
@@ -53,32 +44,26 @@ import { CACHE_TTL } from '@/lib/apiCache';
 import { useLocation } from '@/context/LocationContext';
 import { defaultPaymentType, resolvePaymentMethods } from '@/lib/bookingPayment';
 import { paymentMethodLabel } from '@/lib/booking-helpers';
-import { computePricing, isValidCoupon } from '@/lib/pricing';
+import { computePricing } from '@/lib/pricing';
 import { useBookingCopy, getWizardStepLabels } from '@/lib/schedule-copy';
 import { safeGoBack, customerRoutes, sharedRoutes, appReplace } from '@/lib/routes';
 import { uploadImages, type PickedImage } from '@/lib/upload';
 import {
   DEFAULT_BOOKING_SLOT,
-  formatScheduleLabel,
+  formatBookableDate,
+  formatSlotShort12h,
+  formatTime12h,
+  isSlotStarted,
+  isTimeStarted,
   nextBookableDays,
 } from '@/lib/dates';
 import type { Offer, PaymentMethodRecord, PropertyTypeKey, SavedAddress, ScheduleMode, Service } from '@/types/api';
 import { propertyTypeLabel } from '@/constants/propertyTypes';
-import { colors, fonts, gradients, headerTopPad, premium, radius, spacing, surfaces } from '@/constants/theme';
-
-const DAY_OPTIONS = nextBookableDays(7);
-const BOOK_STEP_ICONS = [
-  AppIcons.ui.calendar,
-  AppIcons.property.apartment,
-  AppIcons.ui.mapPin,
-  AppIcons.payment.card,
-  AppIcons.toast.success,
-] as const;
+import { fonts, spacing, ui } from '@/constants/theme';
 
 export default function BookWizardScreen() {
   const bookingCopy = useBookingCopy();
   const bookStepLabels = useMemo(() => getWizardStepLabels(bookingCopy), [bookingCopy]);
-  const insets = useSafeAreaInsets();
   const { location, locating, detectAddress, displayLabel } = useLocation();
   const scrollRef = useRef<ScrollView>(null);
   const params = useLocalSearchParams<{ serviceId: string | string[]; coupon?: string | string[] }>();
@@ -88,16 +73,15 @@ export default function BookWizardScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [step, setStep] = useState(0);
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('standard');
-  const [date, setDate] = useState(DAY_OPTIONS[0]!.date);
+  const [date, setDate] = useState(() => nextBookableDays(1)[0]!.date);
   const [slot, setSlot] = useState<string>(DEFAULT_BOOKING_SLOT);
   const [customHour, setCustomHour] = useState(10);
   const [customMinute, setCustomMinute] = useState(0);
   const [scheduleNotes, setScheduleNotes] = useState('');
-  const [dayIdx, setDayIdx] = useState(0);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
-  const [address, setAddress] = useState('');
+  const [addressForm, setAddressForm] = useState<AddressFormValues>(EMPTY_ADDRESS_FORM);
   const [propertyType, setPropertyType] = useState<PropertyTypeKey | null>(null);
   const [coupon, setCoupon] = useState(couponParam ?? '');
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodRecord[]>([]);
@@ -149,11 +133,7 @@ export default function BookWizardScreen() {
     const addr = results[1];
     if (addr.status === 'fulfilled') {
       setAddresses(addr.value.data.addresses);
-      const def = addr.value.data.addresses.find((a) => a.isDefault) ?? addr.value.data.addresses[0];
-      if (def) {
-        setSelectedAddressId(def.id);
-        setAddress(`${def.line1}, ${def.city}`);
-      }
+      // Don't auto-select — user must tap a saved place or fill the form.
     }
 
     const pay = results[2];
@@ -189,28 +169,45 @@ export default function BookWizardScreen() {
   }, [couponParam]);
 
   useEffect(() => {
-    if (selectedAddressId || address.trim()) return;
+    if (selectedAddressId) return;
     if (!location?.line1 && (!location?.city || location.city === 'your area')) return;
-    const composed = [location.line1, location.city, location.pincode].filter(Boolean).join(', ');
-    if (composed) setAddress(composed);
-  }, [address, location, selectedAddressId]);
-
-  useEffect(() => {
-    const picked = DAY_OPTIONS[dayIdx];
-    if (picked) setDate(picked.date);
-  }, [dayIdx]);
+    setAddressForm((prev) => {
+      if (prev.street.trim() || prev.house.trim()) return prev;
+      return {
+        ...prev,
+        street: location.line1 || '',
+        city: location.city && location.city !== 'your area' ? location.city : '',
+        pincode: location.pincode || '',
+      };
+    });
+  }, [location, selectedAddressId]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, [step]);
+
+  // A slot that already started today can't be requested — move to the next open one.
+  useEffect(() => {
+    if (scheduleMode !== 'standard' || !isSlotStarted(date, slot)) return;
+    const next = firstOpenSlot(date);
+    if (next) {
+      setSlot(next);
+    } else {
+      // The picked day has no open slots left — jump to the next day.
+      const days = nextBookableDays(7);
+      const nextDay = days[days.findIndex((d) => d.date === date) + 1] ?? days[1];
+      if (nextDay) setDate(nextDay.date);
+    }
+  }, [date, slot, scheduleMode]);
 
   const pricing = useMemo(
     () => (service ? computePricing(service.basePrice, coupon, offers) : null),
     [service, coupon, offers],
   );
 
-  const couponInvalid = coupon.trim().length > 0 && !isValidCoupon(coupon, offers);
-  const couponApplied = coupon.trim().length > 0 && isValidCoupon(coupon, offers);
+  // Validate against the real order amount — isValidCoupon defaults to ₹0, where every discount is 0.
+  const couponApplied = coupon.trim().length > 0 && (pricing?.coupon ?? 0) > 0;
+  const couponInvalid = coupon.trim().length > 0 && !couponApplied;
   const durationLabel =
     service?.stepTemplate?.length
       ? `~${Math.max(30, service.stepTemplate.length * 15)} min`
@@ -218,10 +215,13 @@ export default function BookWizardScreen() {
 
   const customTime = `${String(customHour).padStart(2, '0')}:${String(customMinute).padStart(2, '0')}`;
 
+  // 12-hour, matching the slot chips — "Today · Oct 5 · 8 PM – 10 PM".
   const scheduleSummary =
     scheduleMode === 'standard'
-      ? formatScheduleLabel({ date, slot }, 'standard')
-      : formatScheduleLabel({ date, slot: 'custom', time: customTime }, 'custom');
+      ? `${formatBookableDate(date)} · ${formatSlotShort12h(slot)}`
+      : `${formatBookableDate(date)} · ${formatTime12h(customTime)}`;
+
+  const address = useMemo(() => composeAddressLine(addressForm), [addressForm]);
 
   const addressSummary = useMemo(() => {
     if (address.trim()) return address.trim();
@@ -238,8 +238,12 @@ export default function BookWizardScreen() {
         Toast.show({ type: 'error', text1: 'Select a date' });
         return false;
       }
-      if (scheduleMode === 'standard' && !slot) {
-        Toast.show({ type: 'error', text1: 'Select a time slot' });
+      if (scheduleMode === 'standard' && (!slot || isSlotStarted(date, slot))) {
+        Toast.show({ type: 'error', text1: 'Select a time slot that hasn’t started yet' });
+        return false;
+      }
+      if (scheduleMode === 'custom' && isTimeStarted(date, customTime)) {
+        Toast.show({ type: 'error', text1: 'Pick a time later than now' });
         return false;
       }
       return true;
@@ -252,8 +256,8 @@ export default function BookWizardScreen() {
       return true;
     }
     if (s === 2) {
-      if (!address.trim() && !selectedAddressId) {
-        Toast.show({ type: 'error', text1: 'Add or select a service address' });
+      if (!selectedAddressId && !addressFormValid(addressForm)) {
+        Toast.show({ type: 'error', text1: 'Add house/flat, street, and city — or pick a saved place' });
         return false;
       }
       return true;
@@ -279,13 +283,24 @@ export default function BookWizardScreen() {
 
   async function fillAddressFromLocation() {
     const loc = await detectAddress();
-    if (loc) {
-      const composed = [loc.line1, loc.city, loc.pincode].filter(Boolean).join(', ');
-      if (composed) {
-        setAddress(composed);
-        setSelectedAddressId(null);
-      }
-    }
+    if (!loc) return;
+    setSelectedAddressId(null);
+    setAddressForm((prev) => ({
+      ...prev,
+      street: loc.line1 || prev.street,
+      city: loc.city && loc.city !== 'your area' ? loc.city : prev.city,
+      pincode: loc.pincode || prev.pincode,
+    }));
+    Toast.show({
+      type: 'success',
+      text1: 'Location filled',
+      text2: 'Add your house / flat number to finish',
+    });
+  }
+
+  function onAddressFormChange(next: AddressFormValues) {
+    setSelectedAddressId(null);
+    setAddressForm(next);
   }
 
   async function confirm() {
@@ -303,12 +318,42 @@ export default function BookWizardScreen() {
         scheduleMode === 'standard'
           ? { date, slot, notes: scheduleNotes.trim() || undefined }
           : { date, time: customTime, notes: scheduleNotes.trim() || undefined };
-      const { data } = await api.post<{ booking: { id: string } }>('/bookings', {
+
+      let addressId = selectedAddressId;
+      if (!addressId && addressFormValid(addressForm)) {
+        const line1 = [
+          addressForm.house.trim() ? `Flat/House ${addressForm.house.trim()}` : '',
+          addressForm.street.trim(),
+          addressForm.landmark.trim() ? `Landmark: ${addressForm.landmark.trim()}` : '',
+        ]
+          .filter(Boolean)
+          .join(', ');
+        try {
+          const saved = await api.post<{ address: SavedAddress }>('/addresses', {
+            label: addressForm.saveAs,
+            line1,
+            city: addressForm.city.trim(),
+            pincode: addressForm.pincode.trim() || undefined,
+            isDefault: addresses.length === 0,
+          });
+          addressId = saved.data.address.id;
+          setAddresses((prev) => [...prev, saved.data.address]);
+          setSelectedAddressId(addressId);
+        } catch {
+          Toast.show({
+            type: 'info',
+            text1: 'Address not saved for later',
+            text2: 'Booking will still use the details you entered',
+          });
+        }
+      }
+
+      const { data } = await api.post<{ booking: { id: string; amount?: { total?: number } } }>('/bookings', {
         serviceId: service.id,
         scheduleMode,
         scheduleRequest,
         propertyType,
-        ...(selectedAddressId ? { addressId: selectedAddressId } : { address: address.trim() }),
+        ...(addressId ? { addressId } : { address: address.trim() }),
         paymentMethod,
         couponCode: coupon.trim() || undefined,
         problemPhotos,
@@ -320,7 +365,7 @@ export default function BookWizardScreen() {
           bookingId: data.booking.id,
           serviceName: service.name,
           schedule: scheduleSummary,
-          total: String(pricing?.total ?? 0),
+          total: String(data.booking.amount?.total ?? pricing?.total ?? 0),
           payment: paymentMethod ? paymentMethodLabel(paymentMethod) : '',
         },
       });
@@ -334,17 +379,13 @@ export default function BookWizardScreen() {
   if (loadError) {
     return (
       <View style={styles.root}>
-        <GlassBackdrop />
         <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-          <LinearGradient
-            colors={[...gradients.bookHero]}
-            style={[styles.errorHeader, { paddingTop: headerTopPad(insets.top) }]}
-          >
-            <Pressable style={styles.errorBack} onPress={() => safeGoBack(customerRoutes.services)} hitSlop={8}>
-              <PremiumIcon icon={AppIcons.ui.chevronLeft} variant="plain" size={22} color={colors.white} />
-            </Pressable>
-            <Text style={styles.errorTitle}>{bookingCopy.wizardScreenTitle}</Text>
-          </LinearGradient>
+          <CustomerPageHeader
+            variant="premium"
+            title={bookingCopy.wizardScreenTitle}
+            showBack
+            onBack={() => safeGoBack(customerRoutes.services)}
+          />
           <ListEmptyRetry
             message={loadError}
             onRetry={() => safeAsync(() => loadData(true), undefined, (msg) => setLoadError(msg))}
@@ -357,142 +398,126 @@ export default function BookWizardScreen() {
   if (!service) return <Spinner fullScreen />;
 
   const activeOffers = offers.filter((o) => o.active);
+  const included = (service.stepTemplate ?? []).slice(0, 5);
+  const stepTitles = [
+    'Select date & time',
+    'Property type',
+    'Service address',
+    'Payment & offers',
+    bookingCopy.wizardReviewSectionTitle,
+  ];
+  const goBack = () => (step > 0 ? setStep((s) => s - 1) : safeGoBack(customerRoutes.services));
 
   return (
     <View style={styles.root}>
-      <GlassBackdrop />
       <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-      <View style={styles.stickyHeader}>
-        <BookServiceStrip
-          service={service}
-          durationLabel={durationLabel}
-          onBack={() => (step > 0 ? setStep((s) => s - 1) : safeGoBack(customerRoutes.services))}
-          title={step > 0 ? bookStepLabels[step]! : bookingCopy.wizardScreenTitle}
-          variant={step === 0 ? 'slim' : 'compact'}
-        />
-        <WizardStepBar
+        <BookFlowHeader
+          title={stepTitles[step] ?? bookingCopy.wizardScreenTitle}
+          subtitle={`${service.name} · ${durationLabel}`}
           step={step}
-          labels={bookStepLabels}
-          icons={[...BOOK_STEP_ICONS]}
+          totalSteps={bookStepLabels.length}
+          stepLabels={bookStepLabels}
+          onBack={goBack}
           onStepPress={goToStep}
-          compact
         />
 
-        {pricing ? (
-          <BookPriceRibbon
-            total={pricing.total}
-            savings={pricing.coupon > 0 ? pricing.coupon : undefined}
-            stepHint={step > 0 ? bookStepLabels[step] : undefined}
-            compact
-          />
-        ) : null}
-      </View>
-
-      <ScrollView
-        ref={scrollRef}
-        style={styles.scroll}
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        nestedScrollEnabled
-        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-      >
+        <ScrollView
+          ref={scrollRef}
+          style={styles.scroll}
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+        >
           <FadeSlideHorizontal step={step}>
             {step === 0 ? (
-              <ScheduleStepPanel
-                title={bookingCopy.scheduleStepTitle}
-                subtitle={bookingCopy.scheduleStepSubtitle}
-                animTrigger={step}
-                compactHeader
-              >
-                <ScheduleSection step={1} title="Visit type" compact>
+              <>
+                <BookSection>
+                  <BookServiceSummary service={service} durationLabel={durationLabel} />
+                </BookSection>
+
+                <BookSection
+                  title={bookingCopy.scheduleStepTitle}
+                  subtitle="Pick a day — our team confirms the visit time after you book"
+                >
+                  <ScheduleDayPicker
+                    selectedDate={date}
+                    onSelect={(d) => setDate(d)}
+                  />
+                </BookSection>
+
+                <BookSection title="Select a time">
                   <ScheduleModeToggle
                     mode={scheduleMode}
                     onChange={setScheduleMode}
                     standardLabel={bookingCopy.standardModeLabel}
                     customLabel={bookingCopy.customModeLabel}
                   />
-                </ScheduleSection>
-
-                <ScheduleSection step={2} title="Select date" compact>
-                  <ScheduleDayPicker
-                    selectedDate={date}
-                    onSelect={(d, i) => {
-                      setDate(d);
-                      setDayIdx(i);
-                    }}
-                  />
-                </ScheduleSection>
-
-                <ScheduleSection
-                  step={3}
-                  title={scheduleMode === 'standard' ? 'Pick a time slot' : 'Set your time'}
-                  compact
-                >
-                  {scheduleMode === 'standard' ? (
-                    <ScheduleSlotPicker selectedSlot={slot} onSelect={setSlot} />
-                  ) : (
-                    <>
-                      <BookTimePicker
-                        hour={customHour}
-                        minute={customMinute}
-                        onChange={(h, m) => {
-                          setCustomHour(h);
-                          setCustomMinute(m);
-                        }}
-                      />
-                      <View style={styles.notesWrap}>
-                        <Input
-                          label="Notes"
-                          value={scheduleNotes}
-                          onChangeText={setScheduleNotes}
-                          placeholder={bookingCopy.customNotesPlaceholder}
+                  <View style={styles.timeBody}>
+                    {scheduleMode === 'standard' ? (
+                      <ScheduleSlotPicker selectedSlot={slot} onSelect={setSlot} date={date} />
+                    ) : (
+                      <>
+                        <BookTimePicker
+                          hour={customHour}
+                          minute={customMinute}
+                          onChange={(h, m) => {
+                            setCustomHour(h);
+                            setCustomMinute(m);
+                          }}
                         />
+                        <View style={styles.notesWrap}>
+                          <Input
+                            label="Notes"
+                            value={scheduleNotes}
+                            onChangeText={setScheduleNotes}
+                            placeholder={bookingCopy.customNotesPlaceholder}
+                          />
+                        </View>
+                      </>
+                    )}
+                  </View>
+                </BookSection>
+
+                {included.length > 0 ? (
+                  <BookSection title="What's included">
+                    {included.map((item) => (
+                      <View key={item} style={styles.includedRow}>
+                        <CircleCheck size={17} color={ui.brand} strokeWidth={2.1} />
+                        <Text style={styles.includedText}>{item}</Text>
                       </View>
-                    </>
-                  )}
-                </ScheduleSection>
-
-                {(scheduleMode === 'standard' ? slot : customTime) ? (
-                  <ScheduleSelectionBanner label={scheduleSummary} />
+                    ))}
+                  </BookSection>
                 ) : null}
-              </ScheduleStepPanel>
+              </>
             ) : null}
 
-            {step === 0 ? (
-              <BookServiceSpecs service={service} durationLabel={durationLabel} compact />
+            {step === 1 ? (
+              <BookSection title="What type of property?" subtitle="So the technician can plan the treatment for your space">
+                <PropertyTypePicker value={propertyType} onChange={setPropertyType} contentInset={32} />
+              </BookSection>
             ) : null}
 
-            {step === 1 && (
-              <BookWizardStepPanel icon={AppIcons.property.apartment} title="Property type" animTrigger={step} compactHeader>
-                <BookWizardSection step={1} title="What type of premises?" compact>
-                  <PropertyTypePicker value={propertyType} onChange={setPropertyType} />
-                </BookWizardSection>
-              </BookWizardStepPanel>
-            )}
-
-            {step === 2 && (
-              <BookWizardStepPanel icon={AppIcons.ui.mapPin} title="Service address" animTrigger={step} compactHeader>
-                {displayLabel ? (
-                  <LocationBanner
-                    label={displayLabel}
-                    loading={locating}
-                    hint="Tap refresh for live GPS"
-                    onRefresh={() => void detectAddress()}
-                  />
-                ) : (
-                  <LocationBanner
-                    label="Tap refresh to detect your area"
-                    loading={locating}
-                    onRefresh={() => void detectAddress()}
-                  />
-                )}
-                <BookWizardSection step={1} title="Quick fill" compact>
+            {step === 2 ? (
+              <>
+                <BookSection title="Where should we come?" subtitle="Use your location to fill the address in seconds">
                   <AddressLocateButton loading={locating} onPress={() => void fillAddressFromLocation()} />
-                </BookWizardSection>
+                  {displayLabel ? (
+                    <View style={styles.areaChip}>
+                      <LocationBanner
+                        label={displayLabel}
+                        loading={locating}
+                        hint="Detected area · tap refresh to update"
+                        onRefresh={() => void detectAddress()}
+                        embedded
+                      />
+                    </View>
+                  ) : null}
+                </BookSection>
 
                 {addresses.length > 0 ? (
-                  <BookWizardSection step={2} title="Saved addresses" compact>
+                  <BookSection title="Saved addresses">
                     {addresses.map((a) => (
                       <AddressCard
                         key={a.id}
@@ -500,247 +525,165 @@ export default function BookWizardScreen() {
                         selected={selectedAddressId === a.id}
                         onPress={() => {
                           setSelectedAddressId(a.id);
-                          setAddress(`${a.line1}, ${a.city}`);
+                          setAddressForm(EMPTY_ADDRESS_FORM);
                         }}
                       />
                     ))}
-                  </BookWizardSection>
+                  </BookSection>
                 ) : null}
 
-                <BookWizardSection step={addresses.length > 0 ? 3 : 2} title="Enter address" compact>
-                  <AddressManualField
-                    value={address}
-                    onChangeText={(t) => {
-                      setAddress(t);
-                      setSelectedAddressId(null);
-                    }}
-                  />
-                </BookWizardSection>
+                <BookSection
+                  title={addresses.length > 0 ? 'Or add a new address' : 'Address details'}
+                  subtitle="House / flat number is required · landmark optional"
+                >
+                  <AddressDetailsForm value={addressForm} onChange={onAddressFormChange} />
+                  {addressSummary !== '—' ? (
+                    <View style={styles.confirmWrap}>
+                      <AddressConfirmBanner address={addressSummary} />
+                    </View>
+                  ) : null}
+                </BookSection>
 
-                {address.trim() ? <AddressConfirmBanner address={address} /> : null}
-
-                <BookWizardSection step={addresses.length > 0 ? 4 : 3} title="Problem photos" compact>
+                <BookSection title="Problem photos" subtitle="Optional — helps the technician prepare">
                   <AddressPhotoGrid photos={photoUris} onChange={setPhotoUris} max={6} />
-                </BookWizardSection>
-              </BookWizardStepPanel>
-            )}
+                </BookSection>
+              </>
+            ) : null}
 
-            {step === 3 && pricing && (
-              <BookWizardStepPanel icon={AppIcons.payment.card} title="Payment & offers" animTrigger={step} compactHeader>
-                <BookWizardSection step={1} title="Price summary" compact>
-                  <PaymentPriceHero amount={pricing} />
-                </BookWizardSection>
-
-                {activeOffers.length > 0 ? (
-                  <BookWizardSection step={2} title="Available offers" compact>
-                    <PaymentOfferList
-                      offers={activeOffers}
-                      selectedCode={coupon}
-                      onSelect={setCoupon}
-                    />
-                  </BookWizardSection>
-                ) : null}
-
-                <BookWizardSection step={activeOffers.length > 0 ? 3 : 2} title="Coupon code" compact>
+            {step === 3 && pricing ? (
+              <>
+                <BookSection title={activeOffers.length > 0 ? 'Coupons & offers' : 'Coupon code'}>
+                  {activeOffers.length > 0 ? (
+                    <View style={styles.offersWrap}>
+                      <BookOfferList offers={activeOffers} appliedCode={coupon} onApply={setCoupon} />
+                    </View>
+                  ) : null}
                   <PaymentCouponField
                     value={coupon}
                     onChangeText={setCoupon}
                     invalid={couponInvalid}
                     applied={couponApplied}
                   />
-                </BookWizardSection>
+                </BookSection>
 
-                <BookWizardSection step={activeOffers.length > 0 ? 4 : 3} title="Payment method" compact>
+                <BookSection title="Payment method">
                   <BookPaymentPicker
                     methods={paymentMethods}
                     selected={paymentMethod}
                     onSelect={setPaymentMethod}
                     showManageLink={hasSavedPaymentMethods}
                   />
-                </BookWizardSection>
-              </BookWizardStepPanel>
-            )}
+                </BookSection>
 
-            {step === 4 && pricing && (
-              <BookWizardStepPanel
-                icon={AppIcons.toast.success}
-                title={bookingCopy.wizardReviewSectionTitle}
-                subtitle={bookingCopy.pendingReviewNote}
-                animTrigger={step}
-                compactHeader
-              >
-                <BookWizardSection step={1} title="Your booking" compact>
-                  <ConfirmDetailsList
-                    items={[
-                      { icon: AppIcons.ui.calendar, label: 'Requested schedule', value: scheduleSummary },
-                      {
-                        icon: AppIcons.property.apartment,
-                        label: 'Property type',
-                        value: propertyType ? propertyTypeLabel(propertyType) : '—',
-                      },
-                      { icon: AppIcons.ui.mapPin, label: 'Service address', value: addressSummary },
-                      {
-                        icon: AppIcons.payment.card,
-                        label: 'Payment method',
-                        value: paymentMethod ? paymentMethodLabel(paymentMethod) : '—',
-                      },
-                      ...(coupon.trim()
-                        ? [{ icon: AppIcons.ui.tag, label: 'Coupon applied', value: coupon.trim().toUpperCase() }]
-                        : []),
-                      {
-                        icon: AppIcons.ui.camera,
-                        label: 'Photos',
-                        value: photoUris.length ? `${photoUris.length} attached` : 'None',
-                      },
-                    ]}
+                <BookSection title="Payment summary">
+                  <BookBillSummary amount={pricing} />
+                </BookSection>
+              </>
+            ) : null}
+
+            {step === 4 && pricing ? (
+              <>
+                <BookSection>
+                  <BookServiceSummary service={service} durationLabel={durationLabel} />
+                </BookSection>
+
+                <BookSection title="Booking details">
+                  <BookReviewRow
+                    icon={CalendarClock}
+                    label="Requested schedule"
+                    value={scheduleSummary}
+                    onChange={() => setStep(0)}
                   />
-                </BookWizardSection>
-
-                {photoUris.length > 0 ? (
-                  <BookWizardSection step={2} title="Attached photos" compact>
-                    <ConfirmPhotoStrip photos={photoUris} />
-                  </BookWizardSection>
-                ) : null}
-
-                <BookWizardSection step={photoUris.length > 0 ? 3 : 2} title="Estimated total" compact>
-                  <ConfirmTotalCard
-                    amount={pricing}
-                    paymentLabel={paymentMethod ? paymentMethodLabel(paymentMethod) : '—'}
+                  <BookReviewRow
+                    icon={Building2}
+                    label="Property type"
+                    value={propertyType ? propertyTypeLabel(propertyType) : '—'}
+                    onChange={() => setStep(1)}
                   />
-                </BookWizardSection>
-              </BookWizardStepPanel>
-            )}
+                  <BookReviewRow
+                    icon={MapPin}
+                    label="Service address"
+                    value={addressSummary}
+                    onChange={() => setStep(2)}
+                  />
+                  <BookReviewRow
+                    icon={CreditCard}
+                    label="Payment method"
+                    value={paymentMethod ? paymentMethodLabel(paymentMethod) : '—'}
+                    onChange={() => setStep(3)}
+                  />
+                  {coupon.trim() ? (
+                    <BookReviewRow
+                      icon={Tag}
+                      label="Coupon applied"
+                      value={coupon.trim().toUpperCase()}
+                      onChange={() => setStep(3)}
+                    />
+                  ) : null}
+                  <BookReviewRow
+                    icon={Camera}
+                    label="Photos"
+                    value={photoUris.length ? `${photoUris.length} attached` : 'None added'}
+                    onChange={() => setStep(2)}
+                    last
+                  />
+                  {photoUris.length > 0 ? (
+                    <View style={styles.photoStrip}>
+                      <ConfirmPhotoStrip photos={photoUris} />
+                    </View>
+                  ) : null}
+                </BookSection>
+
+                <BookSection title="Payment summary">
+                  <BookBillSummary amount={pricing} totalLabel="Estimated total" />
+                </BookSection>
+
+                <BookSection>
+                  <View style={styles.notes}>
+                    <BookInfoNote title="What happens next">{bookingCopy.pendingReviewNote}</BookInfoNote>
+                    <BookInfoNote title="Cancellation">
+                      You can cancel from My Bookings any time before the technician starts work.
+                    </BookInfoNote>
+                  </View>
+                </BookSection>
+              </>
+            ) : null}
           </FadeSlideHorizontal>
-      </ScrollView>
+        </ScrollView>
 
-      <BookingActionBar
-        primaryTitle={step === 4 ? bookingCopy.wizardSubmitButton : bookingCopy.wizardContinueButton}
-        onPrimary={step === 4 ? confirm : goNext}
-        primaryLoading={loading}
-        primaryDisabled={(step === 3 && couponInvalid) || (step >= 3 && !paymentMethod) || (step === 1 && !propertyType)}
-        secondaryTitle={step > 0 ? bookingCopy.wizardBackButton : undefined}
-        onSecondary={step > 0 ? () => setStep((s) => s - 1) : undefined}
-      />
+        {pricing ? (
+          <BookCheckoutBar
+            total={pricing.total}
+            savings={pricing.coupon}
+            caption={step === 4 ? 'Estimated total · incl. taxes' : 'incl. taxes'}
+            actionTitle={step === 4 ? bookingCopy.wizardSubmitButton : bookingCopy.wizardContinueButton}
+            onAction={step === 4 ? confirm : goNext}
+            loading={loading}
+            disabled={(step === 3 && couponInvalid) || (step >= 3 && !paymentMethod) || (step === 1 && !propertyType)}
+          />
+        ) : null}
       </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: surfaces.glassScreenBase },
+  root: { flex: 1, backgroundColor: ui.surfaceMuted },
   safe: { flex: 1, backgroundColor: 'transparent' },
-  stickyHeader: {
-    zIndex: 10,
-    backgroundColor: 'rgba(246,250,242,0.96)',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: surfaces.glassBorderStrong,
-  },
-  errorHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.lg,
-    borderBottomLeftRadius: radius.xl,
-    borderBottomRightRadius: radius.xl,
-  },
-  errorBack: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.sm,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorTitle: { fontFamily: fonts.displayExtra, fontSize: 18, color: colors.white },
   scroll: { flex: 1 },
-  container: { padding: spacing.md, paddingTop: spacing.xs, paddingBottom: 160 },
+  container: { paddingTop: 8, paddingBottom: 40 },
+  timeBody: { marginTop: 18 },
   notesWrap: { marginTop: spacing.md },
-  modeRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md },
-  techOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderRadius: premium.radiusCard,
-    borderWidth: 1.5,
-    borderColor: surfaces.glassBorderStrong,
-    backgroundColor: surfaces.glass,
+  includedRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 6 },
+  includedText: { flex: 1, fontFamily: fonts.bodyMedium, fontSize: 14, lineHeight: 20, color: ui.text },
+  areaChip: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: ui.hairline,
   },
-  techOptionOn: { borderColor: colors.green, backgroundColor: colors.soft },
-  techIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.md,
-    backgroundColor: surfaces.glassInput,
-    borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  techIconOn: { backgroundColor: colors.forest },
-  techBody: { flex: 1, minWidth: 0 },
-  techName: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
-  techMeta: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 3, lineHeight: 17 },
-  techEmpty: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: spacing.xs },
-  daysRow: { gap: 10, paddingBottom: spacing.sm },
-  dayCard: {
-    width: 76,
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-    borderRadius: 18,
-    backgroundColor: surfaces.glassInput,
-    borderWidth: 1.5,
-    borderColor: surfaces.glassBorderStrong,
-    marginRight: 10,
-    ...premium.shadowSoft,
-  },
-  dayCardOn: { backgroundColor: colors.forest, borderColor: colors.lime, borderWidth: 2, transform: [{ scale: 1.02 }] },
-  dayWeek: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.muted, textTransform: 'uppercase' },
-  dayNum: { fontFamily: fonts.displayExtra, fontSize: 22, color: colors.ink, marginTop: 4 },
-  dayMonth: { fontFamily: fonts.body, fontSize: 10, color: colors.muted, marginTop: 2 },
-  dayMonthOn: { color: colors.lime },
-  dayTextOn: { color: colors.white },
-  todayTag: {
-    marginTop: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 999,
-    backgroundColor: colors.soft,
-  },
-  todayTagOn: { backgroundColor: 'rgba(255,255,255,0.2)' },
-  todayText: { fontFamily: fonts.bodySemi, fontSize: 9, color: colors.green },
-  todayTextOn: { color: colors.lime },
-  slotGroup: { marginTop: spacing.md },
-  slotGroupTitle: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, marginBottom: spacing.sm },
-  slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  slot: {
-    flexGrow: 1,
-    minWidth: '46%',
-    paddingVertical: 15,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.82)',
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    ...premium.shadowSoft,
-  },
-  slotOn: { backgroundColor: colors.secondarySoft, borderColor: colors.secondaryDark, borderWidth: 2 },
-  slotText: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: colors.ink },
-  slotTextOn: { color: colors.secondaryInk },
-  selectionBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: spacing.md,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: colors.soft,
-  },
-  selectionText: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest, flex: 1 },
+  confirmWrap: { marginTop: spacing.md },
+  offersWrap: { marginBottom: 14 },
+  photoStrip: { marginTop: 10 },
+  notes: { gap: 10 },
 });

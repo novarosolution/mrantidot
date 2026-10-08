@@ -1,7 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useCallback, useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,9 +9,10 @@ import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
-import { GlassBackdrop, GlassPanel } from '@/components/kit/GlassScreenKit';
-import { ServiceIcon } from '@/components/ServiceIcon';
-import { ServiceTypeBadges } from '@/components/kit/ServiceTypeBadges';
+import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { ServiceThumb } from '@/components/kit/ServiceThumb';
+import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
+import { ArrowLeft, Star } from 'lucide-react-native';
 import { api, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { useScreenLoad } from '@/lib/useScreenLoad';
@@ -20,17 +20,11 @@ import { formatSocialProof } from '@/lib/display';
 import { serviceDisplayRating } from '@/lib/ratings';
 import { safeGoBack, customerRoutes, sharedRoutes, appPush } from '@/lib/routes';
 import type { Service, ServiceReview, ServiceStats } from '@/types/api';
-import { colors, fonts, gradients, headerTopPad, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 function SectionKicker({ label }: { label: string }) {
   return (
     <View style={styles.kickerRow}>
-      <LinearGradient
-        colors={[colors.greenBright, colors.forestMid]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.kickerBar}
-      />
       <Text style={styles.kickerText}>{label}</Text>
     </View>
   );
@@ -41,7 +35,7 @@ function Stars({ count }: { count: number }) {
     <View style={styles.starsRow}>
       {[...Array(5)].map((_, i) => {
         const on = i < count;
-        const c = on ? '#25A443' : '#DBF1D1';
+        const c = on ? ui.brand : ui.brandSoft;
         return (
           <PremiumIcon
             key={i}
@@ -65,15 +59,7 @@ export default function ServiceDetailScreen() {
   const [reviews, setReviews] = useState<ServiceReview[]>([]);
   const { loading, error, runLoad } = useScreenLoad(!!id);
 
-  const drift = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(drift, { toValue: 1, duration: 4200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(drift, { toValue: 0, duration: 4200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ]),
-    ).start();
-  }, [drift]);
+  const { width: windowWidth } = useWindowDimensions();
 
   const load = useCallback(
     async (skipCache = false) => {
@@ -81,14 +67,15 @@ export default function ServiceDetailScreen() {
         throw new Error('Service not found');
       }
       const cache = skipCache ? { skipCache: true as const } : { cacheTtlMs: CACHE_TTL.services };
-      const [svc, st, rev] = await Promise.all([
+      const [svc, st, rev] = await Promise.allSettled([
         api.get<{ service: Service }>(`/services/${id}`, { ...screenLoadConfig, ...cache }),
         api.get<{ stats: ServiceStats }>(`/services/${id}/stats`, { ...screenLoadConfig, ...cache }),
         api.get<{ reviews: ServiceReview[] }>(`/services/${id}/reviews`, { ...screenLoadConfig, ...cache }),
       ]);
-      setService(svc.data.service);
-      setStats(st.data.stats);
-      setReviews(rev.data.reviews);
+      if (svc.status === 'rejected') throw svc.reason;
+      setService(svc.value.data.service);
+      if (st.status === 'fulfilled') setStats(st.value.data.stats);
+      if (rev.status === 'fulfilled') setReviews(rev.value.data.reviews);
     },
     [id],
   );
@@ -101,7 +88,6 @@ export default function ServiceDetailScreen() {
   if (!id) {
     return (
       <View style={styles.root}>
-        <GlassBackdrop />
         <CustomerPageHeader
           variant="premium"
           title="Service"
@@ -122,7 +108,6 @@ export default function ServiceDetailScreen() {
   if (error || !service) {
     return (
       <View style={styles.root}>
-        <GlassBackdrop />
         <CustomerPageHeader
           variant="premium"
           title="Service"
@@ -145,118 +130,61 @@ export default function ServiceDetailScreen() {
 
   return (
     <View style={styles.root}>
-      <GlassBackdrop />
+      <FocusStatusBar style="dark" />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: 130 }}
         showsVerticalScrollIndicator={false}
       >
-        <LinearGradient
-          colors={[...gradients.premiumHero]}
-          locations={[0, 0.52, 1]}
-          style={[styles.hero, { paddingTop: headerTopPad(insets.top) }]}
-          start={{ x: 0.15, y: 0 }}
-          end={{ x: 0.9, y: 1 }}
-        >
-          <Animated.View
-            style={[
-              styles.heroGlow,
-              {
-                transform: [
-                  { translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [0, 14] }) },
-                  { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [0, -10] }) },
-                ],
-              },
-            ]}
-            pointerEvents="none"
-          >
-            <LinearGradient
-              colors={['rgba(184,232,106,0.4)', 'rgba(143,208,60,0)']}
-              style={StyleSheet.absoluteFill}
-              start={{ x: 0.2, y: 0.2 }}
-              end={{ x: 1, y: 1 }}
-            />
-          </Animated.View>
-          <Animated.View
-            style={[
-              styles.heroGlowB,
-              {
-                transform: [
-                  { translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }) },
-                  { translateX: drift.interpolate({ inputRange: [0, 1], outputRange: [0, 8] }) },
-                ],
-              },
-            ]}
-            pointerEvents="none"
-          >
-            <LinearGradient
-              colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0)']}
-              style={StyleSheet.absoluteFill}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            />
-          </Animated.View>
-          <LinearGradient
-            colors={['rgba(255,255,255,0.14)', 'rgba(255,255,255,0)']}
-            style={styles.heroSheen}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            pointerEvents="none"
-          />
+        <View style={[styles.hero, { paddingTop: insets.top + 6 }]}>
           <View style={styles.heroTopRow}>
             <Pressable
-              style={({ pressed }) => [styles.backBtn, pressed && styles.pressedSm]}
+              style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
               onPress={() => safeGoBack(customerRoutes.services)}
               hitSlop={10}
               accessibilityRole="button"
               accessibilityLabel="Go back"
             >
-              <PremiumIcon icon={AppIcons.ui.chevronLeft} variant="plain" size={20} color={colors.white} strokeWidth={2.2} />
+              <ArrowLeft size={22} color={ui.text} strokeWidth={2.1} />
             </Pressable>
-            <Text style={styles.heroTitle} numberOfLines={2}>
-              {service.name}
-            </Text>
           </View>
-
-          <View style={styles.heroMetaRow}>
-            <View style={styles.heroIcon}>
-              <ServiceIcon iconKey={service.iconKey} size={30} color={colors.white} />
+          <ServiceThumb
+            service={service}
+            width={windowWidth - 40}
+            height={196}
+            radius={22}
+            iconSize={92}
+          />
+          <Text style={styles.heroTitle}>{service.name}</Text>
+          {socialProof ? (
+            <View style={styles.ratingRow}>
+              <Star size={14} color={ui.star} fill={ui.star} strokeWidth={1.5} />
+              <Text style={styles.rating}>{socialProof}</Text>
             </View>
-            <View style={styles.heroText}>
-              {socialProof ? (
-                <View style={styles.ratingRow}>
-                  <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={12} color={colors.white} fill={colors.white} />
-                  <Text style={styles.rating}>{socialProof}</Text>
-                </View>
-              ) : null}
-              <View style={styles.priceRow}>
-                <Text style={styles.heroPrice}>₹{service.basePrice}</Text>
-                <Text style={styles.priceHint}>starting · per visit</Text>
-              </View>
-            </View>
-          </View>
-        </LinearGradient>
-
-        <View style={styles.tagsRow}>
-          <View style={[styles.tag, styles.tagMint]}>
-            <PremiumIcon icon={AppIcons.ui.leaf} variant="plain" size={12} color={colors.forestMid} strokeWidth={2.2} />
-            <Text style={[styles.tagText, { color: colors.forestMid }]}>ECO-SAFE</Text>
-          </View>
-          <View style={[styles.tag, styles.tagPlain]}>
-            <PremiumIcon icon={AppIcons.ui.clock} variant="plain" size={12} color="#5C8A63" strokeWidth={2.2} />
-            <Text style={[styles.tagText, { color: '#5C8A63' }]}>{durationLabel.toUpperCase()}</Text>
-          </View>
-          <View style={[styles.tag, styles.tagPlain]}>
-            <PremiumIcon icon={AppIcons.ui.camera} variant="plain" size={12} color="#5C8A63" strokeWidth={2.2} />
-            <Text style={[styles.tagText, { color: '#5C8A63' }]}>PHOTO VERIFIED</Text>
+          ) : null}
+          <View style={styles.priceRow}>
+            <Text style={styles.heroPrice}>₹{service.basePrice}</Text>
+            <Text style={styles.priceHint}>starting · per visit</Text>
           </View>
         </View>
 
-        {service.serviceTypes?.length ? (
-          <View style={styles.typeBadges}>
-            <ServiceTypeBadges types={service.serviceTypes} />
-          </View>
-        ) : null}
+        <View style={styles.highlights}>
+          {[
+            { icon: AppIcons.ui.leaf, title: 'Eco-safe', sub: 'Kid & pet friendly' },
+            { icon: AppIcons.ui.clock, title: durationLabel, sub: 'Visit duration' },
+            { icon: AppIcons.ui.camera, title: 'Photo proof', sub: 'Every step' },
+          ].map((h, i) => (
+            <View key={h.sub} style={[styles.highlight, i > 0 && styles.highlightBorder]}>
+              <PremiumIcon icon={h.icon} variant="plain" size={18} color={ui.brand} strokeWidth={2.1} />
+              <Text style={styles.highlightTitle} numberOfLines={1}>
+                {h.title}
+              </Text>
+              <Text style={styles.highlightSub} numberOfLines={1}>
+                {h.sub}
+              </Text>
+            </View>
+          ))}
+        </View>
 
         <View style={styles.section}>
           <SectionKicker label="ABOUT THIS SERVICE" />
@@ -269,16 +197,11 @@ export default function ServiceDetailScreen() {
             <GlassPanel style={styles.stepsCard} padded={false} tone="clear" intensity={44}>
               {service.stepTemplate!.map((t, i) => (
                 <View key={t} style={[styles.stepRow, i > 0 && styles.stepRowBorder]}>
-                  <LinearGradient
-                    colors={['#F5FBF2', '#D1EEC2']}
-                    style={styles.stepNum}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
+                  <View style={styles.stepNum}>
                     <Text style={styles.stepNumText}>{String(i + 1).padStart(2, '0')}</Text>
-                  </LinearGradient>
+                  </View>
                   <Text style={styles.stepText}>{t}</Text>
-                  <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={15} color={colors.greenBright} strokeWidth={2.6} />
+                  <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={15} color={ui.brand} strokeWidth={2.6} />
                 </View>
               ))}
             </GlassPanel>
@@ -297,21 +220,16 @@ export default function ServiceDetailScreen() {
               {reviews.map((r) => (
                 <View key={r.id} style={styles.reviewCard}>
                   <View style={styles.reviewHead}>
-                    <LinearGradient
-                      colors={[colors.green, '#064D1B']}
-                      style={styles.reviewAvatar}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                    >
+                    <View style={styles.reviewAvatar}>
                       <Text style={styles.reviewInitial}>{r.customerName[0]}</Text>
-                    </LinearGradient>
+                    </View>
                     <View style={styles.reviewNameCol}>
                       <Text style={styles.reviewName}>{r.customerName}</Text>
                       <Stars count={r.stars} />
                     </View>
                   </View>
                   <Text style={styles.reviewText} numberOfLines={4}>
-                    {r.comment ?? r.tags.join(', ')}
+                    {r.comment?.trim() || (r.tags ?? []).join(', ')}
                   </Text>
                 </View>
               ))}
@@ -330,15 +248,10 @@ export default function ServiceDetailScreen() {
             style={({ pressed }) => [styles.bookBtnWrap, pressed && styles.pressed]}
             onPress={() => appPush(sharedRoutes.bookPath(service.id))}
           >
-            <LinearGradient
-              colors={[colors.green, '#064D1B']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.bookBtn}
-            >
+            <View style={styles.bookBtn}>
               <Text style={styles.bookBtnText}>Book now</Text>
-              <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={16} color={colors.white} strokeWidth={2.4} />
-            </LinearGradient>
+              <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={16} color={colors.white} strokeWidth={2.4} fill="none" />
+            </View>
           </Pressable>
         </View>
       </StickyActionBar>
@@ -347,113 +260,67 @@ export default function ServiceDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: surfaces.glassScreenBase },
+  root: { flex: 1, backgroundColor: ui.surfaceMuted },
   scroll: { flex: 1 },
   hero: {
     paddingHorizontal: 20,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-    overflow: 'hidden',
+    paddingBottom: 4,
+    backgroundColor: colors.white,
   },
-  heroGlow: {
-    position: 'absolute',
-    top: -50,
-    right: -36,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    overflow: 'hidden',
-  },
-  heroGlowB: {
-    position: 'absolute',
-    bottom: -30,
-    left: -40,
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    overflow: 'hidden',
-  },
-  heroSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 90,
-  },
-  heroTopRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  heroTopRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroTitle: {
-    flex: 1,
-    fontFamily: fonts.displayExtra,
-    fontSize: 22,
-    letterSpacing: -0.3,
-    color: colors.white,
-  },
-  heroMetaRow: { flexDirection: 'row', gap: 14, alignItems: 'center', marginTop: 18 },
-  heroIcon: {
-    width: 64,
-    height: 64,
+    width: 40,
+    height: 40,
+    marginLeft: -8,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroText: { flex: 1 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  rating: { fontFamily: fonts.bodyBold, fontSize: 12.5, color: 'rgba(255,255,255,0.92)' },
-  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 7, marginTop: 3 },
+  backBtnPressed: { backgroundColor: ui.surfaceMuted },
+  heroTitle: {
+    marginTop: 18,
+    fontFamily: fonts.displayExtra,
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: -0.6,
+    color: ui.text,
+  },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  rating: { fontFamily: fonts.bodySemi, fontSize: 13.5, color: ui.text },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 7, marginTop: 6 },
   heroPrice: {
     fontFamily: fonts.displayExtra,
-    fontSize: 30,
-    letterSpacing: -0.6,
-    color: colors.white,
+    fontSize: 22,
+    letterSpacing: -0.4,
+    color: ui.text,
   },
-  priceHint: { fontFamily: fonts.bodySemi, fontSize: 12, color: 'rgba(255,255,255,0.65)' },
-  tagsRow: {
+  priceHint: { fontFamily: fonts.body, fontSize: 13, color: ui.textSecondary },
+  highlights: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 7,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    marginHorizontal: 20,
+    marginTop: 16,
+    paddingVertical: 14,
+    borderRadius: 18,
+    backgroundColor: colors.white,
     borderWidth: 1,
+    borderColor: ui.hairline,
   },
-  tagMint: { backgroundColor: colors.soft, borderColor: '#D1EEC2' },
-  tagPlain: { backgroundColor: 'rgba(255,255,255,0.82)', borderColor: '#DBF1D1' },
-  tagText: { fontFamily: fonts.bodyBold, fontSize: 11, letterSpacing: 0.8 },
-  typeBadges: { paddingHorizontal: 20, paddingTop: 10 },
+  highlight: { flex: 1, alignItems: 'center', gap: 4, paddingHorizontal: 6 },
+  highlightBorder: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: ui.border },
+  highlightTitle: { marginTop: 2, fontFamily: fonts.bodyBold, fontSize: 13, color: ui.text },
+  highlightSub: { fontFamily: fonts.body, fontSize: 11, color: ui.textSecondary },
   section: { paddingHorizontal: 20, paddingTop: 22 },
   kickerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  kickerBar: { width: 18, height: 3, borderRadius: 2 },
   kickerText: {
     fontFamily: fonts.bodyBold,
     fontSize: 11,
-    letterSpacing: 1.6,
-    color: '#86AC80',
+    letterSpacing: 1.4,
+    color: ui.textTertiary,
   },
   about: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 13.5,
-    color: '#38623C',
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: ui.textSecondary,
     lineHeight: 22,
     marginTop: 9,
   },
@@ -464,24 +331,25 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11 },
-  stepRowBorder: { borderTopWidth: 1, borderTopColor: 'rgba(245,251,242,0.75)' },
+  stepRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ui.border },
   stepNum: {
     width: 30,
     height: 30,
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: ui.brandSoft,
   },
-  stepNumText: { fontFamily: fonts.bodyBold, fontSize: 11.5, color: colors.forestMid },
-  stepText: { flex: 1, fontFamily: fonts.bodySemi, fontSize: 13.5, color: '#1F4129' },
+  stepNumText: { fontFamily: fonts.bodyBold, fontSize: 11.5, color: ui.brand },
+  stepText: { flex: 1, fontFamily: fonts.bodySemi, fontSize: 13.5, color: ui.text },
   reviewsRail: { marginHorizontal: -20, marginTop: 11 },
   reviewsRailInner: { paddingHorizontal: 20, gap: 10, paddingBottom: 4 },
   reviewCard: {
     width: 240,
-    backgroundColor: 'rgba(255,255,255,0.48)',
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.55)',
-    borderRadius: 20,
+    borderColor: ui.border,
+    borderRadius: 16,
     padding: 14,
   },
   reviewHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -491,15 +359,16 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: ui.brand,
   },
   reviewInitial: { fontFamily: fonts.displayExtra, fontSize: 14, color: colors.white },
   reviewNameCol: { gap: 2 },
-  reviewName: { fontFamily: fonts.bodyBold, fontSize: 13, color: '#0B2213' },
+  reviewName: { fontFamily: fonts.bodyBold, fontSize: 13, color: ui.text },
   starsRow: { flexDirection: 'row', gap: 2 },
   reviewText: {
-    fontFamily: fonts.bodyMedium,
+    fontFamily: fonts.body,
     fontSize: 12.5,
-    color: '#38623C',
+    color: ui.textSecondary,
     lineHeight: 18,
     marginTop: 9,
   },
@@ -508,21 +377,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
   },
-  fromLabel: { fontFamily: fonts.bodyBold, fontSize: 9.5, letterSpacing: 1, color: '#86AC80' },
-  footerPrice: { fontFamily: fonts.displayExtra, fontSize: 22, color: colors.forestMid },
+  fromLabel: { fontFamily: fonts.bodyBold, fontSize: 9.5, letterSpacing: 1, color: ui.textTertiary },
+  footerPrice: { fontFamily: fonts.displayExtra, fontSize: 22, color: ui.text },
   bookBtnWrap: { flex: 1 },
   bookBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 9,
-    minHeight: 54,
-    borderRadius: 18,
-    shadowColor: '#064D1B',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 8,
+    minHeight: 52,
+    borderRadius: 14,
+    backgroundColor: ui.brand,
   },
   bookBtnText: { fontFamily: fonts.displayExtra, fontSize: 15, color: colors.white },
   pressed: { transform: [{ scale: 0.98 }], opacity: 0.95 },

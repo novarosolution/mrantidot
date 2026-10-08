@@ -9,7 +9,7 @@ import {
   type ServiceIconCategory,
   serviceIconLabel,
 } from '@/constants/serviceIcons';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, fonts, gradients, premium, shadows, spacing } from '@/constants/theme';
 
 export function ServiceIconPicker({
   value,
@@ -27,7 +27,7 @@ export function ServiceIconPicker({
 
   return (
     <View style={styles.wrap}>
-      <LinearGradient colors={['#14532D', '#0E3A20']} style={styles.preview} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+      <LinearGradient colors={[...gradients.premiumHero]} style={styles.preview} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
         <View style={styles.previewIcon}>
           <ServiceIcon iconKey={value} size={36} color={colors.lime} strokeWidth={2} />
         </View>

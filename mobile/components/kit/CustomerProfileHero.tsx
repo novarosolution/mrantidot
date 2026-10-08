@@ -1,12 +1,10 @@
 import type { LucideIcon } from 'lucide-react-native';
+import { Bell, ChevronRight, Mail, MapPin, Phone, Settings } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { HeroDarkSlice } from '@/components/kit/HeroDarkSlice';
-import { GlassPanel } from '@/components/kit/GlassScreenKit';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
-import { colors, fonts, headerTopPad, surfaces } from '@/constants/theme';
+import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
+import { HOME_HEADER_BOTTOM, HOME_HEADER_TOP } from '@/components/kit/HomeTopBar';
+import { colors, fonts, ui } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
 
 export type ProfileStat = {
@@ -17,7 +15,18 @@ export type ProfileStat = {
   onPress: () => void;
 };
 
-/** Profile header — same forest hero language as home. */
+function DetailLine({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
+  return (
+    <View style={styles.detailRow}>
+      <Icon size={13} color={ui.textTertiary} strokeWidth={2.1} />
+      <Text style={styles.detailText} numberOfLines={1}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
+/** Profile header — same mint header as home, identity card with contact lines and a stat strip. */
 export function CustomerProfileHero({
   name,
   initial,
@@ -42,240 +51,185 @@ export function CustomerProfileHero({
   onEdit: () => void;
   onCopy?: (label: string, value: string) => void;
 }) {
-  const insets = useSafeAreaInsets();
-  const line = [city?.trim(), phone?.trim()].filter(Boolean).join(' · ');
+  const hasDetails = Boolean(phone || email || city);
 
   return (
     <View style={styles.wrap}>
-      <HeroDarkSlice
-        style={styles.heroShell}
-        contentStyle={[styles.heroContent, { paddingTop: headerTopPad(insets.top) }]}
-        sliceHeight={22}
-        sliceColor={surfaces.glassScreenBase}
-      >
-        <View style={styles.topRow}>
-          <Text style={styles.title}>Profile</Text>
-          <View style={styles.actions}>
-            <Pressable
-              style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-              onPress={() => appPush(customerRoutes.notifications)}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Notifications"
-            >
-              <PremiumIcon
-                icon={AppIcons.ui.bell}
-                variant="plain"
-                size={18}
-                color={colors.white}
-                strokeWidth={2}
-                fill="rgba(255,255,255,0.22)"
-              />
-              {unread > 0 ? <View style={styles.badge} /> : null}
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-              onPress={onEdit}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Settings"
-            >
-              <PremiumIcon
-                icon={AppIcons.ui.settings}
-                variant="plain"
-                size={18}
-                color={colors.white}
-                strokeWidth={2}
-              />
-            </Pressable>
-          </View>
-        </View>
+      <FocusStatusBar style="dark" />
+      <LinearGradient
+        colors={[HOME_HEADER_TOP, HOME_HEADER_BOTTOM]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
 
-        <Pressable style={({ pressed }) => [styles.identity, pressed && styles.pressed]} onPress={onEdit}>
-          <View style={styles.avatarShell}>
+      <View style={styles.topRow}>
+        <Text style={styles.title}>Profile</Text>
+        <Pressable
+          style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+          onPress={() => appPush(customerRoutes.notifications)}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
+        >
+          <Bell size={20} color={ui.text} strokeWidth={2} />
+          {unread > 0 ? (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{unread > 9 ? '9+' : unread}</Text>
+            </View>
+          ) : null}
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+          onPress={() => appPush(customerRoutes.settings)}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+        >
+          <Settings size={20} color={ui.text} strokeWidth={2} />
+        </Pressable>
+      </View>
+
+      <View style={styles.card}>
+        <Pressable
+          style={({ pressed }) => [styles.identity, pressed && styles.identityPressed]}
+          onPress={onEdit}
+          accessibilityRole="button"
+          accessibilityLabel={`${name}. Edit profile`}
+        >
+          <View style={styles.avatarRing}>
             <LinearGradient
-              colors={['#E8F9D4', colors.limeBright]}
-              style={StyleSheet.absoluteFill}
-              start={{ x: 0.2, y: 0 }}
-              end={{ x: 0.9, y: 1 }}
-            />
-            <Text style={styles.avatarText}>{initial}</Text>
+              colors={[colors.forestMid, colors.forest]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.avatar}
+            >
+              <Text style={styles.avatarText}>{initial}</Text>
+            </LinearGradient>
           </View>
           <View style={styles.identityBody}>
             <Text style={styles.name} numberOfLines={1}>
               {name}
             </Text>
-            {line ? (
-              <Text style={styles.meta} numberOfLines={1}>
-                {line}
-              </Text>
-            ) : email ? (
-              <Text style={styles.meta} numberOfLines={1}>
-                {email}
-              </Text>
+            {hasDetails ? (
+              <View style={styles.details}>
+                {phone ? <DetailLine icon={Phone} text={phone} /> : null}
+                {email ? <DetailLine icon={Mail} text={email} /> : null}
+                {city ? <DetailLine icon={MapPin} text={city} /> : null}
+              </View>
             ) : (
-              <Text style={styles.metaHint}>Add your details</Text>
+              <Text style={styles.addDetails}>Add your phone and email</Text>
             )}
           </View>
-          <View style={styles.editChip}>
-            <Text style={styles.editChipText}>Edit</Text>
-          </View>
+          <ChevronRight size={20} color={ui.textTertiary} strokeWidth={2.2} />
         </Pressable>
-      </HeroDarkSlice>
 
-      {stats && stats.length > 0 ? (
-        <View style={styles.statsOuter}>
-          <GlassPanel style={styles.statsCard} padded={false} tone="light" goldEdge>
-            <View style={styles.statsRow}>
-              {stats.map((s, i) => (
+        {stats && stats.length > 0 ? (
+          <View style={styles.statsRow}>
+            {stats.map((s, i) => {
+              const Icon = s.icon;
+              return (
                 <Pressable
                   key={s.label}
-                  style={({ pressed }) => [styles.stat, i > 0 && styles.statBorder, pressed && styles.pressed]}
+                  style={({ pressed }) => [styles.stat, i > 0 && styles.statBorder, pressed && styles.statPressed]}
                   onPress={s.onPress}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${s.value} ${s.label}`}
                 >
-                  <PremiumIcon icon={s.icon} variant="mint" size={14} color={colors.forest} boxSize={28} />
-                  <Text style={styles.statVal}>{s.value}</Text>
-                  <Text style={styles.statLb}>{s.label}</Text>
+                  <View style={styles.statTop}>
+                    <Icon size={15} color={ui.brand} strokeWidth={2.2} />
+                    <Text style={styles.statVal}>{s.value}</Text>
+                  </View>
+                  <Text style={styles.statLb} numberOfLines={1}>
+                    {s.label}
+                  </Text>
                 </Pressable>
-              ))}
-            </View>
-          </GlassPanel>
-        </View>
-      ) : null}
+              );
+            })}
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: 4 },
-  heroShell: {
-    overflow: 'hidden',
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  heroContent: {
-    paddingHorizontal: 22,
-    paddingBottom: 36,
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 22,
-  },
+  wrap: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 18, overflow: 'hidden' },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
   title: {
+    flex: 1,
     fontFamily: fonts.displayExtra,
-    fontSize: 28,
-    letterSpacing: -0.9,
-    color: colors.white,
+    fontSize: 26,
+    lineHeight: 32,
+    letterSpacing: -0.7,
+    color: ui.text,
   },
-  actions: { flexDirection: 'row', gap: 8 },
   iconBtn: {
     width: 42,
     height: 42,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 21,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: ui.border,
+    backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
   },
   badge: {
     position: 'absolute',
-    top: 9,
-    right: 9,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#C8F07A',
-    borderWidth: 1.5,
-    borderColor: colors.forest,
-  },
-  pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
-
-  identity: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  avatarShell: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
-    overflow: 'hidden',
+    top: -3,
+    right: -3,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    backgroundColor: colors.error,
+    borderWidth: 2,
+    borderColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.45)',
   },
-  avatarText: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 24,
-    color: colors.forest,
-    letterSpacing: -0.4,
-  },
-  identityBody: { flex: 1, minWidth: 0, gap: 4 },
-  name: {
-    fontFamily: fonts.displaySemi,
-    fontSize: 20,
-    letterSpacing: -0.35,
-    color: colors.white,
-  },
-  meta: {
-    fontFamily: fonts.body,
-    fontSize: 13.5,
-    color: 'rgba(255,255,255,0.78)',
-  },
-  metaHint: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 13.5,
-    color: 'rgba(200,240,122,0.9)',
-  },
-  editChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-  },
-  editChipText: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 12,
-    color: colors.white,
-  },
+  badgeText: { fontFamily: fonts.bodyBold, fontSize: 9.5, color: colors.white },
+  pressed: { opacity: 0.75 },
 
-  statsOuter: {
-    marginTop: -22,
-    paddingHorizontal: 20,
-    zIndex: 2,
-  },
-  statsCard: {
+  card: {
     borderRadius: 22,
+    backgroundColor: colors.white,
+    ...ui.shadow,
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
   },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },
+  identityPressed: { opacity: 0.85 },
+  avatarRing: {
+    padding: 3,
+    borderRadius: 36,
+    backgroundColor: ui.brandSoft,
+  },
+  avatar: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontFamily: fonts.displayExtra, fontSize: 24, color: colors.white },
+  identityBody: { flex: 1, minWidth: 0 },
+  name: {
+    fontFamily: fonts.displayExtra,
+    fontSize: 19,
+    lineHeight: 24,
+    letterSpacing: -0.4,
+    color: ui.text,
+  },
+  details: { marginTop: 5, gap: 3 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  detailText: { flexShrink: 1, fontFamily: fonts.bodyMedium, fontSize: 13, color: ui.textSecondary },
+  addDetails: { marginTop: 4, fontFamily: fonts.bodySemi, fontSize: 13, color: ui.brand },
+
   statsRow: {
     flexDirection: 'row',
-    paddingVertical: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: ui.border,
   },
-  stat: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 6,
-  },
-  statBorder: {
-    borderLeftWidth: StyleSheet.hairlineWidth,
-    borderLeftColor: 'rgba(10,100,35,0.12)',
-  },
-  statVal: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 20,
-    letterSpacing: -0.5,
-    color: colors.forest,
-  },
-  statLb: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 12,
-    color: colors.muted,
-  },
+  stat: { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 3 },
+  statBorder: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: ui.border },
+  statPressed: { backgroundColor: ui.surfaceMuted },
+  statTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  statVal: { fontFamily: fonts.displayExtra, fontSize: 19, letterSpacing: -0.4, color: ui.text },
+  statLb: { fontFamily: fonts.bodyMedium, fontSize: 12, color: ui.textSecondary },
 });

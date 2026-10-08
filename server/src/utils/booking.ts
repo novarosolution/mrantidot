@@ -5,12 +5,13 @@ import { User } from '../models/User';
 import { AppError } from './AppError';
 import { couponValue } from './coupons';
 
+/** Coupon comes off the service price first; 18% GST is charged on the discounted amount. */
 export async function computeAmount(basePrice: number, couponCode?: string) {
   const base = basePrice;
-  const gst = Math.round(base * 0.18);
-  const orderAmount = base + gst;
-  const coupon = await couponValue(couponCode, orderAmount);
-  const total = Math.max(0, orderAmount - coupon);
+  const coupon = Math.min(base, await couponValue(couponCode, base));
+  const taxable = base - coupon;
+  const gst = Math.round(taxable * 0.18);
+  const total = taxable + gst;
   return { base, gst, coupon, total };
 }
 

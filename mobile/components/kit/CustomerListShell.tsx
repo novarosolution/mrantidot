@@ -3,9 +3,10 @@ import { StyleSheet, View, type RefreshControlProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomerPageHeader } from './CustomerPageHeader';
 import { UserAccountCard } from './UserAccountCard';
-import { GlassBackdrop, TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
-import { surfaces, spacing } from '@/constants/theme';
+import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
+import { spacing, ui } from '@/constants/theme';
 
+/** Premium list shell — white header on soft muted canvas (used by offers, addresses, help…). */
 export function CustomerListShell({
   title,
   subtitle,
@@ -29,7 +30,6 @@ export function CustomerListShell({
 }) {
   return (
     <View style={styles.root}>
-      <GlassBackdrop />
       <SafeAreaView style={styles.safe} edges={['left', 'right']}>
         <CustomerPageHeader
           title={title}
@@ -54,9 +54,9 @@ export const listShellStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  root: { flex: 1, overflow: 'hidden', backgroundColor: surfaces.glassScreenBase },
+  root: { flex: 1, overflow: 'hidden', backgroundColor: ui.surfaceMuted },
   safe: { flex: 1, backgroundColor: 'transparent', overflow: 'hidden' },
-  body: { flex: 1, overflow: 'hidden' },
+  body: { flex: 1, overflow: 'hidden', backgroundColor: ui.surfaceMuted },
 });
 
 export type { RefreshControlProps };

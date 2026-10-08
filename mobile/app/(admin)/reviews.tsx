@@ -166,8 +166,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.82)',
     borderWidth: 1,
     borderColor: 'rgba(226,240,216,0.95)',
-    borderTopWidth: 3,
-    borderTopColor: colors.limeBright,
     ...shadows.card,
   },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

@@ -201,7 +201,7 @@ api.interceptors.response.use(
   async (error: AxiosError<ApiErrorBody>) => {
     const url = requestUrl(error);
     if (__DEV__) {
-      console.error('[api←ERR]', {
+      console.warn('[api←ERR]', {
         code: error.code,
         message: error.message,
         stack: error.stack,

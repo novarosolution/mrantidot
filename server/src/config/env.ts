@@ -21,7 +21,11 @@ ensureProductionJwt();
 const mongoUri = process.env.MONGO_URI?.trim() ?? 'mongodb://127.0.0.1:27017/mrantidot';
 const isProduction = process.env.NODE_ENV === 'production';
 
-if (!isProduction) {
+const usesEmbeddedDb =
+  ['1', 'true', 'yes'].includes(process.env.USE_MEMORY_MONGO?.trim().toLowerCase() ?? '') ||
+  ['memory', 'mongodb-memory'].includes(mongoUri.toLowerCase());
+
+if (!isProduction && !usesEmbeddedDb) {
   try {
     assertValidMongoUri(mongoUri);
   } catch (err) {

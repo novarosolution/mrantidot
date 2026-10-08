@@ -1,10 +1,10 @@
 import type { Service, ServiceStats, User } from '@/types/api';
 
-/** Rating customers see on service cards (admin-editable on the service). */
+/** Rating customers see on service cards — real value, or 5★ when none set. */
 export function serviceDisplayRating(service: Pick<Service, 'rating'>): number {
   const n = service.rating;
-  if (n == null || Number.isNaN(n) || n <= 0) return 0;
-  return Math.round(n * 10) / 10;
+  if (n == null || Number.isNaN(n) || n <= 0) return 5;
+  return Math.min(5, Math.round(n * 10) / 10);
 }
 
 /** Real average from customer reviews — admin dashboards only. */
@@ -15,15 +15,15 @@ export function serviceRealRating(stats?: ServiceStats | null): number | null {
   return Math.round(n * 10) / 10;
 }
 
-/** Rating customers see for a technician. */
+/** Rating customers see for a technician — real value, or 5★ when none set. */
 export function technicianDisplayRating(user: Pick<User, 'displayRating' | 'rating'>): number {
   const display = user.displayRating;
   if (display != null && !Number.isNaN(display) && display > 0) {
-    return Math.round(display * 10) / 10;
+    return Math.min(5, Math.round(display * 10) / 10);
   }
   const real = user.rating;
-  if (real == null || Number.isNaN(real) || real <= 0) return 0;
-  return Math.round(real * 10) / 10;
+  if (real == null || Number.isNaN(real) || real <= 0) return 5;
+  return Math.min(5, Math.round(real * 10) / 10);
 }
 
 /** Real technician average from reviews (never manually edited). */

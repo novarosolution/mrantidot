@@ -91,9 +91,6 @@ export function ReportsRankList({
 
   return (
     <View style={flush ? styles.rankFlush : styles.rankCard}>
-      {flush ? null : (
-        <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.rankGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
-      )}
       {items.map((item, index) => {
         const width = `${Math.max(6, (item.value / max) * 100)}%`;
         const inner = (
@@ -154,9 +151,6 @@ export function BookingsTrendChart({
 
   return (
     <View style={flush ? styles.chartFlush : styles.chartCard}>
-      {flush ? null : (
-        <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.chartGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
-      )}
       <View style={styles.chartHead}>
         <Text style={styles.chartTitle}>{title}</Text>
         <View style={styles.chartChip}>
@@ -225,9 +219,6 @@ export function ReportsTeamCard({
 }) {
   return (
     <View style={flush ? styles.teamFlush : styles.teamCard}>
-      {flush ? null : (
-        <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.rankGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
-      )}
       <View style={styles.teamStats}>
         <View style={styles.teamStat}>
           <Text style={styles.teamStatVal}>{checkedInToday}/{totalTechnicians}</Text>
@@ -267,7 +258,6 @@ export function ReportsManageGrid({
     <View style={styles.manageGrid}>
       {items.map(({ key, icon: Icon, label, desc }) => (
         <Pressable key={key} style={({ pressed }) => [styles.manageTile, pressed && styles.pressed]} onPress={() => onPress(key)}>
-          <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.manageGold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
           <PremiumIcon icon={Icon} variant="mint" size={18} color={colors.forest} boxSize={36} />
           <Text style={styles.manageLabel}>{label}</Text>
           <Text style={styles.manageDesc} numberOfLines={2}>
@@ -349,8 +339,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
-    borderTopWidth: 3,
-    borderTopColor: colors.limeBright,
     ...adminShadow.tile,
   },
   insightTileGlass: {

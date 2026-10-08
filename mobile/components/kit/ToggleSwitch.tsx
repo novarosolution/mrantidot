@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.white,
     position: 'absolute',
-    shadowColor: '#0E3A20',
+    shadowColor: colors.forestDeep,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 3,

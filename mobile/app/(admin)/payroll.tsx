@@ -3,10 +3,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
-import { formatRupee } from '@/components/kit/format';
+import { formatDayKey, formatRupeeFull, initials, plural } from '@/components/kit/format';
 import { GlassPanel, customerScrollProps } from '@/components/kit/GlassScreenKit';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, safeAsync, screenLoadConfig } from '@/lib/api';
@@ -125,17 +123,13 @@ export default function AdminPayrollScreen() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <LinearGradient
-                colors={[colors.limeBright, colors.green]}
-                style={styles.summaryGold}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              />
               <Text style={styles.period}>
-                {from} → {to}
+                {formatDayKey(from)} – {formatDayKey(to)}
               </Text>
-              <Text style={styles.total}>{formatRupee(totalEarnings)}</Text>
-              <Text style={styles.sub}>{totalJobs} completed jobs · {monthLabel(month)}</Text>
+              <Text style={styles.total}>{formatRupeeFull(totalEarnings)}</Text>
+              <Text style={styles.sub}>
+                {plural(totalJobs, 'completed job')} · {monthLabel(month)}
+              </Text>
             </LinearGradient>
           </View>
 
@@ -150,22 +144,16 @@ export default function AdminPayrollScreen() {
               <GlassPanel goldEdge tone="light" style={styles.card}>
                 <View style={styles.rowTop}>
                   <View style={styles.avatar}>
-                    <PremiumIcon
-                      icon={AppIcons.ui.user}
-                      variant="premium"
-                      size={18}
-                      color={colors.white}
-                      boxSize={42}
-                    />
+                    <Text style={styles.avatarText}>{initials(r.name)}</Text>
                   </View>
                   <View style={styles.rowBody}>
                     <Text style={styles.name}>{r.name}</Text>
                     <Text style={styles.meta}>
-                      {r.jobsCompleted} jobs · {r.paySummary}
+                      {plural(r.jobsCompleted, 'job')} · {r.paySummary}
                       {r.disabled ? ' · Disabled' : r.available ? '' : ' · Off duty'}
                     </Text>
                   </View>
-                  <Text style={styles.earn}>{formatRupee(r.earnings)}</Text>
+                  <Text style={styles.earn}>{formatRupeeFull(r.earnings)}</Text>
                 </View>
               </GlassPanel>
             </Pressable>
@@ -177,7 +165,7 @@ export default function AdminPayrollScreen() {
 }
 
 const styles = StyleSheet.create({
-  periodBar: { paddingHorizontal: spacing.md, paddingBottom: spacing.xs },
+  periodBar: { paddingLeft: spacing.md, paddingTop: spacing.sm },
   content: { gap: 12 },
   summaryShell: {
     borderRadius: premium.radiusCard,
@@ -191,13 +179,6 @@ const styles = StyleSheet.create({
     paddingTop: 22,
     overflow: 'hidden',
   },
-  summaryGold: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-  },
   period: { fontFamily: fonts.body, fontSize: 12, color: 'rgba(255,255,255,0.8)' },
   total: {
     marginTop: 6,
@@ -210,7 +191,15 @@ const styles = StyleSheet.create({
   card: { borderRadius: premium.radiusCard },
   pressed: { opacity: 0.94, transform: [{ scale: 0.99 }] },
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  avatar: {},
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: colors.mint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { fontFamily: fonts.displayExtra, fontSize: 14, color: colors.forest },
   rowBody: { flex: 1, minWidth: 0 },
   name: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.ink },
   earn: { fontFamily: fonts.displaySemi, fontSize: 16, color: colors.forest },

@@ -3,10 +3,9 @@ import * as Clipboard from 'expo-clipboard';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { homeShadow } from '@/components/kit/homeUi';
 import { appToast } from '@/lib/toast';
 import type { Offer } from '@/types/api';
-import { colors, customerType, premium, spacing, surfaces } from '@/constants/theme';
+import { colors, customerType, premium, spacing, ui } from '@/constants/theme';
 
 function discountLabel(offer: Offer): string {
   if (offer.discountType === 'percent') return `${offer.discount}% OFF`;
@@ -55,26 +54,21 @@ export function OfferCouponCard({
       </LinearGradient>
 
       <View style={styles.rightPanel}>
-        <LinearGradient
-          colors={['rgba(255,255,255,0.92)', 'rgba(246,250,242,0.78)', 'rgba(234,246,227,0.55)']}
-          locations={[0, 0.55, 1]}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          pointerEvents="none"
-        />
         <View style={styles.rightInner}>
-          <View style={styles.top}>
-            <View style={styles.codeRow}>
-              <PremiumIcon icon={AppIcons.ui.tag} variant="mint" size={14} color={colors.forest} boxSize={28} />
-              <Text style={styles.code}>{offer.code}</Text>
-              <Pressable onPress={() => void copyCode()} hitSlop={8} style={styles.copyBtn}>
-                <PremiumIcon icon={AppIcons.ui.copy} variant="plain" size={14} color={colors.forest} strokeWidth={2.3} />
-              </Pressable>
-            </View>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>Coupon</Text>
-            </View>
+          <View style={styles.codeRow}>
+            <PremiumIcon icon={AppIcons.ui.tag} variant="mint" size={14} color={colors.forest} boxSize={28} />
+            <Text style={styles.code} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+              {offer.code}
+            </Text>
+            <Pressable
+              onPress={() => void copyCode()}
+              hitSlop={8}
+              style={styles.copyBtn}
+              accessibilityRole="button"
+              accessibilityLabel={`Copy code ${offer.code}`}
+            >
+              <PremiumIcon icon={AppIcons.ui.copy} variant="plain" size={14} color={colors.forest} strokeWidth={2.3} fill="none" />
+            </Pressable>
           </View>
 
           <Text style={styles.desc}>{offer.description}</Text>
@@ -108,7 +102,7 @@ const styles = StyleSheet.create({
   outer: {
     marginBottom: spacing.md,
     borderRadius: premium.radiusCard,
-    ...homeShadow.card,
+    ...ui.shadow,
   },
   wrap: {
     flexDirection: 'row',
@@ -116,7 +110,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.hairline,
   },
   pressed: { opacity: 0.96, transform: [{ scale: 0.995 }] },
   disabled: { opacity: 0.5 },
@@ -146,53 +140,38 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden',
     borderLeftWidth: StyleSheet.hairlineWidth,
-    borderLeftColor: surfaces.glassBorderStrong,
+    borderLeftColor: ui.hairline,
   },
   rightInner: {
     flex: 1,
     padding: spacing.md,
     paddingLeft: spacing.sm + 4,
   },
-  top: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
   codeRow: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  code: { ...customerType.offerCode, color: colors.ink },
+  /** Long codes shrink instead of pushing the copy button off the card. */
+  code: { ...customerType.offerCode, color: ui.text, flexShrink: 1 },
   copyBtn: {
     width: 28,
     height: 28,
     borderRadius: 9,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: colors.soft,
-    borderWidth: 1,
-    borderColor: 'rgba(143,208,60,0.5)',
-  },
-  badgeText: { ...customerType.pillLabel, color: colors.forest },
   desc: {
     ...customerType.offerDesc,
     marginTop: spacing.sm,
-    color: colors.ink,
+    color: ui.textSecondary,
   },
   metaRow: { marginTop: spacing.sm, gap: 4 },
   expiryRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  meta: { ...customerType.listMetaMuted, color: colors.muted },
+  meta: { ...customerType.listMetaMuted, color: ui.textTertiary },
   ctaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -200,16 +179,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: surfaces.glassBorderStrong,
+    borderTopColor: ui.border,
   },
-  cta: { ...customerType.sectionLink, fontSize: 13, color: colors.forest },
+  cta: { ...customerType.sectionLink, fontSize: 13, color: ui.brand },
   ctaIcon: {
     width: 28,
     height: 28,
     borderRadius: 999,
-    backgroundColor: colors.white,
+    backgroundColor: ui.brandSoft,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.border,
     alignItems: 'center',
     justifyContent: 'center',
   },

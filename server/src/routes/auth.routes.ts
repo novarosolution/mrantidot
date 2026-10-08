@@ -235,6 +235,9 @@ authRouter.post(
       });
     }
 
+    if (user.role !== 'customer') {
+      throw new AppError(403, 'Staff accounts must sign in with password');
+    }
     if (user.disabled === true) {
       throw new AppError(403, 'This account has been disabled. Contact support.');
     }

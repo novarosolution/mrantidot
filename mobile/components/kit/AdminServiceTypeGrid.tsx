@@ -1,5 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { PestImage } from '@/components/kit/ServiceThumb';
 import { AppIcons } from '@/constants/appIcons';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SERVICE_TYPE_KEYS, type ServiceTypeKey } from '@/constants/serviceTypes';
@@ -52,7 +53,6 @@ export function AdminServiceTypeGrid({
       <View style={styles.grid}>
         {SERVICE_TYPE_KEYS.map((key) => {
           const meta = SERVICE_TYPE_META[key];
-          const Icon = meta.icon;
           const count = countForType(services, key);
           return (
             <Pressable
@@ -61,7 +61,7 @@ export function AdminServiceTypeGrid({
               onPress={() => onSelectType(key)}
             >
               <View style={[styles.typeIcon, { backgroundColor: meta.bg }]}>
-                <Icon size={22} color={meta.color} strokeWidth={2.2} />
+                <PestImage source={meta.image} size={28} />
               </View>
               <Text style={styles.typeLabel} numberOfLines={2}>
                 {meta.label}

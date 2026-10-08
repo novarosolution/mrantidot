@@ -1,4 +1,5 @@
-import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { callPhone } from '@/lib/contact';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { homeShadow } from '@/components/kit/homeUi';
@@ -19,6 +20,7 @@ import { useBookingCopy } from '@/lib/schedule-copy';
 import { mediaUrl } from '@/lib/images';
 import { propertyTypeLabel } from '@/constants/propertyTypes';
 import type { Booking, User } from '@/types/api';
+import { formatRupeeFull } from '@/components/kit/format';
 import { colors, fonts, premium, spacing, typography } from '@/constants/theme';
 
 export function BookingFactsCard({
@@ -31,6 +33,7 @@ export function BookingFactsCard({
   embedded,
   audience = 'staff',
   onCallPhone,
+  hideSchedule,
 }: {
   booking: Booking;
   showCustomer?: boolean;
@@ -43,6 +46,8 @@ export function BookingFactsCard({
   embedded?: boolean;
   audience?: 'customer' | 'staff' | 'technician';
   onCallPhone?: (phone: string) => void;
+  /** Skip the "When" row — use when a status card above already shows the visit time. */
+  hideSchedule?: boolean;
 }) {
   const bookingCopy = useBookingCopy();
   const forCustomer = audience === 'customer';
@@ -89,22 +94,24 @@ export function BookingFactsCard({
               <Text style={styles.ref}>{bookingRef(booking.id)}</Text>
             </View>
             {booking.amount?.total ? (
-              <Text style={styles.price}>₹{booking.amount.total}</Text>
+              <Text style={styles.price}>{formatRupeeFull(booking.amount.total)}</Text>
             ) : null}
           </View>
           <View style={styles.divider} />
         </>
       ) : null}
 
-      <FactRow
-        label={bookingCopy.factLabelWhen}
-        value={bookingScheduleDisplay(booking)}
-        subtitle={
-          audience !== 'customer' && isSchedulePending(booking)
-            ? bookingCopy.pendingFactsSubtitle
-            : undefined
-        }
-      />
+      {!hideSchedule ? (
+        <FactRow
+          label={bookingCopy.factLabelWhen}
+          value={bookingScheduleDisplay(booking)}
+          subtitle={
+            audience !== 'customer' && isSchedulePending(booking)
+              ? bookingCopy.pendingFactsSubtitle
+              : undefined
+          }
+        />
+      ) : null}
       {booking.propertyType || booking.propertyTypeLabel ? (
         <FactRow
           label={bookingCopy.factLabelProperty}
@@ -116,16 +123,16 @@ export function BookingFactsCard({
 
       {person && personName && personLabel ? (
         <View style={styles.personRow}>
-          <View style={styles.flex}>
-            <Text style={styles.factLabel}>{personLabel}</Text>
-            <Text style={styles.factValue}>{personName}</Text>
-          </View>
+          <Text style={styles.factLabel}>{personLabel}</Text>
+          <Text style={[styles.factValue, styles.factValueRight, styles.flex]} numberOfLines={1}>
+            {personName}
+          </Text>
           {person.phone ? (
             <Pressable
               style={styles.callBtn}
               onPress={() => {
                 if (onCallPhone) onCallPhone(person.phone!);
-                else void Linking.openURL(`tel:${person.phone}`);
+                else callPhone(person.phone!);
               }}
             >
               <PremiumIcon icon={AppIcons.ui.phone} variant="plain" size={16} color={colors.forest} />
@@ -179,8 +186,10 @@ function FactRow({ label, value, subtitle }: { label: string; value: string; sub
   return (
     <View style={styles.fact}>
       <Text style={styles.factLabel}>{label}</Text>
-      <Text style={styles.factValue}>{value}</Text>
-      {subtitle ? <Text style={styles.factSubtitle}>{subtitle}</Text> : null}
+      <View style={styles.factRight}>
+        <Text style={[styles.factValue, styles.factValueRight]}>{value}</Text>
+        {subtitle ? <Text style={[styles.factSubtitle, styles.factValueRight]}>{subtitle}</Text> : null}
+      </View>
     </View>
   );
 }
@@ -202,11 +211,13 @@ const styles = StyleSheet.create({
   ref: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
   price: { ...typography.price, fontSize: 17, color: colors.forest },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
-  fact: { marginTop: 8 },
-  factLabel: { ...typography.overline, textTransform: 'none', letterSpacing: 0.3, color: colors.muted },
-  factValue: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink, marginTop: 4 },
+  fact: { flexDirection: 'row', alignItems: 'flex-start', gap: 16, paddingVertical: 8 },
+  factRight: { flex: 1, minWidth: 0 },
+  factValueRight: { textAlign: 'right', marginTop: 0 },
+  factLabel: { fontFamily: fonts.body, fontSize: 13, color: colors.muted },
+  factValue: { fontFamily: fonts.bodySemi, fontSize: 13.5, color: colors.ink, marginTop: 4 },
   factSubtitle: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
-  personRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  personRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
   callBtn: {
     width: 38,
     height: 38,

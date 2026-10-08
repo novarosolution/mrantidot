@@ -63,8 +63,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: '#E2F0D8',
-    borderTopWidth: 3,
-    borderTopColor: colors.limeBright,
     gap: 8,
     alignItems: 'center',
     ...premium.shadowSoft,
@@ -72,7 +70,6 @@ const styles = StyleSheet.create({
   chipGlass: {
     backgroundColor: 'rgba(255,255,255,0.55)',
     borderColor: surfaces.glassBorderStrong,
-    borderTopColor: colors.limeBright,
   },
   pressed: { opacity: 0.85 },
   value: { fontFamily: fonts.displayExtra, fontSize: 18, color: colors.forest, textAlign: 'center' },

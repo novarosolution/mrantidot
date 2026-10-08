@@ -1,10 +1,9 @@
 import { Platform, StyleSheet, type TextInputProps } from 'react-native';
-import { fonts } from '@/constants/theme';
+import { fonts, ui } from '@/constants/theme';
 
 /** iOS needs 16px+ to avoid zoom; keep system font on iOS TextInput for reliable typing. */
 export const TEXT_INPUT_FONT_SIZE = 16;
 
-const INK = '#13211A';
 const FIELD_MIN_HEIGHT = 56;
 
 const inputFont =
@@ -25,14 +24,14 @@ export const textInputStyles = StyleSheet.create({
   base: {
     fontSize: TEXT_INPUT_FONT_SIZE,
     lineHeight: 22,
-    color: INK,
+    color: ui.text,
     paddingVertical: Platform.OS === 'ios' ? 14 : 10,
     ...inputFont,
   },
   padded: {
     fontSize: TEXT_INPUT_FONT_SIZE,
     lineHeight: 22,
-    color: INK,
+    color: ui.text,
     paddingHorizontal: 16,
     paddingVertical: Platform.OS === 'ios' ? 14 : 10,
     minHeight: FIELD_MIN_HEIGHT - 2,
@@ -42,7 +41,7 @@ export const textInputStyles = StyleSheet.create({
     flex: 1,
     fontSize: TEXT_INPUT_FONT_SIZE,
     lineHeight: 22,
-    color: INK,
+    color: ui.text,
     paddingVertical: Platform.OS === 'ios' ? 14 : 10,
     minHeight: FIELD_MIN_HEIGHT - 4,
     ...inputFont,

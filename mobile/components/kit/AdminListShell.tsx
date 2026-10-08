@@ -6,8 +6,7 @@ import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { AdminLightHeader } from './AdminLightHeader';
 import { GlassBackdrop, TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
-import { adminType, colors, spacing, surfaces } from '@/constants/theme';
-import { adminShadow } from '@/components/kit/homeUi';
+import { adminType, colors, spacing, surfaces, ui } from '@/constants/theme';
 
 /** Bottom padding when a sticky save bar sits above the tab bar. */
 export const ADMIN_STICKY_FOOTER_PAD = 108;
@@ -149,11 +148,11 @@ export const adminStyles = StyleSheet.create({
   sectionTextCol: { flex: 1, minWidth: 0 },
   sectionTitle: {
     ...adminType.sectionTitle,
-    color: colors.ink,
+    color: ui.text,
   },
   sectionHint: {
     ...adminType.sectionHint,
-    color: colors.muted,
+    color: ui.textSecondary,
   },
   sectionAction: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionLink: { ...adminType.sectionLink },
@@ -161,12 +160,11 @@ export const adminStyles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: colors.white,
+    backgroundColor: ui.brandSoft,
     borderWidth: 1,
-    borderColor: 'rgba(180,220,165,0.95)',
+    borderColor: ui.border,
     alignItems: 'center',
     justifyContent: 'center',
-    ...adminShadow.soft,
   },
   summaryRow: {
     flexDirection: 'row',

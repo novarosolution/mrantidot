@@ -7,7 +7,8 @@ import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { Button } from '@/components/ui/Button';
 import { AppIcons } from '@/constants/appIcons';
 import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
-import { colors, fonts, premium, shadows, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, premium, shadows, spacing, surfaces, ui } from '@/constants/theme';
+import { formatScheduleLabel } from '@/lib/dates';
 import type { BookingInvoice } from '@/types/api';
 
 function rupee(n: number): string {
@@ -18,11 +19,17 @@ export function BookingInvoiceCard({
   bookingId,
   compact,
   autoLoad = true,
+  summaryOnly,
 }: {
   bookingId: string;
   compact?: boolean;
   /** Prefetch invoice preview on mount. */
   autoLoad?: boolean;
+  /**
+   * Compact receipt row (number, amount, download / copy / share) — for screens that already
+   * show the service, visit and charges, so the invoice doesn't repeat them.
+   */
+  summaryOnly?: boolean;
 }) {
   const [invoice, setInvoice] = useState<BookingInvoice | null>(null);
   const [loading, setLoading] = useState(false);
@@ -107,6 +114,19 @@ export function BookingInvoiceCard({
     }
   }
 
+  const isPaid = invoice?.booking.status === 'completed';
+  const totalLabel = isPaid ? 'Total paid' : 'Amount due';
+  const scheduleLabel = invoice
+    ? formatScheduleLabel(
+        {
+          date: invoice.booking.scheduleDate,
+          slot: invoice.booking.scheduleSlot,
+          time: invoice.booking.scheduleTime,
+        },
+        invoice.booking.scheduleTime ? 'custom' : 'standard',
+      )
+    : '';
+
   const enterStyle = {
     opacity: enter,
     transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
@@ -118,6 +138,53 @@ export function BookingInvoiceCard({
       { rotate: '18deg' },
     ],
   };
+
+  if (summaryOnly) {
+    return (
+      <Animated.View style={[styles.summary, enterStyle]}>
+        <View style={styles.summaryTop}>
+          <View style={styles.summaryIcon}>
+            <PremiumIcon icon={AppIcons.ui.terms} variant="plain" size={20} color={colors.forest} strokeWidth={2} fill="none" />
+          </View>
+          <View style={styles.summaryText}>
+            <Text style={styles.summaryTitle}>Tax invoice</Text>
+            <Text style={styles.summaryMeta} numberOfLines={1}>
+              {invoice
+                ? `${invoice.invoiceNumber} · ${totalLabel} ${rupee(invoice.amount.total)}`
+                : loading
+                  ? 'Preparing invoice…'
+                  : 'Itemised receipt for this visit'}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.summaryActions}>
+          <Pressable
+            style={({ pressed }) => [styles.summaryPrimary, pressed && styles.pressed]}
+            onPress={() => void downloadInvoice()}
+            disabled={busy === 'share' || loading}
+            accessibilityRole="button"
+            accessibilityLabel={invoice ? 'Download invoice' : 'Generate invoice'}
+          >
+            <PremiumIcon icon={AppIcons.ui.download} variant="plain" size={15} color={colors.forest} strokeWidth={2.3} fill="none" />
+            <Text style={styles.summaryPrimaryText}>
+              {busy === 'share' ? 'Opening…' : invoice ? 'Download' : 'Generate'}
+            </Text>
+          </Pressable>
+          {invoice ? (
+            <Pressable
+              style={({ pressed }) => [styles.summaryIconBtn, pressed && styles.pressed]}
+              onPress={() => void copyInvoice()}
+              disabled={busy === 'copy'}
+              accessibilityRole="button"
+              accessibilityLabel="Copy invoice"
+            >
+              <PremiumIcon icon={AppIcons.ui.copy} variant="plain" size={16} color={colors.ink} strokeWidth={2.1} fill="none" />
+            </Pressable>
+          ) : null}
+        </View>
+      </Animated.View>
+    );
+  }
 
   return (
     <Animated.View style={[styles.shell, compact && styles.shellCompact, enterStyle]}>
@@ -153,7 +220,7 @@ export function BookingInvoiceCard({
 
         {invoice ? (
           <View style={styles.amountPill}>
-            <Text style={styles.amountLabel}>AMOUNT DUE</Text>
+            <Text style={styles.amountLabel}>{totalLabel.toUpperCase()}</Text>
             <Text style={styles.amountValue}>{rupee(invoice.amount.total)}</Text>
           </View>
         ) : (
@@ -189,7 +256,7 @@ export function BookingInvoiceCard({
             ) : null}
 
             <View style={styles.facts}>
-              <Fact icon={AppIcons.ui.calendar} label="Visit" value={invoice.booking.scheduleLabel} />
+              <Fact icon={AppIcons.ui.calendar} label="Visit" value={scheduleLabel || invoice.booking.scheduleLabel} />
               {invoice.booking.propertyTypeLabel ? (
                 <Fact icon={AppIcons.ui.mapPinned} label="Property" value={invoice.booking.propertyTypeLabel} />
               ) : null}
@@ -203,12 +270,12 @@ export function BookingInvoiceCard({
               <View style={styles.chargeTopRule} />
               <Text style={styles.chargeHeading}>Charges</Text>
               <ChargeRow label="Service" value={rupee(invoice.amount.base)} />
-              <ChargeRow label="GST" value={rupee(invoice.amount.gst)} />
               {invoice.amount.coupon > 0 ? (
                 <ChargeRow label="Coupon" value={`−${rupee(invoice.amount.coupon)}`} accent />
               ) : null}
+              <ChargeRow label="GST (18%)" value={rupee(invoice.amount.gst)} />
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Total paid</Text>
+                <Text style={styles.totalLabel}>{totalLabel}</Text>
                 <Text style={styles.totalValue}>{rupee(invoice.amount.total)}</Text>
               </View>
             </View>
@@ -335,6 +402,51 @@ function ChargeRow({ label, value, accent }: { label: string; value: string; acc
 }
 
 const styles = StyleSheet.create({
+  summary: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
+    gap: 14,
+  },
+  summaryTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  summaryIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: ui.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryText: { flex: 1, minWidth: 0 },
+  summaryTitle: { fontFamily: fonts.display, fontSize: 15.5, color: ui.text },
+  summaryMeta: { marginTop: 2, fontFamily: fonts.bodyMedium, fontSize: 12.5, color: ui.textSecondary },
+  summaryActions: { flexDirection: 'row', gap: 10 },
+  summaryPrimary: {
+    flex: 1,
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: ui.border,
+    backgroundColor: colors.white,
+  },
+  summaryPrimaryText: { fontFamily: fonts.bodyBold, fontSize: 14, color: ui.brand },
+  summaryIconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: ui.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   shell: {
     marginHorizontal: spacing.md,
     marginBottom: spacing.md,

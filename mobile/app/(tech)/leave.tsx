@@ -18,6 +18,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { textInputDefaults } from '@/components/ui/textInputDefaults';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { localDateKey } from '@/lib/dates';
+import { formatDayKey, plural } from '@/components/kit/format';
 import { techGoBack, techRoutes } from '@/lib/routes';
 import type { LeaveRequest, LeaveStatus, LeaveType } from '@/types/api';
 import { colors, fonts, formField, premium, spacing, surfaces } from '@/constants/theme';
@@ -146,7 +147,7 @@ export default function TechLeaveScreen() {
 
   if (loading) {
     return (
-      <TechScreen header={header} edges={['left', 'right', 'top']}>
+      <TechScreen header={header}>
         <Spinner />
       </TechScreen>
     );
@@ -154,16 +155,26 @@ export default function TechLeaveScreen() {
 
   if (error && leaves.length === 0) {
     return (
-      <TechScreen header={header} edges={['left', 'right', 'top']}>
+      <TechScreen header={header}>
         <ListEmptyRetry message={error} onRetry={() => void load()} />
       </TechScreen>
     );
   }
 
   const pendingCount = leaves.filter((l) => l.status === 'pending').length;
+  const presets = [
+    { label: 'Today', from: today, to: today },
+    { label: 'Tomorrow', from: addDays(today, 1), to: addDays(today, 1) },
+    { label: '3 days', from: today, to: addDays(today, 2) },
+    { label: '1 week', from: today, to: addDays(today, 6) },
+  ];
+  const dayCount = Math.max(
+    1,
+    Math.round((new Date(`${to}T00:00:00`).getTime() - new Date(`${from}T00:00:00`).getTime()) / 86_400_000) + 1,
+  );
 
   return (
-    <TechScreen header={header} edges={['left', 'right', 'top']}>
+    <TechScreen header={header}>
       <TechScreenScroll
         contentContainerStyle={styles.content}
         refreshControl={
@@ -188,72 +199,41 @@ export default function TechLeaveScreen() {
             Admin must approve. Approved days mark attendance as leave automatically.
           </Text>
 
-          <Text style={styles.label}>From</Text>
-          <TextInput
-            {...textInputDefaults}
-            style={styles.input}
-            value={from}
-            editable={false}
-            placeholder={today}
-            accessibilityLabel={`Leave from ${from}`}
-          />
+          <Text style={styles.label}>When</Text>
           <View style={styles.quickRow}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Leave today"
-              style={styles.chip}
-              onPress={() => {
-                setFrom(today);
-                setTo(today);
-              }}
-            >
-              <Text style={styles.chipText}>Today</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Leave tomorrow"
-              style={styles.chip}
-              onPress={() => {
-                const t = addDays(today, 1);
-                setFrom(t);
-                setTo(t);
-              }}
-            >
-              <Text style={styles.chipText}>Tomorrow</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Leave for 3 days"
-              style={styles.chip}
-              onPress={() => {
-                setFrom(today);
-                setTo(addDays(today, 2));
-              }}
-            >
-              <Text style={styles.chipText}>3 days</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Leave for 1 week"
-              style={styles.chip}
-              onPress={() => {
-                setFrom(today);
-                setTo(addDays(today, 6));
-              }}
-            >
-              <Text style={styles.chipText}>1 week</Text>
-            </Pressable>
+            {presets.map((p) => {
+              const on = from === p.from && to === p.to;
+              return (
+                <Pressable
+                  key={p.label}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={`Leave ${p.label}`}
+                  style={[styles.chip, on && styles.chipOn]}
+                  onPress={() => {
+                    setFrom(p.from);
+                    setTo(p.to);
+                  }}
+                >
+                  <Text style={[styles.chipText, on && styles.chipTextOn]}>{p.label}</Text>
+                </Pressable>
+              );
+            })}
           </View>
 
-          <Text style={styles.label}>To</Text>
-          <TextInput
-            {...textInputDefaults}
-            style={styles.input}
-            value={to}
-            editable={false}
-            placeholder={today}
-            accessibilityLabel={`Leave until ${to}`}
-          />
+          <View style={styles.range} accessibilityLabel={`Leave from ${from} to ${to}`}>
+            <View style={styles.rangeCell}>
+              <Text style={styles.rangeLabel}>FROM</Text>
+              <Text style={styles.rangeValue}>{formatDayKey(from)}</Text>
+            </View>
+            <View style={styles.rangeMid}>
+              <Text style={styles.rangeDays}>{plural(dayCount, 'day')}</Text>
+            </View>
+            <View style={[styles.rangeCell, styles.rangeCellEnd]}>
+              <Text style={styles.rangeLabel}>TO</Text>
+              <Text style={styles.rangeValue}>{formatDayKey(to)}</Text>
+            </View>
+          </View>
 
           <Text style={styles.label}>Type</Text>
           <View style={styles.quickRow}>
@@ -306,7 +286,7 @@ export default function TechLeaveScreen() {
                   <View style={styles.rowBody}>
                     <View style={styles.rowTop}>
                       <Text style={styles.rowTitle}>
-                        {l.from === l.to ? l.from : `${l.from} → ${l.to}`}
+                        {l.from === l.to ? formatDayKey(l.from) : `${formatDayKey(l.from)} – ${formatDayKey(l.to)}`}
                       </Text>
                       <View style={[styles.statusPill, { backgroundColor: tone.bg }]}>
                         <Text style={[styles.statusText, { color: tone.text }]}>{tone.label}</Text>
@@ -360,6 +340,25 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   area: { minHeight: 72, textAlignVertical: 'top' },
+  range: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: colors.mint,
+  },
+  rangeCell: { flex: 1 },
+  rangeCellEnd: { alignItems: 'flex-end' },
+  rangeLabel: { fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 0.8, color: colors.muted },
+  rangeValue: { marginTop: 2, fontFamily: fonts.displayExtra, fontSize: 17, color: colors.forest },
+  rangeMid: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: colors.white,
+  },
+  rangeDays: { fontFamily: fonts.bodyBold, fontSize: 11.5, color: colors.forest },
   quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   chip: {
     paddingHorizontal: 12,

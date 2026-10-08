@@ -14,7 +14,8 @@ import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
 import { bookingDetailPath, appPush } from '@/lib/routes';
 import { useAuth } from '@/context/AuthContext';
 import type { AppNotification } from '@/types/api';
-import { colors, fonts, surfaces } from '@/constants/theme';
+import { fonts, ui as themeUi } from '@/constants/theme';
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 
 export default function NotificationsScreen() {
   const ui = useCustomerUiCopy();
@@ -45,6 +46,8 @@ export default function NotificationsScreen() {
       }
     });
   }, [load]);
+
+  useStaleFocusRefresh(() => load().catch(() => undefined), 3_000);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -96,7 +99,7 @@ export default function NotificationsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Mark all notifications as read"
           >
-            <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={13} color={colors.forest} strokeWidth={2.6} />
+            <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={13} color={themeUi.brand} strokeWidth={2.6} />
             <Text style={styles.markAllText}>{markingAll ? '…' : 'Mark all'}</Text>
           </Pressable>
         ) : undefined
@@ -113,7 +116,7 @@ export default function NotificationsScreen() {
           data={items}
           keyExtractor={(n) => n.id}
           {...CUSTOMER_LIST_PERF}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeUi.brand} />}
           contentContainerStyle={items.length === 0 ? listShellStyles.empty : listShellStyles.list}
           ListEmptyComponent={
             <EmptyState title={ui.notificationsEmptyTitle} message={ui.notificationsEmptyMessage} />
@@ -132,13 +135,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: colors.soft,
+    backgroundColor: themeUi.brandSoft,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: themeUi.hairline,
     paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: 999,
+    borderRadius: 14,
   },
   markAllPressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
-  markAllText: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.forest },
+  markAllText: { fontFamily: fonts.bodyBold, fontSize: 12, color: themeUi.brand },
 });

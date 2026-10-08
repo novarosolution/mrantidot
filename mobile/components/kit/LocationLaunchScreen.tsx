@@ -1,27 +1,96 @@
-import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useRef } from 'react';
-import {
-  Animated,
-  Dimensions,
-  Easing,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BrandLogo } from '@/components/BrandLogo';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { PremiumMeshBg } from '@/components/kit/PremiumMeshBg';
-import { AppIcons } from '@/constants/appIcons';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { useEffect, useRef } from 'react';
+import { ActivityIndicator, Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ArrowRight, MapPin, ShieldCheck } from 'lucide-react-native';
+import { AuthSplashLayout } from '@/components/kit/auth/AuthScreenKit';
+import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
+import { colors, fonts, ui } from '@/constants/theme';
 
 type Phase = 'detecting' | 'found' | 'denied';
 
-const { height: H } = Dimensions.get('window');
-const LIME = colors.limeBright;
-const FALLBACK_TRUST = ['Verified pros', 'Eco-safe', 'On-time'];
+/** White status pill on the splash — detecting → "Serving <area>" → continue without GPS. */
+function LaunchStatus({
+  phase,
+  cityLabel,
+  areaLabel,
+  onContinue,
+}: {
+  phase: Phase;
+  cityLabel?: string;
+  areaLabel?: string;
+  onContinue?: () => void;
+}) {
+  const fade = useRef(new Animated.Value(0)).current;
+  const progress = useRef(new Animated.Value(0)).current;
 
+  useEffect(() => {
+    fade.setValue(0.4);
+    Animated.timing(fade, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [fade, phase]);
+
+  useEffect(() => {
+    if (phase !== 'detecting') {
+      Animated.timing(progress, { toValue: 1, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(progress, { toValue: 0.85, duration: 1600, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(progress, { toValue: 0.2, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [phase, progress]);
+
+  const title =
+    phase === 'found' && cityLabel ? `Serving ${cityLabel}` : phase === 'denied' ? 'Location is off' : 'Finding your area…';
+  const body =
+    phase === 'found'
+      ? areaLabel || 'Verified technicians are ready nearby'
+      : phase === 'denied'
+        ? 'You can set your city anytime from home'
+        : 'Matching trusted experts near you';
+  const Icon = phase === 'denied' ? ShieldCheck : MapPin;
+
+  return (
+    <View style={styles.statusWrap}>
+      <Animated.View style={[styles.status, { opacity: fade }]}>
+        <View style={styles.statusIcon}>
+          {phase === 'detecting' ? (
+            <ActivityIndicator size="small" color={ui.brand} />
+          ) : (
+            <Icon size={18} color={ui.brand} strokeWidth={2.3} />
+          )}
+        </View>
+        <View style={styles.statusText}>
+          <Text style={styles.statusTitle} numberOfLines={1}>
+            {title}
+          </Text>
+          <Text style={styles.statusBody} numberOfLines={1}>
+            {body}
+          </Text>
+        </View>
+      </Animated.View>
+      <View style={styles.track}>
+        <Animated.View
+          style={[styles.fill, { width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]}
+        />
+      </View>
+      {phase === 'denied' && onContinue ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onContinue}
+          style={({ pressed }) => [styles.continueBtn, pressed && styles.pressed]}
+        >
+          <Text style={styles.continueText}>Continue</Text>
+          <ArrowRight size={18} color={ui.brand} strokeWidth={2.4} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+/** App start screen — brand splash while we detect the customer's area. */
 export function LocationLaunchScreen({
   brandName,
   tagline = 'Trusted pest control & home services',
@@ -39,535 +108,58 @@ export function LocationLaunchScreen({
   phase: Phase;
   onContinue?: () => void;
 }) {
-  const insets = useSafeAreaInsets();
-  const chips = (trustChips?.length ? trustChips : FALLBACK_TRUST).slice(0, 3);
-
-  const stageIn = useRef(new Animated.Value(0)).current;
-  const brandIn = useRef(new Animated.Value(0)).current;
-  const lineIn = useRef(new Animated.Value(0)).current;
-  const footIn = useRef(new Animated.Value(0)).current;
-  const breathe = useRef(new Animated.Value(0)).current;
-  const ringPulse = useRef(new Animated.Value(0)).current;
-  const progress = useRef(new Animated.Value(0.16)).current;
-  const statusFade = useRef(new Animated.Value(1)).current;
-  const progressLoop = useRef<Animated.CompositeAnimation | null>(null);
-  const ringLoop = useRef<Animated.CompositeAnimation | null>(null);
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(stageIn, {
-        toValue: 1,
-        duration: 480,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.stagger(120, [
-        Animated.timing(brandIn, {
-          toValue: 1,
-          duration: 680,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(lineIn, {
-          toValue: 1,
-          duration: 520,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(footIn, {
-          toValue: 1,
-          duration: 480,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(breathe, {
-          toValue: 1,
-          duration: 2800,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(breathe, {
-          toValue: 0,
-          duration: 2800,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
-  }, [brandIn, breathe, footIn, lineIn, stageIn]);
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(statusFade, { toValue: 0.28, duration: 90, useNativeDriver: true }),
-      Animated.timing(statusFade, { toValue: 1, duration: 340, useNativeDriver: true }),
-    ]).start();
-
-    progressLoop.current?.stop();
-    ringLoop.current?.stop();
-    ringPulse.setValue(0);
-
-    if (phase === 'detecting') {
-      progressLoop.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(progress, {
-            toValue: 0.78,
-            duration: 1700,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
-          Animated.timing(progress, {
-            toValue: 0.26,
-            duration: 1300,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: false,
-          }),
-        ]),
-      );
-      progressLoop.current.start();
-
-      ringLoop.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(ringPulse, {
-            toValue: 1,
-            duration: 1600,
-            easing: Easing.out(Easing.cubic),
-            useNativeDriver: true,
-          }),
-          Animated.timing(ringPulse, {
-            toValue: 0,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ]),
-      );
-      ringLoop.current.start();
-    } else {
-      Animated.timing(progress, {
-        toValue: 1,
-        duration: 520,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }).start();
-    }
-
-    return () => {
-      progressLoop.current?.stop();
-      ringLoop.current?.stop();
-    };
-  }, [phase, progress, ringPulse, statusFade]);
-
-  const sheenStyle = useMemo(
-    () => ({
-      opacity: stageIn.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
-    }),
-    [stageIn],
-  );
-
-  const markStyle = {
-    opacity: brandIn,
-    transform: [
-      { translateY: brandIn.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) },
-      { scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.022] }) },
-    ],
-  };
-  const titleStyle = {
-    opacity: lineIn,
-    transform: [{ translateY: lineIn.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
-  };
-  const footStyle = {
-    opacity: footIn,
-    transform: [{ translateY: footIn.interpolate({ inputRange: [0, 1], outputRange: [22, 0] }) }],
-  };
-  const pulseRingStyle = {
-    opacity: ringPulse.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0.45, 0.28, 0] }),
-    transform: [{ scale: ringPulse.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.38] }) }],
-  };
-  const progressW = progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
-
-  const statusTitle =
-    phase === 'found' && cityLabel
-      ? cityLabel
-      : phase === 'denied'
-        ? 'Continue without GPS'
-        : 'Finding your area';
-
-  const statusBody =
-    phase === 'found'
-      ? areaLabel || 'Trusted technicians ready nearby'
-      : phase === 'denied'
-        ? 'Choose your city anytime from home'
-        : 'Matching eco-safe services near you';
-
-  const StatusIcon =
-    phase === 'found' ? AppIcons.ui.mapPin : phase === 'denied' ? AppIcons.ui.shieldCheck : AppIcons.ui.sparkles;
-
-  const kicker =
-    phase === 'found' ? 'SERVING YOU' : phase === 'denied' ? 'READY WHEN YOU ARE' : 'LOCATING';
-
   return (
-    <View style={styles.root}>
-      <PremiumMeshBg variant="hero" />
-
-      <Animated.View style={[styles.topSheen, sheenStyle]} pointerEvents="none">
-        <LinearGradient
-          colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.05)', 'rgba(255,255,255,0)']}
-          locations={[0, 0.45, 1]}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-        />
-      </Animated.View>
-
-      <LinearGradient
-        colors={['rgba(2,24,12,0)', 'rgba(2,24,12,0.28)', 'rgba(2,24,12,0.72)']}
-        locations={[0.22, 0.62, 1]}
-        style={styles.bottomFade}
-        pointerEvents="none"
+    <>
+      <FocusStatusBar style="light" />
+      <AuthSplashLayout
+        brandName={brandName}
+        tagline={tagline}
+        trustBadges={trustChips}
+        footer={<LaunchStatus phase={phase} cityLabel={cityLabel} areaLabel={areaLabel} onContinue={onContinue} />}
       />
-
-      <View
-        style={[
-          styles.stage,
-          {
-            paddingTop: insets.top + spacing.xl,
-            paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.sm,
-          },
-        ]}
-      >
-        <View style={styles.hero}>
-          <Animated.View style={[styles.markWrap, markStyle]}>
-            {phase === 'detecting' ? (
-              <Animated.View style={[styles.pulseRing, pulseRingStyle]} pointerEvents="none" />
-            ) : null}
-            <View style={styles.halo} />
-            <LinearGradient
-              colors={['rgba(255,255,255,0.55)', 'rgba(143,208,60,0.65)', 'rgba(48,184,79,0.22)']}
-              locations={[0, 0.48, 1]}
-              start={{ x: 0.12, y: 0 }}
-              end={{ x: 0.92, y: 1 }}
-              style={styles.markRing}
-            >
-              <View style={styles.markInner}>
-                <LinearGradient
-                  colors={[colors.white, colors.mint]}
-                  style={StyleSheet.absoluteFill}
-                  start={{ x: 0.5, y: 0 }}
-                  end={{ x: 0.5, y: 1 }}
-                />
-                <BrandLogo size={118} animate={phase === 'detecting'} />
-              </View>
-            </LinearGradient>
-          </Animated.View>
-
-          <Animated.View style={[styles.brandBlock, titleStyle]}>
-            <Text style={styles.brand}>{brandName}</Text>
-            <LinearGradient
-              colors={['rgba(200,240,122,0.2)', LIME, 'rgba(200,240,122,0.2)']}
-              start={{ x: 0, y: 0.5 }}
-              end={{ x: 1, y: 0.5 }}
-              style={styles.brandRule}
-            />
-            <Text style={styles.tagline}>{tagline}</Text>
-          </Animated.View>
-        </View>
-
-        <Animated.View style={[styles.footer, footStyle]}>
-          <Animated.View style={[styles.statusCard, { opacity: statusFade }]}>
-            <LinearGradient
-              colors={['rgba(255,255,255,0.16)', 'rgba(255,255,255,0.06)']}
-              style={StyleSheet.absoluteFill}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-            />
-            <View style={styles.statusInner}>
-              <View style={styles.statusKickerRow}>
-                <View style={styles.statusIconWrap}>
-                  <PremiumIcon
-                    icon={StatusIcon}
-                    variant="plain"
-                    size={14}
-                    color={LIME}
-                    strokeWidth={2.3}
-                  />
-                </View>
-                <Text style={styles.statusKicker}>{kicker}</Text>
-              </View>
-              <Text style={styles.statusTitle} numberOfLines={1}>
-                {statusTitle}
-              </Text>
-              <Text style={styles.statusBody} numberOfLines={2}>
-                {statusBody}
-              </Text>
-
-              <View style={styles.progressTrack}>
-                <Animated.View style={[styles.progressFill, { width: progressW }]}>
-                  <LinearGradient
-                    colors={['#C8F07A', LIME, colors.green]}
-                    start={{ x: 0, y: 0.5 }}
-                    end={{ x: 1, y: 0.5 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                </Animated.View>
-              </View>
-            </View>
-          </Animated.View>
-
-          {phase === 'denied' && onContinue ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Continue"
-              style={({ pressed }) => [pressed && styles.pressed]}
-              onPress={onContinue}
-            >
-              <LinearGradient
-                colors={['#B4E85A', LIME, colors.green]}
-                locations={[0, 0.42, 1]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.continueBtn}
-              >
-                <Text style={styles.continueText}>Continue</Text>
-                <PremiumIcon
-                  icon={AppIcons.ui.arrowRight}
-                  variant="plain"
-                  size={18}
-                  color={colors.white}
-                  strokeWidth={2.4}
-                />
-              </LinearGradient>
-            </Pressable>
-          ) : (
-            <View style={styles.chipRow}>
-              {chips.map((chip) => (
-                <View key={chip} style={styles.chip}>
-                  <Text style={styles.chipText}>{chip}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </Animated.View>
-      </View>
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.deep, overflow: 'hidden' },
-  topSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: H * 0.28,
-  },
-  bottomFade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: H * 0.5,
-  },
-  stage: {
-    flex: 1,
-    paddingHorizontal: spacing.xl,
-    justifyContent: 'space-between',
-  },
-  hero: {
-    flex: 1,
+  statusWrap: { alignSelf: 'stretch', gap: 12 },
+  status: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xl,
-    paddingBottom: spacing.md,
-  },
-  markWrap: {
-    width: 196,
-    height: 196,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pulseRing: {
-    position: 'absolute',
-    width: 176,
-    height: 176,
-    borderRadius: 88,
-    borderWidth: 1.5,
-    borderColor: 'rgba(143,208,60,0.55)',
-  },
-  halo: {
-    position: 'absolute',
-    width: 184,
-    height: 184,
-    borderRadius: 92,
-    backgroundColor: 'rgba(143,208,60,0.14)',
-  },
-  markRing: {
-    width: 156,
-    height: 156,
-    borderRadius: 44,
-    padding: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  markInner: {
-    width: 148,
-    height: 148,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.78)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.36,
-    shadowRadius: 28,
-    elevation: 16,
-  },
-  brandBlock: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm,
     gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 18,
+    backgroundColor: colors.white,
   },
-  brand: {
-    fontFamily: fonts.brand,
-    fontSize: 44,
-    lineHeight: 48,
-    letterSpacing: -1.5,
-    color: colors.white,
-    textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.26)',
-    textShadowOffset: { width: 0, height: 8 },
-    textShadowRadius: 16,
-  },
-  brandRule: {
-    width: 48,
-    height: 3,
-    borderRadius: 2,
-  },
-  tagline: {
-    fontFamily: fonts.body,
-    fontSize: 15,
-    lineHeight: 22,
-    color: 'rgba(255,255,255,0.74)',
-    textAlign: 'center',
-    maxWidth: 300,
-  },
-  footer: {
-    gap: 14,
-    paddingBottom: 2,
-  },
-  statusCard: {
-    borderRadius: 22,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-    backgroundColor: 'rgba(8,42,20,0.42)',
-  },
-  statusInner: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md + 2,
-    alignItems: 'center',
-    gap: 6,
-  },
-  statusKickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 2,
-  },
-  statusIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 10,
+  statusIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: ui.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(143,208,60,0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(143,208,60,0.28)',
   },
-  statusKicker: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 10.5,
-    lineHeight: 14,
-    letterSpacing: 1.25,
-    color: LIME,
-  },
-  statusTitle: {
-    fontFamily: fonts.display,
-    fontSize: 20,
-    lineHeight: 24,
-    letterSpacing: -0.4,
-    color: colors.white,
-    textAlign: 'center',
-  },
-  statusBody: {
-    fontFamily: fonts.body,
-    fontSize: 13.5,
-    lineHeight: 19,
-    color: 'rgba(234,246,227,0.72)',
-    textAlign: 'center',
-    maxWidth: 300,
-    marginBottom: 6,
-  },
-  progressTrack: {
-    alignSelf: 'stretch',
+  statusText: { flex: 1, minWidth: 0 },
+  statusTitle: { fontFamily: fonts.bodyBold, fontSize: 15, color: ui.text },
+  statusBody: { marginTop: 2, fontFamily: fonts.body, fontSize: 12.5, color: ui.textSecondary },
+  track: {
     height: 3,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    overflow: 'hidden',
-    marginTop: 4,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 2,
+    marginHorizontal: 24,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     overflow: 'hidden',
   },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 8,
-    paddingTop: 2,
-    paddingBottom: 4,
-  },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-  },
-  chipText: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 12,
-    letterSpacing: 0.15,
-    color: 'rgba(255,255,255,0.72)',
-  },
+  fill: { height: '100%', borderRadius: 2, backgroundColor: colors.limeOnDark },
   continueBtn: {
-    borderRadius: premium.radiusButton,
-    paddingVertical: 16,
-    paddingHorizontal: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    shadowColor: LIME,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.32,
-    shadowRadius: 16,
-    elevation: 8,
+    gap: 6,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: colors.white,
   },
-  continueText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 16,
-    letterSpacing: 0.15,
-    color: colors.white,
-  },
-  pressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
+  continueText: { fontFamily: fonts.bodyBold, fontSize: 15.5, color: ui.brand },
+  pressed: { opacity: 0.85 },
 });

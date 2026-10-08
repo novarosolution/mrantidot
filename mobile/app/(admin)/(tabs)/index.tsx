@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { AppIcons } from '@/constants/appIcons';
+import { AppIconImages } from '@/constants/appImageIcons';
 import { useAuth } from '@/context/AuthContext';
 import { api, screenLoadConfig } from '@/lib/api';
 import { adminRoutes, appPush } from '@/lib/routes';
@@ -20,12 +21,13 @@ import { userInitial } from '@/lib/userInitials';
 import { bookingStatusLabel } from '@/lib/booking-helpers';
 import type { AdminStats, BookingStatus } from '@/types/api';
 import { colors, spacing } from '@/constants/theme';
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 
 const QUICK_ACTIONS = [
-  { key: 'bookings', icon: AppIcons.adminQuick.bookings, label: 'Bookings' },
-  { key: 'services', icon: AppIcons.adminQuick.services, label: 'Services' },
-  { key: 'content', icon: AppIcons.adminHub.homeContent, label: 'Content' },
-  { key: 'offers', icon: AppIcons.adminHub.offers, label: 'Offers' },
+  { key: 'bookings', icon: AppIcons.adminQuick.bookings, image: AppIconImages.adminQuick.bookings, label: 'Bookings' },
+  { key: 'services', icon: AppIcons.adminQuick.services, image: AppIconImages.adminQuick.services, label: 'Services' },
+  { key: 'content', icon: AppIcons.adminHub.homeContent, image: AppIconImages.adminHub.homeContent, label: 'Content' },
+  { key: 'offers', icon: AppIcons.adminHub.offers, image: AppIconImages.adminHub.offers, label: 'Offers' },
 ];
 
 function quickRoute(key: string) {
@@ -69,6 +71,8 @@ export default function AdminDashboard() {
     void runLoad(load, 'Could not load dashboard');
   }, [load, runLoad]);
 
+  useStaleFocusRefresh(() => load().catch(() => undefined), 3_000);
+
   const initial = userInitial(user?.name);
   const firstName = (user?.name?.trim() || 'Admin').split(' ')[0];
 
@@ -110,13 +114,14 @@ export default function AdminDashboard() {
       }
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />}
     >
-        <AdminSectionTitle title="Quick actions" hint="Jump into daily ops — Content for app copy" />
+        <AdminSectionTitle title="Quick actions" hint="Jump straight into daily operations" />
         <AdminQuickGrid items={QUICK_ACTIONS} onPress={quickRoute} />
 
         <AdminSectionTitle title="Overview" hint="This month at a glance" />
         <View style={styles.grid}>
           <KpiCard
             icon={AppIcons.adminKpi.pending}
+            image={AppIconImages.adminKpi.pending}
             value={String(stats.byStatus.pending ?? 0)}
             label="Pending"
             iconBg={colors.mint}
@@ -125,6 +130,7 @@ export default function AdminDashboard() {
           />
           <KpiCard
             icon={AppIcons.adminKpi.bookings}
+            image={AppIconImages.adminKpi.bookings}
             value={String(stats.periodBookings ?? stats.totalBookings)}
             label="Bookings"
             delta={stats.deltas?.bookings}
@@ -134,6 +140,7 @@ export default function AdminDashboard() {
           />
           <KpiCard
             icon={AppIcons.adminKpi.active}
+            image={AppIconImages.adminKpi.active}
             value={String(activeJobs)}
             label="Active"
             delta={stats.deltas?.activeJobs}
@@ -143,6 +150,7 @@ export default function AdminDashboard() {
           />
           <KpiCard
             icon={AppIcons.adminKpi.customers}
+            image={AppIconImages.adminKpi.customers}
             value={String(stats.customers)}
             label="Customers"
             delta={stats.deltas?.customers}

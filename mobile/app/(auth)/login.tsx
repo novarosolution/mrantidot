@@ -1,25 +1,15 @@
 import { Link } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Animated,
-  Easing,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { StatusBar } from 'expo-status-bar';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Smartphone } from 'lucide-react-native';
 import { AppIcons } from '@/constants/appIcons';
 import {
   AuthFooterText,
   AuthFormSection,
   AuthLoginShell,
+  AuthSecureNote,
 } from '@/components/kit/auth/AuthScreenKit';
-import { AuthField, authScreenStyles } from '@/components/kit/auth/AuthScreenLayout';
+import { AuthField, AuthPrimaryButton, authScreenStyles } from '@/components/kit/auth/AuthScreenLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
 import { getApiErrorMessage } from '@/lib/api';
@@ -27,7 +17,7 @@ import { appPush, appReplace, authRoutes, customerRoutes, homeRouteForRole } fro
 import { isProfileIncomplete } from '@/lib/profile-display';
 import { appToast } from '@/lib/toast';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
-import { spacing, colors, fonts, premium } from '@/constants/theme';
+import { colors, fonts, ui as themeUi } from '@/constants/theme';
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -48,27 +38,8 @@ export default function LoginScreen() {
     return phone || email || '';
   }, [content.support?.email, content.support?.phone]);
 
-  const arrowNudge = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(arrowNudge, {
-          toValue: 1,
-          duration: 1100,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(arrowNudge, {
-          toValue: 0,
-          duration: 1100,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
-  }, [arrowNudge]);
-
   const handleLogin = useCallback(async () => {
+    if (loading) return;
     const id = identifier.trim();
     const pass = password.trim();
     let valid = true;
@@ -106,11 +77,10 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
-  }, [identifier, login, password, ui.authLoginErrorToast, ui.authLoginSuccessToast]);
+  }, [identifier, loading, login, password, ui.authLoginErrorToast, ui.authLoginSuccessToast]);
 
   return (
     <>
-      <StatusBar style="light" />
       <AuthLoginShell
         brandName={brandName}
         brandTag={content.branding.tagline}
@@ -164,83 +134,32 @@ export default function LoginScreen() {
             <Text style={styles.forgotText}>Forgot password?</Text>
           </Pressable>
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={ui.authLoginButton}
-            style={({ pressed }) => [pressed && !loading && styles.pressed]}
+          <AuthPrimaryButton
+            title={ui.authLoginButton}
+            loadingTitle="Signing in…"
+            loading={loading}
             onPress={() => void handleLogin()}
-            disabled={loading}
-          >
-            <LinearGradient
-              colors={['#3BC45A', colors.forestMid, colors.forest]}
-              locations={[0, 0.5, 1]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.cta, loading && styles.ctaLoading]}
-            >
-              <LinearGradient
-                colors={['rgba(255,255,255,0.28)', 'rgba(255,255,255,0)']}
-                style={styles.ctaSheen}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                pointerEvents="none"
-              />
-              {loading ? (
-                <>
-                  <ActivityIndicator size="small" color={colors.white} />
-                  <Text style={styles.ctaText}>Signing in…</Text>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.ctaText}>{ui.authLoginButton}</Text>
-                  <Animated.View
-                    style={{
-                      transform: [
-                        {
-                          translateX: arrowNudge.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0, 3],
-                          }),
-                        },
-                      ],
-                    }}
-                  >
-                    <View style={styles.ctaChip}>
-                      <PremiumIcon
-                        icon={AppIcons.ui.arrowRight}
-                        variant="plain"
-                        size={17}
-                        color={colors.forest}
-                        strokeWidth={2.5}
-                      />
-                    </View>
-                  </Animated.View>
-                </>
-              )}
-            </LinearGradient>
-          </Pressable>
+          />
 
           {__DEV__ ? (
-            <Pressable
-              style={({ pressed }) => [styles.otpBtn, pressed && styles.pressed]}
-              onPress={() => appPush(authRoutes.otp)}
-            >
-              <PremiumIcon
-                icon={AppIcons.ui.phone}
-                variant="mint"
-                size={16}
-                color={colors.forest}
-                boxSize={40}
-              />
-              <Text style={styles.otpText}>OTP sign-in</Text>
-              <PremiumIcon
-                icon={AppIcons.ui.chevronRight}
-                variant="plain"
-                size={16}
-                color={colors.muted}
-              />
-            </Pressable>
+            <>
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or</Text>
+                <View style={styles.dividerLine} />
+              </View>
+              <Pressable
+                style={({ pressed }) => [styles.otpBtn, pressed && styles.otpPressed]}
+                onPress={() => appPush(authRoutes.otp)}
+                accessibilityRole="button"
+              >
+                <Smartphone size={18} color={themeUi.text} strokeWidth={2} />
+                <Text style={styles.otpText}>Continue with OTP</Text>
+              </Pressable>
+            </>
           ) : null}
+
+          <AuthSecureNote />
         </AuthFormSection>
 
         <AuthFooterText>
@@ -263,76 +182,29 @@ function displayUserGreeting(name?: string): string {
 const styles = StyleSheet.create({
   forgotBtn: {
     alignSelf: 'flex-end',
-    marginBottom: spacing.md + 4,
-    marginTop: -4,
+    marginTop: -6,
+    marginBottom: 20,
     paddingVertical: 4,
   },
   forgotText: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 13,
-    color: colors.forest,
+    fontFamily: fonts.bodyBold,
+    fontSize: 13.5,
+    color: themeUi.brand,
   },
-  pressed: { transform: [{ scale: 0.985 }], opacity: 0.95 },
-  cta: {
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 20 },
+  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: themeUi.border },
+  dividerText: { fontFamily: fonts.bodyMedium, fontSize: 13, color: themeUi.textTertiary },
+  otpBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 58,
-    borderRadius: 20,
-    paddingLeft: 22,
-    paddingRight: 8,
-    paddingVertical: 8,
-    overflow: 'hidden',
-    ...premium.shadowSoft,
-    shadowColor: colors.forest,
-    shadowOpacity: 0.34,
-    shadowRadius: 18,
-    elevation: 11,
-  },
-  ctaSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '48%',
-  },
-  ctaLoading: {
     justifyContent: 'center',
     gap: 10,
-    paddingRight: 22,
-  },
-  ctaText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 16,
-    letterSpacing: 0.1,
-    color: colors.white,
-  },
-  ctaChip: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    height: 54,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: themeUi.border,
     backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.7)',
   },
-  otpBtn: {
-    marginTop: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    minHeight: 56,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.72)',
-    borderWidth: 1,
-    borderColor: 'rgba(180,220,165,0.85)',
-    paddingHorizontal: 12,
-  },
-  otpText: {
-    flex: 1,
-    fontFamily: fonts.bodySemi,
-    fontSize: 14,
-    color: colors.ink,
-  },
+  otpPressed: { backgroundColor: themeUi.surfaceMuted },
+  otpText: { fontFamily: fonts.bodyBold, fontSize: 15, color: themeUi.text },
 });

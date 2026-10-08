@@ -70,7 +70,7 @@ export function ConfirmTotalCard({
 }) {
   return (
     <LinearGradient
-      colors={['#14532D', '#1A6B3C']}
+      colors={[...gradients.header]}
       style={styles.totalCard}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}

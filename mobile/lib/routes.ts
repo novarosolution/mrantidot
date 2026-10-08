@@ -47,6 +47,7 @@ export const customerRoutes = {
   paymentMethods: '/(customer)/payment-methods',
   settings: '/(customer)/settings',
   help: '/(customer)/help',
+  bookGuide: '/(customer)/book-guide',
   faq: '/(customer)/faq',
   about: '/(customer)/about',
   terms: '/(customer)/terms',

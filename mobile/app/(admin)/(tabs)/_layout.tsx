@@ -1,26 +1,27 @@
 import { Tabs } from 'expo-router';
 import { KitTabBarButton } from '@/components/kit/KitTabBarButton';
-import { GlassTabBarBackground, glassTabBarStyle } from '@/components/kit/GlassScreenKit';
+import { GlassTabBarBackground, useDockTabBarStyle } from '@/components/kit/GlassScreenKit';
 import { KitTabBarIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { colors, fonts, typography } from '@/constants/theme';
+import { colors, fonts, typography, ui } from '@/constants/theme';
 
 const Tab = AppIcons.adminTab;
 
 export default function AdminTabsLayout() {
+  const tabBarStyle = useDockTabBarStyle();
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.forest,
-        tabBarInactiveTintColor: '#4A7354',
-        tabBarStyle: glassTabBarStyle,
+        tabBarInactiveTintColor: ui.textTertiary,
+        tabBarStyle,
         tabBarBackground: () => <GlassTabBarBackground />,
         tabBarLabelStyle: {
           ...typography.tabLabel,
           fontFamily: fonts.bodySemi,
-          fontSize: 10.5,
-          letterSpacing: 0.25,
+          fontSize: 11,
+          letterSpacing: 0.1,
           marginTop: 3,
         },
         tabBarButton: (props) => <KitTabBarButton {...props} />,

@@ -6,7 +6,8 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'path';
 import rateLimit from 'express-rate-limit';
-import { connectDb, disconnectDb, isDbConnected, isUsingMemoryMongo } from './config/db';
+import { connectDb, disconnectDb, isDbConnected, isPersistentLocalDb, isUsingMemoryMongo } from './config/db';
+import { User } from './models/User';
 import { env } from './config/env';
 import { assertDistBuilt, validateProductionEnv } from './config/validateEnv';
 import { errorHandler } from './middleware/error';
@@ -26,13 +27,21 @@ async function main(): Promise<void> {
   ensureUploadDir();
   await connectDb();
 
-  const seedOnStart =
-    process.env.SEED_ON_START?.trim().toLowerCase() === 'true' ||
-    process.env.SEED_ON_START?.trim() === '1';
+  const seedMode = process.env.SEED_ON_START?.trim().toLowerCase() ?? '';
+  const alwaysSeed = seedMode === 'true' || seedMode === '1';
+  // The seed deletes non-demo users and refreshes bookings, so on a database that keeps
+  // its data it must only run when there is nothing to lose.
+  const seedOnStart = alwaysSeed || (seedMode === 'if-empty' && (await User.estimatedDocumentCount()) === 0);
+
+  if (alwaysSeed && isPersistentLocalDb()) {
+    console.warn('[seed] SEED_ON_START=true resets demo data on every start — use SEED_ON_START=if-empty to keep your data.');
+  }
 
   if (seedOnStart) {
-    console.log('[seed] SEED_ON_START=true — loading seed data into connected database…');
+    console.log(`[seed] SEED_ON_START=${seedMode} — loading seed data into connected database…`);
     await runSeedDatabase();
+  } else if (seedMode === 'if-empty') {
+    console.log('[seed] Database already has data — skipping demo seed');
   } else if (isUsingMemoryMongo()) {
     console.warn(
       '[db] In-memory MongoDB is empty. Set MONGO_URI to your Atlas/local DB in server/.env, ' +
@@ -83,18 +92,33 @@ async function main(): Promise<void> {
     message: { error: 'Too many attempts. Please try again later.' },
   });
   app.use('/api/auth', authLimiter);
+  app.use(
+    '/api',
+    rateLimit({
+      windowMs: 60 * 1000,
+      limit: env.isProduction ? 300 : 5000,
+      standardHeaders: true,
+      legacyHeaders: false,
+      skip: (req) => req.path === '/health',
+      message: { error: 'Too many requests. Please slow down and try again.' },
+    }),
+  );
 
   app.get('/api/health', (_req, res) => {
     const connected = isDbConnected();
     res.status(connected ? 200 : 503).json({
       ok: connected,
       db: connected ? 'connected' : 'disconnected',
-      dbMode: isUsingMemoryMongo() ? 'memory' : 'atlas',
+      dbMode: isUsingMemoryMongo() ? (isPersistentLocalDb() ? 'local' : 'memory') : 'atlas',
+      uptimeSec: Math.round(process.uptime()),
       time: new Date().toISOString(),
     });
   });
 
   app.use('/api', apiRouter);
+  app.use('/api', (req, res) => {
+    res.status(404).json({ error: `No API route for ${req.method} ${req.originalUrl}`, code: 'NOT_FOUND' });
+  });
   app.use(errorHandler);
 
   const server = app.listen(env.port, '0.0.0.0', () => {

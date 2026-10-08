@@ -147,16 +147,16 @@ export async function notifyBookingEvent(
       customer: { title: 'Service in progress', body: 'Treatment has started at your location.' },
     },
     awaiting_verification: {
-      customer: { title: 'Verify your service', body: 'Please review photos and verify job completion.' },
+      customer: { title: 'Treatment finished', body: 'Review the photos, then share your completion code with the technician.' },
       admin: { title: 'Job awaiting verification', body: 'A booking is ready for admin review and verification.' },
     },
     completed: {
       customer: { title: 'Service completed', body: 'Thank you! You can leave a review for your visit.' },
-      tech: { title: 'Job completed', body: 'Customer verified the job. Great work!' },
+      tech: { title: 'Job completed', body: 'The job is marked complete. Great work!' },
     },
     cancelled: {
       customer: { title: 'Booking cancelled', body: 'Your booking has been cancelled.' },
-      tech: { title: 'Job cancelled', body: 'A assigned job was cancelled.' },
+      tech: { title: 'Job cancelled', body: 'An assigned job was cancelled.' },
       admin: { title: 'Booking cancelled', body: 'A booking was cancelled and may need follow-up.' },
     },
     schedule_requested: {

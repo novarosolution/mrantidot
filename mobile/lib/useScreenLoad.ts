@@ -1,17 +1,22 @@
-import { InteractionManager } from 'react-native';
 import { useCallback, useState } from 'react';
 import { getApiErrorMessage } from './api';
 
 /** Run after navigation/animations settle — keeps first paint snappy. */
 export function afterInteractions<T>(fn: () => T | Promise<T>): Promise<T> {
   return new Promise((resolve, reject) => {
-    InteractionManager.runAfterInteractions(() => {
+    const run = () => {
       try {
         Promise.resolve(fn()).then(resolve, reject);
       } catch (err) {
         reject(err);
       }
-    });
+    };
+    // InteractionManager is deprecated — idle callback keeps the same "after first paint" intent.
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(run, { timeout: 500 });
+    } else {
+      setTimeout(run, 0);
+    }
   });
 }
 

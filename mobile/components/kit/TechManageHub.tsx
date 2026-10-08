@@ -72,7 +72,6 @@ export function TechManageHub({
             disabled={item.disabled}
           >
             <View style={styles.tile}>
-              <View style={styles.accent} />
               <PremiumIcon icon={item.icon} variant="gradient" gradient={item.grad} size="md" boxSize={40} />
               <View style={styles.copy}>
                 <View style={styles.labelRow}>
@@ -137,16 +136,8 @@ const styles = StyleSheet.create({
     gap: 10,
     overflow: 'hidden',
   },
-  accent: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    backgroundColor: colors.limeBright,
-  },
   pressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
-  disabled: { opacity: 0.48 },
+  disabled: { opacity: 0.62 },
   copy: { gap: 3, flex: 1 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   label: { fontFamily: fonts.bodySemi, fontSize: 13.5, color: colors.ink, flexShrink: 1 },

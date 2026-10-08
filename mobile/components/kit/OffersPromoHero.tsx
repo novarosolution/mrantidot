@@ -1,9 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
-import { homeShadow } from '@/components/kit/homeUi';
-import { colors, customerType, fonts, gradients, premium, spacing } from '@/constants/theme';
+import { TicketPercent } from 'lucide-react-native';
+import { colors, fonts, gradients, spacing } from '@/constants/theme';
 
 export function OffersPromoHero({
   offerCount,
@@ -20,65 +18,32 @@ export function OffersPromoHero({
 }) {
   return (
     <View style={styles.wrap}>
-      <View style={styles.shell}>
-        <LinearGradient
-          colors={[colors.green, colors.forest, colors.forestDeep]}
-          locations={[0, 0.55, 1]}
-          style={styles.card}
-          start={{ x: 0.1, y: 0 }}
-          end={{ x: 0.95, y: 1 }}
-        >
-          <View style={styles.orb} pointerEvents="none">
-            <LinearGradient
-              colors={['rgba(184,232,106,0.45)', 'rgba(143,208,60,0)']}
-              style={StyleSheet.absoluteFill}
-              start={{ x: 0.2, y: 0.2 }}
-              end={{ x: 1, y: 1 }}
-            />
-          </View>
-          <LinearGradient
-            colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0)']}
-            style={styles.sheen}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            pointerEvents="none"
-          />
-          <LinearGradient colors={[...gradients.goldBar]} style={styles.accent} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
-          <View style={styles.rim} pointerEvents="none" />
-
-          <View style={styles.iconShell}>
-            <LinearGradient colors={[colors.white, colors.soft]} style={styles.icon}>
-              <PremiumIcon
-                icon={AppIcons.quick.offers}
-                variant="plain"
-                size={22}
-                color={colors.forest}
-                strokeWidth={2.2}
-                fill="rgba(10,100,35,0.18)"
-              />
-            </LinearGradient>
-          </View>
-
-          <View style={styles.body}>
-            <View style={styles.badgeRow}>
-              <PremiumIcon icon={AppIcons.brand} variant="plain" size={12} color="#C8F07A" fill="rgba(200,240,122,0.35)" />
-              <Text style={styles.badge}>
-                {fallbackTitle?.trim() || (brandName ? `${brandName} deals` : 'Exclusive deals')}
-              </Text>
-            </View>
-            <Text style={styles.title}>
-              {offerCount > 0
-                ? `${offerCount} offer${offerCount === 1 ? '' : 's'} available`
-                : fallbackSub || 'Save on your next booking'}
+      <LinearGradient
+        colors={[...gradients.premiumHero]}
+        style={styles.card}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.orb} pointerEvents="none" />
+        <View style={styles.icon}>
+          <TicketPercent size={26} color={colors.white} strokeWidth={2} />
+        </View>
+        <View style={styles.body}>
+          <Text style={styles.badge}>
+            {fallbackTitle?.trim() || (brandName ? `${brandName} deals` : 'Exclusive deals')}
+          </Text>
+          <Text style={styles.title}>
+            {offerCount > 0
+              ? `${offerCount} offer${offerCount === 1 ? '' : 's'} available`
+              : fallbackSub || 'Save on your next booking'}
+          </Text>
+          {offerCount > 0 || subtitle?.trim() ? (
+            <Text style={styles.sub}>
+              {subtitle?.trim() || 'Apply a coupon at checkout — works on any service'}
             </Text>
-            {offerCount > 0 || subtitle?.trim() ? (
-              <Text style={styles.sub}>
-                {subtitle?.trim() || 'Apply a coupon at checkout — works on any service'}
-              </Text>
-            ) : null}
-          </View>
-        </LinearGradient>
-      </View>
+          ) : null}
+        </View>
+      </LinearGradient>
     </View>
   );
 }
@@ -89,82 +54,59 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     paddingBottom: spacing.md,
   },
-  shell: {
-    borderRadius: premium.radiusCard,
-    ...homeShadow.promo,
-  },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    padding: spacing.md + 2,
-    paddingTop: spacing.md + 6,
-    borderRadius: premium.radiusCard,
+    padding: 18,
+    borderRadius: 22,
     overflow: 'hidden',
-  },
-  rim: {
-    ...StyleSheet.absoluteFill,
-    borderRadius: premium.radiusCard,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.28)',
+    shadowColor: colors.deep,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
+    elevation: 8,
   },
   orb: {
     position: 'absolute',
-    top: -48,
-    right: -28,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    overflow: 'hidden',
-  },
-  sheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '55%',
-  },
-  accent: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-  },
-  iconShell: {
-    borderRadius: 18,
-    shadowColor: colors.deep,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    elevation: 4,
+    right: -46,
+    bottom: -70,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(185,229,138,0.12)',
   },
   icon: {
-    width: 54,
-    height: 54,
+    width: 56,
+    height: 56,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   body: { flex: 1, minWidth: 0 },
-  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   badge: {
     fontFamily: fonts.bodyBold,
     fontSize: 11,
-    letterSpacing: 0.6,
+    letterSpacing: 1,
     textTransform: 'uppercase',
-    color: 'rgba(255,255,255,0.92)',
+    color: colors.limeOnDark,
   },
   title: {
-    ...customerType.promoTitle,
-    color: colors.white,
     marginTop: 6,
+    fontFamily: fonts.displayExtra,
+    fontSize: 18,
+    lineHeight: 24,
+    letterSpacing: -0.35,
+    color: colors.white,
   },
   sub: {
-    ...customerType.menuDesc,
-    color: 'rgba(255,255,255,0.86)',
     marginTop: 4,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    lineHeight: 18,
+    color: 'rgba(255,255,255,0.82)',
   },
 });

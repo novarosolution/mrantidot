@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -13,6 +15,7 @@ import Toast from 'react-native-toast-message';
 import { CustomerListShell, listShellStyles } from '@/components/kit/CustomerListShell';
 import { FabButton } from '@/components/kit/FabButton';
 import { PaymentMethodCard } from '@/components/kit/PaymentMethodCard';
+import { CardFooterActions } from '@/components/kit/CardFooterActions';
 import { IconInput } from '@/components/kit/IconInput';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
@@ -23,7 +26,7 @@ import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { PaymentMethodRecord } from '@/types/api';
-import { colors, design, fonts, premium, spacing } from '@/constants/theme';
+import { colors, design, fonts, premium, spacing, ui as themeUi } from '@/constants/theme';
 
 export default function PaymentMethodsScreen() {
   const ui = useCustomerUiCopy();
@@ -101,7 +104,7 @@ export default function PaymentMethodsScreen() {
   return (
     <CustomerListShell
       title={ui.paymentsScreenTitle}
-      accountStrip
+      subtitle="Pay at the visit · nothing is charged in the app"
       rightAction={<FabButton onPress={openAdd} accessibilityLabel="Add payment method" />}
     >
       <ScreenState
@@ -119,69 +122,50 @@ export default function PaymentMethodsScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => void refresh(load)}
-              tintColor={colors.green}
+              tintColor={themeUi.brand}
             />
           }
           contentContainerStyle={methods.length === 0 ? listShellStyles.empty : listShellStyles.list}
           ListEmptyComponent={<EmptyState title={ui.paymentsEmptyTitle} message={ui.paymentsEmptyMessage} />}
           renderItem={({ item }) => (
-            <View style={styles.item}>
-              <PaymentMethodCard method={item} />
-              <View style={styles.actions}>
-                {!item.isDefault ? (
-                  <Pressable
-                    onPress={() => void setDefault(item)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Set as default payment method"
-                    hitSlop={8}
-                    style={styles.actionHit}
-                  >
-                    <Text style={styles.actionText}>Set default</Text>
-                  </Pressable>
-                ) : (
-                  <Text style={styles.defaultHint}>Default</Text>
-                )}
-                <Pressable
-                  onPress={() => confirmDelete(item)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Remove payment method"
-                  hitSlop={8}
-                  style={styles.actionHit}
-                >
-                  <Text style={[styles.actionText, styles.deleteText]}>Remove</Text>
-                </Pressable>
-              </View>
-            </View>
+            <PaymentMethodCard
+              method={item}
+              footer={
+                <CardFooterActions
+                  note={item.isDefault ? 'Pre-selected at checkout' : undefined}
+                  actions={[
+                    ...(item.isDefault ? [] : [{ label: 'Set default', onPress: () => void setDefault(item) }]),
+                    { label: 'Remove', tone: 'danger' as const, onPress: () => confirmDelete(item) },
+                  ]}
+                />
+              }
+            />
           )}
         />
       </ScreenState>
 
       <Modal visible={modalOpen} animationType="slide" transparent onRequestClose={() => setModalOpen(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setModalOpen(false)}>
-          <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.handle} />
-            <Text style={styles.modalTitle}>Add payment method</Text>
-            <View style={styles.chips}>
-              <Chip label="UPI / Card" selected={type === 'upi_card'} onPress={() => setType('upi_card')} />
-              <Chip label="Pay after service" selected={type === 'pay_after'} onPress={() => setType('pay_after')} />
-            </View>
-            <IconInput label="Label" value={label} onChangeText={setLabel} placeholder="e.g. Personal UPI" />
-            <Button title="Save" variant="premium" onPress={saveMethod} loading={saving} style={{ marginTop: spacing.md }} />
-            <Button title="Cancel" variant="secondary" onPress={() => setModalOpen(false)} style={{ marginTop: spacing.sm }} />
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setModalOpen(false)}>
+            <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.handle} />
+              <Text style={styles.modalTitle}>Add payment method</Text>
+              <View style={styles.chips}>
+                <Chip label="UPI / Card" selected={type === 'upi_card'} onPress={() => setType('upi_card')} />
+                <Chip label="Pay after service" selected={type === 'pay_after'} onPress={() => setType('pay_after')} />
+              </View>
+              <IconInput label="Label" value={label} onChangeText={setLabel} placeholder="e.g. Personal UPI" />
+              <Button title="Save" variant="premium" onPress={saveMethod} loading={saving} style={{ marginTop: spacing.md }} />
+              <Button title="Cancel" variant="secondary" onPress={() => setModalOpen(false)} style={{ marginTop: spacing.sm }} />
+            </Pressable>
           </Pressable>
-        </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </CustomerListShell>
   );
 }
 
 const styles = StyleSheet.create({
-  item: { marginBottom: spacing.sm },
-  actions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs, paddingHorizontal: spacing.xs },
-  actionHit: { minHeight: 44, justifyContent: 'center' },
-  actionText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.green },
-  deleteText: { color: colors.error },
-  defaultHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, alignSelf: 'center' },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(11, 34, 19, 0.48)', justifyContent: 'flex-end' },
   modal: {
     ...design.modalCard,

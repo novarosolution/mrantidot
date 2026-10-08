@@ -15,7 +15,7 @@ import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import type { Offer, Service } from '@/types/api';
-import { colors, spacing } from '@/constants/theme';
+import { spacing, ui as themeUi } from '@/constants/theme';
 import { customerRoutes, sharedRoutes, appPush } from '@/lib/routes';
 
 export default function OffersScreen() {
@@ -111,7 +111,7 @@ export default function OffersScreen() {
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeUi.brand} />}
           {...customerScrollProps}
         >
           <OffersPromoHero

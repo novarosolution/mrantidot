@@ -16,16 +16,21 @@ export const colors = {
   greenBright: '#30B84F',
   /** Deepest green in premium heroes — same as gradients.premiumHero[2] */
   forestDeep: '#043813',
+  /** Header gradient end — same as gradients.header[1] */
+  headerDeep: '#064D1B',
+  /** Lime on dark heroes / kickers */
+  limeOnDark: '#B9E58A',
   /** Default shadow ink — same as shadows.*.shadowColor */
   shadow: '#03170B',
   /** Soft status mint — same as statusColors.pending.bg */
   mint: '#EEF8E6',
   lime: '#E9F8E3',
-  /** Soft mint screen wash — pairs with forest/lime brand greens */
-  bg: '#F6FAF2',
+  /** Clean white screen — premium Urban-style canvas; greens stay as accents. */
+  bg: '#FFFFFF',
   ink: '#071A0E',
-  muted: '#3F6B48',
-  border: '#CDE8C0',
+  /** Neutral secondary text — reads premium on white (was green-tinted). */
+  muted: '#5D6661',
+  border: '#E6E9E6',
   card: '#FFFFFF',
   soft: '#EAF6E3',
   amber: '#F5B82E',
@@ -51,10 +56,10 @@ export const colors = {
   primaryDark: '#0A6423',
   primaryLight: '#EAF6E3',
   accent: '#E9F8E3',
-  background: '#F6FAF2',
+  background: '#FFFFFF',
   surface: '#FFFFFF',
   text: '#071A0E',
-  textMuted: '#3F6B48',
+  textMuted: '#5D6661',
   success: '#27A747',
   warning: '#9A6F12',
 };
@@ -645,16 +650,16 @@ export const adminSurfaces = {
 /** Semantic tinted surfaces for status banners, chips, calendar cells */
 export const surfaces = {
   /** Primary frosted card fill (pair with BlurView via GlassPanel). */
-  glass: 'rgba(255,255,255,0.58)',
-  glassSoft: 'rgba(255,255,255,0.42)',
-  glassSheet: 'rgba(246,250,242,0.72)',
-  glassBorder: 'rgba(255,255,255,0.68)',
-  glassBorderStrong: 'rgba(180,220,165,0.95)',
+  glass: '#FFFFFF',
+  glassSoft: '#FFFFFF',
+  glassSheet: '#FFFFFF',
+  glassBorder: '#ECEEEC',
+  glassBorderStrong: '#E3E6E3',
   glassDark: 'rgba(14,58,32,0.16)',
-  glassScreenBase: '#F6FAF2',
-  glassPanelTint: 'rgba(255,255,255,0.48)',
-  glassTabTint: 'rgba(255,255,255,0.58)',
-  glassInput: 'rgba(255,255,255,0.72)',
+  glassScreenBase: '#FFFFFF',
+  glassPanelTint: 'rgba(255,255,255,0)',
+  glassTabTint: '#FFFFFF',
+  glassInput: '#FFFFFF',
   tintSuccess: '#DCFCE7',
   tintSuccessInk: colors.forest,
   tintWarning: '#FEF3C7',
@@ -664,6 +669,31 @@ export const surfaces = {
   tintInfo: colors.secondarySoft,
   tintInfoInk: colors.secondaryInk,
   cameraBg: '#1d3b2a',
+};
+
+/**
+ * Urban-style premium neutrals — white canvas, hairlines, quiet greys.
+ * Brand greens are reserved for actions, prices and active states.
+ */
+export const ui = {
+  bg: '#FFFFFF',
+  surfaceMuted: '#F5F6F5',
+  hairline: '#ECEEEC',
+  border: '#E3E6E3',
+  text: '#0E1511',
+  textSecondary: '#5D6661',
+  textTertiary: '#8B938E',
+  brand: colors.forest,
+  brandBright: colors.forestMid,
+  brandSoft: '#EEF7EF',
+  star: '#0E1511',
+  shadow: {
+    shadowColor: '#0B140F',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
+  } as ViewStyle,
 };
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 };
@@ -717,17 +747,18 @@ export const shadows: {
 };
 
 export const gradients = {
-  primary: [colors.greenBright, '#25A443'] as const,
-  header: [colors.headerGreen, '#064D1B'] as const,
+  primary: [colors.greenBright, colors.green] as const,
+  header: [colors.headerGreen, colors.headerDeep] as const,
   headerDark: [colors.forest, colors.forestDeep] as const,
-  premiumHero: [colors.forest, '#064D1B', colors.forestDeep] as const,
-  bookHero: [colors.forest, '#064D1B', colors.forestDeep] as const,
-  goldCta: [colors.greenBright, '#25A443', colors.forestMid] as const,
+  premiumHero: [colors.forest, colors.headerDeep, colors.forestDeep] as const,
+  bookHero: [colors.forest, colors.headerDeep, colors.forestDeep] as const,
+  goldCta: [colors.greenBright, colors.green, colors.forestMid] as const,
   goldBar: [colors.limeBright, colors.green] as const,
-  otp: ['#68D03C', '#25A443'] as const,
-  secondary: ['#6BB5A8', '#3A9688', '#2A756A'] as const,
-  sky: ['#6BB5A8', '#3A9688', '#2A756A'] as const,
-  avatarRing: ['#FFFFFF', '#68D03C'] as const,
+  otp: [colors.limeBright, colors.green] as const,
+  offerDark: [colors.deep, colors.forestDeep] as const,
+  secondary: ['#6BB5A8', '#3A9688', colors.secondaryDark] as const,
+  sky: ['#6BB5A8', '#3A9688', colors.secondaryDark] as const,
+  avatarRing: [colors.white, colors.limeBright] as const,
 };
 
 /** Premium booking flow tokens */
@@ -772,9 +803,9 @@ export const formField = {
 
 /** Button sizing & shape — used by Button component app-wide. */
 export const buttonTokens = {
-  radius: 16,
-  radiusSm: 14,
-  heightLg: 54,
+  radius: 14,
+  radiusSm: 12,
+  heightLg: 52,
   heightMd: 48,
   heightSm: 42,
   borderWidth: 1.5,
@@ -846,8 +877,6 @@ export const design = {
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
-    borderTopWidth: 3,
-    borderTopColor: premium.accentGold,
     ...premium.shadowSoft,
   } as ViewStyle,
 };

@@ -3,11 +3,11 @@ import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { PAYMENT_TYPE_META } from '@/lib/bookingPayment';
 import type { PaymentMethodRecord } from '@/types/api';
-import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
 
 function PaymentIcon({ type, selected }: { type: 'upi_card' | 'pay_after'; selected: boolean }) {
-  const color = selected ? colors.forest : colors.green;
+  const color = ui.brand;
   if (type === 'pay_after') {
     return <PremiumIcon icon={AppIcons.payment.wallet} variant="plain" size={22} color={color} strokeWidth={2.2} />;
   }
@@ -50,7 +50,7 @@ export function BookPaymentPicker({
               <Text style={[styles.title, on && styles.titleOn]}>{method?.label ?? meta.title}</Text>
               {method?.details ? (
                 <View style={styles.detailsRow}>
-                  <PremiumIcon icon={AppIcons.payment.card} variant="plain" size={11} color={colors.muted} />
+                  <PremiumIcon icon={AppIcons.payment.card} variant="plain" size={11} color={ui.textTertiary} />
                   <Text style={styles.details}>{method.details}</Text>
                 </View>
               ) : null}
@@ -70,7 +70,7 @@ export function BookPaymentPicker({
           onPress={() => appPush(customerRoutes.paymentMethods)}
         >
           <Text style={styles.manageText}>Manage saved payment methods</Text>
-          <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={16} color={colors.green} />
+          <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={16} color={ui.brand} />
         </Pressable>
       ) : null}
     </View>
@@ -84,47 +84,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 14,
-    borderRadius: premium.radiusCard,
-    backgroundColor: surfaces.glass,
-    borderWidth: 1.5,
-    borderColor: surfaces.glassBorderStrong,
+    borderRadius: 16,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.border,
   },
   tileOn: {
-    backgroundColor: colors.soft,
-    borderColor: colors.forest,
-    ...premium.shadowSoft,
+    backgroundColor: ui.brandSoft,
+    borderColor: ui.brand,
+    borderWidth: 1.5,
   },
   pressed: { opacity: 0.92 },
   iconWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: surfaces.glass,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: ui.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
   },
-  iconWrapOn: {
-    backgroundColor: colors.soft,
-    borderColor: 'rgba(143,208,60,0.45)',
-  },
+  iconWrapOn: { backgroundColor: colors.white },
   body: { flex: 1, minWidth: 0 },
-  title: { fontFamily: fonts.bodySemi, fontSize: 14.5, color: colors.ink },
-  titleOn: { color: colors.forest },
+  title: { fontFamily: fonts.bodyBold, fontSize: 14.5, color: ui.text },
+  titleOn: { color: ui.text },
   detailsRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
-  details: { fontFamily: fonts.body, fontSize: 11, color: colors.muted },
+  details: { fontFamily: fonts.body, fontSize: 12, color: ui.textSecondary },
   radio: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.border,
+    borderWidth: 1.5,
+    borderColor: ui.hairline,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: surfaces.glass,
+    backgroundColor: colors.white,
   },
-  radioOn: { backgroundColor: colors.green, borderColor: colors.green },
+  radioOn: { backgroundColor: ui.brand, borderColor: ui.brand },
   manage: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -133,5 +128,5 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginTop: spacing.xs,
   },
-  manageText: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.green },
+  manageText: { fontFamily: fonts.bodySemi, fontSize: 13, color: ui.brand },
 });

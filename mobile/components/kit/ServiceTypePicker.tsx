@@ -1,10 +1,11 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { PestImage } from '@/components/kit/ServiceThumb';
 import { AppIcons } from '@/constants/appIcons';
 import { SERVICE_TYPE_KEYS, type ServiceTypeKey } from '@/constants/serviceTypes';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, fonts, gradients, premium, spacing } from '@/constants/theme';
 
 const COLS = 3;
 const GAP = 10;
@@ -63,12 +64,12 @@ export function ServiceTypePicker({
               onPress={() => toggle(key)}
             >
               {on ? (
-                <LinearGradient colors={['#14532D', '#1A6B3C']} style={styles.check}>
+                <LinearGradient colors={[...gradients.header]} style={styles.check}>
                   <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={10} color={colors.white} strokeWidth={3} />
                 </LinearGradient>
               ) : null}
               <View style={[styles.iconWrap, { backgroundColor: meta.bg }]}>
-                <PremiumIcon icon={meta.icon} variant="plain" size={20} color={meta.color} strokeWidth={2.2} />
+                <PestImage source={meta.image} size={26} />
               </View>
               <Text style={[styles.label, on && styles.labelOn]} numberOfLines={2}>
                 {meta.label}

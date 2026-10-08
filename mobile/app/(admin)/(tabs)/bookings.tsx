@@ -5,12 +5,11 @@ import Toast from 'react-native-toast-message';
 import { AdminBookingListCard } from '@/components/kit/AdminBookingListCard';
 import { adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/AdminActionSheet';
-import { AdminFilterChips, AdminStatStrip } from '@/components/kit/AdminPageKit';
+import { AdminFilterChips, AdminSearchField, AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { AdminScreenHeader } from '@/components/kit/AdminScreenHeader';
 import { AdminTabScreen } from '@/components/kit/AdminScreenKit';
 import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { Input } from '@/components/ui/Input';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { useAuth } from '@/context/AuthContext';
@@ -76,6 +75,10 @@ export default function AdminBookingsScreen() {
   }, []);
 
   const load = useCallback(async (skipCache = false) => {
+    if (skipCache) {
+      techsLoaded.current = false;
+      countsLoaded.current = false;
+    }
     const params: Record<string, string> = {};
     if (filter !== 'all') params.status = filter;
     if (debouncedSearch.trim()) params.q = debouncedSearch.trim();
@@ -92,7 +95,6 @@ export default function AdminBookingsScreen() {
       : api
           .get<{ technicians: User[] }>('/admin/technicians', {
             ...screenLoadConfig,
-            params: { available: 'true' },
             cacheTtlMs: CACHE_TTL.profile,
           })
           .catch(() => {
@@ -109,7 +111,7 @@ export default function AdminBookingsScreen() {
     const [listRes, techsRes] = await Promise.all([listReq, techsReq, countsReq]);
     setBookings(listRes.data.bookings);
     if (techsRes?.data) {
-      setTechs(assignableTechnicians(techsRes.data.technicians));
+      setTechs(techsRes.data.technicians);
       techsLoaded.current = true;
     }
   }, [filter, debouncedSearch, loadCounts, serviceIdParam]);
@@ -118,12 +120,12 @@ export default function AdminBookingsScreen() {
     void runLoad(() => load());
   }, [load, runLoad]);
 
-  useStaleFocusRefresh(() => refresh(() => load(true)), 45_000);
+  useStaleFocusRefresh(() => load(true).catch(() => undefined), 3_000);
 
   const assign = useCallback(
     (booking: Booking) => {
-      if (techs.length === 0) {
-        Alert.alert('No technicians', 'Add technicians in the admin panel first.');
+      if (assignableTechnicians(techs, booking.schedule?.date).length === 0) {
+        Alert.alert('No technicians available', 'Everyone is disabled or off duty for this visit.');
         return;
       }
       setAssignTarget(booking);
@@ -133,10 +135,10 @@ export default function AdminBookingsScreen() {
 
   const assignOptions = useMemo<ActionSheetOption[]>(() => {
     if (!assignTarget) return [];
-    return techs.map((t) => ({
+    return assignableTechnicians(techs, assignTarget.schedule?.date).map((t) => ({
       key: t.id,
       label: t.name,
-      subtitle: t.phone || t.email || undefined,
+      subtitle: [t.available === false ? 'Off duty today' : '', t.phone || t.email].filter(Boolean).join(' · ') || undefined,
       onPress: () => {
         void (async () => {
           try {
@@ -207,7 +209,7 @@ export default function AdminBookingsScreen() {
         />
       ) : null}
       <View style={styles.searchWrap}>
-        <Input label="Search" value={search} onChangeText={setSearch} placeholder="Ref, customer, or service" />
+        <AdminSearchField value={search} onChangeText={setSearch} placeholder="Search ref, customer, service" />
       </View>
       <AdminFilterChips
         chips={FILTERS.map((f) => ({ key: f.key, label: `${f.label} (${count(f.key)})` }))}

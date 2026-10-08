@@ -35,7 +35,7 @@ function createRealIcon(
 ): LucideIcon {
   const Icon = memo(function RealIcon({
     size = 24,
-    color = '#0B7228',
+    color = '#0A6423',
     strokeWidth = 2,
     fill = 'transparent',
     absoluteStrokeWidth: _abs,

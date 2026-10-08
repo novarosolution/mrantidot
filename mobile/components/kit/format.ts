@@ -4,6 +4,28 @@ export function formatRupee(n: number): string {
   return `₹${n}`;
 }
 
+export function formatRupeeFull(n: number): string {
+  return `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
+}
+
+export function plural(n: number, word: string): string {
+  return `${n} ${n === 1 ? word : `${word}s`}`;
+}
+
+export function initials(name?: string | null): string {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? '?') + (parts[1]?.[0] ?? '')).toUpperCase();
+}
+
+/** "2026-10-08" → "8 Oct" (adds the year when it isn't the current one). */
+export function formatDayKey(key?: string | null): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(key ?? '');
+  if (!m) return key ?? '';
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) });
+}
+
 export function bookingRef(id: string): string {
   return `#MA-${id.slice(-5).toUpperCase()}`;
 }

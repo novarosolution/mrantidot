@@ -18,7 +18,7 @@ import {
 import { adminShadow } from '@/components/kit/homeUi';
 import { colors, surfaces, spacing } from '@/constants/theme';
 
-/** Reusable gold accent bar for admin cards and strips. */
+/** Thin brand divider. */
 export function AdminGoldBar({ height = 3, style }: { height?: number; style?: StyleProp<ViewStyle> }) {
   return (
     <LinearGradient
@@ -49,7 +49,7 @@ export function AdminTabScreen({
 }) {
   return (
     <View style={styles.root}>
-      <GlassBackdrop variant="deep" />
+      <GlassBackdrop />
       <SafeAreaView style={styles.safe} edges={edges}>
         {header}
         {scroll ? (

@@ -1,37 +1,28 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { GlassPanel } from '@/components/kit/GlassScreenKit';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
+import { TicketPercent } from 'lucide-react-native';
 import { Button } from '@/components/ui/Button';
-import { colors, customerType, premium, spacing } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
 
 export function OffersEmpty({ hint }: { hint?: string }) {
   return (
     <View style={styles.wrap}>
-      <GlassPanel style={styles.card} tone="clear" intensity={44} goldEdge padded={false}>
-        <View style={styles.inner}>
-          <PremiumIcon
-            icon={AppIcons.quick.offers}
-            variant="ring"
-            size={28}
-            color={colors.forest}
-            strokeWidth={1.9}
-            boxSize={72}
-          />
-          <Text style={styles.title}>No offers right now</Text>
-          <Text style={styles.message}>
-            {hint?.trim() ||
-              'New coupons and seasonal deals will show up here. Book a service anytime at regular pricing.'}
-          </Text>
-          <Button
-            title="Browse services"
-            variant="premium"
-            onPress={() => appPush(customerRoutes.services)}
-            style={styles.btn}
-          />
+      <View style={styles.card}>
+        <View style={styles.icon}>
+          <TicketPercent size={28} color={ui.brand} strokeWidth={1.9} />
         </View>
-      </GlassPanel>
+        <Text style={styles.title}>No offers right now</Text>
+        <Text style={styles.message}>
+          {hint?.trim() ||
+            'New coupons and seasonal deals will show up here. Book a service anytime at regular pricing.'}
+        </Text>
+        <Button
+          title="Browse services"
+          variant="premium"
+          onPress={() => appPush(customerRoutes.services)}
+          style={styles.btn}
+        />
+      </View>
     </View>
   );
 }
@@ -39,19 +30,41 @@ export function OffersEmpty({ hint }: { hint?: string }) {
 const styles = StyleSheet.create({
   wrap: { flex: 1, justifyContent: 'center', padding: spacing.md, paddingTop: spacing.xl },
   card: {
-    borderRadius: premium.radiusCard,
+    borderRadius: 22,
     maxWidth: 340,
     alignSelf: 'center',
     width: '100%',
-  },
-  inner: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
     padding: spacing.lg,
     alignItems: 'center',
     gap: 10,
+    ...ui.shadow,
   },
-  title: { ...customerType.emptyTitle },
+  icon: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    backgroundColor: ui.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  title: {
+    fontFamily: fonts.displaySemi,
+    fontSize: 18,
+    lineHeight: 24,
+    letterSpacing: -0.3,
+    textAlign: 'center',
+    color: ui.text,
+  },
   message: {
-    ...customerType.emptyBody,
+    fontFamily: fonts.body,
+    fontSize: 13.5,
+    lineHeight: 20,
+    textAlign: 'center',
+    color: ui.textSecondary,
     maxWidth: 280,
   },
   btn: { marginTop: spacing.sm, alignSelf: 'stretch' },

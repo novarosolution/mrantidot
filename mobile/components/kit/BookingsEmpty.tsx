@@ -1,10 +1,8 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { GlassPanel } from '@/components/kit/GlassScreenKit';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { CalendarCheck } from 'lucide-react-native';
 import { Button } from '@/components/ui/Button';
 import { useBookingCopy } from '@/lib/schedule-copy';
-import { colors, customerType, spacing } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
 
 const EMPTY_HINT: Record<'active' | 'completed' | 'cancelled', string> = {
@@ -24,29 +22,30 @@ export function BookingsEmpty({ filter }: { filter: 'active' | 'completed' | 'ca
 
   return (
     <View style={styles.wrap}>
-      <GlassPanel style={styles.card} tone="clear" intensity={44} goldEdge padded={false}>
-        <View style={styles.inner}>
-          <PremiumIcon
-            icon={AppIcons.quick.bookings}
-            variant="ring"
-            size={28}
-            color={colors.forest}
-            strokeWidth={1.9}
-            boxSize={72}
-          />
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.message}>{EMPTY_HINT[filter]}</Text>
-          {filter === 'active' || filter === 'completed' ? (
-            <Button
-              title={filter === 'active' ? copy.listBookServiceButton : 'Book again'}
-              variant="premium"
-              size="md"
-              onPress={() => appPush(customerRoutes.services)}
-              style={styles.btn}
-            />
-          ) : null}
+      <View style={styles.card}>
+        <View style={styles.icon}>
+          <CalendarCheck size={28} color={ui.brand} strokeWidth={1.9} />
         </View>
-      </GlassPanel>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.message}>{EMPTY_HINT[filter]}</Text>
+        {filter === 'active' || filter === 'completed' ? (
+          <Button
+            title={filter === 'active' ? copy.listBookServiceButton : 'Book again'}
+            variant="premium"
+            size="md"
+            onPress={() => appPush(customerRoutes.services)}
+            style={styles.btn}
+          />
+        ) : null}
+        <Pressable
+          onPress={() => appPush(customerRoutes.bookGuide)}
+          accessibilityRole="button"
+          accessibilityLabel="How to book a service"
+          style={({ pressed }) => [styles.guideLink, pressed && { opacity: 0.7 }]}
+        >
+          <Text style={styles.guideLinkText}>How to book →</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -59,20 +58,48 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
   },
   card: {
-    borderRadius: 24,
+    borderRadius: 22,
     maxWidth: 340,
     alignSelf: 'center',
     width: '100%',
-  },
-  inner: {
-    padding: spacing.lg + 2,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
+    padding: spacing.lg,
     alignItems: 'center',
     gap: 10,
+    ...ui.shadow,
   },
-  title: { ...customerType.emptyTitle },
+  icon: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    backgroundColor: ui.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  title: {
+    fontFamily: fonts.displaySemi,
+    fontSize: 18,
+    lineHeight: 24,
+    letterSpacing: -0.3,
+    textAlign: 'center',
+    color: ui.text,
+  },
   message: {
-    ...customerType.emptyBody,
+    fontFamily: fonts.body,
+    fontSize: 13.5,
+    lineHeight: 20,
+    textAlign: 'center',
+    color: ui.textSecondary,
     maxWidth: 280,
   },
   btn: { marginTop: spacing.sm, minWidth: 200 },
+  guideLink: { marginTop: 4, paddingVertical: 6, paddingHorizontal: 8 },
+  guideLinkText: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 13.5,
+    color: ui.brand,
+  },
 });

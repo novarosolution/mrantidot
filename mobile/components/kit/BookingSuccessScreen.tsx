@@ -1,15 +1,14 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
+import { Check } from 'lucide-react-native';
 import { Button } from '@/components/ui/Button';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { useAuth } from '@/context/AuthContext';
 import { useBookingCopy } from '@/lib/schedule-copy';
 import { bookingDetailPath, customerRoutes, appReplace } from '@/lib/routes';
-import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
+import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 
 type ConfettiSpec = {
   left: `${number}%`;
@@ -20,18 +19,18 @@ type ConfettiSpec = {
 };
 
 const CONFETTI: ConfettiSpec[] = [
-  { left: '8%', delay: 0, color: colors.lime, w: 7, h: 10 },
-  { left: '18%', delay: 80, color: colors.limeBright, w: 6, h: 9 },
+  { left: '8%', delay: 0, color: colors.limeBright, w: 7, h: 10 },
+  { left: '18%', delay: 80, color: colors.amber, w: 6, h: 9 },
   { left: '28%', delay: 40, color: colors.green, w: 8, h: 11 },
-  { left: '38%', delay: 120, color: colors.white, w: 5, h: 8 },
-  { left: '48%', delay: 20, color: colors.lime, w: 7, h: 10 },
-  { left: '58%', delay: 100, color: colors.greenBright, w: 6, h: 9 },
+  { left: '38%', delay: 120, color: '#60A5FA', w: 5, h: 8 },
+  { left: '48%', delay: 20, color: colors.limeBright, w: 7, h: 10 },
+  { left: '58%', delay: 100, color: '#F472B6', w: 6, h: 9 },
   { left: '68%', delay: 60, color: colors.green, w: 8, h: 12 },
-  { left: '78%', delay: 140, color: colors.white, w: 5, h: 8 },
-  { left: '88%', delay: 30, color: colors.lime, w: 7, h: 10 },
-  { left: '14%', delay: 160, color: colors.green, w: 6, h: 9 },
-  { left: '44%', delay: 180, color: colors.limeBright, w: 7, h: 10 },
-  { left: '74%', delay: 200, color: colors.lime, w: 6, h: 9 },
+  { left: '78%', delay: 140, color: colors.amber, w: 5, h: 8 },
+  { left: '88%', delay: 30, color: colors.limeBright, w: 7, h: 10 },
+  { left: '14%', delay: 160, color: '#60A5FA', w: 6, h: 9 },
+  { left: '44%', delay: 180, color: colors.green, w: 7, h: 10 },
+  { left: '74%', delay: 200, color: '#F472B6', w: 6, h: 9 },
 ] as const;
 
 function ConfettiPiece({
@@ -179,11 +178,11 @@ function SuccessCheckHero() {
           },
         ]}
       >
-        <LinearGradient colors={[colors.lime, '#C5F066']} style={styles.checkGradient}>
+        <View style={styles.checkGradient}>
           <Animated.View style={{ opacity: check, transform: [{ scale: check }] }}>
-            <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={42} color={colors.forest} strokeWidth={3.2} />
+            <Check size={46} color={colors.white} strokeWidth={3.2} />
           </Animated.View>
-        </LinearGradient>
+        </View>
       </Animated.View>
     </View>
   );
@@ -232,12 +231,7 @@ export function BookingSuccessScreen({
 
   return (
     <View style={styles.root}>
-      <LinearGradient
-        colors={['#0F3D22', '#14532D', '#1A6B3C']}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0.2, y: 0 }}
-        end={{ x: 0.8, y: 1 }}
-      />
+      <FocusStatusBar style="dark" />
       <View style={styles.confettiLayer} pointerEvents="none">
         {CONFETTI.map((piece, index) => (
           <ConfettiPiece key={index} {...piece} />
@@ -254,6 +248,7 @@ export function BookingSuccessScreen({
           <FadeSlideIn delay={180} slideFrom={16}>
             <View style={styles.titleBlock}>
               <Text style={styles.title}>{bookingCopy.requestSubmittedToast}</Text>
+              <Text style={styles.subtitle}>{bookingCopy.pendingCustomerHint}</Text>
             </View>
           </FadeSlideIn>
 
@@ -266,7 +261,7 @@ export function BookingSuccessScreen({
               {paymentLabel ? <SummaryRow label={bookingCopy.successLabelPayment} value={paymentLabel} /> : null}
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>{bookingCopy.successLabelTotal}</Text>
-                <Text style={styles.totalValue}>₹{total}</Text>
+                <Text style={styles.totalValue}>₹{Math.round(total).toLocaleString('en-IN')}</Text>
               </View>
             </View>
           </FadeSlideIn>
@@ -275,9 +270,7 @@ export function BookingSuccessScreen({
         <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
           <Button title={bookingCopy.successViewBookingButton} onPress={viewBooking} variant="premium" />
           <Pressable style={({ pressed }) => [styles.homeBtn, pressed && styles.pressed]} onPress={goHome}>
-            <PremiumIcon icon={AppIcons.property.home} variant="plain" size={16} color={colors.lime} />
             <Text style={styles.homeText}>{bookingCopy.successHomeButton}</Text>
-            <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={16} color="rgba(255,255,255,0.55)" />
           </Pressable>
         </View>
       </SafeAreaView>
@@ -286,7 +279,7 @@ export function BookingSuccessScreen({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.forest },
+  root: { flex: 1, backgroundColor: colors.white },
   safe: { flex: 1 },
   confettiLayer: { ...StyleSheet.absoluteFill, overflow: 'hidden' },
   confetti: { position: 'absolute', top: 0, borderRadius: 2 },
@@ -306,7 +299,7 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 2,
-    borderColor: 'rgba(168,224,78,0.35)',
+    borderColor: 'rgba(10,100,35,0.22)',
   },
   ring2: { width: 148, height: 148, borderRadius: 74 },
   glow: {
@@ -314,7 +307,7 @@ const styles = StyleSheet.create({
     width: 108,
     height: 108,
     borderRadius: 54,
-    backgroundColor: 'rgba(168,224,78,0.22)',
+    backgroundColor: ui.brandSoft,
   },
   checkCircle: {
     width: 96,
@@ -327,8 +320,7 @@ const styles = StyleSheet.create({
     borderRadius: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: ui.brand,
   },
   titleBlock: { alignItems: 'center', marginBottom: spacing.lg },
   sparkRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
@@ -341,8 +333,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: fonts.displayExtra,
-    fontSize: 28,
-    color: colors.white,
+    fontSize: 26,
+    color: ui.text,
     textAlign: 'center',
     letterSpacing: -0.4,
     lineHeight: 34,
@@ -350,27 +342,24 @@ const styles = StyleSheet.create({
   subtitle: {
     fontFamily: fonts.body,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.72)',
+    color: ui.textSecondary,
     textAlign: 'center',
     marginTop: 10,
     lineHeight: 21,
     paddingHorizontal: spacing.sm,
   },
   card: {
-    backgroundColor: surfaces.glass,
-    borderRadius: 22,
-    padding: spacing.lg,
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: spacing.md + 4,
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
-    borderTopWidth: 3,
-    borderTopColor: colors.limeBright,
-    ...premium.shadowSoft,
+    borderColor: ui.border,
   },
   cardTitle: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 12,
-    color: colors.muted,
+    fontFamily: fonts.bodyBold,
+    fontSize: 11.5,
+    color: ui.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: spacing.md,
@@ -381,14 +370,14 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(20,83,45,0.07)',
+    borderBottomColor: ui.hairline,
   },
-  summaryLabel: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, flex: 0.9 },
+  summaryLabel: { fontFamily: fonts.body, fontSize: 13.5, color: ui.textSecondary },
   summaryValue: {
-    fontFamily: fonts.display,
+    fontFamily: fonts.bodySemi,
     fontSize: 13.5,
-    color: colors.ink,
-    flex: 1.2,
+    color: ui.text,
+    flex: 1,
     textAlign: 'right',
     lineHeight: 19,
   },
@@ -399,8 +388,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
   },
-  totalLabel: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.forest },
-  totalValue: { fontFamily: fonts.displayExtra, fontSize: 24, color: colors.forest },
+  totalLabel: { fontFamily: fonts.bodyBold, fontSize: 15, color: ui.text },
+  totalValue: { fontFamily: fonts.displayExtra, fontSize: 22, color: ui.text },
   nextCard: {
     borderRadius: 20,
     padding: spacing.lg,
@@ -441,9 +430,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     gap: spacing.sm,
-    backgroundColor: 'rgba(15,61,34,0.92)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.white,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: ui.border,
   },
   homeBtn: {
     flexDirection: 'row',
@@ -452,6 +441,6 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
   },
-  homeText: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.lime },
+  homeText: { fontFamily: fonts.bodyBold, fontSize: 14.5, color: ui.brand },
   pressed: { opacity: 0.88 },
 });

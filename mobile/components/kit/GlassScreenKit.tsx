@@ -1,8 +1,5 @@
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
-import { type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import {
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,12 +8,12 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets, type Edge } from 'react-native-safe-area-context';
 import { PremiumMeshBg } from '@/components/kit/PremiumMeshBg';
-import { colors, fonts, premium, shadows, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
 
-/** Bottom scroll inset for tab-root screens above the floating glass tab bar. */
-export const TAB_BAR_SCROLL_PAD = 112;
+/** Bottom scroll inset for tab-root screens above the docked tab bar. */
+export const TAB_BAR_SCROLL_PAD = 104;
 
 /**
  * Shared ScrollView props for customer screens.
@@ -30,8 +27,6 @@ export const customerScrollProps = {
   removeClippedSubviews: false,
 } as const;
 
-const BLUR_IOS = Platform.OS === 'ios';
-
 type GlassTone = 'light' | 'mint' | 'forest' | 'clear';
 
 type GlassPanelProps = {
@@ -40,7 +35,7 @@ type GlassPanelProps = {
   padded?: boolean;
   intensity?: number;
   tone?: GlassTone;
-  /** Thin lime edge along the top (promo / premium cards). */
+  /** @deprecated Lime top edge — dropped in the white premium theme; accepted for older call sites. */
   goldEdge?: boolean;
   /**
    * Live blur. Off by default — BlurView inside ScrollViews ghosts/duplicates content while scrolling.
@@ -49,90 +44,41 @@ type GlassPanelProps = {
   blur?: boolean;
 };
 
-function toneTint(tone: GlassTone): string {
+/** Card fill per tone — white canvas, faint brand wash for emphasis tones. */
+function toneFill(tone: GlassTone): string {
   switch (tone) {
     case 'mint':
-      return 'rgba(234,246,227,0.36)';
+      return ui.surfaceMuted;
     case 'forest':
-      return 'rgba(11,114,40,0.12)';
-    case 'clear':
-      return 'rgba(255,255,255,0.18)';
+      return ui.brandSoft;
     default:
-      return surfaces.glassPanelTint;
+      return colors.white;
   }
 }
 
-function blurTint(tone: GlassTone): 'light' | 'default' {
-  return tone === 'forest' ? 'default' : 'light';
-}
+const SHADOW_KEYS = ['shadowColor', 'shadowOffset', 'shadowOpacity', 'shadowRadius', 'elevation'] as const;
 
-function solidFrost(tone: GlassTone): string {
-  switch (tone) {
-    case 'mint':
-      return 'rgba(246,251,242,0.94)';
-    case 'forest':
-      return 'rgba(236,246,230,0.92)';
-    case 'clear':
-      return 'rgba(255,255,255,0.82)';
-    default:
-      return 'rgba(255,255,255,0.92)';
-  }
-}
-
-/** Frosted glass card with sheen and premium border (blur optional — avoid in ScrollViews). */
+/**
+ * Premium card — white surface, hairline border, one soft shadow.
+ * Caller shadows are replaced so every card shares the same quiet depth.
+ */
 export function GlassPanel({
   children,
   style,
   padded = true,
-  intensity,
+  intensity: _intensity,
   tone = 'light',
-  goldEdge = false,
-  blur = false,
+  goldEdge: _goldEdge = false,
+  blur: _blur = false,
 }: GlassPanelProps) {
-  const blurAmount = intensity ?? (BLUR_IOS ? 56 : 72);
+  const flat = { ...(StyleSheet.flatten(style) ?? {}) } as ViewStyle;
+  for (const k of SHADOW_KEYS) delete flat[k];
+  const radiusValue = typeof flat.borderRadius === 'number' ? flat.borderRadius : premium.radiusCard;
   return (
-    <View style={[styles.panelShell, style]}>
-      {blur && Platform.OS !== 'web' ? (
-        <BlurView intensity={blurAmount} tint={blurTint(tone)} style={StyleSheet.absoluteFill} pointerEvents="none" />
-      ) : (
-        <View style={[styles.panelTint, { backgroundColor: solidFrost(tone) }]} pointerEvents="none" />
-      )}
-      <View style={[styles.panelTint, { backgroundColor: toneTint(tone) }]} pointerEvents="none" />
-      <LinearGradient
-        colors={['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.22)', 'rgba(232,248,214,0.32)']}
-        locations={[0, 0.38, 1]}
-        style={styles.panelSheen}
-        start={{ x: 0.05, y: 0 }}
-        end={{ x: 0.95, y: 1 }}
-        pointerEvents="none"
-      />
-      <LinearGradient
-        colors={['rgba(255,255,255,0.72)', 'rgba(255,255,255,0.12)', 'rgba(255,255,255,0)']}
-        locations={[0, 0.55, 1]}
-        style={styles.panelTopGlow}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        pointerEvents="none"
-      />
-      <LinearGradient
-        colors={['rgba(143,208,60,0.14)', 'rgba(143,208,60,0)']}
-        style={styles.panelCornerBloom}
-        start={{ x: 1, y: 0 }}
-        end={{ x: 0.35, y: 0.65 }}
-        pointerEvents="none"
-      />
-      <View style={styles.panelRim} pointerEvents="none" />
-      <View style={styles.panelInnerRim} pointerEvents="none" />
-      {goldEdge ? (
-        <LinearGradient
-          colors={['#C8F07A', colors.limeBright, colors.green]}
-          style={styles.goldEdge}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          pointerEvents="none"
-        />
-      ) : null}
-      <View style={[styles.panelInner, padded && styles.panelPadded]}>{children}</View>
+    <View style={[styles.panelShell, { backgroundColor: toneFill(tone) }, flat]}>
+      <View style={[styles.panelClip, { borderRadius: radiusValue }]}>
+        <View style={[styles.panelInner, padded && styles.panelPadded]}>{children}</View>
+      </View>
     </View>
   );
 }
@@ -149,27 +95,21 @@ export function GlassChip({
 }) {
   return (
     <View style={[styles.chipShell, style]}>
-      <LinearGradient
-        colors={['rgba(255,255,255,0.96)', 'rgba(244,250,238,0.9)']}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        pointerEvents="none"
-      />
       <View style={styles.chipInner}>{children}</View>
     </View>
   );
 }
 
-/**
- * Brand mint screen background — matches app greens, no 3D orbs.
- */
+/** Screen background — muted premium canvas; mesh only for auth / deep heroes. */
 export function GlassBackdrop({ variant = 'default' }: { variant?: 'default' | 'deep' | 'auth' }) {
-  return (
-    <View style={styles.backdropRoot} pointerEvents="none">
-      <PremiumMeshBg variant={variant} />
-    </View>
-  );
+  if (variant === 'auth' || variant === 'deep') {
+    return (
+      <View style={styles.backdropRoot} pointerEvents="none">
+        <PremiumMeshBg variant={variant} />
+      </View>
+    );
+  }
+  return <View style={[styles.backdropRoot, styles.backdropMuted]} pointerEvents="none" />;
 }
 
 export function GlassSectionLabel({ title, hint }: { title: string; hint?: string }) {
@@ -210,6 +150,7 @@ export function GlassScreen({
             style={styles.flex}
             contentContainerStyle={[styles.scroll, contentContainerStyle]}
             showsVerticalScrollIndicator={false}
+            automaticallyAdjustKeyboardInsets
             keyboardShouldPersistTaps={keyboardShouldPersistTaps ?? 'always'}
           >
             {children}
@@ -234,117 +175,83 @@ export function GlassContentSheet({
 }) {
   return (
     <View style={[styles.sheetShell, style]}>
-      <View style={[styles.sheetTint, { backgroundColor: 'rgba(255,255,255,0.94)' }]} pointerEvents="none" />
-      <LinearGradient
-        colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0.08)', 'rgba(234,246,227,0.2)']}
-        locations={[0, 0.4, 1]}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        pointerEvents="none"
-      />
       <View style={styles.sheetInner}>{children}</View>
     </View>
   );
 }
 
-/** Blur background for bottom tab bars — floating premium glass dock. */
+/** Tab bar background — flat white dock with a hairline top edge. */
 export function GlassTabBarBackground() {
-  return (
-    <View style={styles.tabBarShell}>
-      {Platform.OS !== 'web' ? (
-        <BlurView intensity={BLUR_IOS ? 72 : 88} tint="light" style={StyleSheet.absoluteFill} pointerEvents="none" />
-      ) : null}
-      <LinearGradient
-        colors={['rgba(255,255,255,0.88)', 'rgba(250,253,247,0.82)', 'rgba(234,246,227,0.62)']}
-        locations={[0, 0.48, 1]}
-        style={styles.tabBarSheen}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        pointerEvents="none"
-      />
-      <View style={styles.tabBarTint} pointerEvents="none" />
-      <LinearGradient
-        colors={['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.2)', 'rgba(255,255,255,0)']}
-        locations={[0, 0.4, 1]}
-        style={styles.tabBarTopGlow}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        pointerEvents="none"
-      />
-      <LinearGradient
-        colors={['#C8F07A', colors.limeBright, colors.green, colors.limeBright, '#C8F07A']}
-        locations={[0, 0.22, 0.5, 0.78, 1]}
-        style={styles.tabBarLimeEdge}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        pointerEvents="none"
-      />
-      <View style={styles.tabBarRim} pointerEvents="none" />
-      <View style={styles.tabBarInnerRim} pointerEvents="none" />
-    </View>
-  );
+  return <View style={styles.tabBarShell} />;
 }
 
 /** Shared style tokens for glass surfaces without BlurView (lists, flat styles). */
 export const glassSkin = {
   card: {
-    backgroundColor: surfaces.glass,
+    backgroundColor: colors.white,
     borderRadius: premium.radiusCard,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
-    ...premium.shadowSoft,
+    borderColor: ui.hairline,
+    ...ui.shadow,
   } satisfies ViewStyle,
   cardSoft: {
-    backgroundColor: surfaces.glassSoft,
+    backgroundColor: colors.white,
     borderRadius: premium.radiusCard,
     borderWidth: 1,
-    borderColor: surfaces.glassBorder,
-    ...shadows.card,
+    borderColor: ui.hairline,
   } satisfies ViewStyle,
   input: {
-    backgroundColor: surfaces.glassInput,
+    backgroundColor: ui.surfaceMuted,
     borderRadius: premium.radiusInput,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.hairline,
   } satisfies ViewStyle,
   sheet: {
-    backgroundColor: surfaces.glassSheet,
+    backgroundColor: colors.white,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.hairline,
     borderBottomWidth: 0,
     overflow: 'hidden' as const,
   } satisfies ViewStyle,
   frost: {
-    backgroundColor: 'rgba(255,255,255,0.52)',
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.62)',
+    borderColor: ui.hairline,
   } satisfies ViewStyle,
 };
 
-export const glassTabBarStyle: ViewStyle = {
-  position: 'absolute',
-  left: 14,
-  right: 14,
-  bottom: 12,
-  backgroundColor: 'transparent',
-  borderTopColor: 'transparent',
-  borderTopWidth: 0,
-  height: 82,
-  paddingBottom: 11,
-  paddingTop: 6,
-  borderRadius: 30,
-  elevation: 0,
-  shadowColor: colors.deep,
-  shadowOffset: { width: 0, height: 16 },
-  shadowOpacity: 0.22,
-  shadowRadius: 28,
-};
+/** Docked white tab bar (Urban-style) — height grows with the home-indicator inset. */
+export function dockTabBarStyle(bottomInset: number): ViewStyle {
+  const padBottom = Math.max(bottomInset, 10);
+  return {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 58 + padBottom,
+    paddingTop: 6,
+    paddingBottom: padBottom,
+    backgroundColor: colors.white,
+    borderTopWidth: 0,
+    elevation: 12,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+  };
+}
+
+/** Tab bar style for the current device — use in Tabs layouts and when restoring a hidden bar. */
+export function useDockTabBarStyle(): ViewStyle {
+  const { bottom } = useSafeAreaInsets();
+  // Stable identity — screens restore this in focus-effect cleanups; a fresh object each render would loop.
+  return useMemo(() => dockTabBarStyle(bottom), [bottom]);
+}
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: surfaces.glassScreenBase, overflow: 'hidden' },
+  root: { flex: 1, backgroundColor: ui.surfaceMuted, overflow: 'hidden' },
   safe: { flex: 1, backgroundColor: 'transparent' },
   flex: { flex: 1 },
   scroll: {
@@ -356,71 +263,17 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     overflow: 'hidden',
   },
-  backdropTopSheen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '32%',
-  },
-  backdropLimeBloom: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: '70%',
-    height: '42%',
-  },
+  backdropMuted: { backgroundColor: ui.surfaceMuted },
   panelShell: {
     borderRadius: premium.radiusCard,
-    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(168,214,150,0.55)',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.14,
-    shadowRadius: 28,
-    elevation: 10,
+    borderColor: ui.hairline,
+    ...ui.shadow,
   },
-  panelTint: {
-    ...StyleSheet.absoluteFill,
-  },
-  panelSheen: {
-    ...StyleSheet.absoluteFill,
-  },
-  panelTopGlow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '48%',
-  },
-  panelCornerBloom: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: '55%',
-    height: '55%',
-  },
-  panelRim: {
-    ...StyleSheet.absoluteFill,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    borderColor: 'rgba(255,255,255,0.78)',
-    borderRadius: premium.radiusCard,
-  },
-  panelInnerRim: {
-    ...StyleSheet.absoluteFill,
-    margin: 1,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(143,208,60,0.12)',
-    borderRadius: premium.radiusCard - 1,
-  },
-  goldEdge: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    zIndex: 2,
+  /** flexGrow keeps stretched panels (flex: 1 / fixed height) filling their shell. */
+  panelClip: {
+    flexGrow: 1,
+    overflow: 'hidden',
   },
   panelInner: {},
   panelPadded: {
@@ -429,18 +282,9 @@ const styles = StyleSheet.create({
   },
   chipShell: {
     borderRadius: 999,
-    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
-    shadowColor: '#04150A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  chipTint: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(255,255,255,0.42)',
+    borderColor: ui.border,
+    backgroundColor: colors.white,
   },
   chipInner: {
     paddingHorizontal: 12,
@@ -455,15 +299,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: surfaces.glassBorderStrong,
-    ...premium.shadowSoft,
-    shadowOffset: { width: 0, height: -8 },
-  },
-  sheetTint: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(255,255,255,0.28)',
+    backgroundColor: colors.white,
   },
   sheetInner: {
     flex: 1,
@@ -476,53 +312,19 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displayExtra,
     fontSize: 17,
     letterSpacing: -0.35,
-    color: colors.ink,
+    color: ui.text,
   },
   sectionHint: {
     fontFamily: fonts.body,
     fontSize: 12,
-    color: colors.muted,
+    color: ui.textSecondary,
     marginTop: 3,
     lineHeight: 17,
   },
   tabBarShell: {
     ...StyleSheet.absoluteFill,
-    overflow: 'hidden',
-    borderRadius: 30,
-  },
-  tabBarTint: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-  },
-  tabBarSheen: {
-    ...StyleSheet.absoluteFill,
-  },
-  tabBarTopGlow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '55%',
-  },
-  tabBarLimeEdge: {
-    position: 'absolute',
-    top: 0,
-    left: 18,
-    right: 18,
-    height: 2.5,
-    borderRadius: 2,
-  },
-  tabBarRim: {
-    ...StyleSheet.absoluteFill,
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.78)',
-  },
-  tabBarInnerRim: {
-    ...StyleSheet.absoluteFill,
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: 'rgba(10,100,35,0.06)',
-    margin: 0.5,
+    backgroundColor: colors.white,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: ui.border,
   },
 });

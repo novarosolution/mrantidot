@@ -1,15 +1,14 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { HeroDarkSlice } from '@/components/kit/HeroDarkSlice';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { homeShadow } from '@/components/kit/homeUi';
+import { PremiumAppHeader } from '@/components/kit/PremiumAppHeader';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { formatRupee } from '@/components/kit/format';
 import { useLocation } from '@/context/LocationContext';
 import type { DayAttendanceStatus, TechnicianStats } from '@/types/api';
-import { colors, fonts, gradients, headerTopPad, premium, premiumType, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, gradients, premium, premiumType, spacing, surfaces, ui } from '@/constants/theme';
 
 export function TechProfileHero({
   name,
@@ -32,7 +31,6 @@ export function TechProfileHero({
   compact?: boolean;
   showStats?: boolean;
 }) {
-  const insets = useSafeAreaInsets();
   const { displayLabel } = useLocation();
   const placeLabel = displayLabel || city;
   const initial = name[0]?.toUpperCase() ?? 'T';
@@ -119,11 +117,13 @@ export function TechProfileHero({
     </View>
   );
 
+  const displayRating = stats && stats.rating > 0 ? stats.rating : 5;
+
   const statsBlock =
     stats && showStats ? (
       <View style={styles.statsRow}>
         <View style={styles.statCell}>
-          <Text style={styles.statVal}>★ {stats.rating.toFixed(1)}</Text>
+          <Text style={styles.statVal}>★ {displayRating.toFixed(1)}</Text>
           <Text style={styles.statLabel}>Rating</Text>
         </View>
         <View style={styles.statDivider} />
@@ -144,27 +144,15 @@ export function TechProfileHero({
   if (compact) {
     return (
       <View style={styles.compactRoot}>
-        <HeroDarkSlice
-          style={styles.bannerShell}
-          sliceHeight={18}
-          contentStyle={[styles.bannerContent, { paddingTop: headerTopPad(insets.top) }]}
-        >
-          <View style={styles.eyebrowRow}>
-            <LinearGradient
-              colors={['#C8F07A', colors.limeBright]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.eyebrowBar}
-            />
-            <Text style={styles.eyebrow}>FIELD CREW</Text>
-          </View>
-          <Text style={styles.bannerTitle}>My Profile</Text>
-          <Text style={styles.bannerSub}>Verified technician · performance & schedule</Text>
-        </HeroDarkSlice>
+        <PremiumAppHeader
+          eyebrow="FIELD CREW"
+          title="My Profile"
+          subtitle="Verified technician · performance & schedule"
+        />
 
         <View style={styles.compactWrap}>
           <View style={styles.compactShell}>
-            <GlassPanel style={styles.compactCard} padded={false} tone="light" intensity={42} goldEdge>
+            <GlassPanel style={styles.compactCard} padded={false} tone="light" intensity={42}>
               <View style={styles.compactInner}>
                 {identity}
                 {statsBlock}
@@ -232,43 +220,16 @@ export function TechProfileHero({
 const styles = StyleSheet.create({
   wrap: { marginBottom: spacing.sm },
   compactRoot: { marginBottom: spacing.sm },
-  bannerShell: { marginBottom: -4 },
-  bannerContent: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md + 20,
-  },
-  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  eyebrowBar: { width: 18, height: 3, borderRadius: 2 },
-  eyebrow: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 10,
-    letterSpacing: 1.2,
-    color: 'rgba(255,255,255,0.92)',
-  },
-  bannerTitle: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 28,
-    lineHeight: 34,
-    letterSpacing: -0.6,
-    color: colors.white,
-  },
-  bannerSub: {
-    fontFamily: fonts.body,
-    fontSize: 13.5,
-    lineHeight: 18,
-    color: 'rgba(255,255,255,0.86)',
-    marginTop: 4,
-  },
   compactWrap: {
     paddingHorizontal: spacing.md,
-    marginTop: -22,
+    marginTop: 4,
   },
   compactShell: {
-    borderRadius: 24,
+    borderRadius: 20,
     ...homeShadow.card,
   },
   compactCard: {
-    borderRadius: 24,
+    borderRadius: 20,
   },
   compactInner: {
     padding: spacing.md,
@@ -291,11 +252,11 @@ const styles = StyleSheet.create({
   },
   compactAvatarText: { fontFamily: fonts.displayExtra, fontSize: 24, color: colors.white },
   compactBody: { flex: 1, minWidth: 0 },
-  compactName: { ...premiumType.cardTitle, fontSize: 18, color: colors.ink },
+  compactName: { ...premiumType.cardTitle, fontSize: 18, color: ui.text },
   compactMeta: { marginTop: 4, gap: 4 },
   compactMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 0 },
   compactMetaItemPhone: { flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 0 },
-  compactMetaText: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, flexShrink: 1 },
+  compactMetaText: { fontFamily: fonts.body, fontSize: 12, color: ui.textSecondary, flexShrink: 1 },
   dutyPill: {
     alignSelf: 'flex-start',
     marginTop: 8,
@@ -308,20 +269,20 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   dutyCentered: { alignSelf: 'center' },
-  dutyOn: { backgroundColor: colors.mint, borderColor: surfaces.glassBorderStrong },
-  dutyOff: { backgroundColor: '#FEF2F2', borderColor: 'rgba(220,38,38,0.2)' },
-  dutyLeave: { backgroundColor: '#EFF6FF', borderColor: 'rgba(59,130,246,0.25)' },
-  dutyPending: { backgroundColor: '#FFF8E8', borderColor: 'rgba(245,184,46,0.35)' },
+  dutyOn: { backgroundColor: ui.brandSoft, borderColor: ui.border },
+  dutyOff: { backgroundColor: colors.errorBg, borderColor: 'rgba(179,63,40,0.2)' },
+  dutyLeave: { backgroundColor: colors.blueBg, borderColor: 'rgba(46,86,158,0.2)' },
+  dutyPending: { backgroundColor: colors.amberBg, borderColor: 'rgba(154,111,18,0.25)' },
   dutyDot: { width: 6, height: 6, borderRadius: 3 },
   dutyDotOn: { backgroundColor: colors.green },
-  dutyDotOff: { backgroundColor: '#DC2626' },
-  dutyDotLeave: { backgroundColor: '#3B82F6' },
-  dutyDotPending: { backgroundColor: '#F5B82E' },
+  dutyDotOff: { backgroundColor: colors.error },
+  dutyDotLeave: { backgroundColor: colors.blue },
+  dutyDotPending: { backgroundColor: colors.amber },
   dutyText: { fontFamily: fonts.bodySemi, fontSize: 11, lineHeight: 14, includeFontPadding: false },
-  dutyTextOn: { color: colors.forest },
-  dutyTextOff: { color: '#B91C1C' },
-  dutyTextLeave: { color: '#1D4ED8' },
-  dutyTextPending: { color: '#9A6F12' },
+  dutyTextOn: { color: ui.brand },
+  dutyTextOff: { color: colors.error },
+  dutyTextLeave: { color: colors.blue },
+  dutyTextPending: { color: colors.amberInk },
   cardOuter: { paddingHorizontal: spacing.md },
   cardShell: {
     borderRadius: premium.radiusCard,

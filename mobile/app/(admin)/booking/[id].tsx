@@ -40,6 +40,8 @@ import { stepPhotoUrls } from '@/lib/stepPhotos';
 import { DEFAULT_BOOKING_SLOT } from '@/lib/dates';
 import {
   bookingCustomerName,
+  bookingRef,
+  bookingStatusLabel,
   bookingRequestedScheduleDisplay,
   bookingScheduleDisplay,
   bookingServiceName,
@@ -83,15 +85,12 @@ export default function AdminBookingDetailScreen() {
     setLoadError(null);
     const [bookingRes, techsRes] = await Promise.allSettled([
       api.get<{ booking: Booking }>(`/bookings/${id}`, screenLoadConfig),
-      api.get<{ technicians: User[] }>('/admin/technicians', {
-        ...screenLoadConfig,
-        params: { available: 'true' },
-      }),
+      api.get<{ technicians: User[] }>('/admin/technicians', screenLoadConfig),
     ]);
     if (bookingRes.status !== 'fulfilled') throw bookingRes.reason;
     setBooking(bookingRes.value.data.booking);
     if (techsRes.status === 'fulfilled') {
-      setTechs(assignableTechnicians(techsRes.value.data.technicians));
+      setTechs(techsRes.value.data.technicians);
     } else {
       setTechs([]);
     }
@@ -115,9 +114,11 @@ export default function AdminBookingDetailScreen() {
     return () => clearInterval(timer);
   }, [booking?.status, booking?.id, load]);
 
+  const assignable = booking ? assignableTechnicians(techs, booking.schedule?.date) : [];
+
   function assignTech() {
     if (!booking) return;
-    if (techs.length === 0) {
+    if (assignable.length === 0) {
       Alert.alert('No technicians', 'Add technicians first.');
       return;
     }
@@ -125,10 +126,10 @@ export default function AdminBookingDetailScreen() {
   }
 
   const assignOptions: ActionSheetOption[] = booking
-    ? techs.map((t) => ({
+    ? assignable.map((t) => ({
         key: t.id,
         label: t.name,
-        subtitle: t.phone || t.email || undefined,
+        subtitle: [t.available === false ? 'Off duty today' : '', t.phone || t.email].filter(Boolean).join(' · ') || undefined,
         onPress: () =>
           safeAsync(async () => {
             await api.patch(`/bookings/${booking.id}/assign`, { technicianId: t.id });
@@ -190,6 +191,8 @@ export default function AdminBookingDetailScreen() {
       Toast.show({ type: 'success', text1: 'Schedule confirmed' });
       setConfirmOpen(false);
       await load();
+    } catch {
+      // error toast shown by the api interceptor
     } finally {
       setBusy(null);
     }
@@ -201,11 +204,15 @@ export default function AdminBookingDetailScreen() {
     try {
       await api.patch(`/bookings/${booking.id}`, {
         schedule: buildSchedulePayload(),
-        address: rescheduleAddress.trim(),
+        ...(rescheduleAddress.trim() && rescheduleAddress.trim() !== booking.address
+          ? { address: rescheduleAddress.trim() }
+          : {}),
       });
       Toast.show({ type: 'success', text1: 'Booking updated' });
       setRescheduleOpen(false);
       await load();
+    } catch {
+      // error toast shown by the api interceptor
     } finally {
       setBusy(null);
     }
@@ -270,7 +277,7 @@ export default function AdminBookingDetailScreen() {
 
   const subtitle = isVerificationPhase(booking.status)
     ? `${doneCount} / ${steps.length} photos`
-    : booking.status.replace(/_/g, ' ');
+    : `${bookingRef(booking.id)} · ${bookingStatusLabel(booking.status)}`;
 
   return (
     <AdminListShell
@@ -322,7 +329,7 @@ export default function AdminBookingDetailScreen() {
           }} tintColor={colors.green} />
         }
       >
-        <BookingStatusBanner status={booking.status} />
+        <BookingStatusBanner status={booking.status} audience="staff" />
 
         <AdminProcessTracker
           status={booking.status}

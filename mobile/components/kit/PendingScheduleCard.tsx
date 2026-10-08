@@ -1,8 +1,7 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
 
 export function PendingScheduleCard({
   title,
@@ -27,8 +26,7 @@ export function PendingScheduleCard({
 
   return (
     <View style={[styles.wrap, isCustomer && styles.wrapCustomer]}>
-      <LinearGradient colors={[colors.bg, colors.mint]} style={styles.card} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}>
-        <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.goldBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      <View style={styles.card}>
         <View style={styles.head}>
           <View style={[styles.icon, !isCustomer && styles.iconAdmin]}>
             <PremiumIcon icon={AppIcons.ui.clock} variant="mint" size="md" color={colors.forest} boxSize={44} />
@@ -46,7 +44,7 @@ export function PendingScheduleCard({
             <Text style={styles.hint}>{hint}</Text>
           </View>
         ) : null}
-      </LinearGradient>
+      </View>
     </View>
   );
 }
@@ -57,17 +55,11 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: premium.radiusCard,
     padding: spacing.md,
-    paddingTop: spacing.sm,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: '#E2F0D8',
+    borderColor: ui.hairline,
     overflow: 'hidden',
-    ...shadows.card,
-  },
-  goldBar: {
-    height: 3,
-    marginHorizontal: -spacing.md,
-    marginTop: -spacing.sm,
-    marginBottom: spacing.sm,
+    ...ui.shadow,
   },
   head: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: spacing.sm },
   icon: {

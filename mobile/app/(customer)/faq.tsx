@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
@@ -7,7 +6,7 @@ import { CustomerContentPage } from '@/components/kit/CustomerContentPage';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useAppContent } from '@/context/AppContentContext';
-import { colors, customerType, fonts, gradients, spacing } from '@/constants/theme';
+import { fonts, spacing, ui } from '@/constants/theme';
 
 export default function FaqScreen() {
   const { content } = useAppContent();
@@ -27,22 +26,15 @@ export default function FaqScreen() {
         content.faq.map((item, i) => {
           const expanded = open === i;
           return (
-            <Card key={i} variant={expanded ? 'premium' : 'glass'} style={styles.card}>
-              {expanded ? (
-                <LinearGradient
-                  colors={[...gradients.goldBar]}
-                  style={styles.accent}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                />
-              ) : null}
+            <Card key={i} variant="premium" style={styles.card}>
               <Pressable style={styles.head} onPress={() => setOpen(expanded ? null : i)}>
                 <Text style={styles.q}>{item.q}</Text>
-                {expanded ? (
-                  <PremiumIcon icon={AppIcons.ui.chevronUp} variant="plain" size={18} color={colors.green} />
-                ) : (
-                  <PremiumIcon icon={AppIcons.ui.chevronDown} variant="plain" size={18} color={colors.muted} />
-                )}
+                <PremiumIcon
+                  icon={expanded ? AppIcons.ui.chevronUp : AppIcons.ui.chevronDown}
+                  variant="plain"
+                  size={18}
+                  color={expanded ? ui.brand : ui.textTertiary}
+                />
               </Pressable>
               {expanded ? <Text style={styles.a}>{item.a}</Text> : null}
             </Card>
@@ -58,21 +50,20 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.md,
     padding: spacing.md,
     marginBottom: spacing.sm,
-    overflow: 'hidden',
-  },
-  accent: {
-    height: 3,
-    marginHorizontal: -spacing.md,
-    marginTop: -spacing.md,
-    marginBottom: spacing.sm,
   },
   head: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  q: { flex: 1, ...customerType.sectionTitleCompact, fontSize: 15 },
+  q: {
+    flex: 1,
+    fontFamily: fonts.displaySemi,
+    fontSize: 15,
+    letterSpacing: -0.2,
+    color: ui.text,
+  },
   a: {
     fontFamily: fonts.body,
     fontSize: 14,
     lineHeight: 21,
-    color: colors.muted,
+    color: ui.textSecondary,
     marginTop: spacing.sm,
   },
 });

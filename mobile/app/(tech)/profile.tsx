@@ -13,6 +13,7 @@ import { localDateKey } from '@/lib/dates';
 import { useTechCopy } from '@/lib/tech-copy';
 import type { Booking, DayAttendanceStatus, TechnicianStats } from '@/types/api';
 import { authRoutes, appReplace } from '@/lib/routes';
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 
 export default function TechProfileScreen() {
   const copy = useTechCopy();
@@ -50,6 +51,8 @@ export default function TechProfileScreen() {
       }
     });
   }, [load]);
+
+  useStaleFocusRefresh(() => load().catch(() => undefined), 3_000);
 
   async function onRefresh() {
     setRefreshing(true);

@@ -72,6 +72,15 @@ const TECHNICIAN_STATUS_GUIDANCE: Record<BookingStatus, string> = {
   cancelled: 'This job was cancelled. No further action needed.',
 };
 
+const STAFF_STATUS_GUIDANCE: Record<BookingStatus, string> = {
+  pending: 'Review the requested time, confirm the schedule, then assign a technician.',
+  confirmed: 'Scheduled. The technician needs the customer’s start code to begin.',
+  in_progress: 'Technician is on site capturing treatment steps.',
+  awaiting_verification: 'Treatment done — waiting for the customer’s completion code.',
+  completed: 'Job closed. Earnings are credited to the technician.',
+  cancelled: 'This booking was cancelled. No further action needed.',
+};
+
 export function bookingStatusLabel(status: BookingStatus): string {
   return STATUS_LABELS[status] ?? status;
 }
@@ -82,6 +91,9 @@ export function bookingStatusMessage(
 ): string {
   if (audience === 'technician') {
     return TECHNICIAN_STATUS_GUIDANCE[status] ?? '';
+  }
+  if (audience === 'staff') {
+    return STAFF_STATUS_GUIDANCE[status] ?? '';
   }
   return STATUS_GUIDANCE[status] ?? '';
 }
@@ -100,6 +112,7 @@ const TRACKING_LABELS: Record<string, string> = {
   cancelled: 'Booking cancelled',
   admin_override: 'Admin marked complete',
   schedule_confirmed: 'Visit time confirmed',
+  rescheduled: 'Visit rescheduled',
 };
 
 export function trackingEventLabel(event: string): string {
@@ -161,4 +174,12 @@ export function isTerminalBookingStatus(status: BookingStatus): boolean {
 
 export function isOperationsPhase(status: BookingStatus): boolean {
   return status === 'pending' || status === 'confirmed';
+}
+
+/** Soonest booking that is still in progress (not completed / cancelled) — the customer's "next visit". */
+export function nextActiveBooking(bookings: Booking[]): Booking | null {
+  const active = bookings.filter((b) => !isTerminalBookingStatus(b.status));
+  if (active.length === 0) return null;
+  const when = (b: Booking) => b.schedule?.date ?? b.createdAt ?? '';
+  return [...active].sort((a, b) => when(a).localeCompare(when(b)))[0] ?? null;
 }

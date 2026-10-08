@@ -1,12 +1,11 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { AdminGoldBar } from '@/components/kit/AdminScreenKit';
+import { Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { adminShadow } from '@/components/kit/homeUi';
 import { formatDelta, isMeaningfulDelta } from '@/lib/display';
 import { ADMIN_KPI_COLS, adminGridCellWidth } from '@/lib/adminGrid';
-import { adminType, colors, fonts, spacing } from '@/constants/theme';
+import { adminType, colors, fonts, ui } from '@/constants/theme';
 
 export function kpiCardWidth() {
   return adminGridCellWidth(ADMIN_KPI_COLS);
@@ -14,6 +13,7 @@ export function kpiCardWidth() {
 
 export function KpiCard({
   icon,
+  image,
   value,
   label,
   delta,
@@ -24,6 +24,7 @@ export function KpiCard({
   glass = true,
 }: {
   icon: LucideIcon;
+  image?: ImageSourcePropType;
   value: string;
   label: string;
   delta?: string;
@@ -37,17 +38,31 @@ export function KpiCard({
   const cardWidth = width ?? kpiCardWidth();
 
   const inner = (
-    <>
-      <AdminGoldBar />
-      <View style={styles.content}>
-        <PremiumIcon icon={icon} variant="mint" size="md" color={iconColor} bg={iconBg} bgTo={colors.white} boxSize={40} />
-        <Text style={styles.value}>{value}</Text>
-        <Text style={styles.label}>{label}</Text>
+    <View style={styles.content}>
+      <View style={styles.top}>
+        <PremiumIcon
+          icon={icon}
+          image={image}
+          variant="mint"
+          size="md"
+          color={iconColor}
+          bg={iconBg}
+          bgTo={colors.white}
+          boxSize={38}
+        />
         {isMeaningfulDelta(delta) ? (
-          <Text style={[styles.delta, delta?.startsWith('-') && styles.deltaDown]}>{formatDelta(delta!)}</Text>
+          <View style={[styles.deltaPill, delta?.startsWith('-') && styles.deltaPillDown]}>
+            <Text style={[styles.delta, delta?.startsWith('-') && styles.deltaDown]}>{formatDelta(delta!)}</Text>
+          </View>
         ) : null}
       </View>
-    </>
+      <Text style={styles.value} numberOfLines={1}>
+        {value}
+      </Text>
+      <Text style={styles.label} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
   );
 
   const shellStyle = [styles.panel, { width: cardWidth }];
@@ -91,21 +106,26 @@ const styles = StyleSheet.create({
   cardSolid: {
     borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.78)',
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: 'rgba(180,220,165,0.95)',
+    borderColor: ui.border,
     ...adminShadow.card,
   },
   pressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
   content: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm + 4,
-    paddingBottom: spacing.md,
-    alignItems: 'center',
+    padding: 14,
     gap: 2,
   },
-  value: { ...adminType.statValue, textAlign: 'center', marginTop: 10, color: colors.ink },
-  label: { ...adminType.statLabel, color: colors.muted, marginTop: 3, textAlign: 'center' },
-  delta: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.green, marginTop: 5, textAlign: 'center' },
+  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  value: { ...adminType.statValue, fontSize: 24, letterSpacing: -0.6, color: ui.text },
+  label: { ...adminType.statLabel, color: ui.textSecondary, marginTop: 2 },
+  deltaPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: colors.mint,
+  },
+  deltaPillDown: { backgroundColor: colors.errorBg },
+  delta: { fontFamily: fonts.bodyBold, fontSize: 11, color: colors.green },
   deltaDown: { color: colors.error },
 });

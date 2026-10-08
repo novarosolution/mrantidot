@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
-import { AdminFilterChips, AdminStatStrip } from '@/components/kit/AdminPageKit';
+import { AdminFilterChips, AdminSearchField, AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
@@ -16,8 +16,6 @@ import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import type { User, UserRole } from '@/types/api';
 import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
-import { Input } from '@/components/ui/Input';
-
 type RoleFilter = 'all' | UserRole;
 
 const ROLE_LABEL: Record<UserRole, string> = {
@@ -113,7 +111,7 @@ export default function AdminUsersScreen() {
           onSelect={(key) => setFilter(key as RoleFilter)}
         />
         <View style={styles.search}>
-          <Input label="Search" value={search} onChangeText={setSearch} placeholder="Name, email, phone" />
+          <AdminSearchField value={search} onChangeText={setSearch} placeholder="Search name, email, phone" />
         </View>
       </View>
     ),
@@ -206,8 +204,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.82)',
     borderWidth: 1,
     borderColor: 'rgba(226,240,216,0.95)',
-    borderTopWidth: 3,
-    borderTopColor: colors.limeBright,
     ...shadows.card,
   },
   pressed: { opacity: 0.92 },

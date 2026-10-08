@@ -40,17 +40,22 @@ export async function couponValue(code: string | undefined, orderAmount: number)
   throw new AppError(400, 'Invalid coupon code');
 }
 
-export async function incrementOfferUse(code?: string): Promise<void> {
+/** Atomically claims one use; returns false when the usage limit was reached in the meantime. */
+export async function reserveOfferUse(code?: string): Promise<boolean> {
+  if (!code?.trim()) return true;
+  const offer = await Offer.findOne({ code: code.trim().toUpperCase() });
+  if (!offer) return true;
+  const filter = offer.maxUses != null
+    ? { _id: offer._id, useCount: { $lt: offer.maxUses } }
+    : { _id: offer._id };
+  const res = await Offer.updateOne(filter, { $inc: { useCount: 1 } });
+  return res.modifiedCount === 1;
+}
+
+export async function releaseOfferUse(code?: string): Promise<void> {
   if (!code?.trim()) return;
-  const normalized = code.trim().toUpperCase();
-  const offer = await Offer.findOne({ code: normalized });
-  if (!offer) return;
-  if (offer.maxUses != null) {
-    await Offer.updateOne(
-      { _id: offer._id, useCount: { $lt: offer.maxUses } },
-      { $inc: { useCount: 1 } },
-    );
-  } else {
-    await Offer.updateOne({ _id: offer._id }, { $inc: { useCount: 1 } });
-  }
+  await Offer.updateOne(
+    { code: code.trim().toUpperCase(), useCount: { $gt: 0 } },
+    { $inc: { useCount: -1 } },
+  );
 }

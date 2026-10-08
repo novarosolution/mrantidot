@@ -1,9 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { AppIcons } from '@/constants/appIcons';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { PestImage } from '@/components/ServiceIcon';
+import { SERVICE_TYPE_IMAGES } from '@/constants/serviceImages';
 import { Button } from './Button';
-import { colors, customerType, fonts, premium, spacing } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 export function EmptyState({
   title,
@@ -18,17 +17,15 @@ export function EmptyState({
 }) {
   return (
     <View style={styles.wrap}>
-      <View style={styles.shell}>
-        <GlassPanel style={styles.card} goldEdge tone="mint" intensity={48} padded={false}>
-          <View style={styles.inner}>
-            <PremiumIcon icon={AppIcons.empty} variant="ring" size="hero" color={colors.forest} boxSize={68} />
-            <Text style={styles.title}>{title}</Text>
-            {message ? <Text style={styles.message}>{message}</Text> : null}
-            {actionLabel && onAction ? (
-              <Button title={actionLabel} variant="premium" size="md" onPress={onAction} style={styles.btn} />
-            ) : null}
-          </View>
-        </GlassPanel>
+      <View style={styles.card}>
+        <View style={styles.icon}>
+          <PestImage source={SERVICE_TYPE_IMAGES.cockroach} size={56} />
+        </View>
+        <Text style={styles.title}>{title}</Text>
+        {message ? <Text style={styles.message}>{message}</Text> : null}
+        {actionLabel && onAction ? (
+          <Button title={actionLabel} variant="premium" size="md" onPress={onAction} style={styles.btn} />
+        ) : null}
       </View>
     </View>
   );
@@ -36,27 +33,41 @@ export function EmptyState({
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
-  shell: {
+  card: {
     maxWidth: 320,
     width: '100%',
-    borderRadius: premium.radiusCard,
-    ...premium.shadowSoft,
-  },
-  card: { borderRadius: premium.radiusCard },
-  inner: {
+    borderRadius: 22,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
     padding: spacing.lg,
     alignItems: 'center',
     gap: 10,
+    ...ui.shadow,
+  },
+  icon: {
+    width: 88,
+    height: 88,
+    borderRadius: 28,
+    backgroundColor: ui.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
   },
   title: {
-    ...customerType.emptyTitle,
     fontFamily: fonts.displaySemi,
+    fontSize: 18,
+    lineHeight: 24,
+    letterSpacing: -0.3,
     textAlign: 'center',
+    color: ui.text,
   },
   message: {
-    ...customerType.emptyBody,
-    textAlign: 'center',
+    fontFamily: fonts.body,
+    fontSize: 13.5,
     lineHeight: 20,
+    textAlign: 'center',
+    color: ui.textSecondary,
   },
   btn: { marginTop: spacing.sm, minWidth: 160 },
 });
