@@ -40,6 +40,5 @@ Lifestyle (or closest Home / Productivity option)
 Ads:
 No
 
-Privacy Policy URL (after you host the file):
-https://YOUR-USERNAME.github.io/mrantidot/store-listing/privacy-policy.html
-  OR upload privacy-policy.html to any public HTTPS host and paste that URL.
+Privacy Policy URL (live):
+https://novarosolution.github.io/mrantidot/privacy-policy.html
