@@ -26,16 +26,11 @@ Play Console → Default store listing
 4. Phone screenshots                    → upload all 4 from screenshots/
 
 
-Privacy Policy URL (required)
------------------------------
-Option A — GitHub Pages (fast):
-  1. Push this repo (including store-listing/) to GitHub
-  2. Repo Settings → Pages → Deploy from branch → main → / (root) or /docs
-  3. Or open privacy-policy.html raw via any static host
-  4. Paste the public https:// URL in Play Console → App content → Privacy policy
+Privacy Policy URL (live)
+-------------------------
+https://novarosolution.github.io/mrantidot/privacy-policy.html
 
-Option B — Any host (Google Sites, Netlify, your domain):
-  Upload privacy-policy.html and use that https link.
+Paste this in Play Console → App content → Privacy policy.
 
 
 Still required (not files — you must do)
