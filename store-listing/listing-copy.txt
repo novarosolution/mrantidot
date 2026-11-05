@@ -1,0 +1,45 @@
+Google Play — Default store listing copy
+========================================
+
+App name:
+Mr Antidot
+
+Short description (max 80 characters):
+Book trusted home services. Track jobs with photo & GPS verification.
+
+Full description:
+Mr Antidot is a home-services booking platform that connects customers with technicians and helps admins manage day-to-day operations in one place.
+
+For customers
+• Browse and book home services easily
+• Manage addresses, bookings, and notifications
+• Track job progress and view offers
+• Confirm on-site work with verified job photos
+
+For technicians
+• View assigned jobs and complete work on the go
+• Capture camera photos with GPS tagging for job verification
+• Manage leave, profile, and job history
+
+For admins
+• Manage customers, technicians, and bookings
+• Control services, offers, reviews, and notifications
+• Monitor operations from a dedicated admin experience
+
+Why Mr Antidot
+Trusted booking flow, clear job tracking, and photo + location verification so customers can feel confident that work was done on site.
+
+Download Mr Antidot and book reliable home services with confidence.
+
+Package name:
+com.mrantidot.app
+
+Category suggestion:
+Lifestyle (or closest Home / Productivity option)
+
+Ads:
+No
+
+Privacy Policy URL (after you host the file):
+https://YOUR-USERNAME.github.io/mrantidot/store-listing/privacy-policy.html
+  OR upload privacy-policy.html to any public HTTPS host and paste that URL.
