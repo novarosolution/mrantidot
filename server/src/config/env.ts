@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
@@ -34,13 +35,28 @@ if (!isProduction && !usesEmbeddedDb) {
   }
 }
 
+// Outside production, never fall back to a well-known signing secret: a dev server exposed on a
+// LAN/public host would otherwise accept forged tokens. Unset => random per-process secret
+// (tokens reset on restart); set JWT_SECRET in server/.env to keep sessions across restarts.
+let jwtSecret = process.env.JWT_SECRET?.trim();
+if (!jwtSecret) {
+  jwtSecret = crypto.randomBytes(32).toString('hex');
+  console.warn('[env] JWT_SECRET not set — using a random one for this run. Set it in server/.env to keep logins across restarts.');
+}
+
+/** CLIENT_URL may be "*" or a comma-separated list of allowed browser origins. */
+const clientUrl = process.env.CLIENT_URL?.trim() || '*';
+if (isProduction && clientUrl === '*') {
+  console.warn('[env] CLIENT_URL=* allows any browser origin. Set CLIENT_URL to your web origin(s); the native app is unaffected by CORS.');
+}
+
 export const env = {
   isProduction,
   port: parseInt(process.env.PORT ?? '4001', 10),
   mongoUri,
-  jwtSecret: process.env.JWT_SECRET ?? 'supersecret_change_me',
+  jwtSecret,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
-  clientUrl: process.env.CLIENT_URL ?? '*',
+  clientUrl,
   uploadDir: path.resolve(
     process.cwd(),
     process.env.UPLOAD_DIR ?? path.join(process.cwd(), 'uploads'),

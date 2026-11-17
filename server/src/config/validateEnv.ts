@@ -93,6 +93,23 @@ export function validateProductionEnv(): void {
   assertValidMongoUri(mongoUri);
 
   ensureProductionJwt();
+  ensureProductionAdminPassword();
+}
+
+/** The env admin is created on startup, so a missing/default password would be a public backdoor. */
+export function ensureProductionAdminPassword(): void {
+  if (process.env.NODE_ENV !== 'production') return;
+  if (process.env.ENSURE_ADMIN_ON_STARTUP === 'false') return;
+
+  const pw = process.env.ADMIN_PASSWORD?.trim();
+  const weak = ['admin123', 'change_me', 'Ronak@1027'];
+  if (pw && pw.length >= 10 && !weak.includes(pw)) return;
+
+  throw new Error(
+    'ADMIN_PASSWORD is required in production (min 10 chars, not a demo value). ' +
+      'Set it in Render → Environment.' +
+      RENDER_DEPLOY_HELP,
+  );
 }
 
 export function assertDistBuilt(): void {

@@ -34,6 +34,10 @@ function resolveDeployApiUrl(fallbackFromAppJson) {
 
 const appJson = require('./app.json');
 
+// Production EAS builds restrict cleartext HTTP to the live API host (see plugins/withCleartextTraffic.js).
+const IS_PRODUCTION_BUILD = process.env.EAS_BUILD_PROFILE === 'production';
+const LIVE_API_HOST = new URL(LIVE_API_URL).hostname;
+
 /** @param {{ config: import('expo/config').ExpoConfig }} ctx */
 module.exports = ({ config }) => {
   const base = appJson.expo;
@@ -49,7 +53,7 @@ module.exports = ({ config }) => {
     android: {
       ...(base.android ?? {}),
       ...(config.android ?? {}),
-      usesCleartextTraffic: true,
+      usesCleartextTraffic: !IS_PRODUCTION_BUILD,
     },
     ios: {
       ...(base.ios ?? {}),
@@ -57,9 +61,13 @@ module.exports = ({ config }) => {
       infoPlist: {
         ...(base.ios?.infoPlist ?? {}),
         ...(config.ios?.infoPlist ?? {}),
-        NSAppTransportSecurity: {
-          NSAllowsArbitraryLoads: true,
-        },
+        NSAppTransportSecurity: IS_PRODUCTION_BUILD
+          ? {
+              NSExceptionDomains: {
+                [LIVE_API_HOST]: { NSExceptionAllowsInsecureHTTPLoads: true },
+              },
+            }
+          : { NSAllowsArbitraryLoads: true },
       },
     },
     plugins: (() => {

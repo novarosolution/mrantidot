@@ -76,7 +76,8 @@ async function main(): Promise<void> {
       crossOriginEmbedderPolicy: false,
     }),
   );
-  app.use(cors({ origin: env.clientUrl || '*' }));
+  const corsOrigins = env.clientUrl.split(',').map((o) => o.trim()).filter(Boolean);
+  app.use(cors({ origin: corsOrigins.includes('*') ? '*' : corsOrigins }));
   if (!env.isProduction) {
     app.use(morgan('dev'));
   }
