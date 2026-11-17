@@ -125,12 +125,10 @@ export function BookingGuide({
       </View>
 
       {showCta ? (
-        <Button
-          title="Start booking"
-          variant="premium"
-          onPress={() => appPush(customerRoutes.services)}
-          style={styles.cta}
-        />
+        // Padding on a wrapper, not margin on the button: the button is width: 100% and would overflow the screen.
+        <View style={styles.cta}>
+          <Button title="Start booking" variant="premium" onPress={() => appPush(customerRoutes.services)} />
+        </View>
       ) : null}
     </View>
   );
@@ -264,5 +262,5 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: ui.hairline,
   },
-  cta: { marginHorizontal: spacing.md, marginTop: 4 },
+  cta: { paddingHorizontal: spacing.md, marginTop: 4 },
 });

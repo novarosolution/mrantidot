@@ -4,10 +4,9 @@ import { StyleSheet, Text, View } from 'react-native';
 import { appToast } from '@/lib/toast';
 import { Button } from '@/components/ui/Button';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
-import { UserAccountCard } from '@/components/kit/UserAccountCard';
 import { IconInput } from '@/components/kit/IconInput';
 import { AddressLocateButton } from '@/components/kit/AddressLocateButton';
-import { GlassPanel, GlassScreen, GlassSectionLabel } from '@/components/kit/GlassScreenKit';
+import { GlassPanel, GlassScreen, GlassSectionLabel, TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { useAuth } from '@/context/AuthContext';
@@ -83,6 +82,8 @@ export default function SettingsScreen() {
 
   return (
     <GlassScreen
+      // Clear the docked tab bar so "Save changes" can scroll fully into view.
+      contentContainerStyle={styles.scrollPad}
       header={
         <CustomerPageHeader
           variant="premium"
@@ -92,14 +93,13 @@ export default function SettingsScreen() {
         />
       }
     >
-      <GlassPanel padded={false}>
-        <View style={styles.accountWrap}>
-          <UserAccountCard compact embedded />
-          {isProfileIncomplete(user) ? (
-            <Text style={styles.completeHint}>{ui.settingsCompleteHint}</Text>
-          ) : null}
+      {/* The profile tab already shows who you are; here the only extra is a nudge to finish setup. */}
+      {isProfileIncomplete(user) ? (
+        <View style={styles.callout}>
+          <AppIcons.ui.info size={18} color={themeUi.brand} strokeWidth={2.2} />
+          <Text style={styles.calloutText}>{ui.settingsCompleteHint}</Text>
         </View>
-      </GlassPanel>
+      ) : null}
       <GlassSectionLabel title={ui.settingsDetailsTitle} hint={ui.settingsDetailsHint} />
       <GlassPanel>
         <IconInput
@@ -140,17 +140,15 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  accountWrap: {
-    padding: spacing.md,
-    gap: spacing.xs,
+  scrollPad: { paddingBottom: TAB_BAR_SCROLL_PAD },
+  callout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: themeUi.brandSoft,
   },
-  completeHint: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: themeUi.brand,
-    textAlign: 'center',
-    lineHeight: 17,
-    paddingHorizontal: spacing.sm,
-  },
+  calloutText: { flex: 1, fontFamily: fonts.bodyMedium, fontSize: 13.5, lineHeight: 19, color: themeUi.text },
   btnWrap: { marginTop: spacing.xs },
 });

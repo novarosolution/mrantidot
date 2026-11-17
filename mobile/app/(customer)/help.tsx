@@ -2,90 +2,97 @@ import type { LucideIcon } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { callPhone, openWhatsApp, sendEmail } from '@/lib/contact';
 import { CustomerContentPage } from '@/components/kit/CustomerContentPage';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { Card } from '@/components/ui/Card';
+import { ListFootnote, ListGroup, ListNavRow, ListSectionTitle } from '@/components/kit/ListGroup';
 import { AppIcons } from '@/constants/appIcons';
 import { useAppContent } from '@/context/AppContentContext';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
-import { colors, fonts, spacing, ui as themeUi } from '@/constants/theme';
+import { colors, fonts, ui as themeUi } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
+
+type Channel = { key: string; icon: LucideIcon; label: string; value: string; onPress: () => void };
 
 export default function HelpScreen() {
   const { content } = useAppContent();
   const ui = useCustomerUiCopy();
-  const { support } = content;
-  const brandName = content.branding.name?.trim() || 'Mr Antidot';
+  const { phone, whatsapp, email, hours } = content.support;
+
+  // Only channels the admin has filled in get a tile.
+  const channels: Channel[] = [];
+  if (phone) {
+    channels.push({ key: 'phone', icon: AppIcons.ui.phone, label: ui.helpPhoneLabel, value: phone, onPress: () => callPhone(phone) });
+  }
+  if (whatsapp) {
+    channels.push({ key: 'whatsapp', icon: AppIcons.ui.message, label: ui.helpWhatsappLabel, value: whatsapp, onPress: () => openWhatsApp(whatsapp) });
+  }
+  if (email) {
+    channels.push({ key: 'email', icon: AppIcons.ui.mail, label: ui.helpEmailLabel, value: email, onPress: () => sendEmail(email) });
+  }
 
   return (
-    <CustomerContentPage
-      title={ui.helpScreenTitle}
-      subtitle={ui.helpSubtitle}
-      sectionTitle={ui.helpContactTitle}
-      sectionSubtitle={`Reach the ${brandName} team`}
-    >
-      <Pressable
-        style={({ pressed }) => [styles.guideCard, pressed && styles.guidePressed]}
-        onPress={() => appPush(customerRoutes.bookGuide)}
-        accessibilityRole="button"
-        accessibilityLabel="How to book a service"
-      >
-        <PremiumIcon icon={AppIcons.ui.listChecks} variant="mint" size={20} color={themeUi.brand} boxSize={44} />
-        <View style={styles.guideBody}>
-          <Text style={styles.guideTitle}>{ui.helpGuideTitle}</Text>
-          <Text style={styles.guideSub}>5 easy steps · Start booking with confidence</Text>
+    <CustomerContentPage title={ui.helpScreenTitle} subtitle={ui.helpSubtitle}>
+      <ListSectionTitle title={ui.helpContactTitle} first />
+      {channels.length > 0 ? (
+        <View style={styles.tiles}>
+          {channels.map((c) => (
+            <ContactTile key={c.key} icon={c.icon} label={c.label} value={c.value} onPress={c.onPress} />
+          ))}
         </View>
-        <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={18} color={themeUi.textTertiary} />
-      </Pressable>
+      ) : (
+        <View style={styles.empty}>
+          <Text style={styles.emptyText}>Support details will appear here once configured in Content.</Text>
+        </View>
+      )}
+      {hours ? (
+        <View style={styles.hours}>
+          <AppIcons.ui.clock size={15} color={themeUi.textTertiary} strokeWidth={2.2} />
+          <Text style={styles.hoursText}>
+            <Text style={styles.hoursLabel}>{ui.helpHoursLabel}  </Text>
+            {hours}
+          </Text>
+        </View>
+      ) : null}
 
-      <Card variant="premium" style={styles.card}>
-        {support.phone ? (
-          <ContactRow
-            icon={AppIcons.ui.phone}
-            label={ui.helpPhoneLabel}
-            value={support.phone}
-            onPress={() => callPhone(support.phone)}
-          />
-        ) : null}
-        {support.whatsapp ? (
-          <ContactRow
-            icon={AppIcons.ui.message}
-            label={ui.helpWhatsappLabel}
-            value={support.whatsapp}
-            onPress={() => openWhatsApp(support.whatsapp ?? '')}
-          />
-        ) : null}
-        {support.email ? (
-          <ContactRow
-            icon={AppIcons.ui.mail}
-            label={ui.helpEmailLabel}
-            value={support.email}
-            onPress={() => sendEmail(support.email)}
-          />
-        ) : null}
-        {support.hours ? (
-          <ContactRow icon={AppIcons.ui.clock} label={ui.helpHoursLabel} value={support.hours} />
-        ) : null}
-        {!support.phone && !support.whatsapp && !support.email && !support.hours ? (
-          <Text style={styles.emptySupport}>Support details will appear here once configured in Content.</Text>
-        ) : null}
-      </Card>
-
-      <View style={styles.resourcesHeader}>
-        <Text style={styles.resourcesTitle}>{ui.helpResourcesTitle}</Text>
-        <Text style={styles.resourcesSub}>{ui.helpResourcesSub}</Text>
-      </View>
-      <Card variant="glass" style={styles.card}>
-        <LinkRow icon={AppIcons.ui.help} label={ui.profileMenuFaq} onPress={() => appPush(customerRoutes.faq)} />
-        <LinkRow icon={AppIcons.ui.info} label={ui.profileMenuAbout} onPress={() => appPush(customerRoutes.about)} />
-        <LinkRow icon={AppIcons.ui.terms} label={ui.profileMenuTerms} onPress={() => appPush(customerRoutes.terms)} />
-        <LinkRow icon={AppIcons.ui.shield} label={ui.profileMenuPrivacy} onPress={() => appPush(customerRoutes.privacy)} last />
-      </Card>
+      <ListSectionTitle title={ui.helpResourcesTitle} />
+      <ListGroup>
+        <ListNavRow
+          icon={AppIcons.ui.listChecks}
+          title={ui.helpGuideTitle}
+          subtitle="5 easy steps · Book with confidence"
+          onPress={() => appPush(customerRoutes.bookGuide)}
+        />
+        <ListNavRow
+          icon={AppIcons.profile.faq}
+          title={ui.profileMenuFaq}
+          subtitle={ui.profileMenuFaqSub}
+          onPress={() => appPush(customerRoutes.faq)}
+        />
+        <ListNavRow
+          icon={AppIcons.ui.info}
+          title={ui.profileMenuAbout}
+          subtitle={ui.profileMenuAboutSub}
+          onPress={() => appPush(customerRoutes.about)}
+        />
+        <ListNavRow
+          icon={AppIcons.ui.terms}
+          title={ui.profileMenuTerms}
+          subtitle={ui.profileMenuTermsSub}
+          onPress={() => appPush(customerRoutes.terms)}
+        />
+        <ListNavRow
+          icon={AppIcons.ui.shield}
+          title={ui.profileMenuPrivacy}
+          subtitle={ui.profileMenuPrivacySub}
+          onPress={() => appPush(customerRoutes.privacy)}
+        />
+      </ListGroup>
+      <ListFootnote>{ui.helpResourcesSub}</ListFootnote>
     </CustomerContentPage>
   );
 }
 
-function ContactRow({
-  icon,
+/** One-tap contact channel. The value is read out to screen readers; the dialer / mail app shows it on tap. */
+function ContactTile({
+  icon: Icon,
   label,
   value,
   onPress,
@@ -93,88 +100,51 @@ function ContactRow({
   icon: LucideIcon;
   label: string;
   value: string;
-  onPress?: () => void;
-}) {
-  return (
-    <Pressable style={styles.row} onPress={onPress} disabled={!onPress}>
-      <PremiumIcon icon={icon} variant="mint" size={18} color={themeUi.brand} boxSize={36} />
-      <View style={styles.rowBody}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        <Text style={styles.rowValue}>{value}</Text>
-      </View>
-      {onPress ? <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={18} color={themeUi.textTertiary} /> : null}
-    </Pressable>
-  );
-}
-
-function LinkRow({
-  icon,
-  label,
-  onPress,
-  last,
-}: {
-  icon: LucideIcon;
-  label: string;
   onPress: () => void;
-  last?: boolean;
 }) {
   return (
-    <Pressable style={[styles.row, !last && styles.rowBorder]} onPress={onPress}>
-      <PremiumIcon icon={icon} variant="mint" size={18} color={themeUi.brand} boxSize={36} />
-      <Text style={[styles.rowLabel, styles.linkLabel]}>{label}</Text>
-      <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={18} color={themeUi.textTertiary} />
+    <Pressable
+      style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}`}
+    >
+      <View style={styles.tileIcon}>
+        <Icon size={22} color={themeUi.brand} strokeWidth={2.1} />
+      </View>
+      <Text style={styles.tileLabel} numberOfLines={1}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  guideCard: {
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.md,
-    padding: 14,
-    borderRadius: 18,
+  tiles: { flexDirection: 'row', gap: 10 },
+  tile: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 16,
+    borderRadius: 20,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: themeUi.hairline,
-    flexDirection: 'row',
+    ...themeUi.shadow,
+  },
+  tilePressed: { transform: [{ scale: 0.97 }] },
+  tileIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: themeUi.brandSoft,
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'center',
   },
-  guidePressed: { opacity: 0.92, transform: [{ scale: 0.99 }] },
-  guideBody: { flex: 1, minWidth: 0 },
-  guideTitle: {
-    fontFamily: fonts.displaySemi,
-    fontSize: 16,
-    letterSpacing: -0.2,
-    color: themeUi.text,
-  },
-  guideSub: {
-    marginTop: 3,
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: themeUi.textSecondary,
-  },
-  card: { marginHorizontal: spacing.md, padding: spacing.sm, marginBottom: spacing.md },
-  emptySupport: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: themeUi.textSecondary,
-    padding: spacing.md,
-    lineHeight: 19,
-  },
-  resourcesHeader: { paddingHorizontal: spacing.md, marginBottom: spacing.sm },
-  resourcesTitle: { fontFamily: fonts.displayExtra, fontSize: 18, letterSpacing: -0.2, color: themeUi.text },
-  resourcesSub: { marginTop: 2, fontFamily: fonts.body, fontSize: 13, color: themeUi.textSecondary },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: 12,
-    paddingHorizontal: spacing.sm,
-  },
-  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: themeUi.hairline },
-  rowBody: { flex: 1, minWidth: 0 },
-  rowLabel: { fontFamily: fonts.bodySemi, fontSize: 13, color: themeUi.textSecondary },
-  linkLabel: { flex: 1, color: themeUi.text, fontSize: 15 },
-  rowValue: { fontFamily: fonts.body, fontSize: 14, color: themeUi.text, marginTop: 2 },
+  tileLabel: { fontFamily: fonts.bodyBold, fontSize: 13.5, color: themeUi.text },
+  hours: { marginTop: 12, marginHorizontal: 4, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  hoursText: { flex: 1, fontFamily: fonts.bodyMedium, fontSize: 13.5, lineHeight: 19, color: themeUi.text },
+  hoursLabel: { fontFamily: fonts.bodySemi, color: themeUi.textSecondary },
+  empty: { padding: 16, borderRadius: 18, backgroundColor: themeUi.brandSoft },
+  emptyText: { fontFamily: fonts.body, fontSize: 13.5, lineHeight: 19, color: themeUi.textSecondary },
 });

@@ -1,11 +1,13 @@
 import { Children, isValidElement, type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react-native';
-import { Ellipsis, Plus } from 'lucide-react-native';
+import { ChevronDown, ChevronRight, ChevronUp, Ellipsis, Plus } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts, ui } from '@/constants/theme';
 
 const ICON = 42;
 const PAD = 14;
+/** Hairlines start past the icon tile by default (rows with an icon column). */
+const ICON_INSET = PAD + ICON + 12;
 
 /** Dashed "+ Add …" card that sits above a saved-items list (Urban-style). */
 export function ListAddRow({ label, onPress }: { label: string; onPress: () => void }) {
@@ -19,23 +21,93 @@ export function ListAddRow({ label, onPress }: { label: string; onPress: () => v
   );
 }
 
-/** Small uppercase label above a group. */
-export function ListSectionTitle({ title }: { title: string }) {
-  return <Text style={styles.sectionTitle}>{title}</Text>;
+/** Small uppercase label above a group. `first` drops the top gap when it opens a page. */
+export function ListSectionTitle({ title, first = false }: { title: string; first?: boolean }) {
+  return <Text style={[styles.sectionTitle, first && styles.sectionTitleFirst]}>{title}</Text>;
 }
 
-/** One white card holding rows, with hairlines inset past the icon column. */
-export function ListGroup({ children }: { children: ReactNode }) {
+/**
+ * One white card holding rows, with hairlines inset past the icon column.
+ * Pass `dividerInset` for rows without an icon (e.g. FAQ questions).
+ */
+export function ListGroup({ children, dividerInset = ICON_INSET }: { children: ReactNode; dividerInset?: number }) {
   const rows = Children.toArray(children);
   return (
     <View style={styles.group}>
       {rows.map((row, i) => (
         <View key={isValidElement(row) && row.key != null ? row.key : i}>
-          {i > 0 ? <View style={styles.divider} /> : null}
+          {i > 0 ? <View style={[styles.divider, { marginLeft: dividerInset }]} /> : null}
           {row}
         </View>
       ))}
     </View>
+  );
+}
+
+/** Navigation row: icon tile, title, optional second line, chevron. Lives inside a ListGroup. */
+export function ListNavRow({
+  icon: Icon,
+  title,
+  subtitle,
+  onPress,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle?: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.navRow, pressed && styles.pressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={subtitle ? `${title}. ${subtitle}` : title}
+    >
+      <View style={styles.rowIcon}>
+        <Icon size={19} color={ui.brand} strokeWidth={2.1} />
+      </View>
+      <View style={styles.navBody}>
+        <Text style={styles.navTitle} numberOfLines={1}>
+          {title}
+        </Text>
+        {subtitle ? (
+          <Text style={styles.navSub} numberOfLines={2}>
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
+      <ChevronRight size={18} color={ui.textTertiary} strokeWidth={2.2} />
+    </Pressable>
+  );
+}
+
+/** FAQ accordion row — question with a chevron, answer revealed underneath. Use in `<ListGroup dividerInset={PAD}>`. */
+export function ListFaqRow({
+  question,
+  answer,
+  open,
+  onToggle,
+}: {
+  question: string;
+  answer: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const Chevron = open ? ChevronUp : ChevronDown;
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.faqRow, pressed && styles.pressed]}
+      onPress={onToggle}
+      accessibilityRole="button"
+      accessibilityState={{ expanded: open }}
+      accessibilityLabel={question}
+    >
+      <View style={styles.faqHead}>
+        <Text style={[styles.faqQ, open && styles.faqQOpen]}>{question}</Text>
+        <Chevron size={18} color={open ? ui.brand : ui.textTertiary} strokeWidth={2.2} />
+      </View>
+      {open ? <Text style={styles.faqA}>{answer}</Text> : null}
+    </Pressable>
   );
 }
 
@@ -134,6 +206,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: ui.textTertiary,
   },
+  sectionTitleFirst: { marginTop: 4 },
   group: {
     borderRadius: 20,
     backgroundColor: colors.white,
@@ -142,8 +215,24 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...ui.shadow,
   },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: ui.border, marginLeft: PAD + ICON + 12 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: ui.border },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: PAD },
+  navRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: PAD },
+  navBody: { flex: 1, minWidth: 0 },
+  navTitle: { fontFamily: fonts.bodyBold, fontSize: 15.5, color: ui.text },
+  navSub: { marginTop: 2, fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: ui.textSecondary },
+  faqRow: { paddingHorizontal: PAD, paddingVertical: 16 },
+  faqHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  faqQ: { flex: 1, fontFamily: fonts.bodySemi, fontSize: 15.5, lineHeight: 21, color: ui.text },
+  faqQOpen: { fontFamily: fonts.bodyBold },
+  faqA: {
+    marginTop: 8,
+    paddingRight: 30,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    lineHeight: 21,
+    color: ui.textSecondary,
+  },
   rowIcon: {
     width: ICON,
     height: ICON,

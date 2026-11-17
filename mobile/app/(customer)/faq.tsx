@@ -1,69 +1,52 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
+import { StyleSheet, View } from 'react-native';
 import { CustomerContentPage } from '@/components/kit/CustomerContentPage';
-import { Card } from '@/components/ui/Card';
+import { ListFaqRow, ListGroup, ListNavRow } from '@/components/kit/ListGroup';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { AppIcons } from '@/constants/appIcons';
 import { useAppContent } from '@/context/AppContentContext';
-import { fonts, spacing, ui } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { customerRoutes, appPush } from '@/lib/routes';
+import { spacing } from '@/constants/theme';
 
 export default function FaqScreen() {
   const { content } = useAppContent();
+  const ui = useCustomerUiCopy();
   const [open, setOpen] = useState<number | null>(0);
-  const brandName = content.branding.name?.trim() || 'Mr Antidot';
 
   return (
-    <CustomerContentPage
-      title="FAQ"
-      subtitle="Quick answers"
-      sectionTitle="Common questions"
-      sectionSubtitle={`${brandName} · tap a question to expand`}
-    >
+    <CustomerContentPage title={ui.profileMenuFaq} subtitle={ui.profileMenuFaqSub}>
       {content.faq.length === 0 ? (
         <EmptyState title="No FAQs yet" message="Check back soon." />
       ) : (
-        content.faq.map((item, i) => {
-          const expanded = open === i;
-          return (
-            <Card key={i} variant="premium" style={styles.card}>
-              <Pressable style={styles.head} onPress={() => setOpen(expanded ? null : i)}>
-                <Text style={styles.q}>{item.q}</Text>
-                <PremiumIcon
-                  icon={expanded ? AppIcons.ui.chevronUp : AppIcons.ui.chevronDown}
-                  variant="plain"
-                  size={18}
-                  color={expanded ? ui.brand : ui.textTertiary}
-                />
-              </Pressable>
-              {expanded ? <Text style={styles.a}>{item.a}</Text> : null}
-            </Card>
-          );
-        })
+        // Question rows have no icon column, so hairlines run from the card's left padding.
+        <ListGroup dividerInset={14}>
+          {content.faq.map((item, i) => (
+            <ListFaqRow
+              key={i}
+              question={item.q}
+              answer={item.a}
+              open={open === i}
+              onToggle={() => setOpen(open === i ? null : i)}
+            />
+          ))}
+        </ListGroup>
       )}
+
+      <View style={styles.more}>
+        <ListGroup>
+          <ListNavRow
+            icon={AppIcons.ui.message}
+            title="Still need help?"
+            subtitle="Talk to our support team"
+            onPress={() => appPush(customerRoutes.help)}
+          />
+        </ListGroup>
+      </View>
     </CustomerContentPage>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    marginHorizontal: spacing.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  head: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  q: {
-    flex: 1,
-    fontFamily: fonts.displaySemi,
-    fontSize: 15,
-    letterSpacing: -0.2,
-    color: ui.text,
-  },
-  a: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 21,
-    color: ui.textSecondary,
-    marginTop: spacing.sm,
-  },
+  more: { marginTop: spacing.md },
 });

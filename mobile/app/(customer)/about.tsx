@@ -1,11 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { BrandLogo } from '@/components/BrandLogo';
-import { CustomerContentPage } from '@/components/kit/CustomerContentPage';
-import { Card } from '@/components/ui/Card';
+import { ContentCard, CustomerContentPage } from '@/components/kit/CustomerContentPage';
 import { SimpleMarkdown } from '@/components/ui/SimpleMarkdown';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useAppContent } from '@/context/AppContentContext';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { fonts, ui } from '@/constants/theme';
 
 export default function AboutScreen() {
   const { content } = useAppContent();
@@ -13,38 +12,33 @@ export default function AboutScreen() {
   const tagline = content.branding?.tagline?.trim() || 'Trusted pest control & home services';
 
   return (
-    <CustomerContentPage
-      title="About us"
-      subtitle={name}
-      sectionTitle="Our story"
-      sectionSubtitle="Who we are and how we care for your space"
-    >
-      <Card variant="premium" style={styles.brandCard}>
+    <CustomerContentPage title="About us" subtitle="Who we are">
+      {/* Brand and story share one card: the logo row is the card's masthead. */}
+      <ContentCard>
         <View style={styles.brandRow}>
-          <BrandLogo size={64} animate={false} />
+          <BrandLogo size={60} animate={false} />
           <View style={styles.brandText}>
             <Text style={styles.brandName}>{name}</Text>
             <Text style={styles.brandTag}>{tagline}</Text>
           </View>
         </View>
-      </Card>
+        {content.aboutMarkdown ? (
+          <>
+            <View style={styles.rule} />
+            <SimpleMarkdown text={content.aboutMarkdown} />
+          </>
+        ) : null}
+      </ContentCard>
 
-      {content.aboutMarkdown ? (
-        <Card variant="glass" style={styles.card}>
-          <SimpleMarkdown text={content.aboutMarkdown} />
-        </Card>
-      ) : (
-        <EmptyState title="Nothing here yet" message="Check back soon." />
-      )}
+      {content.aboutMarkdown ? null : <EmptyState title="Nothing here yet" message="Check back soon." />}
     </CustomerContentPage>
   );
 }
 
 const styles = StyleSheet.create({
-  brandCard: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   brandText: { flex: 1, minWidth: 0 },
-  brandName: { fontFamily: fonts.displayExtra, fontSize: 20, color: colors.forest },
-  brandTag: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, marginTop: 4, lineHeight: 18 },
-  card: { marginHorizontal: spacing.md, padding: spacing.md },
+  brandName: { fontFamily: fonts.displaySemi, fontSize: 21, letterSpacing: -0.4, color: ui.text },
+  brandTag: { marginTop: 3, fontFamily: fonts.body, fontSize: 13.5, lineHeight: 19, color: ui.textSecondary },
+  rule: { height: StyleSheet.hairlineWidth, backgroundColor: ui.border, marginVertical: 16 },
 });

@@ -1,17 +1,19 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Check } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { safeGoBack, customerRoutes, sharedRoutes, appPush } from '@/lib/routes';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
 import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
+import { ListGroup, ListNavRow } from '@/components/kit/ListGroup';
 import { PestImage } from '@/components/kit/ServiceThumb';
 import { ServiceListRow } from '@/components/kit/ServiceListRow';
+import { TrustNote } from '@/components/kit/TrustNote';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
-import { formatRupeeFull, plural } from '@/components/kit/format';
+import { plural } from '@/components/kit/format';
+import { AppIcons } from '@/constants/appIcons';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import { isServiceTypeKey } from '@/constants/serviceTypes';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
@@ -19,16 +21,6 @@ import { CACHE_TTL } from '@/lib/apiCache';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import type { Service } from '@/types/api';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
-
-function formatPrice(service: Service): string {
-  if (
-    service.basePrice <= 50 &&
-    (service.serviceTypes?.includes('bird') || service.serviceTypes?.includes('silo'))
-  ) {
-    return `₹${service.basePrice} / sq ft`;
-  }
-  return formatRupeeFull(service.basePrice);
-}
 
 export default function ServicesByTypeScreen() {
   const { type: rawType } = useLocalSearchParams<{ type: string }>();
@@ -78,6 +70,8 @@ export default function ServicesByTypeScreen() {
     );
   }
 
+  const badges = copy.browseBadges.split(',').map((b) => b.trim()).filter(Boolean);
+
   return (
     <View style={styles.root}>
       <SafeAreaView style={styles.safe} edges={['left', 'right']}>
@@ -95,21 +89,23 @@ export default function ServicesByTypeScreen() {
           <ListEmptyRetry message={error} onRetry={() => safeAsync(() => load(true))} />
         ) : (
           <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-            <View style={[styles.hero, { backgroundColor: meta.bg }]}>
-              <View style={styles.heroText}>
-                <Text style={styles.heroKicker}>{plural(services.length, 'service')}</Text>
-                <Text style={styles.heroTitle}>{meta.label}</Text>
-                <View style={styles.heroBadges}>
-                  {copy.browseBadges.split(',').map((b) => b.trim()).filter(Boolean).map((b) => (
-                    <View key={b} style={styles.heroBadge}>
-                      <Check size={11} color={ui.brand} strokeWidth={3} />
-                      <Text style={styles.heroBadgeText}>{b}</Text>
-                    </View>
-                  ))}
+            {/* One compact line of context — the page title already names the pest. */}
+            <View style={[styles.intro, { backgroundColor: meta.bg }]}>
+              {TypeImage ? (
+                <View style={styles.introArt}>
+                  <PestImage source={TypeImage} size={56} />
                 </View>
+              ) : null}
+              <View style={styles.introText}>
+                <Text style={styles.introTitle}>{plural(services.length, 'service')}</Text>
+                {badges.length > 0 ? (
+                  <Text style={styles.introSub} numberOfLines={2}>
+                    {badges.join(' · ')}
+                  </Text>
+                ) : null}
               </View>
-              {TypeImage ? <PestImage source={TypeImage} size={76} /> : null}
             </View>
+
             {services.length === 0 ? (
               <EmptyState title="No services yet" message="Nothing listed for this type right now." />
             ) : (
@@ -118,7 +114,6 @@ export default function ServicesByTypeScreen() {
                   <ServiceListRow
                     key={service.id}
                     service={service}
-                    priceLabel={formatPrice(service)}
                     onPress={() => appPush(sharedRoutes.service(service.id))}
                     onBook={() => appPush(sharedRoutes.book(service.id))}
                     showDivider={i < services.length - 1}
@@ -126,6 +121,17 @@ export default function ServicesByTypeScreen() {
                 ))}
               </View>
             )}
+
+            {services.length > 0 ? <TrustNote /> : null}
+
+            <ListGroup>
+              <ListNavRow
+                icon={AppIcons.ui.help}
+                title="Not sure which service?"
+                subtitle="Talk to our team — we'll point you to the right treatment"
+                onPress={() => appPush(customerRoutes.help)}
+              />
+            </ListGroup>
           </ScrollView>
         )}
       </SafeAreaView>
@@ -137,33 +143,24 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: ui.surfaceMuted },
   safe: { flex: 1, backgroundColor: 'transparent' },
   list: { padding: spacing.md, gap: spacing.md, paddingBottom: TAB_BAR_SCROLL_PAD },
-  hero: {
+  intro: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 18,
-    borderRadius: 22,
+    gap: 14,
+    padding: 16,
+    borderRadius: 20,
   },
-  heroText: { flex: 1, minWidth: 0 },
-  heroKicker: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    color: ui.brand,
-  },
-  heroTitle: { marginTop: 4, fontFamily: fonts.display, fontSize: 22, letterSpacing: -0.4, color: ui.text },
-  heroBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
-  heroBadge: {
-    flexDirection: 'row',
+  introArt: {
+    width: 72,
+    height: 72,
+    borderRadius: 18,
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.75)',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.7)',
   },
-  heroBadgeText: { fontFamily: fonts.bodySemi, fontSize: 11, color: ui.text },
+  introText: { flex: 1, minWidth: 0 },
+  introTitle: { fontFamily: fonts.displaySemi, fontSize: 21, letterSpacing: -0.4, color: ui.text },
+  introSub: { marginTop: 3, fontFamily: fonts.bodyMedium, fontSize: 13.5, lineHeight: 19, color: ui.textSecondary },
   card: {
     backgroundColor: colors.white,
     borderRadius: 20,

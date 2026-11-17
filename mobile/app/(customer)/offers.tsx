@@ -9,9 +9,9 @@ import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/Admin
 import { OfferCouponCard } from '@/components/kit/OfferCouponCard';
 import { OffersEmpty } from '@/components/kit/OffersEmpty';
 import { OffersPromoHero } from '@/components/kit/OffersPromoHero';
+import { ListFootnote, ListSectionTitle } from '@/components/kit/ListGroup';
 import { ScreenState } from '@/components/ui/ScreenState';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
-import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
 import { useAppContent } from '@/context/AppContentContext';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
@@ -36,8 +36,6 @@ export default function OffersScreen() {
       ? homePromo.title.trim()
       : content.trust.guaranteeText?.trim();
   const sectionTitle = homeConfig.quickLabels?.offers?.trim() || ui.offersScreenTitle;
-  const couponsTitle =
-    offers.length > 0 ? ui.offersSectionAvailable : homeConfig.sectionTitles.popular || 'Popular now';
 
   const load = async () => {
     setLoadError(null);
@@ -119,38 +117,34 @@ export default function OffersScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeUi.brand} />}
           {...customerScrollProps}
         >
-          <OffersPromoHero
-            offerCount={offers.length}
-            brandName={brandName}
-            fallbackTitle={ui.offersHeroFallbackTitle}
-            fallbackSub={ui.offersHeroFallbackSub}
-            subtitle={
-              offers.length === 0
-                ? undefined
-                : homeConfig.promoCodeHint
-                  ? `Use code ${homeConfig.promoCodeHint} at checkout`
-                  : content.trust.guaranteeText
-            }
-          />
-
           {offers.length === 0 ? (
+            // Nothing to promote yet — the empty state stands alone instead of sitting under a banner.
             <OffersEmpty hint={promoHint || ui.offersEmptyHint} />
           ) : (
-            <>
-              <PremiumSectionHeader title={couponsTitle} style={styles.section} />
+            <View style={styles.list}>
+              <OffersPromoHero
+                brandName={brandName}
+                fallbackTitle={ui.offersHeroFallbackTitle}
+                fallbackSub={ui.offersHeroFallbackSub}
+                subtitle={
+                  homeConfig.promoCodeHint
+                    ? `Use code ${homeConfig.promoCodeHint} at checkout`
+                    : content.trust.guaranteeText
+                }
+              />
+              <ListSectionTitle title={`${ui.offersSectionAvailable} · ${offers.length}`} />
               {offers.map((o, i) => (
                 <FadeSlideIn key={o.id} delay={Math.min(i, 5) * 60} slideFrom={14}>
-                  <View style={styles.offerWrap}>
-                    <OfferCouponCard
-                      offer={o}
-                      index={i}
-                      disabled={services.length === 0}
-                      onPress={() => applyOffer(o)}
-                    />
-                  </View>
+                  <OfferCouponCard
+                    offer={o}
+                    index={i}
+                    disabled={services.length === 0}
+                    onPress={() => applyOffer(o)}
+                  />
                 </FadeSlideIn>
               ))}
-            </>
+              <ListFootnote>Tap a coupon, then pick a service to apply it.</ListFootnote>
+            </View>
           )}
         </ScrollView>
       </ScreenState>
@@ -167,6 +161,5 @@ export default function OffersScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingBottom: TAB_BAR_SCROLL_PAD, flexGrow: 1 },
-  section: { marginBottom: spacing.sm },
-  offerWrap: { paddingHorizontal: spacing.md },
+  list: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
 });

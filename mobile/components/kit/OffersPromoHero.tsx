@@ -3,19 +3,22 @@ import { StyleSheet, Text, View } from 'react-native';
 import { TicketPercent } from 'lucide-react-native';
 import { colors, fonts, spacing } from '@/constants/theme';
 
+/**
+ * Compact brand banner that opens the Offers list. It carries the promise (and a code / guarantee line),
+ * while the coupon count lives on the list's own section title. Horizontal padding comes from the parent.
+ */
 export function OffersPromoHero({
-  offerCount,
   brandName,
   subtitle,
   fallbackTitle,
   fallbackSub,
 }: {
-  offerCount: number;
   brandName?: string;
   subtitle?: string;
   fallbackTitle?: string;
   fallbackSub?: string;
 }) {
+  const sub = subtitle?.trim();
   return (
     <View style={styles.wrap}>
       <LinearGradient
@@ -26,24 +29,15 @@ export function OffersPromoHero({
         end={{ x: 1, y: 1 }}
       >
         <View style={styles.orb} pointerEvents="none" />
-        <View style={styles.ring} pointerEvents="none" />
         <View style={styles.icon}>
-          <TicketPercent size={26} color={colors.white} strokeWidth={2} />
+          <TicketPercent size={24} color={colors.white} strokeWidth={2} />
         </View>
         <View style={styles.body}>
           <Text style={styles.badge}>
             {fallbackTitle?.trim() || (brandName ? `${brandName} deals` : 'Exclusive deals')}
           </Text>
-          <Text style={styles.title}>
-            {offerCount > 0
-              ? `${offerCount} offer${offerCount === 1 ? '' : 's'} available`
-              : fallbackSub || 'Save on your next booking'}
-          </Text>
-          {offerCount > 0 || subtitle?.trim() ? (
-            <Text style={styles.sub}>
-              {subtitle?.trim() || 'Apply a coupon at checkout — works on any service'}
-            </Text>
-          ) : null}
+          <Text style={styles.title}>{fallbackSub?.trim() || 'Save on your next booking'}</Text>
+          {sub ? <Text style={styles.sub}>{sub}</Text> : null}
         </View>
       </LinearGradient>
     </View>
@@ -51,33 +45,19 @@ export function OffersPromoHero({
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
-  },
+  wrap: { paddingBottom: spacing.xs },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    padding: 18,
-    borderRadius: 26,
+    gap: 14,
+    padding: 16,
+    borderRadius: 24,
     overflow: 'hidden',
     shadowColor: '#075C2B',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.22,
-    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
     elevation: 6,
-  },
-  ring: {
-    position: 'absolute',
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    left: -110,
-    top: -140,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.10)',
   },
   orb: {
     position: 'absolute',
@@ -89,9 +69,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
   icon: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.14)',
@@ -107,15 +87,15 @@ const styles = StyleSheet.create({
     color: colors.limeOnDark,
   },
   title: {
-    marginTop: 6,
+    marginTop: 4,
     fontFamily: fonts.displayExtra,
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 17,
+    lineHeight: 22,
     letterSpacing: -0.35,
     color: colors.white,
   },
   sub: {
-    marginTop: 4,
+    marginTop: 3,
     fontFamily: fonts.body,
     fontSize: 13,
     lineHeight: 18,
