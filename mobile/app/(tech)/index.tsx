@@ -7,6 +7,8 @@ import {
   StyleSheet,
   Text,
   View,
+  type TextStyle,
+  type ViewStyle,
 } from 'react-native';
 import { homeShadow } from '@/components/kit/homeUi';
 import Toast from 'react-native-toast-message';
@@ -211,41 +213,26 @@ export default function TechDashboard() {
             ? 'Absent'
             : 'Check in';
 
+  const dutyTone: DutyTone =
+    todayStatus === 'leave'
+      ? 'leave'
+      : todayStatus === 'came' && onDuty
+        ? 'on'
+        : todayStatus === 'came'
+          ? 'checkedOut'
+          : todayStatus === 'not_came'
+            ? 'off'
+            : 'pending';
+
   const hero = (
     <PremiumAppHeader
       eyebrow="FIELD WORK"
       title={copy.techJobsTitle}
       subtitle={`Hi ${firstName} · ${new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}`}
       right={
-        <View
-          style={[
-            styles.dutyPill,
-            todayStatus === 'leave'
-              ? styles.dutyLeave
-              : todayStatus === 'came' && onDuty
-                ? styles.dutyOn
-                : todayStatus === 'came'
-                  ? styles.dutyCheckedOut
-                  : todayStatus === 'not_came'
-                    ? styles.dutyOff
-                    : styles.dutyPending,
-          ]}
-        >
-          <View
-            style={[
-              styles.dutyDot,
-              todayStatus === 'leave'
-                ? styles.dutyDotLeave
-                : todayStatus === 'came' && onDuty
-                  ? styles.dutyDotOn
-                  : todayStatus === 'came'
-                    ? styles.dutyDotCheckedOut
-                    : todayStatus === 'not_came'
-                      ? styles.dutyDotOff
-                      : styles.dutyDotPending,
-            ]}
-          />
-          <Text style={styles.dutyText}>{dutyLabel}</Text>
+        <View style={[styles.dutyPill, DUTY_TONES[dutyTone].pill]}>
+          <View style={[styles.dutyDot, DUTY_TONES[dutyTone].dot]} />
+          <Text style={[styles.dutyText, DUTY_TONES[dutyTone].text]}>{dutyLabel}</Text>
         </View>
       }
     />
@@ -425,12 +412,6 @@ export default function TechDashboard() {
             return (
               <TechScreenGutter style={styles.sectionHeadWrap}>
                 <View style={styles.sectionHead}>
-                  <LinearGradient
-                    colors={isOverdue ? ['#C15B31', '#9E3F1C'] : [colors.limeBright, colors.green]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.sectionAccent}
-                  />
                   <Text style={[styles.sectionHeader, isOverdue && styles.sectionHeaderWarn]}>
                     {item.section.title}
                   </Text>
@@ -461,6 +442,17 @@ export default function TechDashboard() {
   );
 }
 
+type DutyTone = 'on' | 'checkedOut' | 'leave' | 'off' | 'pending';
+
+/** Duty pill colours on the light header. */
+const DUTY_TONES: Record<DutyTone, { pill: ViewStyle; dot: ViewStyle; text: TextStyle }> = {
+  on: { pill: { backgroundColor: ui.brandSoft, borderColor: 'rgba(10,100,35,0.18)' }, dot: { backgroundColor: colors.green }, text: { color: ui.brand } },
+  checkedOut: { pill: { backgroundColor: colors.white, borderColor: ui.border }, dot: { backgroundColor: ui.textTertiary }, text: { color: ui.textSecondary } },
+  leave: { pill: { backgroundColor: colors.blueBg, borderColor: 'rgba(46,86,158,0.18)' }, dot: { backgroundColor: colors.blue }, text: { color: colors.blue } },
+  off: { pill: { backgroundColor: colors.errorBg, borderColor: 'rgba(179,63,40,0.18)' }, dot: { backgroundColor: colors.error }, text: { color: colors.error } },
+  pending: { pill: { backgroundColor: colors.amberBg, borderColor: 'rgba(154,111,18,0.2)' }, dot: { backgroundColor: colors.amber }, text: { color: colors.warning } },
+};
+
 const styles = StyleSheet.create({
   loadingBody: { flex: 1, justifyContent: 'center' },
   dutyPill: {
@@ -473,33 +465,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginTop: 4,
   },
-  dutyOn: {
-    backgroundColor: 'rgba(143,208,60,0.24)',
-    borderColor: 'rgba(200,240,122,0.5)',
-  },
-  dutyCheckedOut: {
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    borderColor: 'rgba(255,255,255,0.28)',
-  },
-  dutyLeave: {
-    backgroundColor: 'rgba(59,130,246,0.28)',
-    borderColor: 'rgba(147,197,253,0.5)',
-  },
-  dutyOff: {
-    backgroundColor: 'rgba(193,91,49,0.28)',
-    borderColor: 'rgba(255,255,255,0.28)',
-  },
-  dutyPending: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderColor: 'rgba(255,255,255,0.32)',
-  },
   dutyDot: { width: 7, height: 7, borderRadius: 4 },
-  dutyDotOn: { backgroundColor: '#C8F07A' },
-  dutyDotOff: { backgroundColor: '#FCA5A5' },
-  dutyDotLeave: { backgroundColor: '#93C5FD' },
-  dutyDotCheckedOut: { backgroundColor: 'rgba(255,255,255,0.55)' },
-  dutyDotPending: { backgroundColor: 'rgba(255,255,255,0.85)' },
-  dutyText: { fontFamily: fonts.bodyBold, fontSize: 11.5, color: colors.white },
+  dutyText: { fontFamily: fonts.bodyBold, fontSize: 12 },
   headerGutter: { marginTop: 10 },
   flex: { flex: 1 },
   pressed: { opacity: 0.94, transform: [{ scale: 0.99 }] },
@@ -512,7 +479,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displayExtra,
     fontSize: 30,
     color: colors.white,
-    letterSpacing: -0.8,
+    letterSpacing: -0.6,
   },
   earnHint: { marginTop: 2, fontFamily: fonts.body, fontSize: 12, color: 'rgba(255,255,255,0.75)' },
   earnChevron: {
@@ -565,7 +532,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
   },
-  sectionAccent: { width: 3, height: 16, borderRadius: 2 },
   sectionHeader: {
     fontFamily: fonts.bodyBold,
     fontSize: 13.5,

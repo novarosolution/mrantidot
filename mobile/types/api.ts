@@ -72,6 +72,13 @@ export interface Service {
   category?: ServiceCategory;
   serviceTypes?: ServiceTypeKey[];
   active?: boolean;
+  /** Admin display position (lower first). */
+  sortOrder?: number;
+  /** Pinned into the home "Most booked" rail. */
+  showInPopular?: boolean;
+  /** Listed in the home "All services" section (default true). */
+  showOnHome?: boolean;
+  createdAt?: string;
   stepTemplate?: string[];
   stats?: ServiceStats;
 }
@@ -275,6 +282,38 @@ export interface BookingCopyConfig {
   techLocationNoteLabel: string;
   techLocationNotePlaceholder: string;
   techNoStepsHint: string;
+  pendingPastHint: string;
+  listPendingPastHint: string;
+  liveNowLabel: string;
+  liveOngoingLabel: string;
+  wizardDayHint: string;
+  wizardTimeTitle: string;
+  wizardNotesLabel: string;
+  wizardIncludedTitle: string;
+  wizardPropertyTitle: string;
+  wizardPropertySubtitle: string;
+  wizardAddressTitle: string;
+  wizardAddressSubtitle: string;
+  wizardSavedAddressesTitle: string;
+  wizardNewAddressTitle: string;
+  wizardAddressDetailsTitle: string;
+  wizardAddressFormSubtitle: string;
+  wizardPhotosTitle: string;
+  wizardPhotosSubtitle: string;
+  wizardPaymentTitle: string;
+  wizardSummaryTitle: string;
+  wizardDetailsTitle: string;
+  wizardLabelSchedule: string;
+  wizardLabelProperty: string;
+  wizardLabelAddress: string;
+  wizardLabelPayment: string;
+  wizardLabelCoupon: string;
+  wizardLabelPhotos: string;
+  wizardNextStepsTitle: string;
+  wizardCancellationTitle: string;
+  wizardCancellationNote: string;
+  wizardTotalCaption: string;
+  wizardDetectedAreaHint: string;
 }
 
 /** Customer-facing screen copy (home chrome, auth, offers, profile, help, account). */
@@ -369,6 +408,53 @@ export interface CustomerUiCopy {
   notificationsEmptyMessage: string;
   settingsScreenTitle: string;
   servicesScreenTitle: string;
+  servicePriceHint: string;
+  serviceFactOneTitle: string;
+  serviceFactOneSub: string;
+  serviceFactDurationSub: string;
+  serviceFactThreeTitle: string;
+  serviceFactThreeSub: string;
+  serviceAboutTitle: string;
+  serviceStepsTitle: string;
+  serviceReviewsTitle: string;
+  serviceFromLabel: string;
+  serviceBookButton: string;
+  browseTitle: string;
+  browseSubtitle: string;
+  browseBadges: string;
+  settingsSubtitle: string;
+  settingsCompleteHint: string;
+  settingsDetailsTitle: string;
+  settingsDetailsHint: string;
+  paymentsSubtitle: string;
+  helpSubtitle: string;
+  helpGuideTitle: string;
+  helpResourcesSub: string;
+  profileNextVisitTitle: string;
+  reviewScreenTitle: string;
+  reviewHeading: string;
+  reviewTagsTitle: string;
+  reviewNoteLabel: string;
+  homeTrustSub: string;
+  homeTrackLive: string;
+  homeViewVisit: string;
+  homeSpotlightTitle: string;
+  homeNewTitle: string;
+  homeRailHomeTitle: string;
+  homeRailHomeSub: string;
+  homeRailBusinessTitle: string;
+  homeRailBusinessSub: string;
+  homeRailCleaningTitle: string;
+  homeRailCleaningSub: string;
+  homeClosingLine: string;
+  homeHeroTitle: string;
+  homeLocationLabel: string;
+  homeHeroKicker: string;
+  homeHeroCta: string;
+  homeAllServices: string;
+  homeCurationsTitle: string;
+  homeCurationsSub: string;
+  homeFeatureTag: string;
 }
 
 export interface AppConfig {

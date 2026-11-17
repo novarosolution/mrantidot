@@ -17,7 +17,7 @@ import { api, screenLoadConfig } from '@/lib/api';
 import { serviceRealRating } from '@/lib/ratings';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { ServiceCategory, ServiceStats, ServiceTypeKey } from '@/types/api';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 const CATEGORIES: { key: ServiceCategory; label: string }[] = [
   { key: 'residential', label: 'Residential' },
@@ -157,34 +157,19 @@ export default function ServiceEditScreen() {
       backFallback={adminRoutes.services}
       keyboardAvoid
       stickyFooter={
-        <StickyActionBar>
-          <Button title="Save" variant="premium" onPress={save} loading={saving} />
-          {id ? <Button title="Deactivate" variant="danger" onPress={remove} style={{ marginTop: spacing.sm }} /> : null}
+        <StickyActionBar row>
+          {id ? (
+            <Button title="Deactivate" variant="dangerOutline" onPress={remove} fullWidth={false} style={styles.footerSecondary} />
+          ) : null}
+          <Button title="Save" variant="premium" onPress={save} loading={saving} fullWidth={false} style={styles.footerPrimary} />
         </StickyActionBar>
       }
     >
       <ScrollView
-        contentContainerStyle={id ? adminListShellStyles.scrollWithFooterTall : adminListShellStyles.scrollWithFooter}
+        contentContainerStyle={adminListShellStyles.form}
         keyboardShouldPersistTaps="always"
         showsVerticalScrollIndicator={false}
       >
-        <PremiumSectionHeader title="Icon" style={styles.sectionHead} />
-        <AdminFormCard style={styles.form}>
-          <ServiceIconPicker value={iconKey} onChange={setIconKey} />
-        </AdminFormCard>
-
-        <PremiumSectionHeader title="Pest control types" style={styles.sectionHead} />
-        <AdminFormCard style={styles.form}>
-          <ServiceTypePicker
-            value={serviceTypes}
-            onChange={(v) => {
-              setServiceTypes(v);
-              if (errors.serviceTypes) setErrors((e) => ({ ...e, serviceTypes: undefined }));
-            }}
-          />
-          {errors.serviceTypes ? <Text style={styles.fieldError}>{errors.serviceTypes}</Text> : null}
-        </AdminFormCard>
-
         <PremiumSectionHeader title="Details" style={styles.sectionHead} />
         <AdminFormCard style={styles.form}>
           <IconInput
@@ -224,7 +209,9 @@ export default function ServiceEditScreen() {
           />
           {id ? (
             <Text style={styles.realHint}>
-              Real avg: {realRating != null ? `★ ${realRating.toFixed(1)} (${reviewCount})` : '—'}
+              {realRating != null
+                ? `Customer reviews average ★ ${realRating.toFixed(1)} from ${reviewCount} review${reviewCount === 1 ? '' : 's'}`
+                : 'No customer reviews yet'}
             </Text>
           ) : null}
           <IconInput
@@ -238,15 +225,34 @@ export default function ServiceEditScreen() {
           />
           <IconInput label="Steps (comma-separated)" value={steps} onChangeText={setSteps} />
         </AdminFormCard>
+        <PremiumSectionHeader title="Pest control types" style={styles.sectionHead} />
+        <AdminFormCard style={styles.form}>
+          <ServiceTypePicker
+            value={serviceTypes}
+            onChange={(v) => {
+              setServiceTypes(v);
+              if (errors.serviceTypes) setErrors((e) => ({ ...e, serviceTypes: undefined }));
+            }}
+          />
+          {errors.serviceTypes ? <Text style={styles.fieldError}>{errors.serviceTypes}</Text> : null}
+        </AdminFormCard>
+
+        <PremiumSectionHeader title="Icon" style={styles.sectionHead} />
+        <AdminFormCard style={styles.form}>
+          <ServiceIconPicker value={iconKey} onChange={setIconKey} />
+        </AdminFormCard>
+
       </ScrollView>
     </AdminListShell>
   );
 }
 
 const styles = StyleSheet.create({
-  sectionHead: { marginTop: 0, paddingHorizontal: 0, marginBottom: spacing.xs },
+  footerSecondary: { flex: 1 },
+  footerPrimary: { flex: 1.6 },
+  sectionHead: { marginTop: spacing.sm, paddingHorizontal: spacing.md, marginBottom: spacing.xs },
   form: { marginBottom: spacing.md },
-  label: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, marginTop: spacing.sm, marginBottom: 6 },
+  label: { fontFamily: fonts.bodySemi, fontSize: 13, color: ui.text, marginBottom: 8 },
   fieldError: {
     fontFamily: fonts.bodySemi,
     fontSize: 12,

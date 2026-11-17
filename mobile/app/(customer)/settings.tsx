@@ -87,7 +87,7 @@ export default function SettingsScreen() {
         <CustomerPageHeader
           variant="premium"
           title={ui.settingsScreenTitle}
-          subtitle="Your account & preferences"
+          subtitle={ui.settingsSubtitle}
           showBack={!isProfileIncomplete(user)}
         />
       }
@@ -96,11 +96,11 @@ export default function SettingsScreen() {
         <View style={styles.accountWrap}>
           <UserAccountCard compact embedded />
           {isProfileIncomplete(user) ? (
-            <Text style={styles.completeHint}>Complete your profile below for a smoother booking experience.</Text>
+            <Text style={styles.completeHint}>{ui.settingsCompleteHint}</Text>
           ) : null}
         </View>
       </GlassPanel>
-      <GlassSectionLabel title="Profile details" hint="Update your contact information" />
+      <GlassSectionLabel title={ui.settingsDetailsTitle} hint={ui.settingsDetailsHint} />
       <GlassPanel>
         <IconInput
           label="Full name"

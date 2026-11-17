@@ -6,8 +6,8 @@ import {
   Clock,
   Home,
   MapPin,
+  Search,
   ShieldCheck,
-  Sparkles,
 } from 'lucide-react-native';
 import { Button } from '@/components/ui/Button';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
@@ -15,7 +15,7 @@ import { customerRoutes, appPush } from '@/lib/routes';
 
 const STEPS = [
   {
-    icon: Sparkles,
+    icon: Search,
     title: 'Pick a service',
     body: 'Browse pest types on Home or Services, then open the service you need.',
   },

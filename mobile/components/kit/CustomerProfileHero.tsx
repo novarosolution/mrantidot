@@ -3,7 +3,10 @@ import { Bell, ChevronRight, Mail, MapPin, Phone, Settings } from 'lucide-react-
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
+import { GlassSurface } from '@/components/ui/GlassSurface';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { HOME_HEADER_BOTTOM, HOME_HEADER_TOP } from '@/components/kit/HomeTopBar';
+import { PremiumAurora } from '@/components/kit/PremiumAurora';
 import { colors, fonts, ui } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
 
@@ -63,32 +66,37 @@ export function CustomerProfileHero({
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       />
+      <PremiumAurora tone="light" base={false} topFade />
 
       <View style={styles.topRow}>
         <Text style={styles.title}>Profile</Text>
-        <Pressable
-          style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+        <PressableScale
+          scaleTo={0.92}
           onPress={() => appPush(customerRoutes.notifications)}
           hitSlop={6}
           accessibilityRole="button"
           accessibilityLabel={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
         >
-          <Bell size={20} color={ui.text} strokeWidth={2} />
+          <GlassSurface style={styles.iconBtn} intensity={30} tintOpacity={0.78}>
+            <Bell size={20} color={ui.text} strokeWidth={2} />
+          </GlassSurface>
           {unread > 0 ? (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{unread > 9 ? '9+' : unread}</Text>
             </View>
           ) : null}
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+        </PressableScale>
+        <PressableScale
+          scaleTo={0.92}
           onPress={() => appPush(customerRoutes.settings)}
           hitSlop={6}
           accessibilityRole="button"
           accessibilityLabel="Settings"
         >
-          <Settings size={20} color={ui.text} strokeWidth={2} />
-        </Pressable>
+          <GlassSurface style={styles.iconBtn} intensity={30} tintOpacity={0.78}>
+            <Settings size={20} color={ui.text} strokeWidth={2} />
+          </GlassSurface>
+        </PressableScale>
       </View>
 
       <View style={styles.card}>
@@ -171,7 +179,6 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     borderWidth: 1,
     borderColor: ui.border,
-    backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
   },

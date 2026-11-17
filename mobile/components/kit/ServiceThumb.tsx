@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { PestImage, resolveServiceIcon } from '@/components/ServiceIcon';
@@ -68,6 +69,14 @@ export function ToneTile({
   const px = image ? Math.round(Math.min(width, h) * 0.72) : (iconSize ?? Math.round(Math.min(width, h) * 0.44));
   return (
     <View style={[styles.tile, { width, height: h, borderRadius: radius, backgroundColor: bg }, style]}>
+      {/* Soft top-light so the pastel reads as a shaped tile (matches the home category grid). */}
+      <LinearGradient
+        colors={['rgba(255,255,255,0.5)', 'rgba(255,255,255,0)']}
+        start={{ x: 0.2, y: 0 }}
+        end={{ x: 0.6, y: 0.75 }}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
       {image ? (
         <PestImage source={image} size={px} />
       ) : (
@@ -82,5 +91,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.7)',
   },
 });

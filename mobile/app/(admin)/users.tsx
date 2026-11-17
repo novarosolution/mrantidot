@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     borderRadius: premium.radiusCard,
     backgroundColor: 'rgba(255,255,255,0.82)',
     borderWidth: 1,
-    borderColor: 'rgba(226,240,216,0.95)',
+    borderColor: '#EEF2EF',
     ...shadows.card,
   },
   pressed: { opacity: 0.92 },

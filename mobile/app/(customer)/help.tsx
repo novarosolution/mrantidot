@@ -19,7 +19,7 @@ export default function HelpScreen() {
   return (
     <CustomerContentPage
       title={ui.helpScreenTitle}
-      subtitle="We're here for you"
+      subtitle={ui.helpSubtitle}
       sectionTitle={ui.helpContactTitle}
       sectionSubtitle={`Reach the ${brandName} team`}
     >
@@ -31,7 +31,7 @@ export default function HelpScreen() {
       >
         <PremiumIcon icon={AppIcons.ui.listChecks} variant="mint" size={20} color={themeUi.brand} boxSize={44} />
         <View style={styles.guideBody}>
-          <Text style={styles.guideTitle}>How to book a service</Text>
+          <Text style={styles.guideTitle}>{ui.helpGuideTitle}</Text>
           <Text style={styles.guideSub}>5 easy steps · Start booking with confidence</Text>
         </View>
         <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={18} color={themeUi.textTertiary} />
@@ -72,10 +72,7 @@ export default function HelpScreen() {
 
       <View style={styles.resourcesHeader}>
         <Text style={styles.resourcesTitle}>{ui.helpResourcesTitle}</Text>
-        <View style={styles.rule}>
-          <View style={styles.ruleAccent} />
-          <View style={styles.ruleLine} />
-        </View>
+        <Text style={styles.resourcesSub}>{ui.helpResourcesSub}</Text>
       </View>
       <Card variant="glass" style={styles.card}>
         <LinkRow icon={AppIcons.ui.help} label={ui.profileMenuFaq} onPress={() => appPush(customerRoutes.faq)} />
@@ -166,10 +163,8 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   resourcesHeader: { paddingHorizontal: spacing.md, marginBottom: spacing.sm },
-  resourcesTitle: { fontFamily: fonts.displayExtra, fontSize: 16, color: themeUi.text },
-  rule: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm, gap: spacing.sm },
-  ruleAccent: { width: 24, height: 2, borderRadius: 2, backgroundColor: themeUi.brand },
-  ruleLine: { flex: 1, height: 1, backgroundColor: themeUi.hairline },
+  resourcesTitle: { fontFamily: fonts.displayExtra, fontSize: 18, letterSpacing: -0.2, color: themeUi.text },
+  resourcesSub: { marginTop: 2, fontFamily: fonts.body, fontSize: 13, color: themeUi.textSecondary },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -11,6 +11,7 @@ export function PendingScheduleCard({
   notes,
   customerName,
   variant = 'customer',
+  hintTone = 'info',
 }: {
   title: string;
   scheduleLabel: string | null;
@@ -19,6 +20,8 @@ export function PendingScheduleCard({
   notes?: string;
   customerName?: string;
   variant?: 'customer' | 'admin';
+  /** 'warning' when the hint needs action (e.g. the requested time has passed). */
+  hintTone?: 'info' | 'warning';
 }) {
   if (!scheduleLabel) return null;
 
@@ -40,8 +43,8 @@ export function PendingScheduleCard({
         {notes ? <Text style={styles.notes}>“{notes}”</Text> : null}
         {customerName ? <Text style={styles.customer}>Customer: {customerName}</Text> : null}
         {hint ? (
-          <View style={styles.hintBox}>
-            <Text style={styles.hint}>{hint}</Text>
+          <View style={[styles.hintBox, hintTone === 'warning' && styles.hintBoxWarn]}>
+            <Text style={[styles.hint, hintTone === 'warning' && styles.hintWarn]}>{hint}</Text>
           </View>
         ) : null}
       </View>
@@ -70,7 +73,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E2F0D8',
+    borderColor: '#EEF2EF',
   },
   iconAdmin: { backgroundColor: colors.mint },
   flex: { flex: 1 },
@@ -92,7 +95,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.soft,
     borderWidth: 1,
-    borderColor: '#E2F0D8',
+    borderColor: '#EEF2EF',
   },
   hint: { fontFamily: fonts.body, fontSize: 12.5, color: colors.muted, lineHeight: 18 },
+  hintBoxWarn: { backgroundColor: colors.amberBg, borderColor: 'rgba(154,111,18,0.18)' },
+  hintWarn: { color: colors.warning, fontFamily: fonts.bodySemi },
 });

@@ -93,7 +93,7 @@ export default function AdminNotificationsScreen() {
       <AdminStatStrip
         items={[
           { label: 'Total', value: items.length },
-          { label: 'Unread', value: unreadCount, color: unreadCount > 0 ? colors.forest : colors.forest },
+          { label: 'Unread', value: unreadCount, color: unreadCount > 0 ? colors.forest : undefined },
           { label: 'Read', value: items.length - unreadCount },
         ]}
       />

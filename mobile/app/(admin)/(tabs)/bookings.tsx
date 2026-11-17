@@ -189,6 +189,7 @@ export default function AdminBookingsScreen() {
     <View style={styles.headerExtra}>
       {statusCounts ? (
         <AdminStatStrip
+          flush
           items={[
             { label: 'Total', value: statusCounts.total },
             { label: 'Pending', value: statusCounts.byStatus.pending ?? 0, color: colors.forest },
@@ -270,5 +271,5 @@ export default function AdminBookingsScreen() {
 
 const styles = StyleSheet.create({
   headerExtra: { paddingBottom: spacing.sm, gap: spacing.sm },
-  searchWrap: { paddingHorizontal: spacing.md, paddingTop: spacing.xs },
+  searchWrap: { paddingTop: spacing.xs },
 });

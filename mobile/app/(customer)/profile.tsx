@@ -258,7 +258,7 @@ export default function ProfileScreen() {
 
           {upcoming ? (
             <View style={styles.block}>
-              <Text style={styles.blockTitle}>Your next visit</Text>
+              <Text style={styles.blockTitle}>{ui.profileNextVisitTitle}</Text>
               <HomeNextVisitCard
                 booking={upcoming}
                 onPress={() => appPush(bookingDetailPath(user?.role, upcoming.id))}

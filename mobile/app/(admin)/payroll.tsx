@@ -1,3 +1,4 @@
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -68,6 +69,8 @@ export default function AdminPayrollScreen() {
     setTotalEarnings(res.data.totalEarnings);
     setTotalJobs(res.data.totalJobs);
   }, [month]);
+
+  useStaleFocusRefresh(() => load().catch(() => undefined), 15_000);
 
   useEffect(() => {
     setLoading(true);

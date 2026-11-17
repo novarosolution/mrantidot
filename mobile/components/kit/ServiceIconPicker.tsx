@@ -11,6 +11,18 @@ import {
 } from '@/constants/serviceIcons';
 import { colors, fonts, gradients, premium, shadows, spacing } from '@/constants/theme';
 
+/** Canonical keys win when several legacy aliases share one label (e.g. mosq / wind → mosquito). */
+const CANONICAL_KEYS = new Set(['mosquito', 'rodent', 'bed_bug', 'fumigation', 'cleaning']);
+
+const PICKER_DEFS = (() => {
+  const chosen = new Map<string, string>();
+  for (const d of SERVICE_ICON_DEFS) {
+    if (!chosen.has(d.label) || CANONICAL_KEYS.has(d.key)) chosen.set(d.label, d.key);
+  }
+  const keys = new Set(chosen.values());
+  return SERVICE_ICON_DEFS.filter((d) => keys.has(d.key));
+})();
+
 export function ServiceIconPicker({
   value,
   onChange,
@@ -21,8 +33,8 @@ export function ServiceIconPicker({
   const [category, setCategory] = useState<ServiceIconCategory | 'all'>('all');
 
   const filtered = useMemo(() => {
-    if (category === 'all') return SERVICE_ICON_DEFS;
-    return SERVICE_ICON_DEFS.filter((d) => d.category === category);
+    if (category === 'all') return PICKER_DEFS;
+    return PICKER_DEFS.filter((d) => d.category === category);
   }, [category]);
 
   return (
@@ -34,7 +46,6 @@ export function ServiceIconPicker({
         <View style={styles.previewText}>
           <Text style={styles.previewLabel}>Selected icon</Text>
           <Text style={styles.previewName}>{serviceIconLabel(value)}</Text>
-          <Text style={styles.previewKey}>{value}</Text>
         </View>
       </LinearGradient>
 
@@ -51,7 +62,8 @@ export function ServiceIconPicker({
 
       <View style={styles.grid}>
         {filtered.map((def) => {
-          const selected = value === def.key;
+          // Services saved with a legacy alias still highlight the tile that replaced it.
+          const selected = value === def.key || serviceIconLabel(value) === def.label;
           return (
             <Pressable
               key={def.key}

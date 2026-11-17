@@ -16,6 +16,7 @@ import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import { isServiceTypeKey } from '@/constants/serviceTypes';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import type { Service } from '@/types/api';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 
@@ -34,6 +35,7 @@ export default function ServicesByTypeScreen() {
   const typeKey = rawType && isServiceTypeKey(rawType) ? rawType : null;
   const meta = typeKey ? SERVICE_TYPE_META[typeKey] : null;
   const TypeImage = meta?.image;
+  const copy = useCustomerUiCopy();
 
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,8 +82,8 @@ export default function ServicesByTypeScreen() {
     <View style={styles.root}>
       <SafeAreaView style={styles.safe} edges={['left', 'right']}>
         <CustomerPageHeader
-          title="Browse"
-          subtitle="Starting prices · book in minutes"
+          title={copy.browseTitle.replace('{type}', meta.label)}
+          subtitle={copy.browseSubtitle}
           variant="premium"
           showBack
           onBack={() => safeGoBack(customerRoutes.services)}
@@ -98,7 +100,7 @@ export default function ServicesByTypeScreen() {
                 <Text style={styles.heroKicker}>{plural(services.length, 'service')}</Text>
                 <Text style={styles.heroTitle}>{meta.label}</Text>
                 <View style={styles.heroBadges}>
-                  {['Certified experts', 'Eco-safe', 'Fixed prices'].map((b) => (
+                  {copy.browseBadges.split(',').map((b) => b.trim()).filter(Boolean).map((b) => (
                     <View key={b} style={styles.heroBadge}>
                       <Check size={11} color={ui.brand} strokeWidth={3} />
                       <Text style={styles.heroBadgeText}>{b}</Text>

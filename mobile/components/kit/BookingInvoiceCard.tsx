@@ -17,11 +17,14 @@ function rupee(n: number): string {
 
 export function BookingInvoiceCard({
   bookingId,
+  refreshKey,
   compact,
   autoLoad = true,
   summaryOnly,
 }: {
   bookingId: string;
+  /** Change it (e.g. status + schedule) to drop the cached invoice and fetch a fresh one. */
+  refreshKey?: string;
   compact?: boolean;
   /** Prefetch invoice preview on mount. */
   autoLoad?: boolean;
@@ -77,6 +80,13 @@ export function BookingInvoiceCard({
       ]),
     ).start();
   }, [enter, sheen]);
+
+  const lastRefreshKey = useRef(refreshKey);
+  useEffect(() => {
+    if (lastRefreshKey.current === refreshKey) return;
+    lastRefreshKey.current = refreshKey;
+    setInvoice(null);
+  }, [refreshKey]);
 
   useEffect(() => {
     if (!autoLoad) return;

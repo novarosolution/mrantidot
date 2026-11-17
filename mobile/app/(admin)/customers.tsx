@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: spacing.sm,
     padding: 13,
-    borderColor: '#E2F0D8',
+    borderColor: '#EEF2EF',
   },
   cardDisabled: { opacity: 0.65 },
   avatar: {

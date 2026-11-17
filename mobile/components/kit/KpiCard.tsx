@@ -1,6 +1,5 @@
 import type { LucideIcon } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { adminShadow } from '@/components/kit/homeUi';
 import { formatDelta, isMeaningfulDelta } from '@/lib/display';
@@ -12,8 +11,7 @@ export function kpiCardWidth() {
 }
 
 export function KpiCard({
-  icon,
-  image,
+  icon: Icon,
   value,
   label,
   delta,
@@ -40,16 +38,9 @@ export function KpiCard({
   const inner = (
     <View style={styles.content}>
       <View style={styles.top}>
-        <PremiumIcon
-          icon={icon}
-          image={image}
-          variant="mint"
-          size="md"
-          color={iconColor}
-          bg={iconBg}
-          bgTo={colors.white}
-          boxSize={38}
-        />
+        <View style={[styles.iconBox, { backgroundColor: iconBg === colors.white ? ui.brandSoft : iconBg }]}>
+          <Icon size={18} color={iconColor} strokeWidth={2.1} />
+        </View>
         {isMeaningfulDelta(delta) ? (
           <View style={[styles.deltaPill, delta?.startsWith('-') && styles.deltaPillDown]}>
             <Text style={[styles.delta, delta?.startsWith('-') && styles.deltaDown]}>{formatDelta(delta!)}</Text>
@@ -113,12 +104,14 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
   content: {
-    padding: 14,
-    gap: 2,
+    paddingHorizontal: 15,
+    paddingTop: 15,
+    paddingBottom: 14,
   },
-  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  value: { ...adminType.statValue, fontSize: 24, letterSpacing: -0.6, color: ui.text },
-  label: { ...adminType.statLabel, color: ui.textSecondary, marginTop: 2 },
+  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  iconBox: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  value: { ...adminType.statValue, fontSize: 26, lineHeight: 31, letterSpacing: -0.6, color: ui.text },
+  label: { ...adminType.statLabel, marginTop: 1 },
   deltaPill: {
     paddingHorizontal: 8,
     paddingVertical: 3,

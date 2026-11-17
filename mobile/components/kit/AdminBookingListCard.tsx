@@ -15,7 +15,7 @@ import {
   bookingTechnicianName,
 } from '@/lib/booking-helpers';
 import type { Booking, Service, User } from '@/types/api';
-import { adminType, colors, customerType, spacing, surfaces } from '@/constants/theme';
+import { adminType, colors, customerType, spacing, surfaces, fonts } from '@/constants/theme';
 
 export const AdminBookingListCard = memo(function AdminBookingListCard({
   item,
@@ -71,9 +71,14 @@ export const AdminBookingListCard = memo(function AdminBookingListCard({
         </Pressable>
         {canAssign ? (
           <View style={styles.footer}>
-            <Text style={styles.unassigned}>{tech ? (tech as User).name : 'Unassigned'}</Text>
+            <Text style={[styles.unassigned, !tech && styles.needsTech]} numberOfLines={1}>
+              {tech ? `Technician · ${(tech as User).name}` : 'No technician yet'}
+            </Text>
             <Button
               title={tech ? 'Reassign' : 'Assign'}
+              variant={tech ? 'outline' : 'premium'}
+              size="sm"
+              fullWidth={false}
               onPress={() => onAssign(item)}
               style={styles.assignBtn}
             />
@@ -121,5 +126,6 @@ const styles = StyleSheet.create({
     borderTopColor: surfaces.glassBorderStrong,
   },
   unassigned: { flex: 1, ...adminType.listMeta, color: colors.muted },
-  assignBtn: { width: 'auto', minHeight: 34, paddingVertical: 6, paddingHorizontal: 14 },
+  needsTech: { color: colors.warning, fontFamily: fonts.bodyBold },
+  assignBtn: { minWidth: 104 },
 });

@@ -87,6 +87,7 @@ export default function AdminOffersScreen() {
         />
         <View style={styles.chipsWrap}>
           <AdminFilterChips
+            inset
             chips={[
               { key: 'all', label: `All (${counts.total})` },
               { key: 'active', label: `Active (${counts.active})` },

@@ -212,16 +212,16 @@ export default function UserEditScreen() {
       backFallback={returnTo}
       keyboardAvoid
       stickyFooter={
-        <StickyActionBar>
-          <Button title="Save" variant="premium" onPress={() => void save()} loading={saving} />
+        <StickyActionBar row>
           {id && active && !roleLocked ? (
-            <Button title="Disable account" variant="danger" onPress={disableAccount} style={{ marginTop: spacing.sm }} />
+            <Button title="Disable" variant="dangerOutline" onPress={disableAccount} fullWidth={false} style={styles.footerSecondary} />
           ) : null}
+          <Button title="Save" variant="premium" onPress={() => void save()} loading={saving} fullWidth={false} style={styles.footerPrimary} />
         </StickyActionBar>
       }
     >
       <ScrollView
-        contentContainerStyle={id && active && !roleLocked ? adminListShellStyles.scrollWithFooterTall : adminListShellStyles.scrollWithFooter}
+        contentContainerStyle={adminListShellStyles.form}
         keyboardShouldPersistTaps="always"
         showsVerticalScrollIndicator={false}
       >
@@ -381,6 +381,8 @@ export default function UserEditScreen() {
 }
 
 const styles = StyleSheet.create({
+  footerSecondary: { flex: 1 },
+  footerPrimary: { flex: 1.6 },
   sectionTitle: { fontFamily: fonts.displayExtra, fontSize: 16, color: '#0B2213', letterSpacing: -0.3 },
   payTitle: { marginTop: spacing.lg },
   sectionHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginBottom: spacing.sm, marginTop: 2 },

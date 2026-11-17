@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displayExtra,
     fontSize: 28,
     lineHeight: 34,
-    letterSpacing: -0.8,
+    letterSpacing: -0.6,
     color: ui.text,
     textAlign: 'center',
   },

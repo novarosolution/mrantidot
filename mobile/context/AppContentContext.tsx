@@ -1,12 +1,6 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { AppState } from 'react-native';
+import { clearApiCache } from '@/lib/apiCache';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode, useRef } from 'react';
 import { api } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import {
@@ -83,6 +77,18 @@ export function AppContentProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refresh();
+  }, [refresh]);
+
+  // Admin edits (copy, promo, FAQ…) show up when the customer returns to the app — at most once a minute.
+  const lastForeground = useRef(Date.now());
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active' || Date.now() - lastForeground.current < 60_000) return;
+      lastForeground.current = Date.now();
+      clearApiCache();
+      void refresh();
+    });
+    return () => sub.remove();
   }, [refresh]);
 
   const value = useMemo(

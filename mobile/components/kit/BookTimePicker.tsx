@@ -1,19 +1,28 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { BOOKING_HOURS, BOOKING_MINUTES, formatTime12h } from '@/lib/dates';
+import { BOOKING_HOURS, BOOKING_MINUTES, formatTime12h, isTimeStarted } from '@/lib/dates';
 import { colors, fonts, spacing, surfaces } from '@/constants/theme';
+
+const hhmm = (h: number, m: number) => `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 
 export function BookTimePicker({
   hour,
   minute,
   onChange,
+  date,
 }: {
   hour: number;
   minute: number;
   onChange: (hour: number, minute: number) => void;
+  /** When set, times that have already passed on this day are disabled. */
+  date?: string;
 }) {
-  const timeValue = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  const timeValue = hhmm(hour, minute);
+  const started = (h: number, m: number) => (date ? isTimeStarted(date, hhmm(h, m)) : false);
+  // An hour is gone once its last half-hour has started.
+  const hourGone = (h: number) => started(h, BOOKING_MINUTES[BOOKING_MINUTES.length - 1]);
+  const anyGone = date ? BOOKING_HOURS.some(hourGone) : false;
 
   return (
     <View style={styles.wrap}>
@@ -29,18 +38,23 @@ export function BookTimePicker({
       <View style={styles.grid}>
         {BOOKING_HOURS.map((h) => {
           const on = h === hour;
+          const gone = hourGone(h);
           return (
             <Pressable
               key={h}
+              disabled={gone}
+              accessibilityState={{ selected: on, disabled: gone }}
               style={({ pressed }) => [
                 styles.chip,
                 styles.hourChip,
                 on && styles.chipOn,
+                gone && styles.chipPast,
                 pressed && styles.pressed,
               ]}
-              onPress={() => onChange(h, minute)}
+              // Jump to the first open half-hour when the current minute is already gone in the new hour.
+              onPress={() => onChange(h, started(h, minute) ? BOOKING_MINUTES.find((m) => !started(h, m)) ?? minute : minute)}
             >
-              <Text style={[styles.chipText, on && styles.chipTextOn]}>
+              <Text style={[styles.chipText, on && styles.chipTextOn, gone && styles.chipTextPast]}>
                 {formatTime12h(`${h}:00`).replace(':00', '')}
               </Text>
             </Pressable>
@@ -52,18 +66,22 @@ export function BookTimePicker({
       <View style={styles.minuteRow}>
         {BOOKING_MINUTES.map((m) => {
           const on = m === minute;
+          const gone = started(hour, m);
           return (
             <Pressable
               key={m}
+              disabled={gone}
+              accessibilityState={{ selected: on, disabled: gone }}
               style={({ pressed }) => [
                 styles.chip,
                 styles.minuteChip,
                 on && styles.chipOn,
+                gone && styles.chipPast,
                 pressed && styles.pressed,
               ]}
               onPress={() => onChange(hour, m)}
             >
-              <Text style={[styles.chipText, on && styles.chipTextOn]}>
+              <Text style={[styles.chipText, on && styles.chipTextOn, gone && styles.chipTextPast]}>
                 :{String(m).padStart(2, '0')}
               </Text>
             </Pressable>
@@ -71,7 +89,9 @@ export function BookTimePicker({
         })}
       </View>
 
-      <Text style={styles.rangeHint}>Available 24/7 — any time</Text>
+      <Text style={styles.rangeHint}>
+        {anyGone ? 'Times that have already passed today are greyed out' : 'Available 24/7 — any time'}
+      </Text>
     </View>
   );
 }
@@ -142,6 +162,8 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.88 },
   chipText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.ink },
   chipTextOn: { color: colors.forest },
+  chipPast: { backgroundColor: '#F7F9F7', borderColor: '#F7F9F7' },
+  chipTextPast: { color: '#B8BEBA', textDecorationLine: 'line-through' },
   rangeHint: {
     fontFamily: fonts.body,
     fontSize: 11,

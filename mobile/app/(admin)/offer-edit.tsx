@@ -164,16 +164,16 @@ export default function OfferEditScreen() {
       backFallback={adminRoutes.offers}
       keyboardAvoid
       stickyFooter={
-        <StickyActionBar>
-          <Button title="Save offer" variant="premium" onPress={() => void save()} loading={saving} />
+        <StickyActionBar row>
           {id ? (
-            <Button title="Deactivate" variant="danger" onPress={deactivate} style={{ marginTop: spacing.sm }} />
+            <Button title="Deactivate" variant="dangerOutline" onPress={deactivate} fullWidth={false} style={styles.footerSecondary} />
           ) : null}
+          <Button title="Save offer" variant="premium" onPress={() => void save()} loading={saving} fullWidth={false} style={styles.footerPrimary} />
         </StickyActionBar>
       }
     >
       <ScrollView
-        contentContainerStyle={id ? adminListShellStyles.scrollWithFooterTall : adminListShellStyles.scrollWithFooter}
+        contentContainerStyle={adminListShellStyles.form}
         keyboardShouldPersistTaps="always"
         showsVerticalScrollIndicator={false}
       >
@@ -287,6 +287,8 @@ export default function OfferEditScreen() {
 }
 
 const styles = StyleSheet.create({
+  footerSecondary: { flex: 1 },
+  footerPrimary: { flex: 1.6 },
   previewWrap: {
     paddingHorizontal: spacing.md,
     marginTop: spacing.sm,

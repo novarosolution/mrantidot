@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
@@ -22,7 +21,6 @@ export function PendingAnalyticsRow({
 
   return (
     <Pressable style={({ pressed }) => [styles.row, pressed && styles.pressed]} onPress={onPress}>
-      <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.edge} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
       <View style={styles.icon}>
         <PremiumIcon icon={AppIcons.ui.clock} variant="mint" size="sm" color={colors.forest} boxSize={40} />
       </View>
@@ -61,14 +59,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.14,
     shadowRadius: 16,
     elevation: 6,
-  },
-  edge: {
-    position: 'absolute',
-    left: 0,
-    top: 10,
-    bottom: 10,
-    width: 3,
-    borderRadius: 2,
   },
   pressed: { opacity: 0.88 },
   icon: {

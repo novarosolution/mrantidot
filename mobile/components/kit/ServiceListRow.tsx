@@ -6,7 +6,7 @@ import { formatRupeeFull } from '@/components/kit/format';
 import type { Service } from '@/types/api';
 import { colors, fonts, ui } from '@/constants/theme';
 
-const THUMB = 96;
+const THUMB = 100;
 
 /**
  * Urban-style service row — details on the left, thumbnail on the right with the
@@ -54,14 +54,14 @@ export function ServiceListRow({
         ) : null}
         <Text style={styles.price}>Starts at {priceLabel ?? formatRupeeFull(service.basePrice)}</Text>
         {desc ? (
-          <Text style={styles.desc} numberOfLines={2}>
+          <Text style={styles.desc} numberOfLines={3}>
             {desc}
           </Text>
         ) : null}
       </View>
 
       <View style={styles.media}>
-        <ServiceThumb service={service} width={THUMB} radius={16} iconSize={44} />
+        <ServiceThumb service={service} width={THUMB} radius={20} iconSize={48} />
         <Pressable
           style={({ pressed }) => [styles.book, pressed && styles.bookPressed]}
           onPress={onBook ?? onPress}
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.85 },
   info: { flex: 1, minWidth: 0 },
   name: {
-    fontFamily: fonts.display,
+    fontFamily: fonts.displayExtra,
     fontSize: 16,
     lineHeight: 21,
     letterSpacing: -0.2,
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
   rating: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: ui.text },
   reviews: { fontFamily: fonts.body, fontSize: 12.5, color: ui.textSecondary },
-  price: { marginTop: 6, fontFamily: fonts.bodyBold, fontSize: 14, color: ui.text },
+  price: { marginTop: 6, fontFamily: fonts.bodyBold, fontSize: 14.5, color: ui.text },
   desc: {
     marginTop: 8,
     fontFamily: fonts.body,
@@ -110,13 +110,16 @@ const styles = StyleSheet.create({
   media: { width: THUMB, alignItems: 'center' },
   book: {
     marginTop: -16,
-    minWidth: 80,
+    minWidth: 84,
     height: 36,
     paddingHorizontal: 16,
-    borderRadius: 10,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: ui.brand,
+    ...ui.shadowFloat,
   },
   bookPressed: { opacity: 0.88 },
   bookText: { fontFamily: fonts.bodyBold, fontSize: 13.5, color: colors.white },

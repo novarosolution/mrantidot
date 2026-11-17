@@ -439,7 +439,7 @@ export default function BookWizardScreen() {
 
                 <BookSection
                   title={bookingCopy.scheduleStepTitle}
-                  subtitle="Pick a day — our team confirms the visit time after you book"
+                  subtitle={bookingCopy.wizardDayHint}
                 >
                   <ScheduleDayPicker
                     selectedDate={date}
@@ -447,7 +447,7 @@ export default function BookWizardScreen() {
                   />
                 </BookSection>
 
-                <BookSection title="Select a time">
+                <BookSection title={bookingCopy.wizardTimeTitle}>
                   <ScheduleModeToggle
                     mode={scheduleMode}
                     onChange={setScheduleMode}
@@ -462,6 +462,7 @@ export default function BookWizardScreen() {
                         <BookTimePicker
                           hour={customHour}
                           minute={customMinute}
+                          date={date}
                           onChange={(h, m) => {
                             setCustomHour(h);
                             setCustomMinute(m);
@@ -469,7 +470,7 @@ export default function BookWizardScreen() {
                         />
                         <View style={styles.notesWrap}>
                           <Input
-                            label="Notes"
+                            label={bookingCopy.wizardNotesLabel}
                             value={scheduleNotes}
                             onChangeText={setScheduleNotes}
                             placeholder={bookingCopy.customNotesPlaceholder}
@@ -481,7 +482,7 @@ export default function BookWizardScreen() {
                 </BookSection>
 
                 {included.length > 0 ? (
-                  <BookSection title="What's included">
+                  <BookSection title={bookingCopy.wizardIncludedTitle}>
                     {included.map((item) => (
                       <View key={item} style={styles.includedRow}>
                         <CircleCheck size={17} color={ui.brand} strokeWidth={2.1} />
@@ -494,21 +495,21 @@ export default function BookWizardScreen() {
             ) : null}
 
             {step === 1 ? (
-              <BookSection title="What type of property?" subtitle="So the technician can plan the treatment for your space">
+              <BookSection title={bookingCopy.wizardPropertyTitle} subtitle={bookingCopy.wizardPropertySubtitle}>
                 <PropertyTypePicker value={propertyType} onChange={setPropertyType} contentInset={32} />
               </BookSection>
             ) : null}
 
             {step === 2 ? (
               <>
-                <BookSection title="Where should we come?" subtitle="Use your location to fill the address in seconds">
+                <BookSection title={bookingCopy.wizardAddressTitle} subtitle={bookingCopy.wizardAddressSubtitle}>
                   <AddressLocateButton loading={locating} onPress={() => void fillAddressFromLocation()} />
                   {displayLabel ? (
                     <View style={styles.areaChip}>
                       <LocationBanner
                         label={displayLabel}
                         loading={locating}
-                        hint="Detected area · tap refresh to update"
+                        hint={bookingCopy.wizardDetectedAreaHint}
                         onRefresh={() => void detectAddress()}
                         embedded
                       />
@@ -517,7 +518,7 @@ export default function BookWizardScreen() {
                 </BookSection>
 
                 {addresses.length > 0 ? (
-                  <BookSection title="Saved addresses">
+                  <BookSection title={bookingCopy.wizardSavedAddressesTitle}>
                     {addresses.map((a) => (
                       <AddressCard
                         key={a.id}
@@ -533,8 +534,8 @@ export default function BookWizardScreen() {
                 ) : null}
 
                 <BookSection
-                  title={addresses.length > 0 ? 'Or add a new address' : 'Address details'}
-                  subtitle="House / flat number is required · landmark optional"
+                  title={addresses.length > 0 ? bookingCopy.wizardNewAddressTitle : bookingCopy.wizardAddressDetailsTitle}
+                  subtitle={bookingCopy.wizardAddressFormSubtitle}
                 >
                   <AddressDetailsForm value={addressForm} onChange={onAddressFormChange} />
                   {addressSummary !== '—' ? (
@@ -544,7 +545,7 @@ export default function BookWizardScreen() {
                   ) : null}
                 </BookSection>
 
-                <BookSection title="Problem photos" subtitle="Optional — helps the technician prepare">
+                <BookSection title={bookingCopy.wizardPhotosTitle} subtitle={bookingCopy.wizardPhotosSubtitle}>
                   <AddressPhotoGrid photos={photoUris} onChange={setPhotoUris} max={6} />
                 </BookSection>
               </>
@@ -566,7 +567,7 @@ export default function BookWizardScreen() {
                   />
                 </BookSection>
 
-                <BookSection title="Payment method">
+                <BookSection title={bookingCopy.wizardPaymentTitle}>
                   <BookPaymentPicker
                     methods={paymentMethods}
                     selected={paymentMethod}
@@ -575,7 +576,7 @@ export default function BookWizardScreen() {
                   />
                 </BookSection>
 
-                <BookSection title="Payment summary">
+                <BookSection title={bookingCopy.wizardSummaryTitle}>
                   <BookBillSummary amount={pricing} />
                 </BookSection>
               </>
@@ -587,42 +588,42 @@ export default function BookWizardScreen() {
                   <BookServiceSummary service={service} durationLabel={durationLabel} />
                 </BookSection>
 
-                <BookSection title="Booking details">
+                <BookSection title={bookingCopy.wizardDetailsTitle}>
                   <BookReviewRow
                     icon={CalendarClock}
-                    label="Requested schedule"
+                    label={bookingCopy.wizardLabelSchedule}
                     value={scheduleSummary}
                     onChange={() => setStep(0)}
                   />
                   <BookReviewRow
                     icon={Building2}
-                    label="Property type"
+                    label={bookingCopy.wizardLabelProperty}
                     value={propertyType ? propertyTypeLabel(propertyType) : '—'}
                     onChange={() => setStep(1)}
                   />
                   <BookReviewRow
                     icon={MapPin}
-                    label="Service address"
+                    label={bookingCopy.wizardLabelAddress}
                     value={addressSummary}
                     onChange={() => setStep(2)}
                   />
                   <BookReviewRow
                     icon={CreditCard}
-                    label="Payment method"
+                    label={bookingCopy.wizardLabelPayment}
                     value={paymentMethod ? paymentMethodLabel(paymentMethod) : '—'}
                     onChange={() => setStep(3)}
                   />
                   {coupon.trim() ? (
                     <BookReviewRow
                       icon={Tag}
-                      label="Coupon applied"
+                      label={bookingCopy.wizardLabelCoupon}
                       value={coupon.trim().toUpperCase()}
                       onChange={() => setStep(3)}
                     />
                   ) : null}
                   <BookReviewRow
                     icon={Camera}
-                    label="Photos"
+                    label={bookingCopy.wizardLabelPhotos}
                     value={photoUris.length ? `${photoUris.length} attached` : 'None added'}
                     onChange={() => setStep(2)}
                     last
@@ -634,16 +635,14 @@ export default function BookWizardScreen() {
                   ) : null}
                 </BookSection>
 
-                <BookSection title="Payment summary">
+                <BookSection title={bookingCopy.wizardSummaryTitle}>
                   <BookBillSummary amount={pricing} totalLabel="Estimated total" />
                 </BookSection>
 
                 <BookSection>
                   <View style={styles.notes}>
-                    <BookInfoNote title="What happens next">{bookingCopy.pendingReviewNote}</BookInfoNote>
-                    <BookInfoNote title="Cancellation">
-                      You can cancel from My Bookings any time before the technician starts work.
-                    </BookInfoNote>
+                    <BookInfoNote title={bookingCopy.wizardNextStepsTitle}>{bookingCopy.pendingReviewNote}</BookInfoNote>
+                    <BookInfoNote title={bookingCopy.wizardCancellationTitle}>{bookingCopy.wizardCancellationNote}</BookInfoNote>
                   </View>
                 </BookSection>
               </>
@@ -655,7 +654,7 @@ export default function BookWizardScreen() {
           <BookCheckoutBar
             total={pricing.total}
             savings={pricing.coupon}
-            caption={step === 4 ? 'Estimated total · incl. taxes' : 'incl. taxes'}
+            caption={step === 4 ? bookingCopy.wizardTotalCaption : 'incl. taxes'}
             actionTitle={step === 4 ? bookingCopy.wizardSubmitButton : bookingCopy.wizardContinueButton}
             onAction={step === 4 ? confirm : goNext}
             loading={loading}

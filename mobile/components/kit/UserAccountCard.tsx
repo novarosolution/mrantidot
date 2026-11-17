@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/context/AuthContext';
 import { displayUserEmail, displayUserName } from '@/lib/profile-display';
 import type { UserRole } from '@/types/api';
-import { colors, customerType, fonts, gradients, shadows, spacing } from '@/constants/theme';
+import { colors, customerType, fonts, shadows, spacing, ui } from '@/constants/theme';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   customer: 'Customer',
@@ -31,11 +31,11 @@ export function UserAccountCard({
 
   const inner = (
     <View style={styles.inner}>
-      <LinearGradient colors={[...gradients.avatarRing]} style={styles.avatarRing}>
-        <LinearGradient colors={[colors.greenBright, colors.forest]} style={styles.avatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+      <View style={styles.avatarRing}>
+        <LinearGradient colors={[colors.forestMid, colors.forest]} style={styles.avatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <Text style={styles.avatarText}>{initial}</Text>
         </LinearGradient>
-      </LinearGradient>
+      </View>
       <View style={styles.flex}>
         <Text style={styles.name} numberOfLines={1}>
           {displayName}
@@ -87,17 +87,18 @@ const styles = StyleSheet.create({
   card: { padding: 0, overflow: 'hidden', ...shadows.card },
   inner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: spacing.md },
   avatarRing: {
-    width: 54,
-    height: 54,
-    borderRadius: 18,
-    padding: 2,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    padding: 3,
+    backgroundColor: ui.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatar: {
     width: 50,
     height: 50,
-    borderRadius: 16,
+    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
   },

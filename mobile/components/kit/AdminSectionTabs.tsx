@@ -1,9 +1,6 @@
-import { LinearGradient } from 'expo-linear-gradient';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import type { LucideIcon } from 'lucide-react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { adminShadow } from '@/components/kit/homeUi';
-import { adminSurfaces, colors, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 export type AdminSectionTab = {
   key: string;
@@ -11,6 +8,7 @@ export type AdminSectionTab = {
   icon: LucideIcon;
 };
 
+/** Scrollable section pills — outlined when idle, solid ink when selected (matches filter chips). */
 export function AdminSectionTabs({
   tabs,
   active,
@@ -22,7 +20,6 @@ export function AdminSectionTabs({
 }) {
   return (
     <View style={styles.wrap}>
-      <LinearGradient colors={[colors.white, colors.bg]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -30,31 +27,15 @@ export function AdminSectionTabs({
           return (
             <Pressable
               key={tab.key}
-              style={({ pressed }) => [pressed && styles.pressed]}
+              style={({ pressed }) => [styles.tab, selected && styles.tabOn, pressed && styles.pressed]}
               onPress={() => onChange(tab.key)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected }}
             >
-              {selected ? (
-                <View style={styles.tabOnShell}>
-                  <LinearGradient
-                    colors={[colors.limeBright, colors.forestMid, colors.forest]}
-                    start={{ x: 0.1, y: 0 }}
-                    end={{ x: 0.9, y: 1 }}
-                    style={[styles.tab, styles.tabOn]}
-                  >
-                    <PremiumIcon icon={Icon} variant="plain" size={14} color={colors.white} strokeWidth={2.3} fill="rgba(255,255,255,0.28)" />
-                    <Text style={[styles.label, styles.labelOn]} numberOfLines={1}>
-                      {tab.label}
-                    </Text>
-                  </LinearGradient>
-                </View>
-              ) : (
-                <View style={styles.tab}>
-                  <PremiumIcon icon={Icon} variant="plain" size={14} color={colors.forest} strokeWidth={2.3} />
-                  <Text style={styles.label} numberOfLines={1}>
-                    {tab.label}
-                  </Text>
-                </View>
-              )}
+              <Icon size={15} color={selected ? colors.white : ui.brand} strokeWidth={2.2} />
+              <Text style={[styles.label, selected && styles.labelOn]} numberOfLines={1}>
+                {tab.label}
+              </Text>
             </Pressable>
           );
         })}
@@ -65,35 +46,31 @@ export function AdminSectionTabs({
 
 const styles = StyleSheet.create({
   wrap: {
+    backgroundColor: colors.white,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: adminSurfaces.cardBorder,
-    overflow: 'hidden',
+    borderBottomColor: ui.border,
   },
-  goldBar: { height: 2.5, width: '100%' },
   row: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: 10,
     gap: 8,
   },
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    height: 36,
     paddingHorizontal: 14,
-    paddingVertical: 9,
     borderRadius: 999,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: adminSurfaces.chipBorder,
-  },
-  tabOnShell: {
-    borderRadius: 999,
-    ...adminShadow.soft,
+    borderColor: ui.border,
   },
   tabOn: {
-    borderWidth: 0,
+    backgroundColor: ui.text,
+    borderColor: ui.text,
   },
-  pressed: { opacity: 0.88 },
-  label: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: colors.ink },
+  pressed: { opacity: 0.85 },
+  label: { fontFamily: fonts.bodySemi, fontSize: 13, color: ui.text },
   labelOn: { color: colors.white },
 });

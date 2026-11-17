@@ -1,3 +1,4 @@
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, Share, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
@@ -29,7 +30,7 @@ import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useUnreadNotifications } from '@/lib/useUnreadNotifications';
 import { userInitial } from '@/lib/userInitials';
 import type { AdminStats, TeamAttendanceStats } from '@/types/api';
-import { colors, fonts, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, spacing, surfaces, ui } from '@/constants/theme';
 
 const PERIODS = ['Week', 'Month', 'Quarter', 'Year'];
 
@@ -53,6 +54,8 @@ export default function AdminReportsScreen() {
     setStats(statsRes.data);
     setTeamAttendance(teamRes.data);
   }, [period]);
+
+  useStaleFocusRefresh(() => load().catch(() => undefined), 15_000);
 
   useEffect(() => {
     void runLoad(load, 'Could not load reports');
@@ -217,6 +220,7 @@ export default function AdminReportsScreen() {
               chips={PERIODS.map((p) => ({ key: p, label: p }))}
               selected={period}
               onSelect={(p) => !loading && setPeriod(p)}
+              inset
             />
           </View>
         </GlassPanel>
@@ -486,7 +490,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.72)',
     borderWidth: 1.5,
-    borderColor: colors.limeBright,
+    borderColor: ui.border,
   },
   exportWrap: { paddingHorizontal: spacing.md, marginTop: spacing.md },
   exportRow: {

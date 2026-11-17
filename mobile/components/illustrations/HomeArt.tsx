@@ -4,14 +4,7 @@ import { colors } from '@/constants/theme';
 const LIME = colors.limeOnDark;
 const DEEP = colors.headerDeep;
 
-/** Four-point sparkle centred on (x, y). */
-function Sparkle({ x, y, r, fill, opacity = 1 }: { x: number; y: number; r: number; fill: string; opacity?: number }) {
-  const k = r * 0.28;
-  const d = `M${x} ${y - r} L${x + k} ${y - k} L${x + r} ${y} L${x + k} ${y + k} L${x} ${y + r} L${x - k} ${y + k} L${x - r} ${y} L${x - k} ${y - k} Z`;
-  return <Path d={d} fill={fill} opacity={opacity} />;
-}
-
-/** Protected-home illustration for the booking banner — house, shield badge, leaf, sparkles. */
+/** Protected-home illustration for the booking banner — house, shield badge, leaf. */
 export function HomeShieldArt({ size = 120 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 120 120" accessibilityElementsHidden>
@@ -38,9 +31,6 @@ export function HomeShieldArt({ size = 120 }: { size?: number }) {
         />
         <Path d="M10 16 L15 21 L23 11" stroke={DEEP} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" fill="none" />
       </G>
-      <Sparkle x={26} y={34} r={7} fill={LIME} opacity={0.95} />
-      <Sparkle x={97} y={30} r={4.5} fill="#FFFFFF" opacity={0.85} />
-      <Sparkle x={100} y={52} r={3} fill={LIME} opacity={0.7} />
     </Svg>
   );
 }
@@ -62,9 +52,6 @@ export function CouponArt({ size = 120 }: { size?: number }) {
         <Line x1="88" y1="48" x2="64" y2="72" stroke={DEEP} strokeWidth={3} strokeLinecap="round" />
         <Rect x="26" y="52" width="10" height="16" rx="2" fill="rgba(11,74,38,0.18)" />
       </G>
-      <Sparkle x={24} y={30} r={6} fill="#FFFFFF" opacity={0.9} />
-      <Sparkle x={98} y={94} r={5} fill={LIME} opacity={0.85} />
-      <Sparkle x={102} y={28} r={3} fill={LIME} opacity={0.7} />
     </Svg>
   );
 }

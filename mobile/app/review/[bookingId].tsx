@@ -32,12 +32,14 @@ import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { Booking } from '@/types/api';
 import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
 import { customerRoutes, appReplace } from '@/lib/routes';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 const TAGS = ['On time', 'Professional', 'No smell', 'Thorough', 'Polite'];
 
 const STAR_LABELS = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'] as const;
 
 export default function ReviewScreen() {
+  const copy = useCustomerUiCopy();
   const bookingId = paramString(useLocalSearchParams<{ bookingId: string | string[] }>().bookingId);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [stars, setStars] = useState(0);
@@ -89,7 +91,7 @@ export default function ReviewScreen() {
     return (
       <View style={styles.root}>
         <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-          <CustomerPageHeader variant="premium" title="Rate & Review" showBack />
+          <CustomerPageHeader variant="premium" title={copy.reviewScreenTitle} showBack />
           <ListEmptyRetry message={error ?? 'Booking not found'} onRetry={() => void runLoad(load)} />
         </SafeAreaView>
       </View>
@@ -104,7 +106,7 @@ export default function ReviewScreen() {
   return (
     <View style={styles.root}>
       <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-        <CustomerPageHeader variant="premium" title="Rate & Review" showBack />
+        <CustomerPageHeader variant="premium" title={copy.reviewScreenTitle} showBack />
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -133,7 +135,7 @@ export default function ReviewScreen() {
               </Card>
 
               <Card variant="premium" style={styles.formCard}>
-                <Text style={styles.heading}>How was your visit?</Text>
+                <Text style={styles.heading}>{copy.reviewHeading}</Text>
 
                 <View style={styles.starsWrap}>
                   <RatingStars value={stars} onChange={setStars} size={40} />
@@ -145,7 +147,7 @@ export default function ReviewScreen() {
                 {rated ? (
                   <View style={styles.detailsBlock}>
                     <View style={styles.divider} />
-                    <Text style={styles.sectionLabel}>What stood out?</Text>
+                    <Text style={styles.sectionLabel}>{copy.reviewTagsTitle}</Text>
                     <View style={styles.tags}>
                       {TAGS.map((tag) => (
                         <Chip
@@ -158,7 +160,7 @@ export default function ReviewScreen() {
                     </View>
 
                     <Input
-                      label="Add a note"
+                      label={copy.reviewNoteLabel}
                       value={comment}
                       onChangeText={setComment}
                       multiline

@@ -1,16 +1,21 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
-import { CalendarClock, ChevronRight } from 'lucide-react-native';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { ArrowRight, CalendarClock, Navigation } from 'lucide-react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { ServiceThumb } from '@/components/kit/ServiceThumb';
 import { StatusPill } from '@/components/ui/StatusPill';
 import {
   bookingScheduleDisplay,
   bookingServiceIconKey,
   bookingServiceName,
+  bookingHasTechnician,
   isBookingLive,
 } from '@/lib/booking-helpers';
 import type { Booking } from '@/types/api';
 import { colors, fonts, ui } from '@/constants/theme';
+import { localDateKey } from '@/lib/dates';
+import { getCustomerTrackingSteps, useBookingCopy } from '@/lib/schedule-copy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 /** Pulsing "live" dot while a technician is on site. */
 function LiveDot() {
@@ -45,20 +50,41 @@ export function HomeNextVisitCard({ booking, onPress }: { booking: Booking; onPr
       ? booking.service
       : { iconKey: bookingServiceIconKey(booking), serviceTypes: undefined };
   const live = isBookingLive(booking.status);
+  // "Happening now" only for today's visit — an older job that is still open just reads "In progress".
+  const copy = useBookingCopy();
+  const uiCopy = useCustomerUiCopy();
+  const kicker = live
+    ? booking.schedule?.date === localDateKey()
+      ? copy.liveNowLabel
+      : copy.liveOngoingLabel
+    : copy.listNextVisitLabel;
+
+  const steps = getCustomerTrackingSteps(booking.status, bookingHasTechnician(booking), copy);
+  const doneCount = steps.filter((st) => st.done).length;
+  // While a job is live the latest finished step IS the customer's action (start / completion code),
+  // so show it; before that, show the next pending step.
+  const nowLabel = live
+    ? steps[Math.max(0, doneCount - 1)]?.title
+    : (steps.find((st) => !st.done)?.title ?? steps[steps.length - 1]?.title);
 
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      style={[styles.card, live && styles.cardLive]}
+      scaleTo={0.985}
       accessibilityRole="button"
       accessibilityLabel={`Your next visit: ${bookingServiceName(booking)}, ${bookingScheduleDisplay(booking)}`}
     >
       <View style={styles.top}>
-        <ServiceThumb service={service} width={54} radius={16} iconSize={28} />
+        <ServiceThumb service={service} width={56} radius={17} iconSize={30} />
         <View style={styles.body}>
           <View style={styles.eyebrowRow}>
             {live ? <LiveDot /> : null}
-            <Text style={[styles.eyebrow, live && styles.eyebrowLive]}>{live ? 'Happening now' : 'Your next visit'}</Text>
+            <Text style={[styles.eyebrow, live && styles.eyebrowLive]} numberOfLines={1}>
+              {kicker}
+            </Text>
+            <View style={styles.flex} />
+            <StatusPill status={booking.status} />
           </View>
           <Text style={styles.name} numberOfLines={1}>
             {bookingServiceName(booking)}
@@ -71,32 +97,49 @@ export function HomeNextVisitCard({ booking, onPress }: { booking: Booking; onPr
           </View>
         </View>
       </View>
-      <View style={styles.footer}>
-        <StatusPill status={booking.status} />
-        <View style={styles.cta}>
-          <Text style={styles.ctaText}>{live ? 'Track live' : 'View details'}</Text>
-          <ChevronRight size={16} color={ui.brand} strokeWidth={2.4} />
+
+      {/* Journey progress — the same steps as the booking's tracking timeline. */}
+      <View style={styles.progressBlock}>
+        <View style={styles.segments}>
+          {steps.map((st, i) => (
+            <View key={i} style={[styles.segment, st.done && styles.segmentDone, !st.done && i === doneCount && styles.segmentNow]} />
+          ))}
+        </View>
+        <View style={styles.progressRow}>
+          <Text style={styles.progressText} numberOfLines={1}>
+            {nowLabel}
+          </Text>
+          <Text style={styles.progressCount}>
+            {doneCount}/{steps.length}
+          </Text>
         </View>
       </View>
-    </Pressable>
+
+      <View style={[styles.cta, live && styles.ctaLive]}>
+        {live ? <Navigation size={15} color={colors.white} strokeWidth={2.4} /> : null}
+        <Text style={[styles.ctaText, live && styles.ctaTextLive]}>{live ? uiCopy.homeTrackLive : uiCopy.homeViewVisit}</Text>
+        <ArrowRight size={16} color={live ? colors.white : ui.brand} strokeWidth={2.4} />
+      </View>
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
     marginHorizontal: 16,
-    borderRadius: 20,
+    padding: 14,
+    borderRadius: 24,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.hairline,
-    ...ui.shadow,
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
+    ...ui.shadowFloat,
   },
-  pressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
-  top: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
+  /** A visit in progress gets a mint wash and emerald edge so it reads as the one thing happening now. */
+  cardLive: { backgroundColor: '#F4FBF6', borderColor: 'rgba(21,148,71,0.3)' },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   body: { flex: 1, minWidth: 0 },
   eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  flex: { flex: 1 },
   eyebrow: {
     fontFamily: fonts.bodyBold,
     fontSize: 10.5,
@@ -107,25 +150,40 @@ const styles = StyleSheet.create({
   eyebrowLive: { color: ui.brand },
   name: {
     marginTop: 3,
-    fontFamily: fonts.display,
-    fontSize: 16,
+    fontFamily: fonts.displayExtra,
+    fontSize: 16.5,
     lineHeight: 21,
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
     color: ui.text,
   },
   whenRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
   when: { flexShrink: 1, fontFamily: fonts.bodyMedium, fontSize: 12.5, color: ui.textSecondary },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 11,
+  progressBlock: {
+    marginTop: 14,
+    paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: ui.border,
   },
-  cta: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  ctaText: { fontFamily: fonts.bodyBold, fontSize: 13.5, color: ui.brand },
+  segments: { flexDirection: 'row', gap: 4 },
+  segment: { flex: 1, height: 5, borderRadius: 3, backgroundColor: ui.hairline },
+  segmentDone: { backgroundColor: ui.brandBright },
+  segmentNow: { backgroundColor: 'rgba(21,148,71,0.32)' },
+  progressRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, gap: 10 },
+  progressText: { flex: 1, fontFamily: fonts.bodySemi, fontSize: 12.5, color: ui.textSecondary },
+  progressCount: { fontFamily: fonts.bodyBold, fontSize: 12, color: ui.text },
+  cta: {
+    marginTop: 12,
+    height: 44,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: ui.brandSoft,
+  },
+  ctaLive: { backgroundColor: ui.brand },
+  ctaText: { fontFamily: fonts.bodyBold, fontSize: 14, color: ui.brand },
+  ctaTextLive: { color: colors.white },
   liveDotWrap: { width: 8, height: 8, alignItems: 'center', justifyContent: 'center' },
   liveHalo: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: colors.green },
   liveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: colors.green },

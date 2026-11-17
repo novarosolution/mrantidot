@@ -105,6 +105,7 @@ export const adminRoutes = {
     }) as const,
   reports: '/(admin)/reports',
   services: '/(admin)/services',
+  serviceOrder: '/(admin)/service-order',
   serviceEdit: '/(admin)/service-edit',
   offers: '/(admin)/offers',
   offerEdit: '/(admin)/offer-edit',

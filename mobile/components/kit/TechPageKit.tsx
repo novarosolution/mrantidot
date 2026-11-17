@@ -26,12 +26,6 @@ export function TechSectionTitle({
       <View style={styles.sectionRow}>
         <View style={styles.sectionText}>
           <View style={styles.titleCol}>
-            <LinearGradient
-              colors={[colors.limeBright, colors.green]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.sectionAccent}
-            />
             <View style={styles.sectionCopy}>
               <Text style={styles.sectionTitle}>{title}</Text>
               {hint ? <Text style={styles.sectionHint}>{hint}</Text> : null}
@@ -211,7 +205,6 @@ const styles = StyleSheet.create({
   sectionRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   sectionText: { flex: 1 },
   titleCol: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  sectionAccent: { width: 3, height: 18, borderRadius: 2, marginTop: 2 },
   sectionCopy: { flex: 1, minWidth: 0 },
   sectionTitle: { ...adminType.sectionTitle, fontSize: 18, color: ui.text },
   sectionHint: { ...adminType.sectionHint, color: ui.textSecondary },

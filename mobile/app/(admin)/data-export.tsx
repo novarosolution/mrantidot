@@ -247,7 +247,7 @@ export default function AdminDataExportScreen() {
         />
       </GlassPanel>
 
-      <AdminSectionTitle title="CSV sheets" hint="Share one dataset at a time" />
+      <AdminSectionTitle flush title="CSV sheets" hint="Share one dataset at a time" />
       <View style={styles.sheets}>
         {CSV_SHEETS.map((sheet) => {
           const count = bundle.summary[sheet.countKey];

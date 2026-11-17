@@ -1,3 +1,4 @@
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { adminGoBack, adminRoutes, appPush } from '@/lib/routes';
@@ -5,7 +6,6 @@ import { paramString } from '@/lib/routeParams';
 import {
   Alert,
   Image,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -29,6 +29,7 @@ import { JobProgressCard } from '@/components/kit/JobProgressCard';
 import { OtpStatusCard } from '@/components/kit/OtpStatusCard';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/AdminActionSheet';
+import { AdminBottomSheet } from '@/components/kit/AdminBottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
@@ -37,7 +38,8 @@ import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { stepPhotoUrls } from '@/lib/stepPhotos';
-import { DEFAULT_BOOKING_SLOT } from '@/lib/dates';
+import { DEFAULT_BOOKING_SLOT, isSlotStarted, isTimeStarted, localDateKey } from '@/lib/dates';
+import { firstOpenSlot } from '@/components/kit/ScheduleSlotPicker';
 import {
   bookingCustomerName,
   bookingRef,
@@ -56,7 +58,7 @@ import { assignableTechnicians } from '@/lib/user-helpers';
 import { useBookingCopy } from '@/lib/schedule-copy';
 import { mediaUrl } from '@/lib/images';
 import type { Booking, ScheduleMode, User, WorkOtpAdminView } from '@/types/api';
-import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, spacing, surfaces } from '@/constants/theme';
 
 export default function AdminBookingDetailScreen() {
   const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
@@ -95,6 +97,8 @@ export default function AdminBookingDetailScreen() {
       setTechs([]);
     }
   }, [id]);
+
+  useStaleFocusRefresh(() => load().catch(() => undefined), 15_000);
 
   useEffect(() => {
     safeAsync(async () => {
@@ -148,17 +152,49 @@ export default function AdminBookingDetailScreen() {
   function loadEditorFromBooking(b: Booking) {
     const req = b.scheduleRequest ?? b.schedule;
     const mode = b.scheduleMode ?? (req.time || b.schedule.time ? 'custom' : 'standard');
+    const requestedDate = req.date ?? b.schedule.date;
+    const today = localDateKey();
     setEditorMode(mode);
-    setEditorDate(req.date ?? b.schedule.date);
     if (mode === 'custom') {
       const [h, m] = parseTimeParts(req.time ?? b.schedule.time);
-      setEditorHour(h);
-      setEditorMinute(m);
+      const time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      if (isTimeStarted(requestedDate, time)) {
+        // The customer's time has already gone — start the editor on the next open half-hour.
+        const next = new Date(Date.now() + 30 * 60_000);
+        const rounded = next.getMinutes() < 30 ? 30 : 60;
+        next.setMinutes(rounded, 0, 0);
+        setEditorDate(localDateKey(next));
+        setEditorHour(next.getHours());
+        setEditorMinute(next.getMinutes());
+      } else {
+        setEditorDate(requestedDate);
+        setEditorHour(h);
+        setEditorMinute(m);
+      }
       setEditorSlot('custom');
     } else {
-      setEditorSlot(req.slot ?? b.schedule.slot ?? DEFAULT_BOOKING_SLOT);
+      const slot = req.slot ?? b.schedule.slot ?? DEFAULT_BOOKING_SLOT;
+      if (isSlotStarted(requestedDate, slot)) {
+        // Requested window is in the past — default to the next open window today, else tomorrow.
+        const todaySlot = firstOpenSlot(today);
+        const tomorrow = localDateKey(new Date(Date.now() + 864e5));
+        setEditorDate(todaySlot ? today : tomorrow);
+        setEditorSlot(todaySlot ?? firstOpenSlot(tomorrow) ?? DEFAULT_BOOKING_SLOT);
+      } else {
+        setEditorDate(requestedDate);
+        setEditorSlot(slot);
+      }
     }
     setRescheduleAddress(b.address);
+  }
+
+  /** True (and warns) when the chosen visit time has already started. */
+  function editorTimeHasPassed(): boolean {
+    const payload = buildSchedulePayload();
+    const gone =
+      payload.slot === 'custom' ? isTimeStarted(payload.date, payload.time ?? '00:00') : isSlotStarted(payload.date, payload.slot);
+    if (gone) Toast.show({ type: 'error', text1: 'That time has already passed', text2: 'Pick a later day or time.' });
+    return gone;
   }
 
   function buildSchedulePayload() {
@@ -182,7 +218,7 @@ export default function AdminBookingDetailScreen() {
   }
 
   async function saveConfirmSchedule() {
-    if (!booking) return;
+    if (!booking || editorTimeHasPassed()) return;
     setBusy('confirm');
     try {
       await api.patch(`/bookings/${booking.id}/confirm-schedule`, {
@@ -200,6 +236,12 @@ export default function AdminBookingDetailScreen() {
 
   async function saveReschedule() {
     if (!booking) return;
+    const current = booking.schedule;
+    const payload = buildSchedulePayload();
+    const changed =
+      current.date !== payload.date || current.slot !== payload.slot || ('time' in payload && current.time !== payload.time);
+    // Address-only edits keep the existing (possibly past) time; a new time must be in the future.
+    if (changed && editorTimeHasPassed()) return;
     setBusy('reschedule');
     try {
       await api.patch(`/bookings/${booking.id}`, {
@@ -286,29 +328,38 @@ export default function AdminBookingDetailScreen() {
       backFallback={adminRoutes.bookings}
       stickyFooter={
         !terminal ? (
-          <StickyActionBar>
+          <StickyActionBar row>
+            <Button
+              title="Cancel"
+              variant="dangerOutline"
+              onPress={() => setCancelOpen(true)}
+              fullWidth={false}
+              style={styles.footerSecondary}
+            />
             {isSchedulePending(booking) ? (
-              <>
-                <Button
-                  title="Confirm schedule"
-                  variant="premium"
-                  onPress={openConfirmSchedule}
-                  loading={busy === 'confirm'}
-                  style={styles.footerBtn}
-                />
-                <Button
-                  title="Cancel booking"
-                  variant="secondary"
-                  onPress={() => setCancelOpen(true)}
-                  style={styles.footerBtn}
-                />
-              </>
+              <Button
+                title="Confirm schedule"
+                variant="premium"
+                onPress={openConfirmSchedule}
+                loading={busy === 'confirm'}
+                fullWidth={false}
+                style={styles.footerPrimary}
+              />
+            ) : booking.status === 'confirmed' && !booking.technician ? (
+              <Button
+                title="Assign technician"
+                variant="premium"
+                onPress={assignTech}
+                fullWidth={false}
+                style={styles.footerPrimary}
+              />
             ) : (
               <Button
-                title="Cancel booking"
+                title="Reschedule"
                 variant="secondary"
-                onPress={() => setCancelOpen(true)}
-                style={styles.footerBtn}
+                onPress={openReschedule}
+                fullWidth={false}
+                style={styles.footerPrimary}
               />
             )}
           </StickyActionBar>
@@ -329,7 +380,16 @@ export default function AdminBookingDetailScreen() {
           }} tintColor={colors.green} />
         }
       >
-        <BookingStatusBanner status={booking.status} audience="staff" />
+        <BookingStatusBanner
+          status={booking.status}
+          audience="staff"
+          flush
+          message={
+            booking.status === 'confirmed' && !booking.technician
+              ? 'Schedule confirmed. Assign a technician so they can start the visit.'
+              : undefined
+          }
+        />
 
         <AdminProcessTracker
           status={booking.status}
@@ -358,48 +418,6 @@ export default function AdminBookingDetailScreen() {
         ) : null}
 
         <BookingFactsCard booking={booking} showCustomer showTechnician showPayment />
-
-        {(booking.createdAt || booking.scheduleConfirmedAt) ? (
-          <Card variant="premium" style={styles.timelineCard}>
-            <Text style={styles.section}>Timeline</Text>
-            {booking.createdAt ? (
-              <Text style={styles.opsHint}>Requested: {formatWhen(booking.createdAt)}</Text>
-            ) : null}
-            {booking.scheduleConfirmedAt ? (
-              <Text style={[styles.opsHint, { marginTop: 4 }]}>
-                Schedule confirmed: {formatWhen(booking.scheduleConfirmedAt)}
-              </Text>
-            ) : isSchedulePending(booking) ? (
-              <Text style={[styles.opsHint, { marginTop: 4 }]}>Schedule confirmed: Awaiting admin</Text>
-            ) : null}
-          </Card>
-        ) : null}
-
-        <Card variant="premium" style={styles.priceCard}>
-          <Text style={styles.section}>Payment</Text>
-          <BookingPriceBreakdown
-            amount={booking.amount}
-            serviceName={bookingServiceName(booking)}
-            serviceDesc={
-              booking.service && typeof booking.service === 'object'
-                ? booking.service.shortDesc
-                : undefined
-            }
-          />
-        </Card>
-
-        {booking.status !== 'cancelled' ? (
-          <BookingInvoiceCard bookingId={booking.id} />
-        ) : null}
-
-        <OtpStatusCard workOtp={adminOtp} bookingId={booking.id} onUpdated={load} />
-
-        {(booking.tracking?.length ?? 0) > 0 ? (
-          <>
-            <Text style={styles.section}>Live tracking</Text>
-            <BookingTrackingTimeline events={booking.tracking ?? []} />
-          </>
-        ) : null}
 
         {isSchedulePending(booking) ? (
           <Card variant="premium" style={styles.opsCard}>
@@ -465,6 +483,50 @@ export default function AdminBookingDetailScreen() {
             <AdminBookingActions booking={booking} onUpdated={load} busy={busy} setBusy={setBusy} />
           </Card>
         )}
+
+
+        {(booking.createdAt || booking.scheduleConfirmedAt) ? (
+          <Card variant="premium" style={styles.timelineCard}>
+            <Text style={styles.section}>Timeline</Text>
+            {booking.createdAt ? (
+              <Text style={styles.opsHint}>Requested: {formatWhen(booking.createdAt)}</Text>
+            ) : null}
+            {booking.scheduleConfirmedAt ? (
+              <Text style={[styles.opsHint, { marginTop: 4 }]}>
+                Schedule confirmed: {formatWhen(booking.scheduleConfirmedAt)}
+              </Text>
+            ) : isSchedulePending(booking) ? (
+              <Text style={[styles.opsHint, { marginTop: 4 }]}>Schedule confirmed: Awaiting admin</Text>
+            ) : null}
+          </Card>
+        ) : null}
+
+        <Card variant="premium" style={styles.priceCard}>
+          <Text style={styles.section}>Payment</Text>
+          <BookingPriceBreakdown
+            amount={booking.amount}
+            serviceName={bookingServiceName(booking)}
+            serviceDesc={
+              booking.service && typeof booking.service === 'object'
+                ? booking.service.shortDesc
+                : undefined
+            }
+          />
+        </Card>
+
+        {booking.status !== 'cancelled' ? (
+          <BookingInvoiceCard bookingId={booking.id}
+            refreshKey={`${booking.status}|${booking.schedule.date}|${booking.schedule.slot}|${booking.schedule.time ?? ''}`} />
+        ) : null}
+
+        <OtpStatusCard workOtp={adminOtp} bookingId={booking.id} onUpdated={load} />
+
+        {(booking.tracking?.length ?? 0) > 0 ? (
+          <>
+            <Text style={styles.section}>Live tracking</Text>
+            <BookingTrackingTimeline events={booking.tracking ?? []} />
+          </>
+        ) : null}
 
         {!terminal && (
           <Button title="Reschedule / edit address" variant="secondary" onPress={openReschedule} style={{ marginTop: spacing.md }} />
@@ -542,45 +604,23 @@ export default function AdminBookingDetailScreen() {
         onClose={() => setCancelOpen(false)}
       />
 
-      <Modal visible={confirmOpen} animationType="slide" transparent onRequestClose={() => setConfirmOpen(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setConfirmOpen(false)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.section}>{bookingCopy.adminConfirmTitle}</Text>
-            <Text style={styles.opsHint}>{bookingCopy.adminConfirmHint}</Text>
-            <ScheduleEditorForm
-              mode={editorMode}
-              onModeChange={setEditorMode}
-              date={editorDate}
-              onDateChange={setEditorDate}
-              slot={editorSlot}
-              onSlotChange={setEditorSlot}
-              hour={editorHour}
-              minute={editorMinute}
-              onTimeChange={(h, m) => {
-                setEditorHour(h);
-                setEditorMinute(m);
-              }}
-              standardLabel={bookingCopy.standardModeLabel}
-              customLabel={bookingCopy.customModeLabel}
-            />
+      <AdminBottomSheet
+        visible={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title={bookingCopy.adminConfirmTitle}
+        hint={bookingCopy.adminConfirmHint}
+        footer={
+          <>
             <Button
               title={bookingCopy.adminConfirmButton}
               variant="premium"
               onPress={() => void saveConfirmSchedule()}
               loading={busy === 'confirm'}
-              style={{ marginTop: spacing.md }}
             />
-            <Button title="Close" variant="secondary" onPress={() => setConfirmOpen(false)} style={{ marginTop: spacing.sm }} />
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      <Modal visible={rescheduleOpen} animationType="slide" transparent onRequestClose={() => setRescheduleOpen(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setRescheduleOpen(false)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.section}>Reschedule</Text>
+            <Button title="Close" variant="secondary" onPress={() => setConfirmOpen(false)} />
+          </>
+        }
+      >
             <ScheduleEditorForm
               mode={editorMode}
               onModeChange={setEditorMode}
@@ -597,12 +637,38 @@ export default function AdminBookingDetailScreen() {
               standardLabel={bookingCopy.standardModeLabel}
               customLabel={bookingCopy.customModeLabel}
             />
-            <Input label="Address" value={rescheduleAddress} onChangeText={setRescheduleAddress} />
-            <Button title="Save" onPress={() => void saveReschedule()} loading={busy === 'reschedule'} style={{ marginTop: spacing.md }} />
-            <Button title="Close" variant="secondary" onPress={() => setRescheduleOpen(false)} style={{ marginTop: spacing.sm }} />
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </AdminBottomSheet>
+
+      <AdminBottomSheet
+        visible={rescheduleOpen}
+        onClose={() => setRescheduleOpen(false)}
+        title="Reschedule"
+        hint="Pick a new day and time — the customer and technician are notified."
+        footer={
+          <>
+            <Button title="Save" variant="premium" onPress={() => void saveReschedule()} loading={busy === 'reschedule'} />
+            <Button title="Close" variant="secondary" onPress={() => setRescheduleOpen(false)} />
+          </>
+        }
+      >
+            <ScheduleEditorForm
+              mode={editorMode}
+              onModeChange={setEditorMode}
+              date={editorDate}
+              onDateChange={setEditorDate}
+              slot={editorSlot}
+              onSlotChange={setEditorSlot}
+              hour={editorHour}
+              minute={editorMinute}
+              onTimeChange={(h, m) => {
+                setEditorHour(h);
+                setEditorMinute(m);
+              }}
+              standardLabel={bookingCopy.standardModeLabel}
+              customLabel={bookingCopy.customModeLabel}
+            />
+        <Input label="Address" value={rescheduleAddress} onChangeText={setRescheduleAddress} />
+      </AdminBottomSheet>
     </AdminListShell>
   );
 }
@@ -665,26 +731,8 @@ const styles = StyleSheet.create({
   pending: { fontFamily: fonts.body, color: colors.white, fontSize: 12 },
   stepTitle: { fontFamily: fonts.display, fontSize: 11.5, marginTop: 8 },
   stepMeta: { fontFamily: fonts.body, fontSize: 10, color: colors.muted },
-  footerBtn: { width: '100%' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  modalSheet: {
-    backgroundColor: surfaces.glass,
-    borderTopLeftRadius: premium.radiusCard,
-    borderTopRightRadius: premium.radiusCard,
-    borderTopWidth: 1.5,
-    borderColor: colors.limeBright,
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
-    ...premium.shadowSoft,
-  },
-  modalHandle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    marginBottom: spacing.md,
-  },
+  footerSecondary: { flex: 1 },
+  footerPrimary: { flex: 1.8 },
   modalLabel: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, marginTop: spacing.sm, marginBottom: 6 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.sm },
 });

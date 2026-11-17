@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.mint,
     borderWidth: 1,
-    borderColor: 'rgba(180,220,165,0.95)',
+    borderColor: '#EEF2EF',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -13,6 +13,7 @@ import { BookingListCard } from '@/components/kit/BookingListCard';
 import { BookingsEmpty } from '@/components/kit/BookingsEmpty';
 import { BookingsNextHighlight } from '@/components/kit/BookingsNextHighlight';
 import { BookingsSummaryBar } from '@/components/kit/BookingsSummaryBar';
+import { PremiumAurora } from '@/components/kit/PremiumAurora';
 import { TAB_BAR_SCROLL_PAD, customerScrollProps } from '@/components/kit/GlassScreenKit';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
@@ -20,10 +21,10 @@ import { Spinner } from '@/components/ui/Spinner';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { bookingDetailPath, customerRoutes, appPush } from '@/lib/routes';
-import { bookingHasTechnician, nextActiveBooking } from '@/lib/booking-helpers';
+import { bookingHasTechnician, isRequestedTimePast, nextActiveBooking } from '@/lib/booking-helpers';
 import { useBookingCopy } from '@/lib/schedule-copy';
 import { useAuth } from '@/context/AuthContext';
-import type { Booking } from '@/types/api';
+import type { Booking, BookingCopyConfig } from '@/types/api';
 import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
@@ -39,7 +40,8 @@ function sortBookings(list: Booking[], filter: FilterKey): Booking[] {
   });
 }
 
-function customerActionHint(booking: Booking): string | undefined {
+function customerActionHint(booking: Booking, copy: BookingCopyConfig): string | undefined {
+  if (isRequestedTimePast(booking)) return copy.listPendingPastHint;
   if (booking.status === 'awaiting_verification') return 'Share your completion code';
   if (booking.status === 'confirmed' && bookingHasTechnician(booking)) return 'Expert assigned · share start code on arrival';
   return undefined;
@@ -128,6 +130,7 @@ export default function MyBookingsScreen() {
 
   const hero = (
     <View style={styles.header}>
+      <PremiumAurora tone="light" base={false} topFade />
       <View style={styles.heroLeft}>
         <Text style={styles.kicker}>YOUR VISITS</Text>
         <Text style={styles.heroTitle}>{bookingCopy.listScreenTitle}</Text>
@@ -211,6 +214,7 @@ export default function MyBookingsScreen() {
           </View>
         ) : (
           <FlatList
+            style={styles.flex}
             data={listData}
             keyExtractor={(b) => b.id}
             refreshControl={
@@ -232,7 +236,8 @@ export default function MyBookingsScreen() {
               <View style={styles.cardPad}>
                 <BookingListCard
                   booking={item}
-                  hint={customerActionHint(item)}
+                  hint={customerActionHint(item, bookingCopy)}
+                  hintTone={isRequestedTimePast(item) ? 'warning' : 'status'}
                   onPress={() => appPush(bookingDetailPath(user?.role, item.id))}
                 />
               </View>
@@ -245,9 +250,10 @@ export default function MyBookingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: ui.surfaceMuted },
+  // White root so the status-bar strip matches the white header; the feed below sits on the muted canvas.
+  root: { flex: 1, backgroundColor: colors.white },
   safe: { flex: 1, backgroundColor: 'transparent' },
-  flex: { flex: 1 },
+  flex: { flex: 1, backgroundColor: ui.surfaceMuted },
   listContent: { paddingBottom: TAB_BAR_SCROLL_PAD + 12, flexGrow: 1 },
   listEmptyGrow: { flexGrow: 1 },
   loadingBody: { flex: 1, justifyContent: 'center', paddingTop: 24 },
@@ -265,6 +271,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: ui.hairline,
     marginBottom: 14,
+    overflow: 'hidden',
   },
   heroLeft: { flex: 1, minWidth: 0 },
   kicker: {
@@ -278,7 +285,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displayExtra,
     fontSize: 28,
     lineHeight: 34,
-    letterSpacing: -0.8,
+    letterSpacing: -0.6,
     color: ui.text,
   },
   heroSub: {

@@ -47,7 +47,7 @@ export const SERVICE_TYPE_META: Record<ServiceTypeKey, ServiceTypeMeta> = {
   lizard: { label: SERVICE_TYPE_LABELS.lizard, icon: LizardIcon, image: SERVICE_TYPE_IMAGES.lizard, color: '#15803D', bg: '#EAF7EC' },
   bee: { label: SERVICE_TYPE_LABELS.bee, icon: BeeIcon, image: SERVICE_TYPE_IMAGES.bee, color: '#A16207', bg: '#FFF7D6' },
   wood_borer: { label: SERVICE_TYPE_LABELS.wood_borer, icon: WoodBorerIcon, image: SERVICE_TYPE_IMAGES.wood_borer, color: '#8B5E34', bg: '#F6EEE5' },
-  general: { label: SERVICE_TYPE_LABELS.general, icon: SprayIcon, image: SERVICE_TYPE_IMAGES.general, color: '#0A6423', bg: '#E9F6EA' },
+  general: { label: SERVICE_TYPE_LABELS.general, icon: SprayIcon, image: SERVICE_TYPE_IMAGES.general, color: '#087B35', bg: '#E9F6EA' },
   fumigation: { label: SERVICE_TYPE_LABELS.fumigation, icon: FumigationIcon, image: SERVICE_TYPE_IMAGES.fumigation, color: '#6D28D9', bg: '#F2EDFD' },
   deep_cleaning: { label: SERVICE_TYPE_LABELS.deep_cleaning, icon: CleanIcon, image: SERVICE_TYPE_IMAGES.deep_cleaning, color: '#0E7490', bg: '#E5F6F8' },
   silo: { label: SERVICE_TYPE_LABELS.silo, icon: WarehouseRealIcon, image: SERVICE_TYPE_IMAGES.silo, color: '#B45309', bg: '#FFF4E0' },

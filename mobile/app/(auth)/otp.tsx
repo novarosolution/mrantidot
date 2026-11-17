@@ -139,7 +139,8 @@ function OtpScreenBody() {
         icon={Smartphone}
         value={phone}
         onChangeText={(t) => {
-          setPhone(t);
+          // phone-pad blocks letters on the soft keyboard, not on a hardware one
+          setPhone(t.replace(/[^\d+]/g, ''));
           if (phoneError) setPhoneError(undefined);
         }}
         placeholder="10-digit mobile number"

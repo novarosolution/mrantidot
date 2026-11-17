@@ -25,6 +25,7 @@ export default function AdminLayout() {
       <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
       <Stack.Screen name="content" />
       <Stack.Screen name="services" />
+      <Stack.Screen name="service-order" />
       <Stack.Screen name="service-edit" />
       <Stack.Screen name="offers" />
       <Stack.Screen name="offer-edit" />

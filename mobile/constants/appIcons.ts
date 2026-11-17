@@ -89,15 +89,15 @@ import {
 
 /** Shared gradient fills for premium icon tiles. */
 export const IconGradients = {
-  forest: ['#30B84F', '#1B873E', '#043813'] as const,
+  forest: ['#30B84F', '#0F8A3D', '#054A23'] as const,
   gold: ['#B6E86A', '#8FD03C', '#27A747'] as const,
-  lime: ['#A8E05A', '#8FD03C', '#1A8734'] as const,
-  teal: ['#3FBF62', '#1B873E', '#0A6423'] as const,
+  lime: ['#A8E05A', '#8FD03C', '#159447'] as const,
+  teal: ['#3FBF62', '#0F8A3D', '#087B35'] as const,
   mint: ['#F4FBF0', '#EAF6E3', '#CFEACF'] as const,
   soft: ['#FFFFFF', '#F6FAF2', '#EAF6E3'] as const,
   danger: ['#E07A4F', '#C15B31', '#9E3F1C'] as const,
-  verify: ['#30B84F', '#1B873E', '#043813'] as const,
-  ring: ['#8FD03C', '#27A747', '#1B873E'] as const,
+  verify: ['#30B84F', '#0F8A3D', '#054A23'] as const,
+  ring: ['#8FD03C', '#27A747', '#0F8A3D'] as const,
 };
 
 /** Pest-control themed icons — realistic custom SVGs + Lucide chrome. */
@@ -161,7 +161,7 @@ export const AppIcons = {
   } satisfies Record<string, LucideIcon>,
 
   adminQuick: {
-    bookings: ClipboardRealIcon,
+    bookings: CalendarCheck,
     services: SprayIcon,
     addTech: UserPlusRealIcon,
     offers: TagsRealIcon,
@@ -171,7 +171,7 @@ export const AppIcons = {
 
   adminKpi: {
     pending: ClockRealIcon,
-    bookings: ClipboardRealIcon,
+    bookings: CalendarCheck,
     active: SprayIcon,
     customers: UsersRealIcon,
   } satisfies Record<string, LucideIcon>,

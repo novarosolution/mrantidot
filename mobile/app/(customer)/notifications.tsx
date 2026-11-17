@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pressable, RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { CustomerListShell, listShellStyles } from '@/components/kit/CustomerListShell';
-import { NotificationRow } from '@/components/kit/NotificationRow';
+import { NotificationRow, type NotificationGroupPos } from '@/components/kit/NotificationRow';
+import { SegmentedTabs } from '@/components/kit/SegmentedTabs';
+import { groupNotificationsByDay } from '@/lib/notificationGroups';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -10,11 +12,11 @@ import { ScreenState } from '@/components/ui/ScreenState';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { CACHE_TTL } from '@/lib/apiCache';
-import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
 import { bookingDetailPath, appPush } from '@/lib/routes';
 import { useAuth } from '@/context/AuthContext';
 import type { AppNotification } from '@/types/api';
-import { fonts, ui as themeUi } from '@/constants/theme';
+import { fonts, spacing, ui as themeUi } from '@/constants/theme';
+import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 
 export default function NotificationsScreen() {
@@ -25,6 +27,7 @@ export default function NotificationsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -85,11 +88,17 @@ export default function NotificationsScreen() {
     }
   }
 
-  const hasUnread = items.some((n) => !n.read);
+  const unreadCount = items.filter((n) => !n.read).length;
+  const hasUnread = unreadCount > 0;
+  const sections = useMemo(
+    () => groupNotificationsByDay(filter === 'unread' ? items.filter((n) => !n.read) : items),
+    [filter, items],
+  );
 
   return (
     <CustomerListShell
       title={ui.notificationsScreenTitle}
+      subtitle={items.length === 0 ? undefined : hasUnread ? `${unreadCount} unread` : 'All caught up'}
       rightAction={
         hasUnread ? (
           <Pressable
@@ -100,7 +109,7 @@ export default function NotificationsScreen() {
             accessibilityLabel="Mark all notifications as read"
           >
             <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={13} color={themeUi.brand} strokeWidth={2.6} />
-            <Text style={styles.markAllText}>{markingAll ? '…' : 'Mark all'}</Text>
+            <Text style={styles.markAllText}>{markingAll ? '…' : 'Mark all read'}</Text>
           </Pressable>
         ) : undefined
       }
@@ -112,18 +121,42 @@ export default function NotificationsScreen() {
         onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
         loadingLabel="Loading notifications…"
       >
-        <FlatList
-          data={items}
+        <SectionList
+          sections={sections}
           keyExtractor={(n) => n.id}
-          {...CUSTOMER_LIST_PERF}
+          stickySectionHeadersEnabled={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeUi.brand} />}
-          contentContainerStyle={items.length === 0 ? listShellStyles.empty : listShellStyles.list}
-          ListEmptyComponent={
-            <EmptyState title={ui.notificationsEmptyTitle} message={ui.notificationsEmptyMessage} />
+          contentContainerStyle={sections.length === 0 ? listShellStyles.empty : styles.list}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            items.length > 0 ? (
+              <View style={styles.filterWrap}>
+                <SegmentedTabs
+                  tabs={[
+                    { key: 'all', label: 'All', count: items.length },
+                    { key: 'unread', label: 'Unread', count: unreadCount },
+                  ]}
+                  selected={filter}
+                  onSelect={setFilter}
+                />
+              </View>
+            ) : null
           }
-          renderItem={({ item }) => (
-            <NotificationRow item={item} onPress={() => void openItem(item)} />
-          )}
+          ListEmptyComponent={
+            filter === 'unread' && items.length > 0 ? (
+              <EmptyState title="You're all caught up" message="No unread notifications right now." />
+            ) : (
+              <EmptyState title={ui.notificationsEmptyTitle} message={ui.notificationsEmptyMessage} />
+            )
+          }
+          renderSectionHeader={({ section }) => <Text style={styles.sectionTitle}>{section.title}</Text>}
+          renderItem={({ item, index, section }) => {
+            const last = section.data.length - 1;
+            const pos: NotificationGroupPos =
+              last === 0 ? 'only' : index === 0 ? 'first' : index === last ? 'last' : 'middle';
+            return <NotificationRow item={item} groupPos={pos} onPress={() => void openItem(item)} />;
+          }}
+          SectionSeparatorComponent={() => <View style={styles.sectionGap} />}
         />
       </ScreenState>
     </CustomerListShell>
@@ -131,6 +164,18 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
+  list: { paddingTop: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: TAB_BAR_SCROLL_PAD },
+  filterWrap: { marginHorizontal: -spacing.md },
+  sectionTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: themeUi.textTertiary,
+    marginTop: spacing.sm,
+    marginLeft: 4,
+  },
+  sectionGap: { height: 10 },
   markAll: {
     flexDirection: 'row',
     alignItems: 'center',

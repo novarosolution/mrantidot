@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,7 +12,11 @@ import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { ServiceThumb } from '@/components/kit/ServiceThumb';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
-import { ArrowLeft, Star } from 'lucide-react-native';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { ArrowLeft, ArrowRight, Star } from 'lucide-react-native';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { GlassSurface } from '@/components/ui/GlassSurface';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { api, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { useScreenLoad } from '@/lib/useScreenLoad';
@@ -54,6 +58,8 @@ function Stars({ count }: { count: number }) {
 export default function ServiceDetailScreen() {
   const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
   const insets = useSafeAreaInsets();
+  const copy = useCustomerUiCopy();
+  const scrollY = useRef(new Animated.Value(0)).current;
   const [service, setService] = useState<Service | null>(null);
   const [stats, setStats] = useState<ServiceStats | null>(null);
   const [reviews, setReviews] = useState<ServiceReview[]>([]);
@@ -131,30 +137,24 @@ export default function ServiceDetailScreen() {
   return (
     <View style={styles.root}>
       <FocusStatusBar style="dark" />
-      <ScrollView
+      <Animated.ScrollView
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: 130 }}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
       >
         <View style={[styles.hero, { paddingTop: insets.top + 6 }]}>
-          <View style={styles.heroTopRow}>
-            <Pressable
-              style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
-              onPress={() => safeGoBack(customerRoutes.services)}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel="Go back"
-            >
-              <ArrowLeft size={22} color={ui.text} strokeWidth={2.1} />
-            </Pressable>
-          </View>
-          <ServiceThumb
-            service={service}
-            width={windowWidth - 40}
-            height={196}
-            radius={22}
-            iconSize={92}
-          />
+          {/* The floating back button (overlay header) sits on this image's top-left corner. */}
+          <FadeSlideIn slideFrom={14}>
+            <ServiceThumb
+              service={service}
+              width={windowWidth - 40}
+              height={Math.round((windowWidth - 40) * 0.66)}
+              radius={28}
+              iconSize={96}
+            />
+          </FadeSlideIn>
           <Text style={styles.heroTitle}>{service.name}</Text>
           {socialProof ? (
             <View style={styles.ratingRow}>
@@ -164,15 +164,15 @@ export default function ServiceDetailScreen() {
           ) : null}
           <View style={styles.priceRow}>
             <Text style={styles.heroPrice}>₹{service.basePrice}</Text>
-            <Text style={styles.priceHint}>starting · per visit</Text>
+            <Text style={styles.priceHint}>{copy.servicePriceHint}</Text>
           </View>
         </View>
 
         <View style={styles.highlights}>
           {[
-            { icon: AppIcons.ui.leaf, title: 'Eco-safe', sub: 'Kid & pet friendly' },
-            { icon: AppIcons.ui.clock, title: durationLabel, sub: 'Visit duration' },
-            { icon: AppIcons.ui.camera, title: 'Photo proof', sub: 'Every step' },
+            { icon: AppIcons.ui.leaf, title: copy.serviceFactOneTitle, sub: copy.serviceFactOneSub },
+            { icon: AppIcons.ui.clock, title: durationLabel, sub: copy.serviceFactDurationSub },
+            { icon: AppIcons.ui.camera, title: copy.serviceFactThreeTitle, sub: copy.serviceFactThreeSub },
           ].map((h, i) => (
             <View key={h.sub} style={[styles.highlight, i > 0 && styles.highlightBorder]}>
               <PremiumIcon icon={h.icon} variant="plain" size={18} color={ui.brand} strokeWidth={2.1} />
@@ -187,13 +187,13 @@ export default function ServiceDetailScreen() {
         </View>
 
         <View style={styles.section}>
-          <SectionKicker label="ABOUT THIS SERVICE" />
+          <SectionKicker label={copy.serviceAboutTitle.toUpperCase()} />
           <Text style={styles.about}>{service.shortDesc}</Text>
         </View>
 
         {(service.stepTemplate?.length ?? 0) > 0 ? (
           <View style={styles.section}>
-            <SectionKicker label="SERVICE STEPS" />
+            <SectionKicker label={copy.serviceStepsTitle.toUpperCase()} />
             <GlassPanel style={styles.stepsCard} padded={false} tone="clear" intensity={44}>
               {service.stepTemplate!.map((t, i) => (
                 <View key={t} style={[styles.stepRow, i > 0 && styles.stepRowBorder]}>
@@ -210,7 +210,7 @@ export default function ServiceDetailScreen() {
 
         {reviews.length > 0 ? (
           <View style={styles.section}>
-            <SectionKicker label="RECENT REVIEWS" />
+            <SectionKicker label={copy.serviceReviewsTitle.toUpperCase()} />
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -236,23 +236,50 @@ export default function ServiceDetailScreen() {
             </ScrollView>
           </View>
         ) : null}
-      </ScrollView>
+      </Animated.ScrollView>
+
+      <View style={[styles.topBar, { height: insets.top + 52 }]} pointerEvents="box-none">
+        <Animated.View
+          style={[styles.topBarBg, { opacity: scrollY.interpolate({ inputRange: [150, 210], outputRange: [0, 1], extrapolate: 'clamp' }) }]}
+        />
+        <View style={[styles.topBarRow, { marginTop: insets.top + 6 }]} pointerEvents="box-none">
+          <PressableScale
+            scaleTo={0.92}
+            onPress={() => safeGoBack(customerRoutes.services)}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <GlassSurface style={styles.backBtn} intensity={35} tintOpacity={0.72} float>
+              <ArrowLeft size={20} color={ui.text} strokeWidth={2.2} />
+            </GlassSurface>
+          </PressableScale>
+          <Animated.Text
+            style={[styles.topBarTitle, { opacity: scrollY.interpolate({ inputRange: [190, 240], outputRange: [0, 1], extrapolate: 'clamp' }) }]}
+            numberOfLines={1}
+          >
+            {service.name}
+          </Animated.Text>
+        </View>
+      </View>
 
       <StickyActionBar>
         <View style={styles.footerRow}>
           <View>
-            <Text style={styles.fromLabel}>FROM</Text>
+            <Text style={styles.fromLabel}>{copy.serviceFromLabel.toUpperCase()}</Text>
             <Text style={styles.footerPrice}>₹{service.basePrice}</Text>
           </View>
-          <Pressable
-            style={({ pressed }) => [styles.bookBtnWrap, pressed && styles.pressed]}
+          <PressableScale
+            containerStyle={styles.bookBtnWrap}
+            style={styles.bookBtn}
             onPress={() => appPush(sharedRoutes.bookPath(service.id))}
+            accessibilityRole="button"
           >
-            <View style={styles.bookBtn}>
-              <Text style={styles.bookBtnText}>Book now</Text>
-              <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={16} color={colors.white} strokeWidth={2.4} fill="none" />
+            <Text style={styles.bookBtnText}>{copy.serviceBookButton}</Text>
+            <View style={styles.bookArrow}>
+              <ArrowRight size={15} color={ui.brand} strokeWidth={2.6} />
             </View>
-          </Pressable>
+          </PressableScale>
         </View>
       </StickyActionBar>
     </View>
@@ -267,16 +294,27 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
     backgroundColor: colors.white,
   },
-  heroTopRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  /** Floating header: back button always, white bar + title fade in once the hero scrolls away. */
+  topBar: { position: 'absolute', top: 0, left: 0, right: 0 },
+  topBarBg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.white,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: ui.border,
+  },
+  topBarRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 30 },
+  topBarTitle: { flex: 1, fontFamily: fonts.bodyBold, fontSize: 16, color: ui.text, marginRight: 40 },
   backBtn: {
     width: 40,
     height: 40,
-    marginLeft: -8,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backBtnPressed: { backgroundColor: ui.surfaceMuted },
   heroTitle: {
     marginTop: 18,
     fontFamily: fonts.displayExtra,
@@ -385,9 +423,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 9,
-    minHeight: 52,
-    borderRadius: 14,
+    minHeight: 54,
+    paddingLeft: 22,
+    paddingRight: 8,
+    borderRadius: 27,
     backgroundColor: ui.brand,
+    ...ui.shadowFloat,
+  },
+  bookArrow: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bookBtnText: { fontFamily: fonts.displayExtra, fontSize: 15, color: colors.white },
   pressed: { transform: [{ scale: 0.98 }], opacity: 0.95 },

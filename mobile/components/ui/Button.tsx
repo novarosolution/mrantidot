@@ -17,7 +17,7 @@ interface ButtonProps extends PressableProps {
   title: string;
   loading?: boolean;
   /** @default premium */
-  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'sky' | 'premium' | 'gold' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'dangerOutline' | 'sky' | 'premium' | 'gold' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -211,6 +211,28 @@ export function Button({
     );
   }
 
+  if (variant === 'dangerOutline') {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: isDisabled, busy: loading }}
+        disabled={isDisabled}
+        style={shellStyle}
+        {...props}
+      >
+        {({ pressed }) => (
+          <ButtonShell
+            pressed={pressed}
+            disabled={!!isDisabled}
+            style={[styles.dangerOutline, frame, pressed && !isDisabled && styles.dangerOutlinePressed]}
+          >
+            {label(colors.error)}
+          </ButtonShell>
+        )}
+      </Pressable>
+    );
+  }
+
   if (variant === 'ghost') {
     return (
       <Pressable
@@ -306,6 +328,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.error,
   },
+  /** Secondary destructive action — sits beside a primary Save without shouting. */
+  dangerOutline: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: 'rgba(179,63,40,0.4)',
+  },
+  dangerOutlinePressed: { backgroundColor: colors.errorBg },
   pressed: {
     opacity: 0.94,
     transform: [{ scale: 0.985 }],

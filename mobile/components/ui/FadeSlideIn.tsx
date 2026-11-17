@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useRef } from 'react';
 import { Animated, Easing, type ViewStyle } from 'react-native';
+import { useReducedMotion } from '@/lib/a11yPrefs';
 
 /**
  * Entrance fade/slide. Safe inside ScrollViews:
@@ -12,7 +13,7 @@ export function FadeSlideIn({
   slideFrom = 20,
   style,
   trigger,
-  disabled = false,
+  disabled: disabledProp = false,
 }: {
   children: ReactNode;
   delay?: number;
@@ -23,6 +24,8 @@ export function FadeSlideIn({
   /** Skip animation — render children statically (preferred in long scroll screens). */
   disabled?: boolean;
 }) {
+  const reducedMotion = useReducedMotion();
+  const disabled = disabledProp || reducedMotion;
   const opacity = useRef(new Animated.Value(disabled ? 1 : 0)).current;
   const translateY = useRef(new Animated.Value(disabled ? 0 : slideFrom)).current;
   const shown = useRef(disabled);

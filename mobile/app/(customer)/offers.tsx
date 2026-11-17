@@ -1,3 +1,4 @@
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { useEffect, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { AppIcons } from '@/constants/appIcons';
@@ -9,6 +10,7 @@ import { OfferCouponCard } from '@/components/kit/OfferCouponCard';
 import { OffersEmpty } from '@/components/kit/OffersEmpty';
 import { OffersPromoHero } from '@/components/kit/OffersPromoHero';
 import { ScreenState } from '@/components/ui/ScreenState';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
 import { useAppContent } from '@/context/AppContentContext';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
@@ -46,6 +48,9 @@ export default function OffersScreen() {
     setOffers(o.data.offers);
     setServices(s.data.services);
   };
+
+  // Pick up admin changes (new offers, hidden services…) when the customer comes back to this screen.
+  useStaleFocusRefresh(() => load().catch(() => undefined), 20_000);
 
   useEffect(() => {
     safeAsync(async () => {
@@ -133,10 +138,17 @@ export default function OffersScreen() {
           ) : (
             <>
               <PremiumSectionHeader title={couponsTitle} style={styles.section} />
-              {offers.map((o) => (
-                <View key={o.id} style={styles.offerWrap}>
-                  <OfferCouponCard offer={o} disabled={services.length === 0} onPress={() => applyOffer(o)} />
-                </View>
+              {offers.map((o, i) => (
+                <FadeSlideIn key={o.id} delay={Math.min(i, 5) * 60} slideFrom={14}>
+                  <View style={styles.offerWrap}>
+                    <OfferCouponCard
+                      offer={o}
+                      index={i}
+                      disabled={services.length === 0}
+                      onPress={() => applyOffer(o)}
+                    />
+                  </View>
+                </FadeSlideIn>
               ))}
             </>
           )}
@@ -155,6 +167,6 @@ export default function OffersScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingBottom: TAB_BAR_SCROLL_PAD, flexGrow: 1 },
-  section: { marginBottom: spacing.xs },
+  section: { marginBottom: spacing.sm },
   offerWrap: { paddingHorizontal: spacing.md },
 });

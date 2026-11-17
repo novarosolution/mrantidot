@@ -15,7 +15,7 @@ import { paramString } from '@/lib/routeParams';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { isAccountDisabled } from '@/lib/user-helpers';
 import type { Booking, User } from '@/types/api';
-import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, premium, spacing, surfaces, ui } from '@/constants/theme';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { formatRupeeFull } from '@/components/kit/format';
 
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: colors.soft,
     borderWidth: 1,
-    borderColor: '#E2F0D8',
+    borderColor: '#EEF2EF',
     alignItems: 'center',
     gap: 4,
   },
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: surfaces.glass,
     borderWidth: 1,
-    borderColor: colors.limeBright,
+    borderColor: ui.border,
   },
   actionText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
 });

@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
+import { Alert, FlatList, RefreshControl } from 'react-native';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminFilterChips } from '@/components/kit/AdminPageKit';
@@ -19,7 +17,7 @@ import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { SERVICE_TYPE_LABELS } from '@/constants/serviceTypes';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import type { Service, ServiceTypeKey } from '@/types/api';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors } from '@/constants/theme';
 
 type ServiceFilter = 'all' | 'active' | 'inactive';
 type BrowseMode = 'types' | 'list';
@@ -122,7 +120,6 @@ export default function AdminServicesScreen() {
       <AdminListShell
         title="Services"
         subtitle={`${activeCount} active · ${services.length} total`}
-        showBack={false}
         rightAction={<AdminAddButton onPress={() => openEdit()} />}
       >
         <AdminServiceTypeGrid
@@ -142,23 +139,15 @@ export default function AdminServicesScreen() {
       onBack={backToTypes}
       backFallback={adminRoutes.services}
       headerExtra={
-        <View style={styles.headerExtra}>
-          <Pressable style={styles.backTypes} onPress={backToTypes}>
-            <PremiumIcon icon={AppIcons.ui.chevronLeft} variant="plain" size="md" color={colors.forest} />
-            <Text style={styles.backTypesText}>Pest types</Text>
-          </Pressable>
-          <View style={styles.chips}>
-            <AdminFilterChips
-              chips={[
-                { key: 'all', label: 'All' },
-                { key: 'active', label: 'Active' },
-                { key: 'inactive', label: 'Inactive' },
-              ]}
-              selected={listFilter}
-              onSelect={(key) => setListFilter(key as ServiceFilter)}
-            />
-          </View>
-        </View>
+        <AdminFilterChips
+          chips={[
+            { key: 'all', label: 'All' },
+            { key: 'active', label: 'Active' },
+            { key: 'inactive', label: 'Inactive' },
+          ]}
+          selected={listFilter}
+          onSelect={(key) => setListFilter(key as ServiceFilter)}
+        />
       }
     >
       <FlatList
@@ -195,23 +184,3 @@ export default function AdminServicesScreen() {
     </AdminListShell>
   );
 }
-
-const styles = StyleSheet.create({
-  headerExtra: {
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.bg,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2F0D8',
-  },
-  backTypes: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.md,
-  },
-  backTypesText: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
-});

@@ -1,5 +1,5 @@
 import type { Booking, BookingStatus, Service, User } from '@/types/api';
-import { formatScheduleLabel } from '@/lib/dates';
+import { formatScheduleLabel, isSlotStarted, isTimeStarted } from '@/lib/dates';
 
 export function bookingServiceName(booking: Booking): string {
   if (booking.service && typeof booking.service === 'object') {
@@ -121,6 +121,15 @@ export function trackingEventLabel(event: string): string {
 
 export function isSchedulePending(booking: Booking): boolean {
   return booking.status === 'pending';
+}
+
+/** Pending booking whose requested visit time has already started without being confirmed. */
+export function isRequestedTimePast(booking: Booking): boolean {
+  if (booking.status !== 'pending') return false;
+  const req = booking.scheduleRequest ?? booking.schedule;
+  if (!req?.date) return false;
+  if (req.time) return isTimeStarted(req.date, req.time);
+  return isSlotStarted(req.date, req.slot ?? '00:00-02:00');
 }
 
 export function bookingScheduleDisplay(booking: Booking): string {

@@ -1,11 +1,12 @@
+import { DancingScript_600SemiBold, useFonts as useDancingScript } from '@expo-google-fonts/dancing-script';
 import {
-  PlusJakartaSans_400Regular,
-  PlusJakartaSans_500Medium,
-  PlusJakartaSans_600SemiBold,
-  PlusJakartaSans_700Bold,
-  PlusJakartaSans_800ExtraBold,
-  useFonts as usePlusJakarta,
-} from '@expo-google-fonts/plus-jakarta-sans';
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  useFonts as useInter,
+} from '@expo-google-fonts/inter';
+import { InstrumentSerif_400Regular_Italic, useFonts as useInstrumentSerif } from '@expo-google-fonts/instrument-serif';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
@@ -57,13 +58,15 @@ function BootSplash() {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded] = usePlusJakarta({
-    PlusJakartaSans_400Regular,
-    PlusJakartaSans_500Medium,
-    PlusJakartaSans_600SemiBold,
-    PlusJakartaSans_700Bold,
-    PlusJakartaSans_800ExtraBold,
+  const [fontsLoaded] = useInter({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
   });
+  // Accent faces (home sign-off script, curation serif italic); they fall back to the system font if they ever fail to load.
+  useDancingScript({ DancingScript_600SemiBold });
+  useInstrumentSerif({ InstrumentSerif_400Regular_Italic });
   const [fontFallback, setFontFallback] = useState(false);
   const fontsReady = fontsLoaded || fontFallback;
 

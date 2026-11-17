@@ -27,6 +27,7 @@ export const BookingListCard = memo(function BookingListCard({
   showCustomer,
   hideAmount,
   hint,
+  hintTone = 'status',
   compact,
 }: {
   booking: Booking;
@@ -34,6 +35,8 @@ export const BookingListCard = memo(function BookingListCard({
   showCustomer?: boolean;
   hideAmount?: boolean;
   hint?: string;
+  /** 'warning' paints the hint amber when it needs the customer's action. */
+  hintTone?: 'status' | 'warning';
   compact?: boolean;
 }) {
   const iconKey = bookingServiceIconKey(booking);
@@ -110,8 +113,8 @@ export const BookingListCard = memo(function BookingListCard({
               </View>
             ) : null}
             {hint ? (
-              <View style={[styles.callout, { backgroundColor: accentBg }]}>
-                <Text style={[styles.calloutText, { color: accent }]}>{hint}</Text>
+              <View style={[styles.callout, { backgroundColor: hintTone === 'warning' ? colors.amberBg : accentBg }]}>
+                <Text style={[styles.calloutText, { color: hintTone === 'warning' ? colors.warning : accent }]}>{hint}</Text>
               </View>
             ) : null}
           </View>

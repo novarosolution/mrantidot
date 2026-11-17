@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: '#E2F0D8',
+    borderColor: '#EEF2EF',
   },
   actionBtnPrimary: { backgroundColor: colors.forest, borderColor: colors.forest },
   actionLabel: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },

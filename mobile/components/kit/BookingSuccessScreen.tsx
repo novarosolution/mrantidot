@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Check } from 'lucide-react-native';
-import { Button } from '@/components/ui/Button';
+import { ArrowRight, Check } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { useAuth } from '@/context/AuthContext';
-import { useBookingCopy } from '@/lib/schedule-copy';
+import { getCustomerTrackingSteps, useBookingCopy } from '@/lib/schedule-copy';
 import { bookingDetailPath, customerRoutes, appReplace } from '@/lib/routes';
 import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
@@ -19,18 +20,18 @@ type ConfettiSpec = {
 };
 
 const CONFETTI: ConfettiSpec[] = [
-  { left: '8%', delay: 0, color: colors.limeBright, w: 7, h: 10 },
+  { left: '8%', delay: 0, color: colors.green, w: 7, h: 10 },
   { left: '18%', delay: 80, color: colors.amber, w: 6, h: 9 },
   { left: '28%', delay: 40, color: colors.green, w: 8, h: 11 },
-  { left: '38%', delay: 120, color: '#60A5FA', w: 5, h: 8 },
-  { left: '48%', delay: 20, color: colors.limeBright, w: 7, h: 10 },
-  { left: '58%', delay: 100, color: '#F472B6', w: 6, h: 9 },
+  { left: '38%', delay: 120, color: '#9AD3AE', w: 5, h: 8 },
+  { left: '48%', delay: 20, color: colors.green, w: 7, h: 10 },
+  { left: '58%', delay: 100, color: '#F2C26B', w: 6, h: 9 },
   { left: '68%', delay: 60, color: colors.green, w: 8, h: 12 },
   { left: '78%', delay: 140, color: colors.amber, w: 5, h: 8 },
-  { left: '88%', delay: 30, color: colors.limeBright, w: 7, h: 10 },
-  { left: '14%', delay: 160, color: '#60A5FA', w: 6, h: 9 },
+  { left: '88%', delay: 30, color: colors.green, w: 7, h: 10 },
+  { left: '14%', delay: 160, color: '#9AD3AE', w: 6, h: 9 },
   { left: '44%', delay: 180, color: colors.green, w: 7, h: 10 },
-  { left: '74%', delay: 200, color: '#F472B6', w: 6, h: 9 },
+  { left: '74%', delay: 200, color: '#F2C26B', w: 6, h: 9 },
 ] as const;
 
 function ConfettiPiece({
@@ -221,6 +222,12 @@ export function BookingSuccessScreen({
     return `#${tail}`;
   }, [bookingId]);
 
+  // The three steps after "request received" — same (admin-editable) labels as the booking timeline.
+  const nextSteps = useMemo(
+    () => getCustomerTrackingSteps('pending', false, bookingCopy).slice(1, 4),
+    [bookingCopy],
+  );
+
   function viewBooking() {
     appReplace(bookingDetailPath(user?.role, bookingId));
   }
@@ -232,6 +239,11 @@ export function BookingSuccessScreen({
   return (
     <View style={styles.root}>
       <FocusStatusBar style="dark" />
+      <LinearGradient
+        colors={['#EAF4EC', 'rgba(234,244,236,0)']}
+        style={styles.wash}
+        pointerEvents="none"
+      />
       <View style={styles.confettiLayer} pointerEvents="none">
         {CONFETTI.map((piece, index) => (
           <ConfettiPiece key={index} {...piece} />
@@ -265,10 +277,32 @@ export function BookingSuccessScreen({
               </View>
             </View>
           </FadeSlideIn>
+
+          <FadeSlideIn delay={440} slideFrom={20}>
+            <View style={[styles.card, styles.nextCard]}>
+              <Text style={styles.cardTitle}>{bookingCopy.wizardNextStepsTitle}</Text>
+              {nextSteps.map((st, i) => (
+                <View key={st.title} style={styles.stepRow}>
+                  <View style={styles.stepRail}>
+                    <View style={[styles.stepDot, i === 0 && styles.stepDotNow]}>
+                      <Text style={[styles.stepNum, i === 0 && styles.stepNumNow]}>{i + 1}</Text>
+                    </View>
+                    {i < nextSteps.length - 1 ? <View style={styles.stepLine} /> : null}
+                  </View>
+                  <Text style={[styles.stepText, i === 0 && styles.stepTextNow]}>{st.title}</Text>
+                </View>
+              ))}
+            </View>
+          </FadeSlideIn>
         </ScrollView>
 
         <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-          <Button title={bookingCopy.successViewBookingButton} onPress={viewBooking} variant="premium" />
+          <PressableScale style={styles.primary} onPress={viewBooking} accessibilityRole="button">
+            <Text style={styles.primaryText}>{bookingCopy.successViewBookingButton}</Text>
+            <View style={styles.primaryArrow}>
+              <ArrowRight size={15} color={ui.brand} strokeWidth={2.6} />
+            </View>
+          </PressableScale>
           <Pressable style={({ pressed }) => [styles.homeBtn, pressed && styles.pressed]} onPress={goHome}>
             <Text style={styles.homeText}>{bookingCopy.successHomeButton}</Text>
           </Pressable>
@@ -280,6 +314,47 @@ export function BookingSuccessScreen({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
+  wash: { position: 'absolute', top: 0, left: 0, right: 0, height: 360 },
+  nextCard: { marginTop: spacing.md },
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, minHeight: 40 },
+  stepRail: { alignItems: 'center', width: 26 },
+  stepDot: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: ui.surfaceMuted,
+    borderWidth: 1,
+    borderColor: ui.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepDotNow: { backgroundColor: ui.brand, borderColor: ui.brand },
+  stepNum: { fontFamily: fonts.bodyBold, fontSize: 12, color: ui.textSecondary },
+  stepNumNow: { color: colors.white },
+  stepLine: { flex: 1, width: 2, minHeight: 14, marginVertical: 2, borderRadius: 1, backgroundColor: ui.border },
+  stepText: { flex: 1, paddingTop: 3, fontFamily: fonts.bodyMedium, fontSize: 14, color: ui.textSecondary },
+  stepTextNow: { fontFamily: fonts.bodyBold, color: ui.text },
+  primary: {
+    height: 54,
+    paddingLeft: 22,
+    paddingRight: 8,
+    borderRadius: 27,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: ui.brand,
+    ...ui.shadowFloat,
+  },
+  primaryText: { fontFamily: fonts.bodyBold, fontSize: 15.5, color: colors.white },
+  primaryArrow: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   safe: { flex: 1 },
   confettiLayer: { ...StyleSheet.absoluteFill, overflow: 'hidden' },
   confetti: { position: 'absolute', top: 0, borderRadius: 2 },
@@ -323,14 +398,6 @@ const styles = StyleSheet.create({
     backgroundColor: ui.brand,
   },
   titleBlock: { alignItems: 'center', marginBottom: spacing.lg },
-  sparkRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  kicker: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 11,
-    color: colors.lime,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
   title: {
     fontFamily: fonts.displayExtra,
     fontSize: 26,
@@ -390,38 +457,6 @@ const styles = StyleSheet.create({
   },
   totalLabel: { fontFamily: fonts.bodyBold, fontSize: 15, color: ui.text },
   totalValue: { fontFamily: fonts.displayExtra, fontSize: 22, color: ui.text },
-  nextCard: {
-    borderRadius: 20,
-    padding: spacing.lg,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
-  nextTitle: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 13,
-    color: colors.lime,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: spacing.md,
-  },
-  nextStep: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 14 },
-  nextIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nextText: {
-    fontFamily: fonts.body,
-    fontSize: 13.5,
-    color: 'rgba(255,255,255,0.88)',
-    flex: 1,
-    lineHeight: 20,
-    paddingTop: 6,
-  },
   footer: {
     position: 'absolute',
     left: 0,

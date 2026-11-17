@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode, useEffect, useRef } from 'react';
 import {
   Animated,
@@ -16,6 +15,7 @@ import { ArrowLeft, Lock } from 'lucide-react-native';
 import { safeGoBack, authRoutes } from '@/lib/routes';
 import { BrandLogo } from '@/components/BrandLogo';
 import { AUTH_HERO_GRADIENT, AuthHeroBackdrop } from '@/components/kit/auth/AuthBrandArt';
+import { PremiumAurora } from '@/components/kit/PremiumAurora';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 
@@ -82,15 +82,7 @@ export function AuthSplashLayout({
 
   return (
     <View style={styles.splashRoot}>
-      <LinearGradient
-        colors={[...AUTH_HERO_GRADIENT]}
-        locations={[0, 0.55, 1]}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={[styles.splashGlow, styles.splashGlowA]} pointerEvents="none" />
-      <View style={[styles.splashGlow, styles.splashGlowB]} pointerEvents="none" />
+      <PremiumAurora topFade={false} />
 
       <View style={[styles.splashStage, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.lg }]}>
         <View style={styles.splashCenter}>
@@ -254,7 +246,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.brand,
     fontSize: 38,
     lineHeight: 44,
-    letterSpacing: -1.2,
+    letterSpacing: -0.8,
     color: colors.white,
     textAlign: 'center',
   },
@@ -308,7 +300,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.brand,
     fontSize: 26,
     lineHeight: 31,
-    letterSpacing: -0.8,
+    letterSpacing: -0.6,
     color: colors.white,
     maxWidth: '64%',
   },

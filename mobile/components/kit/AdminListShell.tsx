@@ -1,7 +1,6 @@
 import { type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { AdminLightHeader } from './AdminLightHeader';
@@ -74,22 +73,19 @@ export function AdminSectionTitle({
   hint,
   actionLabel,
   onAction,
+  flush = false,
 }: {
   title: string;
   hint?: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Drop the side gutter inside containers that already pad their content (e.g. GlassScreen). */
+  flush?: boolean;
 }) {
   return (
-    <View style={adminStyles.sectionBlock}>
+    <View style={[adminStyles.sectionBlock, flush && adminStyles.sectionFlush]}>
       <View style={adminStyles.sectionRow}>
         <View style={adminStyles.titleCol}>
-          <LinearGradient
-            colors={[colors.limeBright, colors.green]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={adminStyles.sectionAccent}
-          />
           <View style={adminStyles.sectionTextCol}>
             <Text style={adminStyles.sectionTitle}>{title}</Text>
             {hint ? <Text style={adminStyles.sectionHint}>{hint}</Text> : null}
@@ -114,6 +110,9 @@ export const adminListShellStyles = StyleSheet.create({
   scroll: { padding: spacing.md, paddingBottom: TAB_BAR_SCROLL_PAD },
   scrollWithFooter: { padding: spacing.md, paddingBottom: ADMIN_STICKY_FOOTER_PAD },
   scrollWithFooterTall: { padding: spacing.md, paddingBottom: ADMIN_STICKY_FOOTER_PAD_TALL },
+  /** Edit forms — AdminFormCard / section titles bring their own 16pt gutter. */
+  form: { paddingTop: spacing.xs, paddingBottom: ADMIN_STICKY_FOOTER_PAD },
+  formTall: { paddingTop: spacing.xs, paddingBottom: ADMIN_STICKY_FOOTER_PAD_TALL },
 });
 
 export const adminStyles = StyleSheet.create({
@@ -127,6 +126,7 @@ export const adminStyles = StyleSheet.create({
     marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
+  sectionFlush: { paddingHorizontal: 0 },
   sectionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -139,11 +139,6 @@ export const adminStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-  },
-  sectionAccent: {
-    width: 3,
-    height: 18,
-    borderRadius: 2,
   },
   sectionTextCol: { flex: 1, minWidth: 0 },
   sectionTitle: {

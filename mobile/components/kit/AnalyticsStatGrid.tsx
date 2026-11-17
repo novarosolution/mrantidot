@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
     borderRadius: premium.radiusCard,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: '#E2F0D8',
+    borderColor: '#EEF2EF',
     gap: 8,
     alignItems: 'center',
     ...premium.shadowSoft,

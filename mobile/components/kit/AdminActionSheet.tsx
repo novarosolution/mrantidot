@@ -1,9 +1,7 @@
 import { type ReactNode } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { glassSkin } from '@/components/kit/GlassScreenKit';
-import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 export interface ActionSheetOption {
   key: string;
@@ -15,8 +13,8 @@ export interface ActionSheetOption {
 }
 
 /**
- * Bottom-sheet picker / confirmation that replaces Alert.alert for richer,
- * on-brand admin actions (assign technician, confirm cancel/disable, etc).
+ * White bottom-sheet picker / confirmation (replaces Alert.alert) — options sit in one grouped
+ * list with hairline dividers; Cancel is a separate pill below, iOS action-sheet style.
  */
 export function AdminActionSheet({
   visible,
@@ -35,106 +33,102 @@ export function AdminActionSheet({
 }) {
   const insets = useSafeAreaInsets();
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        {Platform.OS !== 'web' ? (
-          <BlurView intensity={18} tint="dark" style={StyleSheet.absoluteFill} />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, styles.webBackdrop]} pointerEvents="none" />
-        )}
-        <Pressable
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}
-          onPress={(e) => e.stopPropagation()}
-        >
-          {Platform.OS !== 'web' ? (
-            <BlurView intensity={48} tint="light" style={StyleSheet.absoluteFill} />
-          ) : null}
-          <View style={styles.sheetTint} pointerEvents="none" />
-          <View style={styles.sheetBody}>
-            <View style={styles.handle} />
-            <Text style={styles.title}>{title}</Text>
-            {message ? <Text style={styles.message}>{message}</Text> : null}
-            <ScrollView style={styles.list} bounces={false}>
-              {options.map((opt) => (
-                <Pressable
-                  key={opt.key}
-                  style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
-                  onPress={() => {
-                    onClose();
-                    opt.onPress();
-                  }}
-                >
-                  {opt.icon ? <View style={styles.optionIcon}>{opt.icon}</View> : null}
-                  <View style={styles.optionText}>
-                    <Text style={[styles.optionLabel, opt.destructive && styles.destructive]}>
-                      {opt.label}
-                    </Text>
-                    {opt.subtitle ? <Text style={styles.optionSub}>{opt.subtitle}</Text> : null}
-                  </View>
-                </Pressable>
-              ))}
-            </ScrollView>
-            <Pressable style={styles.cancel} onPress={onClose}>
-              <Text style={styles.cancelText}>{cancelLabel}</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose} statusBarTranslucent>
+      <View style={styles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+          <View style={styles.handle} />
+          <Text style={styles.title}>{title}</Text>
+          {message ? <Text style={styles.message}>{message}</Text> : null}
+          <ScrollView style={styles.list} contentContainerStyle={styles.listInner} bounces={false}>
+            {options.map((opt, i) => (
+              <Pressable
+                key={opt.key}
+                style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
+                onPress={() => {
+                  onClose();
+                  opt.onPress();
+                }}
+                accessibilityRole="button"
+              >
+                {i > 0 ? <View style={styles.divider} /> : null}
+                {opt.icon ? <View style={styles.optionIcon}>{opt.icon}</View> : null}
+                <View style={styles.optionText}>
+                  <Text style={[styles.optionLabel, opt.destructive && styles.destructive]}>{opt.label}</Text>
+                  {opt.subtitle ? <Text style={styles.optionSub}>{opt.subtitle}</Text> : null}
+                </View>
+              </Pressable>
+            ))}
+          </ScrollView>
+          <Pressable
+            style={({ pressed }) => [styles.cancel, pressed && styles.optionPressed]}
+            onPress={onClose}
+            accessibilityRole="button"
+          >
+            <Text style={styles.cancelText}>{cancelLabel}</Text>
+          </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(4,56,19,0.28)', justifyContent: 'flex-end' },
-  webBackdrop: { backgroundColor: 'rgba(4,56,19,0.45)' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(8,14,10,0.45)', justifyContent: 'flex-end' },
   sheet: {
-    ...glassSkin.sheet,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    ...premium.shadowSoft,
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: spacing.md,
+    paddingTop: 10,
   },
-  sheetTint: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: surfaces.glassPanelTint,
-  },
-  sheetBody: { zIndex: 1 },
   handle: {
     alignSelf: 'center',
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(216,237,200,0.95)',
-    marginBottom: spacing.md,
+    backgroundColor: ui.border,
+    marginBottom: 14,
   },
-  title: { fontFamily: fonts.displayExtra, fontSize: 17, color: colors.ink },
-  message: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, marginTop: 6, lineHeight: 19 },
-  list: { marginTop: spacing.md, maxHeight: 360 },
+  title: { fontFamily: fonts.displayExtra, fontSize: 19, letterSpacing: -0.3, color: ui.text, paddingHorizontal: 4 },
+  message: { fontFamily: fonts.body, fontSize: 13.5, color: ui.textSecondary, marginTop: 4, lineHeight: 19, paddingHorizontal: 4 },
+  list: { marginTop: 14, maxHeight: 380 },
+  listInner: {
+    borderRadius: 18,
+    backgroundColor: ui.surfaceMuted,
+    overflow: 'hidden',
+  },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.55)',
-    borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
-    marginBottom: 8,
+    minHeight: 56,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
-  optionPressed: { opacity: 0.88, transform: [{ scale: 0.99 }] },
-  optionIcon: { width: 36, alignItems: 'center' },
+  optionPressed: { backgroundColor: '#EEF2EF' },
+  divider: {
+    position: 'absolute',
+    top: 0,
+    left: 16,
+    right: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: ui.border,
+  },
+  optionIcon: { width: 28, alignItems: 'center' },
   optionText: { flex: 1 },
-  optionLabel: { fontFamily: fonts.bodySemi, fontSize: 15, color: colors.ink },
-  optionSub: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 2 },
+  optionLabel: { fontFamily: fonts.bodySemi, fontSize: 15.5, color: ui.text },
+  optionSub: { fontFamily: fonts.body, fontSize: 12.5, color: ui.textSecondary, marginTop: 2 },
   destructive: { color: colors.error },
   cancel: {
-    marginTop: spacing.sm,
+    marginTop: 10,
     alignItems: 'center',
-    paddingVertical: 14,
+    justifyContent: 'center',
+    height: 52,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.62)',
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.border,
+    backgroundColor: colors.white,
   },
-  cancelText: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.forest },
+  cancelText: { fontFamily: fonts.bodyBold, fontSize: 15.5, color: ui.text },
 });

@@ -1,3 +1,4 @@
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
@@ -5,6 +6,7 @@ import { AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { GlassPanel, customerScrollProps } from '@/components/kit/GlassScreenKit';
 import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
@@ -34,6 +36,8 @@ export default function AdminLeaveScreen() {
     });
     setLeaves(res.data.leaves);
   }, [filter]);
+
+  useStaleFocusRefresh(() => load().catch(() => undefined), 15_000);
 
   useEffect(() => {
     setLoading(true);
@@ -84,6 +88,7 @@ export default function AdminLeaveScreen() {
     <AdminListShell title="Leave requests" subtitle="Approve technician time off" backFallback={adminRoutes.team}>
       <View style={styles.tabs}>
         <AdminFilterChips
+          inset
           chips={FILTERS.map((f) => ({ key: f.key, label: f.label }))}
           selected={filter}
           onSelect={(key) => setFilter(key as typeof filter)}
@@ -113,9 +118,10 @@ export default function AdminLeaveScreen() {
           {...customerScrollProps}
         >
           {leaves.length === 0 ? (
-            <GlassPanel tone="mint">
-              <Text style={styles.empty}>No {filter} leave requests</Text>
-            </GlassPanel>
+            <EmptyState
+              title={`No ${filter} requests`}
+              message={filter === 'pending' ? 'New time-off requests from technicians show up here.' : undefined}
+            />
           ) : (
             leaves.map((l) => {
               const approving = busyId === `${l.id}:approve`;
@@ -169,7 +175,6 @@ export default function AdminLeaveScreen() {
 const styles = StyleSheet.create({
   tabs: { paddingBottom: spacing.xs },
   content: { gap: 12 },
-  empty: { textAlign: 'center', fontFamily: fonts.body, color: colors.muted, paddingVertical: spacing.lg },
   card: { borderRadius: premium.radiusCard },
   name: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.ink },
   meta: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, marginTop: 4 },

@@ -2,7 +2,7 @@ import { forwardRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
 import { AppIcons } from '@/constants/appIcons';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { colors, fonts, formField, premium, shadows, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, formField, spacing, ui } from '@/constants/theme';
 import { stripConflictingInputProps, textInputDefaults, textInputStyles } from '@/components/ui/textInputDefaults';
 
 export const IconInput = forwardRef<
@@ -104,9 +104,8 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: fonts.bodySemi,
     fontSize: formField.labelSize,
-    color: colors.ink,
+    color: ui.text,
     marginBottom: 8,
-    letterSpacing: 0.2,
   },
   row: {
     flexDirection: 'row',
@@ -118,7 +117,6 @@ const styles = StyleSheet.create({
     borderColor: formField.borderColor,
     paddingRight: spacing.sm,
     paddingLeft: spacing.sm,
-    ...premium.shadowSoft,
   },
   rowMultiline: {
     alignItems: 'flex-start',
@@ -128,26 +126,23 @@ const styles = StyleSheet.create({
   rowFocused: {
     backgroundColor: formField.bgFocus,
     borderColor: formField.borderFocus,
-    ...shadows.soft,
   },
   rowError: {
     backgroundColor: colors.errorBg,
     borderColor: 'rgba(179,63,40,0.35)',
   },
   iconTile: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: surfaces.glassSoft,
-    borderWidth: 1,
-    borderColor: surfaces.glassBorder,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 4,
   },
   iconTileFocused: {
-    backgroundColor: colors.soft,
-    borderColor: 'rgba(48,184,79,0.35)',
+    backgroundColor: ui.brandSoft,
   },
   multiline: {
     minHeight: 88,

@@ -1,6 +1,6 @@
-import { useRef } from 'react';
-import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Star } from 'lucide-react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ArrowRight, Star } from 'lucide-react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { HomeSectionTitle } from '@/components/kit/HomeSectionTitle';
 import { ServiceThumb } from '@/components/kit/ServiceThumb';
 import { Skeleton, useSkeletonPulse } from '@/components/ui/Skeleton';
@@ -8,34 +8,30 @@ import { serviceDisplayRating } from '@/lib/ratings';
 import type { Service } from '@/types/api';
 import { colors, fonts, ui } from '@/constants/theme';
 
-const CARD_W = 152;
+const CARD_W = 168;
+const THUMB_H = 120;
 const GAP = 12;
 
 function RailCard({ service: s, badge, onPress }: { service: Service; badge?: string; onPress: () => void }) {
   const rating = serviceDisplayRating(s);
   const reviews = s.stats?.reviewCount ?? 0;
-  const scale = useRef(new Animated.Value(1)).current;
-  const spring = (to: number) =>
-    Animated.spring(scale, { toValue: to, friction: 6, tension: 220, useNativeDriver: true }).start();
-
   return (
-    <Pressable
+    <PressableScale
+      containerStyle={styles.cardWrap}
       style={styles.card}
       onPress={onPress}
-      onPressIn={() => spring(0.96)}
-      onPressOut={() => spring(1)}
       accessibilityRole="button"
       accessibilityLabel={`${s.name}, ₹${s.basePrice}`}
     >
-      <Animated.View style={{ transform: [{ scale }] }}>
-        <View>
-          <ServiceThumb service={s} width={CARD_W} height={118} radius={18} iconSize={50} />
-          {badge ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{badge}</Text>
-            </View>
-          ) : null}
-        </View>
+      <View>
+        <ServiceThumb service={s} width={CARD_W - 16} height={THUMB_H} radius={16} iconSize={54} />
+        {badge ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badge}</Text>
+          </View>
+        ) : null}
+      </View>
+      <View style={styles.cardBody}>
         <Text style={styles.name} numberOfLines={2}>
           {s.name}
         </Text>
@@ -48,10 +44,12 @@ function RailCard({ service: s, badge, onPress }: { service: Service; badge?: st
         ) : null}
         <View style={styles.priceRow}>
           <Text style={styles.price}>₹{s.basePrice}</Text>
-          <Text style={styles.book}>Book</Text>
+          <View style={styles.book}>
+            <ArrowRight size={16} color={colors.white} strokeWidth={2.5} />
+          </View>
         </View>
-      </Animated.View>
-    </Pressable>
+      </View>
+    </PressableScale>
   );
 }
 
@@ -66,7 +64,7 @@ export function MostBookedRailSkeleton() {
       <View style={styles.row}>
         {[0, 1, 2].map((i) => (
           <View key={i} style={styles.card}>
-            <Skeleton width={CARD_W} height={118} radius={18} pulse={pulse} />
+            <Skeleton width={CARD_W - 16} height={THUMB_H} radius={16} pulse={pulse} />
             <Skeleton width={CARD_W * 0.8} height={13} radius={6} pulse={pulse} style={styles.skeletonLine} />
             <Skeleton width={CARD_W * 0.4} height={13} radius={6} pulse={pulse} style={styles.skeletonLine} />
           </View>
@@ -115,48 +113,54 @@ export function MostBookedRail({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', paddingHorizontal: 16, gap: GAP },
-  card: { width: CARD_W },
+  row: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8, gap: GAP },
+  cardWrap: { width: CARD_W },
+  card: {
+    width: CARD_W,
+    padding: 8,
+    borderRadius: 22,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
+    ...ui.shadowFloat,
+  },
+  cardBody: { paddingHorizontal: 4, paddingTop: 10, paddingBottom: 4 },
   badge: {
     position: 'absolute',
     top: 8,
     left: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: colors.white,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.92)',
   },
   badgeText: { fontFamily: fonts.bodyBold, fontSize: 10.5, letterSpacing: 0.1, color: ui.brand },
   name: {
-    marginTop: 10,
     minHeight: 38,
-    fontFamily: fonts.bodySemi,
+    fontFamily: fonts.bodyBold,
     fontSize: 14,
     lineHeight: 19,
+    letterSpacing: -0.15,
     color: ui.text,
   },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   rating: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: ui.text },
   reviews: { fontFamily: fonts.body, fontSize: 12.5, color: ui.textSecondary },
   priceRow: {
-    marginTop: 6,
+    marginTop: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
   },
-  price: { fontFamily: fonts.bodyBold, fontSize: 14.5, color: ui.text },
+  price: { fontFamily: fonts.displayExtra, fontSize: 16, letterSpacing: -0.3, color: ui.text },
   book: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 12.5,
-    color: ui.brand,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: ui.border,
-    overflow: 'hidden',
-    backgroundColor: colors.white,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: ui.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   skeletonTitle: { paddingHorizontal: 16, marginBottom: 16 },
   skeletonLine: { marginTop: 10 },

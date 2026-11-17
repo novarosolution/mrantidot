@@ -1,12 +1,15 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { HeroDarkSlice } from '@/components/kit/HeroDarkSlice';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
-import { colors, fonts, headerTopPad, ui } from '@/constants/theme';
+import { PremiumAurora } from '@/components/kit/PremiumAurora';
+import { fonts, headerTopPad, ui } from '@/constants/theme';
 
-/** Shared premium forest header for admin + technician tab roots. */
+/**
+ * Shared header for admin + technician tab roots — the same white → mint wash as
+ * the customer home, fading into the page canvas so there is no visible seam.
+ */
 export function PremiumAppHeader({
   eyebrow,
   title,
@@ -18,28 +21,30 @@ export function PremiumAppHeader({
   title: string;
   subtitle?: string;
   right?: ReactNode;
+  /** Page canvas colour the header fades into. */
   sliceColor?: string;
 }) {
   const insets = useSafeAreaInsets();
 
   return (
-    <HeroDarkSlice
-      style={styles.shell}
-      sliceHeight={18}
-      sliceColor={sliceColor}
-      contentStyle={[styles.content, { paddingTop: headerTopPad(insets.top) }]}
-    >
-      <FocusStatusBar style="light" />
+    <View style={[styles.shell, { paddingTop: headerTopPad(insets.top) }]}>
+      <FocusStatusBar style="dark" />
+      <LinearGradient
+        colors={['#FFFFFF', '#EAF4EC', sliceColor]}
+        locations={[0, 0.62, 1]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+      <PremiumAurora tone="light" base={false} />
       <View style={styles.row}>
         <View style={styles.textCol}>
           <View style={styles.eyebrowRow}>
-            <LinearGradient
-              colors={['#D4F28A', colors.limeBright]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.eyebrowBar}
-            />
-            <Text style={styles.eyebrow}>{eyebrow}</Text>
+            <View style={styles.eyebrowDot} />
+            <Text style={styles.eyebrow} numberOfLines={1}>
+              {eyebrow}
+            </Text>
           </View>
           <Text style={styles.title} numberOfLines={1}>
             {title}
@@ -52,38 +57,34 @@ export function PremiumAppHeader({
         </View>
         {right}
       </View>
-    </HeroDarkSlice>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  shell: { marginBottom: -2 },
-  content: {
-    paddingHorizontal: 18,
-    paddingBottom: 16,
-  },
+  shell: { paddingHorizontal: 18, paddingBottom: 18, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   textCol: { flex: 1, minWidth: 0 },
-  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 7 },
-  eyebrowBar: { width: 20, height: 3, borderRadius: 2 },
+  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  eyebrowDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: ui.brandBright },
   eyebrow: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 10,
-    letterSpacing: 1.35,
-    color: 'rgba(255,255,255,0.9)',
+    fontFamily: fonts.bodyBold,
+    fontSize: 10.5,
+    letterSpacing: 1.2,
+    color: ui.brand,
   },
   title: {
     fontFamily: fonts.displayExtra,
     fontSize: 28,
-    lineHeight: 33,
-    letterSpacing: -0.7,
-    color: colors.white,
+    lineHeight: 34,
+    letterSpacing: -0.6,
+    color: ui.text,
   },
   sub: {
-    marginTop: 5,
-    fontFamily: fonts.body,
+    marginTop: 4,
+    fontFamily: fonts.bodyMedium,
     fontSize: 13.5,
     lineHeight: 19,
-    color: 'rgba(255,255,255,0.84)',
+    color: ui.textSecondary,
   },
 });

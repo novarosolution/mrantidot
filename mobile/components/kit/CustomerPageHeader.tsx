@@ -3,10 +3,13 @@ import { ArrowLeft } from 'lucide-react-native';
 import { adminGoBack, safeGoBack } from '@/lib/routes';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { PremiumAurora } from '@/components/kit/PremiumAurora';
 import { AppIcons } from '@/constants/appIcons';
 import { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GlassSurface } from '@/components/ui/GlassSurface';
+import { PressableScale } from '@/components/ui/PressableScale';
 import {
   colors,
   customerType,
@@ -113,17 +116,20 @@ export function CustomerPageHeader({
         ]}
       >
         <FocusStatusBar style="dark" />
+        <PremiumAurora tone="light" base={false} />
         <View style={styles.whiteRow}>
           {showBack ? (
-            <Pressable
+            <PressableScale
+              scaleTo={0.92}
               onPress={handleBack}
               accessibilityRole="button"
               accessibilityLabel="Go back"
-              style={({ pressed }) => [styles.whiteBack, pressed && styles.whiteBackPressed]}
               hitSlop={8}
             >
-              <ArrowLeft size={22} color={ui.text} strokeWidth={2.1} />
-            </Pressable>
+              <GlassSurface style={styles.whiteBack} intensity={30} tintOpacity={0.8}>
+                <ArrowLeft size={20} color={ui.text} strokeWidth={2.2} />
+              </GlassSurface>
+            </PressableScale>
           ) : null}
           <View style={styles.textCol}>
             <Text style={showBack ? styles.whiteTitle : styles.whiteTitleLarge} numberOfLines={1}>
@@ -169,23 +175,24 @@ export function CustomerPageHeader({
 
 const styles = StyleSheet.create({
   whiteWrap: {
+    overflow: 'hidden',
     paddingHorizontal: spacing.md,
     backgroundColor: colors.white,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: ui.hairline,
   },
-  whiteRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 48 },
+  whiteRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48 },
   whiteBack: {
     width: 40,
     height: 40,
-    marginLeft: -8,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: ui.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  whiteBackPressed: { backgroundColor: ui.surfaceMuted },
   whiteTitle: {
-    fontFamily: fonts.display,
+    fontFamily: fonts.displayExtra,
     fontSize: 19,
     lineHeight: 25,
     letterSpacing: -0.35,

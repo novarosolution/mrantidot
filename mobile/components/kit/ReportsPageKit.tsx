@@ -43,12 +43,6 @@ export function ReportsSectionCard({
     <View style={[styles.section, style]}>
       <View style={styles.sectionHead}>
         <View style={styles.titleCol}>
-          <LinearGradient
-            colors={[colors.limeBright, colors.green]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={styles.sectionAccent}
-          />
           <View style={styles.sectionText}>
             <Text style={styles.sectionTitle}>{title}</Text>
             {hint ? <Text style={styles.sectionHint}>{hint}</Text> : null}
@@ -277,7 +271,6 @@ const styles = StyleSheet.create({
   section: { marginTop: spacing.md },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: spacing.md },
   titleCol: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  sectionAccent: { width: 3, height: 18, borderRadius: 2 },
   sectionText: { flex: 1, minWidth: 0 },
   sectionTitle: { fontFamily: fonts.displayExtra, fontSize: 17, color: colors.ink, letterSpacing: -0.35 },
   sectionHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 3, lineHeight: 17 },

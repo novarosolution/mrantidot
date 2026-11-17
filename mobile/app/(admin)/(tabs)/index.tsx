@@ -142,7 +142,7 @@ export default function AdminDashboard() {
             icon={AppIcons.adminKpi.active}
             image={AppIconImages.adminKpi.active}
             value={String(activeJobs)}
-            label="Active"
+            label="Active jobs"
             delta={stats.deltas?.activeJobs}
             iconBg="#E8F5EC"
             iconColor={colors.forest}

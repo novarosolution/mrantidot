@@ -1,7 +1,9 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, BadgeCheck, ChevronRight, Info, Star, Tag, type LucideIcon } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, BadgeCheck, Info, Star, Tag, type LucideIcon } from 'lucide-react-native';
+import { GlassSurface } from '@/components/ui/GlassSurface';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { ServiceThumb } from '@/components/kit/ServiceThumb';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { serviceDisplayRating } from '@/lib/ratings';
@@ -39,15 +41,17 @@ export function BookFlowHeader({
     <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
       <FocusStatusBar style="dark" />
       <View style={styles.headerRow}>
-        <Pressable
+        <PressableScale
+          scaleTo={0.92}
           onPress={onBack}
           hitSlop={8}
-          style={({ pressed }) => [styles.backBtn, pressed && styles.backPressed]}
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <ArrowLeft size={22} color={ui.text} strokeWidth={2.1} />
-        </Pressable>
+          <GlassSurface style={styles.backBtn} intensity={30} tintOpacity={0.8}>
+            <ArrowLeft size={20} color={ui.text} strokeWidth={2.2} />
+          </GlassSurface>
+        </PressableScale>
         <View style={styles.headerText}>
           <Text style={styles.headerTitle} numberOfLines={1}>
             {title}
@@ -333,16 +337,21 @@ export function BookCheckoutBar({
           <Text style={styles.barCaption}>{caption ?? 'incl. taxes'}</Text>
         )}
       </View>
-      <Pressable
+      <PressableScale
         onPress={onAction}
         disabled={blocked}
-        style={({ pressed }) => [styles.barBtn, blocked && styles.barBtnDisabled, pressed && !blocked && styles.barBtnPressed]}
+        containerStyle={styles.barBtnWrap}
+        style={[styles.barBtn, blocked && styles.barBtnDisabled]}
         accessibilityRole="button"
         accessibilityState={{ disabled: blocked, busy: loading }}
       >
         <Text style={styles.barBtnText}>{loading ? 'Please wait…' : actionTitle}</Text>
-        {!loading ? <ChevronRight size={18} color={colors.white} strokeWidth={2.4} /> : null}
-      </Pressable>
+        {!loading ? (
+          <View style={styles.barArrow}>
+            <ArrowRight size={15} color={blocked ? '#8A938D' : ui.brand} strokeWidth={2.6} />
+          </View>
+        ) : null}
+      </PressableScale>
     </Animated.View>
   );
 }
@@ -357,18 +366,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: ui.border,
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 48 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48 },
   backBtn: {
     width: 40,
     height: 40,
-    marginLeft: -8,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: ui.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backPressed: { backgroundColor: ui.surfaceMuted },
   headerText: { flex: 1, minWidth: 0 },
-  headerTitle: { fontFamily: fonts.display, fontSize: 18, lineHeight: 23, letterSpacing: -0.3, color: ui.text },
+  headerTitle: { fontFamily: fonts.displayExtra, fontSize: 18, lineHeight: 23, letterSpacing: -0.3, color: ui.text },
   headerSub: { marginTop: 1, fontFamily: fonts.body, fontSize: 12.5, color: ui.textSecondary },
   stepCount: { fontFamily: fonts.bodyBold, fontSize: 12.5, color: ui.textTertiary },
   segments: { flexDirection: 'row', gap: 6, marginTop: 10 },
@@ -499,17 +508,27 @@ const styles = StyleSheet.create({
   barTotal: { fontFamily: fonts.displayExtra, fontSize: 20, letterSpacing: -0.4, color: ui.text },
   barCaption: { marginTop: 1, fontFamily: fonts.bodyMedium, fontSize: 12, color: ui.textSecondary },
   barSaving: { marginTop: 1, fontFamily: fonts.bodyBold, fontSize: 12, color: ui.brand },
+  barBtnWrap: { flex: 1 },
   barBtn: {
-    flex: 1,
-    height: 52,
-    borderRadius: 14,
+    height: 54,
+    paddingLeft: 22,
+    paddingRight: 8,
+    borderRadius: 27,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 10,
     backgroundColor: ui.brand,
+    ...ui.shadowFloat,
   },
-  barBtnPressed: { opacity: 0.88 },
+  barArrow: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   barBtnDisabled: { backgroundColor: '#B9C4BD' },
   barBtnText: { fontFamily: fonts.bodyBold, fontSize: 15.5, color: colors.white },
 });

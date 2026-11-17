@@ -37,6 +37,7 @@ import {
   bookingServiceName,
   canCancelBooking,
   isBookingLive,
+  isRequestedTimePast,
   isSchedulePending,
   isVerificationPhase,
 } from '@/lib/booking-helpers';
@@ -319,7 +320,8 @@ export default function CustomerBookingDetailScreen() {
               variant="customer"
               title={bookingCopy.pendingCustomerTitle}
               scheduleLabel={bookingRequestedScheduleDisplay(booking)}
-              hint={bookingCopy.pendingCustomerHint}
+              hint={isRequestedTimePast(booking) ? bookingCopy.pendingPastHint : bookingCopy.pendingCustomerHint}
+              hintTone={isRequestedTimePast(booking) ? 'warning' : 'info'}
               modeLabel={
                 booking.scheduleMode === 'custom'
                   ? bookingCopy.customModeLabel
@@ -430,7 +432,8 @@ export default function CustomerBookingDetailScreen() {
         {booking.status !== 'cancelled' ? (
           <FadeSlideIn delay={170}>
             <PremiumSectionHeader title="Invoice" compact />
-            <BookingInvoiceCard bookingId={booking.id} summaryOnly />
+            <BookingInvoiceCard bookingId={booking.id}
+            refreshKey={`${booking.status}|${booking.schedule.date}|${booking.schedule.slot}|${booking.schedule.time ?? ''}`} summaryOnly />
           </FadeSlideIn>
         ) : null}
       </ScrollView>

@@ -12,7 +12,7 @@ import { AppIcons } from '@/constants/appIcons';
 import { useAuth } from '@/context/AuthContext';
 import { api, getApiErrorMessage } from '@/lib/api';
 import { adminRoutes, authRoutes, appPush, appReplace } from '@/lib/routes';
-import { colors, fonts, premiumType, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, premiumType, spacing } from '@/constants/theme';
 
 export default function AdminSettingsScreen() {
   const { user, logout, refreshMe } = useAuth();
@@ -62,7 +62,7 @@ export default function AdminSettingsScreen() {
         />
       }
     >
-      <AdminSectionTitle title="Your account" hint="Signed-in admin profile" />
+      <AdminSectionTitle flush title="Your account" hint="Signed-in admin profile" />
       <GlassPanel padded={false}>
         <View style={styles.accountWrap}>
           <UserAccountCard compact embedded />
@@ -71,28 +71,25 @@ export default function AdminSettingsScreen() {
 
       <GlassPanel>
         <Text style={styles.sectionTitle}>Edit profile</Text>
-        <IconInput label="Name" value={name} onChangeText={setName} containerStyle={styles.glassInput} />
+        <IconInput label="Name" value={name} onChangeText={setName} />
         <IconInput
           label="Phone"
           value={phone}
           onChangeText={setPhone}
           keyboardType="phone-pad"
-          containerStyle={styles.glassInput}
         />
         <IconInput
           label="Email"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
-          containerStyle={styles.glassInput}
         />
-        <IconInput label="City" value={city} onChangeText={setCity} containerStyle={styles.glassInput} />
+        <IconInput label="City" value={city} onChangeText={setCity} />
         <IconInput
           label="New password"
           value={password}
           onChangeText={setPassword}
           secure
-          containerStyle={styles.glassInput}
         />
         <Button title="Save" variant="premium" onPress={() => void saveProfile()} loading={saving} style={{ marginTop: spacing.sm }} />
         {user?.id ? (
@@ -157,10 +154,6 @@ export default function AdminSettingsScreen() {
 const styles = StyleSheet.create({
   accountWrap: { padding: spacing.md },
   sectionTitle: { ...premiumType.sectionTitle, fontSize: 16, marginBottom: spacing.sm },
-  glassInput: {
-    backgroundColor: surfaces.glassInput,
-    borderColor: surfaces.glassBorderStrong,
-  },
   logoutCard: {
     flexDirection: 'row',
     alignItems: 'center',

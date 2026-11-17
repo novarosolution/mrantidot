@@ -4,20 +4,20 @@ import type { TextStyle, ViewStyle } from 'react-native';
 /** Mr Antidot HTML UI kit tokens */
 export const colors = {
   deep: '#02180C',
-  green: '#27A747',
-  forest: '#0A6423',
+  green: '#159447',
+  forest: '#087B35',
   /** Mid forest used in CTAs / price — same as gradients.goldCta[2] */
-  forestMid: '#1A8734',
+  forestMid: '#159447',
   /** Header green — same as gradients.header[0] */
-  headerGreen: '#1B873E',
+  headerGreen: '#0F8A3D',
   /** Bright lime accent — same as gradients.goldBar[0] */
   limeBright: '#8FD03C',
   /** Primary gradient start — same as gradients.primary[0] */
   greenBright: '#30B84F',
   /** Deepest green in premium heroes — same as gradients.premiumHero[2] */
-  forestDeep: '#043813',
+  forestDeep: '#054A23',
   /** Header gradient end — same as gradients.header[1] */
-  headerDeep: '#064D1B',
+  headerDeep: '#075C2B',
   /** Lime on dark heroes / kickers */
   limeOnDark: '#B9E58A',
   /** Default shadow ink — same as shadows.*.shadowColor */
@@ -27,12 +27,12 @@ export const colors = {
   lime: '#E9F8E3',
   /** Clean white screen — premium Urban-style canvas; greens stay as accents. */
   bg: '#FFFFFF',
-  ink: '#071A0E',
+  ink: '#111A15',
   /** Neutral secondary text — reads premium on white (was green-tinted). */
-  muted: '#5D6661',
-  border: '#E6E9E6',
+  muted: '#6B756E',
+  border: '#E7ECE8',
   card: '#FFFFFF',
-  soft: '#EAF6E3',
+  soft: '#EAF4EC',
   amber: '#F5B82E',
   white: '#FFFFFF',
   /** Brand secondary — sage teal (pairs with forest green + lime) */
@@ -52,31 +52,35 @@ export const colors = {
   amberInk: '#9A6F12',
   greyBg: '#EEF2EE',
   // aliases
-  primary: '#27A747',
-  primaryDark: '#0A6423',
-  primaryLight: '#EAF6E3',
+  primary: '#159447',
+  primaryDark: '#087B35',
+  primaryLight: '#EAF4EC',
   accent: '#E9F8E3',
   background: '#FFFFFF',
   surface: '#FFFFFF',
-  text: '#071A0E',
-  textMuted: '#5D6661',
-  success: '#27A747',
+  text: '#111A15',
+  textMuted: '#6B756E',
+  success: '#159447',
   warning: '#9A6F12',
 };
 
 export const fonts = {
-  /** Brand wordmark — Plus Jakarta ExtraBold */
-  brand: 'PlusJakartaSans_800ExtraBold',
-  brandSub: 'PlusJakartaSans_700Bold',
-  /** Display — geometric premium headlines */
-  displayExtra: 'PlusJakartaSans_800ExtraBold',
-  display: 'PlusJakartaSans_700Bold',
-  displaySemi: 'PlusJakartaSans_600SemiBold',
-  /** Body — same family for a cohesive premium system */
-  body: 'PlusJakartaSans_400Regular',
-  bodyMedium: 'PlusJakartaSans_500Medium',
-  bodySemi: 'PlusJakartaSans_600SemiBold',
-  bodyBold: 'PlusJakartaSans_700Bold',
+  /** Brand wordmark — Inter Bold */
+  brand: 'Inter_700Bold',
+  brandSub: 'Inter_600SemiBold',
+  /** Headings — Inter Bold (700); home section titles step down to SemiBold via `displaySemi`. */
+  displayExtra: 'Inter_700Bold',
+  display: 'Inter_700Bold',
+  displaySemi: 'Inter_600SemiBold',
+  /** Body & subheadings — Inter Regular / Medium (500) */
+  body: 'Inter_400Regular',
+  bodyMedium: 'Inter_500Medium',
+  bodySemi: 'Inter_600SemiBold',
+  bodyBold: 'Inter_700Bold',
+  /** Calligraphic accent (home sign-off) — Dancing Script SemiBold */
+  script: 'DancingScript_600SemiBold',
+  /** Editorial serif italic accent (curation cards) — Instrument Serif Italic */
+  serifItalic: 'InstrumentSerif_400Regular_Italic',
 } as const;
 
 export const typography = {
@@ -84,7 +88,7 @@ export const typography = {
     fontFamily: fonts.displayExtra,
     fontSize: 30,
     lineHeight: 36,
-    letterSpacing: -0.9,
+    letterSpacing: -0.6,
   } as TextStyle,
   h2: {
     fontFamily: fonts.display,
@@ -260,7 +264,7 @@ export const customerType = {
     ...premiumType.screenTitleLight,
     fontSize: 26,
     lineHeight: 32,
-    letterSpacing: -0.8,
+    letterSpacing: -0.6,
   } as TextStyle,
   pageTitleCompact: {
     ...premiumType.screenTitleLight,
@@ -526,7 +530,7 @@ export const adminType = {
     ...premiumType.screenTitleLight,
     fontSize: 26,
     lineHeight: 32,
-    letterSpacing: -0.8,
+    letterSpacing: -0.6,
   } as TextStyle,
   screenSubtitle: {
     ...premiumType.brandSub,
@@ -579,15 +583,18 @@ export const adminType = {
     letterSpacing: -0.35,
   } as TextStyle,
   statLabel: {
-    ...premiumType.kicker,
-    fontSize: 9,
-    letterSpacing: 0.55,
+    fontFamily: fonts.bodySemi,
+    fontSize: 11.5,
+    lineHeight: 15,
+    letterSpacing: 0,
+    textTransform: 'none',
+    color: '#5D6661',
   } as TextStyle,
   chipText: {
     fontFamily: fonts.bodySemi,
     fontSize: 13,
     lineHeight: 18,
-    color: colors.forest,
+    color: '#0E1511',
   } as TextStyle,
   listTitle: {
     ...premiumType.cardTitle,
@@ -639,12 +646,12 @@ export const adminType = {
 } as const;
 
 export const adminSurfaces = {
-  card: 'rgba(255,255,255,0.72)',
-  cardBorder: 'rgba(180,220,165,0.92)',
-  cardBorderStrong: '#B4DCA5',
-  panelTint: 'rgba(255,255,255,0.48)',
-  chipBg: 'rgba(255,255,255,0.78)',
-  chipBorder: 'rgba(180,220,165,0.95)',
+  card: '#FFFFFF',
+  cardBorder: '#E3E6E3',
+  cardBorderStrong: '#D5DAD5',
+  panelTint: '#F5F6F5',
+  chipBg: '#FFFFFF',
+  chipBorder: '#E3E6E3',
 } as const;
 
 /** Semantic tinted surfaces for status banners, chips, calendar cells */
@@ -676,23 +683,34 @@ export const surfaces = {
  * Brand greens are reserved for actions, prices and active states.
  */
 export const ui = {
+  /** MR ANTIDOT premium palette — sage canvas, white cards, one confident green. */
   bg: '#FFFFFF',
-  surfaceMuted: '#F5F6F5',
-  hairline: '#ECEEEC',
-  border: '#E3E6E3',
-  text: '#0E1511',
-  textSecondary: '#5D6661',
-  textTertiary: '#8B938E',
+  surfaceMuted: '#F7F9F7',
+  hairline: '#EEF2EF',
+  border: '#E7ECE8',
+  text: '#111A15',
+  /** Brief asks for #737D76; nudged to #6B756E so 12–13px text keeps WCAG AA (4.7:1 on white). */
+  textSecondary: '#6B756E',
+  textTertiary: '#8A938D',
   brand: colors.forest,
   brandBright: colors.forestMid,
-  brandSoft: '#EEF7EF',
-  star: '#0E1511',
+  brandDeep: colors.headerDeep,
+  brandSoft: '#EAF4EC',
+  star: '#111A15',
   shadow: {
-    shadowColor: '#0B140F',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#143C23',
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.06,
-    shadowRadius: 12,
+    shadowRadius: 16,
     elevation: 2,
+  } as ViewStyle,
+  /** Lifted glass / floating elements — 0 8px 30px rgba(20,60,35,0.07). */
+  shadowFloat: {
+    shadowColor: '#143C23',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.07,
+    shadowRadius: 30,
+    elevation: 4,
   } as ViewStyle,
 };
 
@@ -764,7 +782,7 @@ export const gradients = {
 /** Premium booking flow tokens */
 export const premium = {
   surfaceElevated: '#FFFFFF',
-  accentGold: '#27A747',
+  accentGold: '#159447',
   accentGoldBg: '#F2FAEE',
   radiusCard: 22,
   radiusButton: 18,
@@ -777,7 +795,7 @@ export const premium = {
     elevation: 7,
   } as ViewStyle,
   shadowFocus: {
-    shadowColor: '#1F9A3E',
+    shadowColor: '#159447',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.22,
     shadowRadius: 10,
@@ -787,17 +805,17 @@ export const premium = {
 
 /** Shared form control sizing — used by Input, IconInput, Button. */
 export const formField = {
-  height: 56,
-  minHeight: 56,
-  radius: 18,
+  height: 54,
+  minHeight: 54,
+  radius: 14,
   borderWidth: 1.5,
-  borderColor: surfaces.glassBorderStrong,
+  /** Idle fields are a soft grey fill with no visible outline (same as the auth fields). */
+  borderColor: ui.surfaceMuted,
   borderFocus: colors.forest,
-  /** Frosted glass fill — pairs with mesh / GlassPanel screens. */
-  bg: surfaces.glassInput,
-  bgMuted: 'rgba(246,251,242,0.78)',
-  bgFocus: 'rgba(255,255,255,0.88)',
-  labelSize: 12,
+  bg: ui.surfaceMuted,
+  bgMuted: ui.surfaceMuted,
+  bgFocus: '#FFFFFF',
+  labelSize: 13,
   inputSize: 15,
 };
 

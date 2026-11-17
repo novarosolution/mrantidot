@@ -1,0 +1,49 @@
+import { type ReactNode, useRef } from 'react';
+import { Animated, Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import { useReducedMotion } from '@/lib/a11yPrefs';
+
+/**
+ * Pressable with a short spring "give" (scale ~0.97) — the shared press feedback for cards and tiles.
+ * Falls back to a plain opacity dip when the OS asks for reduced motion.
+ */
+export function PressableScale({
+  children,
+  style,
+  containerStyle,
+  scaleTo = 0.97,
+  ...rest
+}: Omit<PressableProps, 'style' | 'children'> & {
+  children: ReactNode;
+  /** Styles the animated card (background, radius, padding…). */
+  style?: StyleProp<ViewStyle>;
+  /** Styles the outer touch target (flex sizing in rows / grids). */
+  containerStyle?: StyleProp<ViewStyle>;
+  scaleTo?: number;
+}) {
+  const reduced = useReducedMotion();
+  const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  const to = (s: number, o: number, fast: boolean) =>
+    Animated.parallel([
+      Animated.spring(scale, { toValue: s, speed: fast ? 40 : 22, bounciness: fast ? 0 : 6, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: o, duration: fast ? 90 : 160, useNativeDriver: true }),
+    ]).start();
+
+  return (
+    <Pressable
+      {...rest}
+      style={containerStyle}
+      onPressIn={(e) => {
+        to(reduced ? 1 : scaleTo, reduced ? 0.7 : 0.94, true);
+        rest.onPressIn?.(e);
+      }}
+      onPressOut={(e) => {
+        to(1, 1, false);
+        rest.onPressOut?.(e);
+      }}
+    >
+      <Animated.View style={[style, { opacity, transform: [{ scale }] }]}>{children}</Animated.View>
+    </Pressable>
+  );
+}

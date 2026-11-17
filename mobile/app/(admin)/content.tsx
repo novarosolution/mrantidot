@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import Toast from 'react-native-toast-message';
 import { AdminCollapsibleCard, AdminFormCard, AdminTabHint } from '@/components/kit/AdminPageKit';
-import { AdminListShell, AdminSectionTitle, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { ADMIN_STICKY_FOOTER_PAD, AdminListShell, AdminSectionTitle } from '@/components/kit/AdminListShell';
 import { AdminSectionTabs, type AdminSectionTab } from '@/components/kit/AdminSectionTabs';
 import { PendingScheduleCard } from '@/components/kit/PendingScheduleCard';
 import { IconInput } from '@/components/kit/IconInput';
@@ -14,9 +14,11 @@ import { Button } from '@/components/ui/Button';
 import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
-import { PromoBanner } from '@/components/ui/PromoBanner';
+import { HERO_SLIDE_H, HomeHeroCarousel, promoHeroSlide } from '@/components/kit/HomeHeroCarousel';
+import { PremiumAurora } from '@/components/kit/PremiumAurora';
 import { api, screenLoadConfig } from '@/lib/api';
 import { useAppContent } from '@/context/AppContentContext';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { AppConfig, BookingCopyConfig, CustomerUiCopy, HomeConfig, HomePromo, Service } from '@/types/api';
 import { DEFAULT_BOOKING_COPY, BOOKING_COPY_ADMIN_GROUPS, type BookingCopyFieldKey } from '@/constants/bookingCopy';
@@ -27,7 +29,7 @@ import {
 } from '@/constants/customerUiCopy';
 import { DEFAULT_HOME_CONFIG, DEFAULT_HOME_PROMO } from '@/constants/homeContent';
 import { DEFAULT_APP_CONFIG, mergeAppConfig, mergeHomeConfig } from '@/lib/mergeHomeConfig';
-import { colors, fonts, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, spacing, surfaces, ui } from '@/constants/theme';
 
 const CONTENT_TABS: AdminSectionTab[] = [
   { key: 'promo', label: 'Promo', icon: AppIcons.contentTab.promo },
@@ -95,6 +97,8 @@ const SCREENS_GROUP_META: Record<
   profile: { title: 'Profile', subtitle: 'Quick actions, stats & menu rows' },
   help: { title: 'Help', subtitle: 'Support page section labels' },
   account: { title: 'Account screens', subtitle: 'Addresses, payments, notifications, settings & services' },
+  service: { title: 'Service pages', subtitle: 'Service detail & browse-by-pest copy' },
+  review: { title: 'Review screen', subtitle: 'Rate & review copy after a visit' },
 };
 
 const DEFAULT_CONFIG: HomeConfig = DEFAULT_HOME_CONFIG;
@@ -270,16 +274,14 @@ export default function AdminContentScreen() {
       ) : null}
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={adminListShellStyles.scrollWithFooter}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="always"
         showsVerticalScrollIndicator={false}
       >
         {activeTab === 'promo' ? (
           <>
             <AdminSectionTitle title="Promo banner" hint="Live preview below — save to publish" />
-            <View style={styles.previewShell}>
-              <PromoBanner promo={promo} />
-            </View>
+            <PromoPreview promo={promo} />
             <AdminFormCard>
               <View style={styles.toggleRow}>
                 <View style={styles.flex}>
@@ -511,6 +513,8 @@ export default function AdminContentScreen() {
             {renderCustomerUiFields('profile')}
             {renderCustomerUiFields('help')}
             {renderCustomerUiFields('account')}
+            {renderCustomerUiFields('review')}
+            {renderCustomerUiFields('service')}
           </>
         ) : null}
 
@@ -827,8 +831,38 @@ function ServiceChips({
     </ScrollView>
   );
 }
+
+/** What shoppers get: the promo as a slide of the green home header. Drawn even while switched off, with a note. */
+function PromoPreview({ promo }: { promo: HomePromo }) {
+  const copy = useCustomerUiCopy();
+  const { width } = useWindowDimensions();
+  const slide = promoHeroSlide({ ...promo, active: true }, copy, () => {});
+  // previewShell sits in a 16pt gutter and has a 1pt border on each side.
+  const innerWidth = width - spacing.md * 2 - 2;
+
+  return (
+    <View>
+      <View style={styles.previewShell}>
+        <PremiumAurora tone="brand" />
+        {slide ? (
+          <HomeHeroCarousel slides={[slide]} width={innerWidth} />
+        ) : (
+          <View style={styles.previewEmpty}>
+            <Text style={styles.previewEmptyText}>Add a headline to see the preview</Text>
+          </View>
+        )}
+      </View>
+      <Text style={styles.previewNote}>
+        {promo.active ? 'Shown as a slide in the green home header.' : 'Switched off — shoppers will not see this.'}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
+  /** Cards and section titles carry their own 16pt gutter — no extra container padding. */
+  scrollContent: { paddingTop: spacing.xs, paddingBottom: ADMIN_STICKY_FOOTER_PAD },
   previewShell: {
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,
@@ -836,13 +870,18 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.hairline,
     backgroundColor: colors.white,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.16,
-    shadowRadius: 20,
-    elevation: 8,
+    ...ui.shadow,
+  },
+  previewEmpty: { height: HERO_SLIDE_H, alignItems: 'center', justifyContent: 'center' },
+  previewEmptyText: { fontFamily: fonts.bodyMedium, fontSize: 14, color: 'rgba(255,255,255,0.85)' },
+  previewNote: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    fontFamily: fonts.body,
+    fontSize: 12.5,
+    color: colors.muted,
   },
   previewLabel: {
     fontFamily: fonts.bodySemi,

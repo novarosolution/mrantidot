@@ -1,4 +1,6 @@
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import type { LucideIcon } from 'lucide-react-native';
+import { formatRupeeFull } from '@/components/kit/format';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -16,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { PremiumAurora } from '@/components/kit/PremiumAurora';
 import { PestImage } from '@/components/kit/ServiceThumb';
 import { AppIcons } from '@/constants/appIcons';
 import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
@@ -123,6 +126,9 @@ export default function ServicesListScreen() {
     setStatsMap(map);
   }, [debouncedQ]);
 
+  // Pick up admin changes (new offers, hidden services…) when the customer comes back to this screen.
+  useStaleFocusRefresh(() => load().catch(() => undefined), 20_000);
+
   useEffect(() => {
     setLoading(true);
     safeAsync(async () => {
@@ -169,7 +175,12 @@ export default function ServicesListScreen() {
     const ranked = [...services].sort(
       (a, b) => (statsMap[b.id]?.bookingCount ?? 0) - (statsMap[a.id]?.bookingCount ?? 0),
     );
-    return new Set(ranked.slice(0, 3).map((s) => s.id));
+    return new Set(
+      ranked
+        .filter((s) => (statsMap[s.id]?.bookingCount ?? 0) > 0)
+        .slice(0, 2)
+        .map((s) => s.id),
+    );
   }, [services, statsMap]);
 
   const spotlight = useMemo(() => {
@@ -222,6 +233,7 @@ export default function ServicesListScreen() {
 
   const hero = (
     <View style={styles.hero}>
+      <PremiumAurora tone="light" base={false} topFade />
       <View style={styles.heroRow}>
         <View style={styles.heroLeft}>
           <Text style={styles.heroTitle}>
@@ -377,14 +389,14 @@ export default function ServicesListScreen() {
                   <View style={styles.spotFooter}>
                     <View>
                       <Text style={styles.fromLabelDark}>FROM</Text>
-                      <Text style={styles.spotPrice}>₹{s.basePrice}</Text>
+                      <Text style={styles.spotPrice}>{formatRupeeFull(s.basePrice)}</Text>
                     </View>
                     <Pressable
                       style={({ pressed }) => [styles.spotBook, pressed && styles.pressedSm]}
                       onPress={() => appPush(sharedRoutes.bookPath(s.id))}
                       hitSlop={6}
                     >
-                      <Text style={styles.spotBookText}>BOOK</Text>
+                      <Text style={styles.spotBookText}>Book</Text>
                       <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={13} color={colors.white} strokeWidth={2.6} />
                     </Pressable>
                   </View>
@@ -407,7 +419,6 @@ export default function ServicesListScreen() {
         <Text style={styles.countLabel}>
           {visibleServices.length} {visibleServices.length === 1 ? 'service' : 'services'}
         </Text>
-        <View style={styles.countBar} />
       </View>
       <View style={styles.sortRight}>
         <View style={styles.segment}>
@@ -473,7 +484,7 @@ export default function ServicesListScreen() {
       >
         {popularIds.has(item.id) ? (
           <View style={styles.popBadge}>
-            <Text style={styles.popBadgeText}>POPULAR</Text>
+            <Text style={styles.popBadgeText}>Popular</Text>
           </View>
         ) : null}
         <View style={styles.cardIcon}>
@@ -496,21 +507,18 @@ export default function ServicesListScreen() {
             ) : null}
           </View>
         </View>
-        <View style={styles.perforation}>
-          <View style={[styles.notch, styles.notchLeft]} />
-          <View style={[styles.notch, styles.notchRight]} />
-        </View>
+        <View style={styles.perforation} />
         <View style={styles.cardFooter}>
           <View>
             <Text style={styles.fromLabel}>FROM</Text>
-            <Text style={styles.cardPrice}>₹{item.basePrice}</Text>
+            <Text style={styles.cardPrice}>{formatRupeeFull(item.basePrice)}</Text>
           </View>
           <Pressable
             style={({ pressed }) => [styles.bookPill, pressed && styles.pressedSm]}
             onPress={() => appPush(sharedRoutes.bookPath(item.id))}
             hitSlop={6}
           >
-            <Text style={styles.bookPillText}>BOOK</Text>
+            <Text style={styles.bookPillText}>Book</Text>
             <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={12} color={colors.white} strokeWidth={2.6} />
           </Pressable>
         </View>
@@ -535,7 +543,7 @@ export default function ServicesListScreen() {
             </Text>
             {popularIds.has(item.id) ? (
               <View style={styles.hotBadge}>
-                <Text style={styles.hotBadgeText}>HOT</Text>
+                <Text style={styles.hotBadgeText}>Popular</Text>
               </View>
             ) : null}
           </View>
@@ -546,13 +554,13 @@ export default function ServicesListScreen() {
           </Text>
         </View>
         <View style={styles.rowRight}>
-          <Text style={styles.rowPrice}>₹{item.basePrice}</Text>
+          <Text style={styles.rowPrice}>{formatRupeeFull(item.basePrice)}</Text>
           <Pressable
             style={({ pressed }) => [styles.rowBook, pressed && styles.pressedSm]}
             onPress={() => appPush(sharedRoutes.bookPath(item.id))}
             hitSlop={8}
           >
-            <Text style={styles.rowBookText}>BOOK</Text>
+            <Text style={styles.rowBookText}>Book</Text>
             <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={11} color={BRAND} strokeWidth={2.6} />
           </Pressable>
         </View>
@@ -579,13 +587,13 @@ export default function ServicesListScreen() {
       <FocusStatusBar style="dark" />
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       {loading && services.length === 0 ? (
-        <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scroller} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
           {hero}
           {searchBar}
           <Spinner />
         </ScrollView>
       ) : loadError && services.length === 0 ? (
-        <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scroller} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
           {hero}
           {searchBar}
           <ListEmptyRetry
@@ -595,6 +603,7 @@ export default function ServicesListScreen() {
         </ScrollView>
       ) : (
         <Animated.FlatList
+          style={styles.scroller}
           key={view}
           data={visibleServices}
           keyExtractor={(item) => item.id}
@@ -621,14 +630,16 @@ export default function ServicesListScreen() {
 }
 
 const styles = StyleSheet.create({
-  rootShell: { flex: 1, backgroundColor: SCREEN_BG },
+  // White root so the status-bar strip matches the header wash; the lists below sit on the muted canvas.
+  rootShell: { flex: 1, backgroundColor: colors.white },
+  scroller: { backgroundColor: SCREEN_BG },
   safe: { flex: 1, backgroundColor: 'transparent' },
   listContent: { paddingBottom: TAB_BAR_SCROLL_PAD, flexGrow: 1 },
   column: { justifyContent: 'space-between', paddingHorizontal: spacing.md, marginBottom: 12 },
   pressedSm: { transform: [{ scale: 0.94 }] },
   pressedCard: { transform: [{ scale: 0.97 }] },
 
-  hero: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
+  hero: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16, overflow: 'hidden' },
   heroRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   heroLeft: { flex: 1, paddingRight: 12 },
   heroTitle: {
@@ -643,11 +654,12 @@ const styles = StyleSheet.create({
   heroSub: { marginTop: 4, fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: MUTED },
 
   searchWrap: { paddingHorizontal: 20 },
+  /** White field on the grey canvas (same as the home search bar). */
   searchCard: {
     borderRadius: 14,
-    backgroundColor: ui.surfaceMuted,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: ui.surfaceMuted,
+    borderColor: ui.border,
   },
   searchInner: {
     flexDirection: 'row',
@@ -730,7 +742,7 @@ const styles = StyleSheet.create({
     borderColor: ui.hairline,
   },
   pestChipOn: { backgroundColor: BRAND, borderColor: BRAND },
-  pestChipText: { fontFamily: fonts.bodyBold, fontSize: 12, color: BRAND },
+  pestChipText: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: INK },
   pestChipTextOn: { color: colors.white },
 
   spotBlock: { marginTop: 16 },
@@ -775,7 +787,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 11,
   },
-  spotBookText: { fontFamily: fonts.bodyBold, fontSize: 11.5, letterSpacing: 0.8, color: colors.white },
+  spotBookText: { fontFamily: fonts.bodyBold, fontSize: 13, color: colors.white },
   dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 9 },
   dot: { width: 6, height: 6, borderRadius: 999, backgroundColor: ui.hairline },
   dotOn: { width: 20, backgroundColor: BRAND },
@@ -791,13 +803,12 @@ const styles = StyleSheet.create({
   },
   sortLeft: { flexShrink: 0 },
   countLabel: { fontFamily: fonts.displayExtra, fontSize: 19, letterSpacing: -0.2, color: INK },
-  countBar: { width: 26, height: 3, borderRadius: 2, marginTop: 6, backgroundColor: BRAND },
   sortRight: { flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
   segment: { flexDirection: 'row', backgroundColor: ui.surfaceMuted, borderRadius: 999, padding: 3 },
   segBtn: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
-  segBtnOn: { backgroundColor: BRAND },
+  segBtnOn: { backgroundColor: colors.white, ...ui.shadow },
   segText: { fontFamily: fonts.bodyBold, fontSize: 11, color: MUTED },
-  segTextOn: { color: colors.white },
+  segTextOn: { color: INK },
   viewToggle: {
     width: 34,
     height: 34,
@@ -822,15 +833,15 @@ const styles = StyleSheet.create({
   },
   popBadge: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderBottomLeftRadius: 14,
-    backgroundColor: BRAND,
+    top: 12,
+    right: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: ui.brandSoft,
     zIndex: 2,
   },
-  popBadgeText: { fontFamily: fonts.bodyBold, fontSize: 8.5, letterSpacing: 1, color: colors.white },
+  popBadgeText: { fontFamily: fonts.bodyBold, fontSize: 10.5, color: BRAND },
   cardIcon: {
     alignItems: 'flex-start',
     justifyContent: 'center',
@@ -843,23 +854,9 @@ const styles = StyleSheet.create({
   cardMetaRating: { fontFamily: fonts.bodyBold, fontSize: 11, color: BRAND },
   perforation: {
     marginHorizontal: -14,
-    borderTopWidth: 1.5,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: ui.hairline,
-    borderStyle: 'dashed',
-    position: 'relative',
   },
-  notch: {
-    position: 'absolute',
-    top: -6,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: SCREEN_BG,
-    borderWidth: 1,
-    borderColor: BORDER,
-  },
-  notchLeft: { left: -6 },
-  notchRight: { right: -6 },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   fromLabel: { fontFamily: fonts.bodyBold, fontSize: 9.5, letterSpacing: 1, color: ui.textTertiary },
   cardPrice: { fontFamily: fonts.displayExtra, fontSize: 17, color: INK },
@@ -872,7 +869,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     backgroundColor: BRAND,
   },
-  bookPillText: { fontFamily: fonts.bodyBold, fontSize: 10.5, letterSpacing: 0.8, color: colors.white },
+  bookPillText: { fontFamily: fonts.bodyBold, fontSize: 12.5, color: colors.white },
 
   rowCard: {
     flexDirection: 'row',
@@ -901,13 +898,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 2,
   },
-  hotBadgeText: { fontFamily: fonts.bodyBold, fontSize: 8, letterSpacing: 0.8, color: BRAND },
+  hotBadgeText: { fontFamily: fonts.bodyBold, fontSize: 10, color: BRAND },
   rowMeta: { marginTop: 3, fontFamily: fonts.bodySemi, fontSize: 11, color: FAINT },
   rowRating: { fontFamily: fonts.bodyBold, color: BRAND },
   rowRight: { alignItems: 'flex-end' },
   rowPrice: { fontFamily: fonts.displayExtra, fontSize: 15, color: INK },
   rowBook: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  rowBookText: { fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 0.5, color: BRAND },
+  rowBookText: { fontFamily: fonts.bodyBold, fontSize: 12, color: BRAND },
 
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, paddingVertical: 36 },
   clearBtn: {

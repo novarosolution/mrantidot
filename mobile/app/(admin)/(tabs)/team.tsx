@@ -1,16 +1,17 @@
-import { StyleSheet, View } from 'react-native';
-import { AdminHubLink } from '@/components/kit/AdminHubLink';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ArrowUpDown, UserPlus, UserRoundPlus } from 'lucide-react-native';
+import { AdminHubGroup, AdminHubLink } from '@/components/kit/AdminHubLink';
+import { adminShadow } from '@/components/kit/homeUi';
 import { AdminScreenHeader } from '@/components/kit/AdminScreenHeader';
 import { AdminTabScreen } from '@/components/kit/AdminScreenKit';
 import { AdminSectionTitle } from '@/components/kit/AdminListShell';
-import { Button } from '@/components/ui/Button';
 import { AppIcons } from '@/constants/appIcons';
 import { AppIconImages, AppImageIcons } from '@/constants/appImageIcons';
 import { useAuth } from '@/context/AuthContext';
 import { adminRoutes, appPush, type RouteInput } from '@/lib/routes';
 import { useUnreadNotifications } from '@/lib/useUnreadNotifications';
 import { userInitial } from '@/lib/userInitials';
-import { spacing } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 import type { LucideIcon } from 'lucide-react-native';
 import type { ImageSourcePropType } from 'react-native';
 
@@ -75,6 +76,12 @@ const CONTENT_LINKS: HubLink[] = [
     label: 'Services catalog',
     desc: 'Pricing, categories & availability',
     href: adminRoutes.services,
+  },
+  {
+    icon: ArrowUpDown,
+    label: 'Arrange services',
+    desc: 'Order & which services show on home',
+    href: adminRoutes.serviceOrder,
   },
   {
     icon: Hub.offers,
@@ -147,6 +154,13 @@ const SYSTEM_LINKS: HubLink[] = [
   },
 ];
 
+const SECTIONS: { title: string; hint: string; links: HubLink[] }[] = [
+  { title: 'Operations', hint: 'Jobs, alerts & performance', links: OPERATIONS_LINKS },
+  { title: 'Content & catalog', hint: 'What customers see in the app', links: CONTENT_LINKS },
+  { title: 'People', hint: 'Roster, leave, pay & accounts', links: PEOPLE_LINKS },
+  { title: 'System', hint: 'Export & admin account', links: SYSTEM_LINKS },
+];
+
 export default function TeamHubScreen() {
   const { user } = useAuth();
   const { unreadCount } = useUnreadNotifications();
@@ -164,94 +178,84 @@ export default function TeamHubScreen() {
         />
       }
     >
-      <AdminSectionTitle title="Operations" hint="Jobs, alerts & performance" />
-      <View style={styles.links}>
-        {OPERATIONS_LINKS.map((l) => (
-          <AdminHubLink
-            key={typeof l.href === 'string' ? l.href : l.label}
-            icon={l.icon}
-            image={l.image}
-            label={l.label}
-            desc={l.desc}
-            onPress={() => appPush(l.href)}
-          />
-        ))}
-      </View>
-
-      <AdminSectionTitle title="Content & catalog" hint="Promo, home, brand & catalog" />
-      <View style={styles.links}>
-        {CONTENT_LINKS.map((l) => (
-          <AdminHubLink
-            key={l.label}
-            icon={l.icon}
-            image={l.image}
-            label={l.label}
-            desc={l.desc}
-            featured={l.featured}
-            onPress={() => appPush(l.href)}
-          />
-        ))}
-      </View>
-
-      <AdminSectionTitle title="People" hint="Roster, roles & customer accounts" />
-      <View style={styles.links}>
-        {PEOPLE_LINKS.map((l) => (
-          <AdminHubLink
-            key={typeof l.href === 'string' ? l.href : l.label}
-            icon={l.icon}
-            image={l.image}
-            label={l.label}
-            desc={l.desc}
-            onPress={() => appPush(l.href)}
-          />
-        ))}
-      </View>
-
-      <AdminSectionTitle title="System" hint="Export & admin account" />
-      <View style={styles.links}>
-        {SYSTEM_LINKS.map((l) => (
-          <AdminHubLink
-            key={typeof l.href === 'string' ? l.href : l.label}
-            icon={l.icon}
-            image={l.image}
-            label={l.label}
-            desc={l.desc}
-            onPress={() => appPush(l.href)}
-          />
-        ))}
-      </View>
-
-      <View style={styles.addBlock}>
-        <Button
-          title="Add technician"
-          variant="premium"
+      <View style={styles.addRow}>
+        <AddTile
+          icon={UserPlus}
+          label="Add technician"
           onPress={() =>
-            appPush({
-              pathname: adminRoutes.userEdit,
-              params: { role: 'technician', returnTo: adminRoutes.team },
-            })
+            appPush({ pathname: adminRoutes.userEdit, params: { role: 'technician', returnTo: adminRoutes.team } })
           }
         />
-        <Button
-          title="Add customer"
-          variant="secondary"
+        <AddTile
+          icon={UserRoundPlus}
+          label="Add customer"
           onPress={() =>
-            appPush({
-              pathname: adminRoutes.userEdit,
-              params: { role: 'customer', returnTo: adminRoutes.team },
-            })
+            appPush({ pathname: adminRoutes.userEdit, params: { role: 'customer', returnTo: adminRoutes.team } })
           }
         />
       </View>
+
+      {SECTIONS.map((section) => (
+        <View key={section.title}>
+          <AdminSectionTitle title={section.title} hint={section.hint} />
+          <AdminHubGroup>
+            {section.links.map((l) => (
+              <AdminHubLink
+                key={l.label}
+                icon={l.icon}
+                label={l.label}
+                desc={l.desc}
+                badge={l.href === adminRoutes.notifications ? unreadCount : undefined}
+                onPress={() => appPush(l.href)}
+              />
+            ))}
+          </AdminHubGroup>
+        </View>
+      ))}
     </AdminTabScreen>
   );
 }
 
+function AddTile({ icon: Icon, label, onPress }: { icon: LucideIcon; label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.addTile, pressed && styles.addPressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+    >
+      <View style={styles.addIcon}>
+        <Icon size={18} color={colors.white} strokeWidth={2.2} />
+      </View>
+      <Text style={styles.addLabel} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  links: { paddingHorizontal: spacing.md, gap: spacing.sm },
-  addBlock: {
-    marginTop: spacing.lg,
-    marginHorizontal: spacing.md,
-    gap: spacing.sm,
+  addRow: { flexDirection: 'row', gap: 10, paddingHorizontal: spacing.md, marginTop: spacing.xs },
+  addTile: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
+    ...adminShadow.tile,
   },
+  addPressed: { backgroundColor: ui.surfaceMuted },
+  addIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: ui.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addLabel: { flex: 1, fontFamily: fonts.bodyBold, fontSize: 13.5, color: ui.text },
 });

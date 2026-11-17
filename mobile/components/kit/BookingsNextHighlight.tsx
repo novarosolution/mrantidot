@@ -13,6 +13,7 @@ import {
 import { useBookingCopy } from '@/lib/schedule-copy';
 import type { Booking } from '@/types/api';
 import { colors, fonts, gradients, spacing, ui } from '@/constants/theme';
+import { localDateKey } from '@/lib/dates';
 
 /** Premium next-visit hero — dark brand card with schedule, address, and CTA. */
 export function BookingsNextHighlight({
@@ -24,6 +25,8 @@ export function BookingsNextHighlight({
 }) {
   const copy = useBookingCopy();
   const live = isBookingLive(booking.status);
+  // "Happening now" only for today's visit — an older job that is still open just reads "In progress".
+  const liveLabel = booking.schedule?.date === localDateKey() ? copy.liveNowLabel : copy.liveOngoingLabel;
 
   return (
     <Pressable
@@ -45,7 +48,7 @@ export function BookingsNextHighlight({
           <View style={styles.badge}>
             {live ? <View style={styles.liveDot} /> : null}
             <Text style={styles.badgeText}>
-              {live ? 'Happening now' : copy.listNextVisitLabel}
+              {live ? liveLabel : copy.listNextVisitLabel}
             </Text>
           </View>
           <StatusPill status={booking.status} />

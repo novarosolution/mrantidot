@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
 import { TicketPercent } from 'lucide-react-native';
-import { colors, fonts, gradients, spacing } from '@/constants/theme';
+import { colors, fonts, spacing } from '@/constants/theme';
 
 export function OffersPromoHero({
   offerCount,
@@ -19,12 +19,14 @@ export function OffersPromoHero({
   return (
     <View style={styles.wrap}>
       <LinearGradient
-        colors={[...gradients.premiumHero]}
+        colors={['#169A4A', '#087B35', '#075C2B']}
+        locations={[0, 0.55, 1]}
         style={styles.card}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
         <View style={styles.orb} pointerEvents="none" />
+        <View style={styles.ring} pointerEvents="none" />
         <View style={styles.icon}>
           <TicketPercent size={26} color={colors.white} strokeWidth={2} />
         </View>
@@ -59,13 +61,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     padding: 18,
-    borderRadius: 22,
+    borderRadius: 26,
     overflow: 'hidden',
-    shadowColor: colors.deep,
+    shadowColor: '#075C2B',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2,
-    shadowRadius: 18,
-    elevation: 8,
+    shadowOpacity: 0.22,
+    shadowRadius: 22,
+    elevation: 6,
+  },
+  ring: {
+    position: 'absolute',
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    left: -110,
+    top: -140,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.10)',
   },
   orb: {
     position: 'absolute',
@@ -74,7 +86,7 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: 'rgba(185,229,138,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   icon: {
     width: 56,

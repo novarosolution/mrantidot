@@ -60,9 +60,10 @@ export function ScheduleEditorForm({
         <ScheduleSlotPicker
           selectedSlot={slot || DEFAULT_BOOKING_SLOT}
           onSelect={onSlotChange}
+          date={date}
         />
       ) : (
-        <BookTimePicker hour={hour} minute={minute} onChange={onTimeChange} />
+        <BookTimePicker hour={hour} minute={minute} onChange={onTimeChange} date={date} />
       )}
       {showPreview ? (
         <ScheduleSelectionBanner label={preview} />
