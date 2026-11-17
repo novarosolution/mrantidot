@@ -51,7 +51,7 @@ function previousPeriodStart(period: Period): Date {
 }
 
 function pctDelta(current: number, previous: number): string {
-  if (previous === 0) return current > 0 ? '+100%' : '0%';
+  if (previous === 0) return current > 0 ? '—' : '0%';
   const pct = Math.round(((current - previous) / previous) * 100);
   const sign = pct >= 0 ? '+' : '';
   return `${sign}${pct}%`;

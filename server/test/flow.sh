@@ -25,6 +25,9 @@ login() {
     -d "{\"identifier\":\"${identifier}\",\"password\":\"${password}\"}"
 }
 
+# A week out, so the booking date never drifts into the past.
+VISIT_DATE="$(node -e 'console.log(new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10))')"
+
 echo "=== STAGE C flow tests ==="
 echo "BASE_URL=${BASE_URL}"
 echo ""
@@ -74,7 +77,7 @@ BOOK_JSON=$(curl -s -X POST "${API}/bookings" \
   -d "{
     \"serviceId\":\"${SERVICE_ID}\",
     \"scheduleMode\":\"standard\",
-    \"scheduleRequest\":{\"date\":\"2026-12-20\",\"slot\":\"09:00-11:00\"},
+    \"scheduleRequest\":{\"date\":\"${VISIT_DATE}\",\"slot\":\"09:00-11:00\"},
     \"propertyType\":\"2bhk\",
     \"address\":\"123 Test St, Austin TX\",
     \"paymentMethod\":\"upi_card\",
@@ -109,7 +112,7 @@ echo "--- PATCH /bookings/:id/confirm-schedule (admin) ---"
 curl -s -X PATCH "${API}/bookings/${BOOKING_ID}/confirm-schedule" \
   -H "Authorization: Bearer ${ADMIN_TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{"schedule":{"date":"2026-12-20","slot":"09:00-11:00"}}' | jq '{status: .booking.status, schedule: .booking.schedule}'
+  -d "{\"schedule\":{\"date\":\"${VISIT_DATE}\",\"slot\":\"09:00-11:00\"}}" | jq '{status: .booking.status, schedule: .booking.schedule}'
 echo ""
 
 echo "--- PATCH /bookings/:id/assign (admin, ensure tech) ---"

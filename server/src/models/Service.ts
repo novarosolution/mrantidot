@@ -14,6 +14,12 @@ export interface IService extends Document {
   serviceTypes: ServiceTypeKey[];
   active: boolean;
   stepTemplate: string[];
+  /** Admin-set display position — lower shows first in every list. */
+  sortOrder: number;
+  /** Pinned into the home "Most booked" rail (in sortOrder). None pinned → ranked by bookings. */
+  showInPopular: boolean;
+  /** Listed in the home "All services" section. */
+  showOnHome: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +43,9 @@ const serviceSchema = new Schema<IService>(
     },
     active: { type: Boolean, default: true },
     stepTemplate: { type: [String], default: [] },
+    sortOrder: { type: Number, default: 1000 },
+    showInPopular: { type: Boolean, default: false },
+    showOnHome: { type: Boolean, default: true },
   },
   {
     timestamps: true,

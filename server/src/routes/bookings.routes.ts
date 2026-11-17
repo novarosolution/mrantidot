@@ -37,6 +37,7 @@ import {
   formatScheduleSummary,
   provisionalScheduleFromRequest,
   validateConfirmedSchedule,
+  assertScheduleNotPast,
   validateScheduleRequest,
 } from '../utils/schedule';
 import { isPropertyTypeKey } from '../constants/propertyTypes';
@@ -706,6 +707,7 @@ bookingsRouter.patch(
       time: req.body.schedule.time ? String(req.body.schedule.time).trim() : undefined,
     };
     const scheduleMode = validateConfirmedSchedule(scheduleInput);
+    assertScheduleNotPast(scheduleInput);
     const schedule = {
       date: scheduleInput.date,
       slot: scheduleInput.slot,
@@ -761,6 +763,14 @@ bookingsRouter.patch(
         time: req.body.schedule.time ? String(req.body.schedule.time).trim() : undefined,
       };
       const scheduleMode = validateConfirmedSchedule(scheduleInput);
+      const current = booking.schedule;
+      const scheduleChanged =
+        !current ||
+        current.date !== scheduleInput.date ||
+        current.slot !== scheduleInput.slot ||
+        (scheduleMode === 'custom' && current.time !== scheduleInput.time);
+      // Address-only edits resend the existing schedule; only a new time has to be in the future.
+      if (scheduleChanged) assertScheduleNotPast(scheduleInput);
       booking.scheduleMode = scheduleMode;
       booking.schedule = {
         date: scheduleInput.date,

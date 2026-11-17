@@ -1,5 +1,5 @@
 import { AppError } from './AppError';
-import { localDateKey } from './dateKey';
+import { localDateKey, localTimeHHmm } from './dateKey';
 import type { ScheduleMode } from '../models/Booking';
 
 /** 2-hour windows covering the full day — app takes bookings 24/7. */
@@ -82,12 +82,14 @@ export function validateScheduleRequest(mode: ScheduleMode, req: ScheduleRequest
     if (!req.slot || !isAllowedSlot(req.slot)) {
       throw new AppError(400, 'Invalid or missing time slot');
     }
+    assertStartNotPast(req.date, req.slot.split('-')[0]);
     return;
   }
   if (!req.time) {
     throw new AppError(400, 'Preferred time is required for custom schedule');
   }
   validateTimeHHmm(req.time);
+  assertStartNotPast(req.date, req.time);
 }
 
 export function validateConfirmedSchedule(schedule: BookingScheduleInput): ScheduleMode {
@@ -103,6 +105,20 @@ export function validateConfirmedSchedule(schedule: BookingScheduleInput): Sched
     throw new AppError(400, 'Invalid time slot');
   }
   return 'standard';
+}
+
+/** Rejects a start time (HH:mm) on `date` that has already passed in the business timezone. */
+function assertStartNotPast(date: string, start: string | undefined): void {
+  if (date !== localDateKey() || !start) return;
+  if (start <= localTimeHHmm()) {
+    throw new AppError(400, 'That time has already passed — pick a later time');
+  }
+}
+
+/** Admin confirm / reschedule must not land on a visit that has already started (business timezone). */
+export function assertScheduleNotPast(schedule: BookingScheduleInput): void {
+  assertBookableDate(schedule.date);
+  assertStartNotPast(schedule.date, schedule.slot === 'custom' ? schedule.time : schedule.slot.split('-')[0]);
 }
 
 export function provisionalScheduleFromRequest(

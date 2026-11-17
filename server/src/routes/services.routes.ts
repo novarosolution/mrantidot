@@ -63,7 +63,7 @@ servicesRouter.get(
       const cat = map[category] ?? category.toLowerCase();
       filter.category = cat;
     }
-    const services = await Service.find(filter).sort({ name: 1 });
+    const services = await Service.find(filter).sort({ sortOrder: 1, name: 1 });
     const includeStats =
       req.query.includeStats === '1' || req.query.includeStats === 'true';
     const viewerRole = getOptionalUser(req)?.role;
@@ -165,14 +165,35 @@ servicesRouter.post(
   body('serviceTypes').optional().isArray(),
   body('serviceTypes.*').optional().isIn([...SERVICE_TYPE_KEYS]),
   body('rating').optional().isFloat({ min: 0, max: 5 }),
+  body('showInPopular').optional().isBoolean(),
+  body('showOnHome').optional().isBoolean(),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
-    const payload = { ...req.body, active: true };
+    // New services go to the end of the admin's order.
+    const last = await Service.findOne().sort({ sortOrder: -1 }).select('sortOrder').lean();
+    const payload = { ...req.body, active: true, sortOrder: (last?.sortOrder ?? 0) + 10 };
     if (req.body.serviceTypes !== undefined) {
       payload.serviceTypes = normalizeServiceTypes(req.body.serviceTypes);
     }
     const service = await Service.create(payload);
     res.status(201).json({ service: formatService(service) });
+  }),
+);
+
+/** Admin: save the full display order — ids in the order they should appear. */
+servicesRouter.put(
+  '/order',
+  requireAuth,
+  requireRole('admin'),
+  body('ids').isArray({ min: 1, max: 500 }),
+  body('ids.*').isMongoId(),
+  (req, res, next) => runValidation(req, res, next),
+  asyncHandler(async (req, res) => {
+    const ids = [...new Set(req.body.ids as string[])];
+    await Service.bulkWrite(
+      ids.map((id, i) => ({ updateOne: { filter: { _id: id }, update: { $set: { sortOrder: (i + 1) * 10 } } } })),
+    );
+    res.json({ ok: true, count: ids.length });
   }),
 );
 
@@ -191,6 +212,9 @@ servicesRouter.patch(
   body('serviceTypes.*').optional().isIn([...SERVICE_TYPE_KEYS]),
   body('active').optional().isBoolean(),
   body('rating').optional().isFloat({ min: 0, max: 5 }),
+  body('sortOrder').optional().isInt({ min: 0, max: 100000 }),
+  body('showInPopular').optional().isBoolean(),
+  body('showOnHome').optional().isBoolean(),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
     const updates = { ...req.body };

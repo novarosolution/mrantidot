@@ -197,6 +197,38 @@ export interface IBookingCopyConfig {
   techLocationNoteLabel: string;
   techLocationNotePlaceholder: string;
   techNoStepsHint: string;
+  pendingPastHint: string;
+  listPendingPastHint: string;
+  liveNowLabel: string;
+  liveOngoingLabel: string;
+  wizardDayHint: string;
+  wizardTimeTitle: string;
+  wizardNotesLabel: string;
+  wizardIncludedTitle: string;
+  wizardPropertyTitle: string;
+  wizardPropertySubtitle: string;
+  wizardAddressTitle: string;
+  wizardAddressSubtitle: string;
+  wizardSavedAddressesTitle: string;
+  wizardNewAddressTitle: string;
+  wizardAddressDetailsTitle: string;
+  wizardAddressFormSubtitle: string;
+  wizardPhotosTitle: string;
+  wizardPhotosSubtitle: string;
+  wizardPaymentTitle: string;
+  wizardSummaryTitle: string;
+  wizardDetailsTitle: string;
+  wizardLabelSchedule: string;
+  wizardLabelProperty: string;
+  wizardLabelAddress: string;
+  wizardLabelPayment: string;
+  wizardLabelCoupon: string;
+  wizardLabelPhotos: string;
+  wizardNextStepsTitle: string;
+  wizardCancellationTitle: string;
+  wizardCancellationNote: string;
+  wizardTotalCaption: string;
+  wizardDetectedAreaHint: string;
 }
 
 
@@ -291,6 +323,53 @@ export interface ICustomerUiCopy {
   notificationsEmptyMessage: string;
   settingsScreenTitle: string;
   servicesScreenTitle: string;
+  servicePriceHint: string;
+  serviceFactOneTitle: string;
+  serviceFactOneSub: string;
+  serviceFactDurationSub: string;
+  serviceFactThreeTitle: string;
+  serviceFactThreeSub: string;
+  serviceAboutTitle: string;
+  serviceStepsTitle: string;
+  serviceReviewsTitle: string;
+  serviceFromLabel: string;
+  serviceBookButton: string;
+  browseTitle: string;
+  browseSubtitle: string;
+  browseBadges: string;
+  settingsSubtitle: string;
+  settingsCompleteHint: string;
+  settingsDetailsTitle: string;
+  settingsDetailsHint: string;
+  paymentsSubtitle: string;
+  helpSubtitle: string;
+  helpGuideTitle: string;
+  helpResourcesSub: string;
+  profileNextVisitTitle: string;
+  reviewScreenTitle: string;
+  reviewHeading: string;
+  reviewTagsTitle: string;
+  reviewNoteLabel: string;
+  homeTrustSub: string;
+  homeTrackLive: string;
+  homeViewVisit: string;
+  homeSpotlightTitle: string;
+  homeNewTitle: string;
+  homeRailHomeTitle: string;
+  homeRailHomeSub: string;
+  homeRailBusinessTitle: string;
+  homeRailBusinessSub: string;
+  homeRailCleaningTitle: string;
+  homeRailCleaningSub: string;
+  homeClosingLine: string;
+  homeHeroTitle: string;
+  homeLocationLabel: string;
+  homeHeroKicker: string;
+  homeHeroCta: string;
+  homeAllServices: string;
+  homeCurationsTitle: string;
+  homeCurationsSub: string;
+  homeFeatureTag: string;
 }
 
 export interface IAppConfig {
@@ -590,6 +669,38 @@ export const DEFAULT_BOOKING_COPY: IBookingCopyConfig = {
   techLocationNoteLabel: 'Location note',
   techLocationNotePlaceholder: 'Building or landmark',
   techNoStepsHint: 'No step photos required. Enter completion code when done.',
+  pendingPastHint: 'This time passed before we could confirm it. Tap Reschedule to pick a new time.',
+  listPendingPastHint: 'Requested time has passed — pick a new time',
+  liveNowLabel: 'Happening now',
+  liveOngoingLabel: 'In progress',
+  wizardDayHint: 'Pick a day — our team confirms the visit time after you book',
+  wizardTimeTitle: 'Select a time',
+  wizardNotesLabel: 'Notes',
+  wizardIncludedTitle: 'What\'s included',
+  wizardPropertyTitle: 'What type of property?',
+  wizardPropertySubtitle: 'So the technician can plan the treatment for your space',
+  wizardAddressTitle: 'Where should we come?',
+  wizardAddressSubtitle: 'Use your location to fill the address in seconds',
+  wizardSavedAddressesTitle: 'Saved addresses',
+  wizardNewAddressTitle: 'Or add a new address',
+  wizardAddressDetailsTitle: 'Address details',
+  wizardAddressFormSubtitle: 'House / flat number is required · landmark optional',
+  wizardPhotosTitle: 'Problem photos',
+  wizardPhotosSubtitle: 'Optional — helps the technician prepare',
+  wizardPaymentTitle: 'Payment method',
+  wizardSummaryTitle: 'Payment summary',
+  wizardDetailsTitle: 'Booking details',
+  wizardLabelSchedule: 'Requested schedule',
+  wizardLabelProperty: 'Property type',
+  wizardLabelAddress: 'Service address',
+  wizardLabelPayment: 'Payment method',
+  wizardLabelCoupon: 'Coupon applied',
+  wizardLabelPhotos: 'Photos',
+  wizardNextStepsTitle: 'What happens next',
+  wizardCancellationTitle: 'Cancellation',
+  wizardCancellationNote: 'You can cancel from My Bookings any time before the technician starts work.',
+  wizardTotalCaption: 'Estimated total · incl. taxes',
+  wizardDetectedAreaHint: 'Detected area · tap refresh to update',
 };
 
 export const DEFAULT_CUSTOMER_UI_COPY: ICustomerUiCopy = {
@@ -694,6 +805,53 @@ export const DEFAULT_CUSTOMER_UI_COPY: ICustomerUiCopy = {
   notificationsEmptyMessage: 'Booking updates and offers will show here.',
   settingsScreenTitle: 'Settings',
   servicesScreenTitle: 'Services',
+  servicePriceHint: 'starting · per visit',
+  serviceFactOneTitle: 'Eco-safe',
+  serviceFactOneSub: 'Kid & pet friendly',
+  serviceFactDurationSub: 'Visit duration',
+  serviceFactThreeTitle: 'Photo proof',
+  serviceFactThreeSub: 'Every step',
+  serviceAboutTitle: 'About this service',
+  serviceStepsTitle: 'Service steps',
+  serviceReviewsTitle: 'Recent reviews',
+  serviceFromLabel: 'From',
+  serviceBookButton: 'Book now',
+  browseTitle: '{type} services',
+  browseSubtitle: 'Starting prices · book in minutes',
+  browseBadges: 'Certified experts, Eco-safe, Fixed prices',
+  settingsSubtitle: 'Your account & preferences',
+  settingsCompleteHint: 'Complete your profile below for a smoother booking experience.',
+  settingsDetailsTitle: 'Profile details',
+  settingsDetailsHint: 'Update your contact information',
+  paymentsSubtitle: 'Pay at the visit · nothing is charged in the app',
+  helpSubtitle: 'We\'re here for you',
+  helpGuideTitle: 'How to book a service',
+  helpResourcesSub: 'Answers, policies and more',
+  profileNextVisitTitle: 'Your next visit',
+  reviewScreenTitle: 'Rate & Review',
+  reviewHeading: 'How was your visit?',
+  reviewTagsTitle: 'What stood out?',
+  reviewNoteLabel: 'Add a note',
+  homeTrustSub: 'Not happy with the result? We come back and fix it — free.',
+  homeTrackLive: 'Track live',
+  homeViewVisit: 'View details',
+  homeSpotlightTitle: 'In the spotlight',
+  homeNewTitle: 'New and noteworthy',
+  homeRailHomeTitle: 'Home pest control',
+  homeRailHomeSub: 'Protect every room',
+  homeRailBusinessTitle: 'For offices & businesses',
+  homeRailBusinessSub: 'Shops, restaurants & warehouses',
+  homeRailCleaningTitle: 'Cleaning essentials',
+  homeRailCleaningSub: 'For a clean & fresh home',
+  homeClosingLine: 'Safe homes, happy families',
+  homeHeroTitle: 'Same-day pest control',
+  homeLocationLabel: 'Home',
+  homeHeroKicker: 'Pest control at home',
+  homeHeroCta: 'Book now',
+  homeAllServices: 'All services',
+  homeCurationsTitle: 'Thoughtful curations',
+  homeCurationsSub: 'Expert treatments for every pest',
+  homeFeatureTag: 'Customer favourite',
 };
 
 export const DEFAULT_APP_CONFIG: IAppConfig = {
