@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Star } from 'lucide-react-native';
 import { safeGoBack, customerRoutes, sharedRoutes, appPush } from '@/lib/routes';
@@ -12,7 +12,6 @@ import { ServiceListRow } from '@/components/kit/ServiceListRow';
 import { TrustNote } from '@/components/kit/TrustNote';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
 import { formatRupeeFull } from '@/components/kit/format';
 import { AppIcons } from '@/constants/appIcons';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
@@ -26,6 +25,10 @@ import { serviceDisplayRating } from '@/lib/ratings';
 import { serviceStartPrice } from '@/lib/serviceDisplay';
 import type { Service, ServiceCategory, ServiceTypeKey } from '@/types/api';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { stagger } from '@/lib/motion';
+import { CategorySkeleton } from '@/components/kit/ScreenSkeletons';
 
 export default function ServicesByTypeScreen() {
   const { type: rawType } = useLocalSearchParams<{ type: string }>();
@@ -107,76 +110,79 @@ export default function ServicesByTypeScreen() {
         />
 
         {loading && services.length === 0 ? (
-          <Spinner />
+          <CategorySkeleton />
         ) : error && services.length === 0 ? (
           <ListEmptyRetry message={error} onRetry={() => safeAsync(() => load(true))} />
         ) : (
           <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
             {/* Summary: who we are for this pest, how well rated, and how soon we can come. */}
-            <View style={styles.white}>
-              <View style={styles.summary}>
-                <View style={[styles.art, { backgroundColor: meta.bg }]}>
-                  <PestImage source={meta.image} size={58} />
-                </View>
-                <View style={styles.flex}>
-                  {proof ? (
-                    <View style={styles.proofRow}>
-                      <Star size={13} color={ui.star} fill={ui.star} strokeWidth={1.5} />
-                      <Text style={styles.proof}>{proof}</Text>
+            <FadeSlideIn delay={stagger(0)} slideFrom={14}>
+              <View style={styles.white}>
+                <View style={styles.summary}>
+                  <View style={[styles.art, { backgroundColor: meta.bg }]}>
+                    <PestImage source={meta.image} size={58} />
+                  </View>
+                  <View style={styles.flex}>
+                    {proof ? (
+                      <View style={styles.proofRow}>
+                        <Star size={13} color={ui.star} fill={ui.star} strokeWidth={1.5} />
+                        <Text style={styles.proof}>{proof}</Text>
+                      </View>
+                    ) : null}
+                    {from != null ? (
+                      <Text style={styles.from}>
+                        Starts at <Text style={styles.fromStrong}>{formatRupeeFull(from)}</Text>
+                      </Text>
+                    ) : null}
+                  </View>
+                  {earliest ? (
+                    <View style={styles.earliest}>
+                      <View style={styles.earliestHead}>
+                        <View style={styles.dot} />
+                        <Text style={styles.earliestLabel}>Earliest</Text>
+                      </View>
+                      <Text style={styles.earliestValue}>{earliest}</Text>
                     </View>
                   ) : null}
-                  {from != null ? (
-                    <Text style={styles.from}>
-                      Starts at <Text style={styles.fromStrong}>{formatRupeeFull(from)}</Text>
-                    </Text>
-                  ) : null}
                 </View>
-                {earliest ? (
-                  <View style={styles.earliest}>
-                    <View style={styles.earliestHead}>
-                      <View style={styles.dot} />
-                      <Text style={styles.earliestLabel}>Earliest</Text>
-                    </View>
-                    <Text style={styles.earliestValue}>{earliest}</Text>
+                {badges.length > 0 ? <Text style={styles.badges}>{badges.join('  ·  ')}</Text> : null}
+
+                {/* Quick picks — one tile per treatment, like the reference's sub-category grid. */}
+                {services.length > 1 ? (
+                  <View style={styles.tiles}>
+                    {services.slice(0, 6).map((s) => {
+                      const t = (s.serviceTypes?.[0] ?? typeKey) as ServiceTypeKey;
+                      const m = SERVICE_TYPE_META[t] ?? meta;
+                      return (
+                        <PressableScale
+                          key={s.id}
+                          containerStyle={styles.tile}
+                          style={styles.tileInner}
+                          onPress={() => open(s)}
+                          accessibilityRole="button"
+                          accessibilityLabel={s.name}
+                        >
+                          <View style={[styles.tileArt, { backgroundColor: m.bg }]}>
+                            <PestImage source={m.image} size={44} />
+                          </View>
+                          <Text style={styles.tileText} numberOfLines={2}>
+                            {s.name}
+                          </Text>
+                        </PressableScale>
+                      );
+                    })}
                   </View>
                 ) : null}
               </View>
-              {badges.length > 0 ? <Text style={styles.badges}>{badges.join('  ·  ')}</Text> : null}
-
-              {/* Quick picks — one tile per treatment, like the reference's sub-category grid. */}
-              {services.length > 1 ? (
-                <View style={styles.tiles}>
-                  {services.slice(0, 6).map((s) => {
-                    const t = (s.serviceTypes?.[0] ?? typeKey) as ServiceTypeKey;
-                    const m = SERVICE_TYPE_META[t] ?? meta;
-                    return (
-                      <Pressable
-                        key={s.id}
-                        style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
-                        onPress={() => open(s)}
-                        accessibilityRole="button"
-                        accessibilityLabel={s.name}
-                      >
-                        <View style={[styles.tileArt, { backgroundColor: m.bg }]}>
-                          <PestImage source={m.image} size={44} />
-                        </View>
-                        <Text style={styles.tileText} numberOfLines={2}>
-                          {s.name}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ) : null}
-            </View>
+            </FadeSlideIn>
 
             {services.length === 0 ? (
               <View style={styles.white}>
                 <EmptyState title="No services yet" message="Nothing listed for this type right now." />
               </View>
             ) : (
-              groups.map((g) => (
-                <View key={g.key}>
+              groups.map((g, gi) => (
+                <FadeSlideIn key={g.key} delay={stagger(gi + 1)} slideFrom={14}>
                   <View style={styles.band} />
                   <View style={styles.section}>
                     <Text style={styles.sectionTitle}>{groups.length > 1 ? g.title : 'Available treatments'}</Text>
@@ -191,7 +197,7 @@ export default function ServicesByTypeScreen() {
                       />
                     ))}
                   </View>
-                </View>
+                </FadeSlideIn>
               ))
             )}
 
@@ -246,7 +252,8 @@ const styles = StyleSheet.create({
   earliestValue: { marginTop: 2, fontFamily: fonts.bodySemi, fontSize: 12.5, color: ui.text },
   badges: { marginTop: 14, fontFamily: fonts.bodyMedium, fontSize: 12.5, color: ui.textSecondary },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 18 },
-  tile: { width: '30.5%', alignItems: 'center', gap: 8 },
+  tile: { width: '30.5%' },
+  tileInner: { alignItems: 'center', gap: 8 },
   tileArt: { width: '100%', aspectRatio: 1.15, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   tileText: { textAlign: 'center', fontFamily: fonts.bodyMedium, fontSize: 12.5, lineHeight: 16, color: ui.text },
   section: { backgroundColor: colors.white, paddingTop: 20 },

@@ -12,6 +12,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { colors, fonts, gradients, premiumType, spacing, buttonTokens, ui } from '@/constants/theme';
+import { haptic } from '@/lib/motion';
 
 interface ButtonProps extends PressableProps {
   title: string;
@@ -82,6 +83,18 @@ export function Button({
 }: ButtonProps) {
   const isDisabled = disabled || loading;
   const sz = SIZE[size];
+  // Filled (primary) actions get a light tap haptic; quieter variants stay silent.
+  const userPress = props.onPress;
+  const pressProps: PressableProps =
+    userPress && (variant === 'premium' || variant === 'primary' || variant === 'gold')
+      ? {
+          ...props,
+          onPress: (e) => {
+            haptic('tap');
+            userPress(e);
+          },
+        }
+      : props;
   const shellStyle: StyleProp<ViewStyle> = [fullWidth ? styles.full : styles.inline, style];
 
   const frame = {
@@ -113,7 +126,7 @@ export function Button({
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
         style={shellStyle}
-        {...props}
+        {...pressProps}
       >
         {({ pressed }) => (
           <ButtonShell pressed={pressed} disabled={!!isDisabled} style={[styles.shadow, { borderRadius: sz.radius }]}>
@@ -131,7 +144,7 @@ export function Button({
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
         style={shellStyle}
-        {...props}
+        {...pressProps}
       >
         {({ pressed }) => (
           <ButtonShell pressed={pressed} disabled={!!isDisabled} style={[styles.shadow, { borderRadius: sz.radius }]}>
@@ -149,7 +162,7 @@ export function Button({
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
         style={shellStyle}
-        {...props}
+        {...pressProps}
       >
         {({ pressed }) => (
           <ButtonShell pressed={pressed} disabled={!!isDisabled}>
@@ -174,7 +187,7 @@ export function Button({
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
         style={shellStyle}
-        {...props}
+        {...pressProps}
       >
         {({ pressed }) => (
           <ButtonShell
@@ -196,7 +209,7 @@ export function Button({
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
         style={shellStyle}
-        {...props}
+        {...pressProps}
       >
         {({ pressed }) => (
           <ButtonShell
@@ -218,7 +231,7 @@ export function Button({
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
         style={shellStyle}
-        {...props}
+        {...pressProps}
       >
         {({ pressed }) => (
           <ButtonShell
@@ -247,7 +260,7 @@ export function Button({
           isDisabled && styles.disabled,
           style,
         ]}
-        {...props}
+        {...pressProps}
       >
         {label(colors.forest)}
       </Pressable>
@@ -260,7 +273,7 @@ export function Button({
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
       style={shellStyle}
-      {...props}
+      {...pressProps}
     >
       {({ pressed }) => (
         <ButtonShell

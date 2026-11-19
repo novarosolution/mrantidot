@@ -39,6 +39,8 @@ import type { Service, ServiceStats } from '@/types/api';
 import { colors, fonts, ui } from '@/constants/theme';
 import { sharedRoutes, appPush } from '@/lib/routes';
 import { serviceStartPrice } from '@/lib/serviceDisplay';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { stagger } from '@/lib/motion';
 
 type SortKey = 'popular' | 'rating' | 'price';
 
@@ -348,13 +350,16 @@ export default function ServicesListScreen() {
             ListEmptyComponent={emptyBlock}
             contentContainerStyle={styles.listContent}
             renderItem={({ item, index }) => (
-              <ServiceListRow
-                service={item}
-                badge={popularIds.has(item.id) ? 'Popular' : undefined}
-                showDivider={index < visibleServices.length - 1}
-                onPress={() => appPush(sharedRoutes.service(item.id))}
-                onBook={() => appPush(sharedRoutes.bookPath(item.id))}
-              />
+              // First screenful slides in one after another; rows further down render as-is.
+              <FadeSlideIn delay={stagger(index)} slideFrom={12} disabled={index > 6}>
+                <ServiceListRow
+                  service={item}
+                  badge={popularIds.has(item.id) ? 'Popular' : undefined}
+                  showDivider={index < visibleServices.length - 1}
+                  onPress={() => appPush(sharedRoutes.service(item.id))}
+                  onBook={() => appPush(sharedRoutes.bookPath(item.id))}
+                />
+              </FadeSlideIn>
             )}
           />
         )}

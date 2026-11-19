@@ -1,6 +1,7 @@
 import { type ReactNode, useRef } from 'react';
 import { Animated, Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import { useReducedMotion } from '@/lib/a11yPrefs';
+import { haptic as playHaptic } from '@/lib/motion';
 
 /**
  * Pressable with a short spring "give" (scale ~0.97) — the shared press feedback for cards and tiles.
@@ -11,6 +12,7 @@ export function PressableScale({
   style,
   containerStyle,
   scaleTo = 0.97,
+  haptic,
   ...rest
 }: Omit<PressableProps, 'style' | 'children'> & {
   children: ReactNode;
@@ -19,6 +21,8 @@ export function PressableScale({
   /** Styles the outer touch target (flex sizing in rows / grids). */
   containerStyle?: StyleProp<ViewStyle>;
   scaleTo?: number;
+  /** Optional haptic on press — 'tap' for actions, 'select' for choices. */
+  haptic?: 'tap' | 'select';
 }) {
   const reduced = useReducedMotion();
   const scale = useRef(new Animated.Value(1)).current;
@@ -41,6 +45,10 @@ export function PressableScale({
       onPressOut={(e) => {
         to(1, 1, false);
         rest.onPressOut?.(e);
+      }}
+      onPress={(e) => {
+        if (haptic) playHaptic(haptic);
+        rest.onPress?.(e);
       }}
     >
       <Animated.View style={[style, { opacity, transform: [{ scale }] }]}>{children}</Animated.View>

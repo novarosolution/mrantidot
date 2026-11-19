@@ -5,6 +5,7 @@ import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
 import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
 import { colors, spacing, ui } from '@/constants/theme';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 
 /**
  * Shared shell for help / FAQ / legal-style customer pages: header, then a padded column of content.
@@ -36,7 +37,9 @@ export function CustomerContentPage({
               compact
             />
           ) : null}
-          <View style={[styles.body, !sectionTitle && styles.bodyTop]}>{children}</View>
+          <FadeSlideIn slideFrom={14}>
+            <View style={[styles.body, !sectionTitle && styles.bodyTop]}>{children}</View>
+          </FadeSlideIn>
         </ScrollView>
       </SafeAreaView>
     </View>

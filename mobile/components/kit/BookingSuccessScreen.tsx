@@ -10,6 +10,7 @@ import { getCustomerTrackingSteps, useBookingCopy } from '@/lib/schedule-copy';
 import { bookingDetailPath, customerRoutes, appReplace } from '@/lib/routes';
 import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
+import { haptic } from '@/lib/motion';
 
 type ConfettiSpec = {
   left: `${number}%`;
@@ -216,6 +217,12 @@ export function BookingSuccessScreen({
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const bookingCopy = useBookingCopy();
+
+  // The check draws in ~350 ms — land the success haptic with it.
+  useEffect(() => {
+    const t = setTimeout(() => haptic('success'), 320);
+    return () => clearTimeout(t);
+  }, []);
 
   const refLabel = useMemo(() => {
     const tail = bookingId.replace(/-/g, '').slice(-6).toUpperCase();

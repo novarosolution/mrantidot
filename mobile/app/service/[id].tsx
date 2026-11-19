@@ -5,12 +5,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Check, CircleCheck, Info, Share2, ShieldCheck, Star, X } from 'lucide-react-native';
 import { paramString } from '@/lib/routeParams';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
 import { PestImage } from '@/components/kit/ServiceThumb';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { PressableScale } from '@/components/ui/PressableScale';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { useReducedMotion } from '@/lib/a11yPrefs';
+import { haptic, motion, stagger } from '@/lib/motion';
 import { AppIcons } from '@/constants/appIcons';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import { useAppContent } from '@/context/AppContentContext';
@@ -26,6 +28,7 @@ import { formatRupeeFull, plural } from '@/components/kit/format';
 import { safeGoBack, customerRoutes, sharedRoutes, appPush } from '@/lib/routes';
 import type { Service, ServiceReview, ServiceStats, ServiceTypeKey } from '@/types/api';
 import { colors, fonts, ui } from '@/constants/theme';
+import { ServiceDetailSkeleton } from '@/components/kit/ScreenSkeletons';
 
 const PAD = 16;
 
@@ -64,6 +67,9 @@ export default function ServiceDetailScreen() {
   const [optionKey, setOptionKey] = useState<string | null>(null);
   const { loading, error, runLoad } = useScreenLoad(!!id);
   const earliest = useMemo(() => earliestSlotLabel(), []);
+  const reducedMotion = useReducedMotion();
+  /** Hero art pops in once the service has loaded. */
+  const artIn = useRef(new Animated.Value(0)).current;
 
   const load = useCallback(
     async (skipCache = false) => {
@@ -90,6 +96,15 @@ export default function ServiceDetailScreen() {
     void runLoad(() => load());
   }, [id, load, runLoad]);
 
+  useEffect(() => {
+    if (!service) return;
+    if (reducedMotion) {
+      artIn.setValue(1);
+      return;
+    }
+    Animated.spring(artIn, { toValue: 1, ...motion.springSnappy, useNativeDriver: true }).start();
+  }, [service, reducedMotion, artIn]);
+
   if (!id || (!loading && (error || !service))) {
     return (
       <View style={styles.root}>
@@ -103,7 +118,7 @@ export default function ServiceDetailScreen() {
     );
   }
 
-  if (loading || !service) return <Spinner fullScreen />;
+  if (loading || !service) return <ServiceDetailSkeleton />;
 
   const brand = content.branding.name?.trim() || 'Mr Antidot';
   const type = (service.serviceTypes?.[0] ?? 'general') as ServiceTypeKey;
@@ -144,6 +159,22 @@ export default function ServiceDetailScreen() {
   }
 
   const headerFade = scrollY.interpolate({ inputRange: [140, 200], outputRange: [0, 1], extrapolate: 'clamp' });
+  // Hero stretches to cover the pull-down gap and drifts slower than the page on scroll (parallax).
+  const heroH = insets.top + 60 + 170 + 18;
+  const heroMotion = reducedMotion
+    ? undefined
+    : {
+        transform: [
+          {
+            translateY: scrollY.interpolate({
+              inputRange: [-200, 0, heroH],
+              outputRange: [-100, 0, heroH * 0.35],
+              extrapolateRight: 'clamp',
+            }),
+          },
+          { scale: scrollY.interpolate({ inputRange: [-200, 0], outputRange: [1 + 200 / heroH, 1], extrapolateRight: 'clamp' }) },
+        ],
+      };
 
   return (
     <View style={styles.root}>
@@ -157,113 +188,128 @@ export default function ServiceDetailScreen() {
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
       >
         {/* Hero art in the pest type's colour; the floating back/share buttons sit on it. */}
-        <View style={[styles.hero, { paddingTop: insets.top + 60, backgroundColor: meta.bg }]}>
-          <View style={styles.heroArt}>
+        <Animated.View style={[styles.hero, { paddingTop: insets.top + 60, backgroundColor: meta.bg }, heroMotion]}>
+          <Animated.View
+            style={[
+              styles.heroArt,
+              {
+                opacity: artIn,
+                transform: [{ scale: artIn.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] }) }],
+              },
+            ]}
+          >
             <PestImage source={meta.image} size={150} />
-          </View>
-        </View>
+          </Animated.View>
+        </Animated.View>
 
-        <View style={styles.white}>
-          <View style={styles.titleRow}>
-            <View style={styles.flex}>
-              <Text style={styles.title}>{service.name}</Text>
-              {socialProof ? (
-                <View style={styles.ratingRow}>
-                  <Star size={13} color={ui.star} fill={ui.star} strokeWidth={1.5} />
-                  <Text style={styles.ratingText}>{socialProof}</Text>
+        <FadeSlideIn delay={stagger(1)} slideFrom={16}>
+          <View style={styles.white}>
+            <View style={styles.titleRow}>
+              <View style={styles.flex}>
+                <Text style={styles.title}>{service.name}</Text>
+                {socialProof ? (
+                  <View style={styles.ratingRow}>
+                    <Star size={13} color={ui.star} fill={ui.star} strokeWidth={1.5} />
+                    <Text style={styles.ratingText}>{socialProof}</Text>
+                  </View>
+                ) : null}
+              </View>
+              {earliest ? (
+                <View style={styles.earliest}>
+                  <View style={styles.earliestHead}>
+                    <View style={styles.earliestDot} />
+                    <Text style={styles.earliestLabel}>Earliest</Text>
+                  </View>
+                  <Text style={styles.earliestValue}>{earliest}</Text>
                 </View>
               ) : null}
             </View>
-            {earliest ? (
-              <View style={styles.earliest}>
-                <View style={styles.earliestHead}>
-                  <View style={styles.earliestDot} />
-                  <Text style={styles.earliestLabel}>Earliest</Text>
+            <Text style={styles.priceLine}>
+              Starts at <Text style={styles.priceStrong}>{formatRupeeFull(serviceStartPrice(service))}</Text>
+              {'  ·  '}
+              {duration}
+            </Text>
+            {service.shortDesc ? <Text style={styles.about}>{service.shortDesc}</Text> : null}
+            <View style={styles.facts}>
+              {[
+                { icon: AppIcons.ui.leaf, label: `${copy.serviceFactOneTitle} · ${copy.serviceFactOneSub}` },
+                { icon: AppIcons.ui.camera, label: `${copy.serviceFactThreeTitle} · ${copy.serviceFactThreeSub}` },
+              ].map((f) => (
+                <View key={f.label} style={styles.fact}>
+                  <f.icon size={14} color={ui.brand} strokeWidth={2.2} />
+                  <Text style={styles.factText} numberOfLines={1}>
+                    {f.label}
+                  </Text>
                 </View>
-                <Text style={styles.earliestValue}>{earliest}</Text>
-              </View>
-            ) : null}
+              ))}
+            </View>
           </View>
-          <Text style={styles.priceLine}>
-            Starts at <Text style={styles.priceStrong}>{formatRupeeFull(serviceStartPrice(service))}</Text>
-            {'  ·  '}
-            {duration}
-          </Text>
-          {service.shortDesc ? <Text style={styles.about}>{service.shortDesc}</Text> : null}
-          <View style={styles.facts}>
-            {[
-              { icon: AppIcons.ui.leaf, label: `${copy.serviceFactOneTitle} · ${copy.serviceFactOneSub}` },
-              { icon: AppIcons.ui.camera, label: `${copy.serviceFactThreeTitle} · ${copy.serviceFactThreeSub}` },
-            ].map((f) => (
-              <View key={f.label} style={styles.fact}>
-                <f.icon size={14} color={ui.brand} strokeWidth={2.2} />
-                <Text style={styles.factText} numberOfLines={1}>
-                  {f.label}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
+
+        </FadeSlideIn>
 
         {options.length > 0 ? (
-          <>
+          <View
+            onLayout={(e) => {
+              optionsY.current = e.nativeEvent.layout.y;
+            }}
+          >
             <Band />
-            <View
-              style={styles.white}
-              onLayout={(e) => {
-                optionsY.current = e.nativeEvent.layout.y;
-              }}
-            >
-              <SectionTitle title="Select requirements" />
-              <View style={styles.reqHead}>
-                <View style={styles.reqNum}>
-                  <Text style={styles.reqNumText}>1</Text>
+            <FadeSlideIn delay={stagger(2)} slideFrom={16}>
+              <View style={styles.white}>
+                <SectionTitle title="Select requirements" />
+                <View style={styles.reqHead}>
+                  <View style={styles.reqNum}>
+                    <Text style={styles.reqNumText}>1</Text>
+                  </View>
+                  <Text style={styles.reqTitle}>{service.optionsTitle || 'Size of home'}</Text>
                 </View>
-                <Text style={styles.reqTitle}>{service.optionsTitle || 'Size of home'}</Text>
-              </View>
-              <View style={styles.optionGrid}>
-                {options.map((o) => {
-                  const on = o.key === optionKey;
-                  return (
-                    <Pressable
-                      key={o.key}
-                      onPress={() => setOptionKey(o.key)}
-                      style={({ pressed }) => [
-                        styles.option,
-                        // 2 or 4 sizes read best as a 2-column grid; otherwise three across.
-                        options.length === 2 || options.length === 4 ? styles.optionHalf : styles.optionThird,
-                        on && styles.optionOn,
-                        pressed && styles.pressed,
-                      ]}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: on }}
-                      accessibilityLabel={`${o.label}, ${formatRupeeFull(o.price)}`}
-                    >
-                      <Text style={[styles.optionLabel, on && styles.optionLabelOn]} numberOfLines={2}>
-                        {o.label}
-                      </Text>
-                      <Text style={styles.optionPrice}>{formatRupeeFull(o.price)}</Text>
-                      {o.note ? (
-                        <Text style={styles.optionNote} numberOfLines={2}>
-                          {o.note}
+                <View style={styles.optionGrid}>
+                  {options.map((o) => {
+                    const on = o.key === optionKey;
+                    return (
+                      <Pressable
+                        key={o.key}
+                        onPress={() => {
+                          if (o.key !== optionKey) haptic('select');
+                          setOptionKey(o.key);
+                        }}
+                        style={({ pressed }) => [
+                          styles.option,
+                          // 2 or 4 sizes read best as a 2-column grid; otherwise three across.
+                          options.length === 2 || options.length === 4 ? styles.optionHalf : styles.optionThird,
+                          on && styles.optionOn,
+                          pressed && styles.pressed,
+                        ]}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: on }}
+                        accessibilityLabel={`${o.label}, ${formatRupeeFull(o.price)}`}
+                      >
+                        <Text style={[styles.optionLabel, on && styles.optionLabelOn]} numberOfLines={2}>
+                          {o.label}
                         </Text>
-                      ) : null}
-                      {on ? (
-                        <View style={styles.optionTick}>
-                          <Check size={11} color={colors.white} strokeWidth={3.2} />
-                        </View>
-                      ) : null}
-                    </Pressable>
-                  );
-                })}
+                        <Text style={styles.optionPrice}>{formatRupeeFull(o.price)}</Text>
+                        {o.note ? (
+                          <Text style={styles.optionNote} numberOfLines={2}>
+                            {o.note}
+                          </Text>
+                        ) : null}
+                        {on ? (
+                          <View style={styles.optionTick}>
+                            <Check size={11} color={colors.white} strokeWidth={3.2} />
+                          </View>
+                        ) : null}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {included.length > 0 ? (
+                  <Pressable onPress={() => scrollTo(includedY.current)} hitSlop={6} accessibilityRole="link">
+                    <Text style={styles.link}>What is included in my service?</Text>
+                  </Pressable>
+                ) : null}
               </View>
-              {included.length > 0 ? (
-                <Pressable onPress={() => scrollTo(includedY.current)} hitSlop={6} accessibilityRole="link">
-                  <Text style={styles.link}>What is included in my service?</Text>
-                </Pressable>
-              ) : null}
-            </View>
-          </>
+            </FadeSlideIn>
+          </View>
         ) : null}
 
         {notes.length > 0 ? (
@@ -462,7 +508,7 @@ export default function ServiceDetailScreen() {
               {selected ? `${selected.label} · ${duration}` : `${copy.serviceFromLabel} · ${duration}`}
             </Text>
           </View>
-          <PressableScale containerStyle={styles.bookWrap} style={styles.bookBtn} onPress={book} accessibilityRole="button">
+          <PressableScale containerStyle={styles.bookWrap} style={styles.bookBtn} onPress={book} haptic="tap" accessibilityRole="button">
             <Text style={styles.bookText}>{copy.serviceBookButton}</Text>
           </PressableScale>
         </View>

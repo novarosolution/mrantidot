@@ -23,6 +23,9 @@ import { bookingVisitDate } from '@/lib/booking-helpers';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import type { Booking } from '@/types/api';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { stagger } from '@/lib/motion';
 
 function pickUpcoming(bookings: Booking[]): Booking | null {
   const today = localDateKey();
@@ -48,8 +51,9 @@ function pickUpcoming(bookings: Booking[]): Booking | null {
 /** Square shortcut tile — the reference's "My bookings / Help & support" row. */
 function QuickTile({ icon: Icon, label, sub, onPress }: { icon: LucideIcon; label: string; sub?: string; onPress: () => void }) {
   return (
-    <Pressable
-      style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
+    <PressableScale
+      containerStyle={styles.tileWrap}
+      style={styles.tile}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={sub ? `${label}, ${sub}` : label}
@@ -61,7 +65,7 @@ function QuickTile({ icon: Icon, label, sub, onPress }: { icon: LucideIcon; labe
         </Text>
         {sub ? <Text style={styles.tileSub}>{sub}</Text> : null}
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -192,43 +196,51 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          <Pressable onPress={() => appPush(customerRoutes.settings)} accessibilityRole="button" accessibilityLabel="Edit profile">
-            <Text style={styles.name}>{name}</Text>
-            <Text style={styles.meta}>{[phone, email].filter(Boolean).join('  ·  ')}</Text>
-            {city ? <Text style={styles.city}>{city}</Text> : null}
-          </Pressable>
+          <FadeSlideIn delay={stagger(0)} slideFrom={14}>
+            <Pressable onPress={() => appPush(customerRoutes.settings)} accessibilityRole="button" accessibilityLabel="Edit profile">
+              <Text style={styles.name}>{name}</Text>
+              <Text style={styles.meta}>{[phone, email].filter(Boolean).join('  ·  ')}</Text>
+              {city ? <Text style={styles.city}>{city}</Text> : null}
+            </Pressable>
+          </FadeSlideIn>
 
           {error ? <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} /> : null}
 
-          <View style={styles.tiles}>
-            <QuickTile
-              icon={AppIcons.profile.bookings}
-              label={copy.profileMenuBookings}
-              sub={activeCount > 0 ? `${activeCount} active` : undefined}
-              onPress={() => appPush(customerRoutes.bookings)}
-            />
-            <QuickTile icon={AppIcons.profile.offers} label="Offers" onPress={() => appPush(customerRoutes.offers)} />
-            <QuickTile icon={AppIcons.profile.help} label={copy.profileMenuHelp} onPress={() => appPush(customerRoutes.help)} />
-          </View>
+          <FadeSlideIn delay={stagger(1)} slideFrom={14}>
+            <View style={styles.tiles}>
+              <QuickTile
+                icon={AppIcons.profile.bookings}
+                label={copy.profileMenuBookings}
+                sub={activeCount > 0 ? `${activeCount} active` : undefined}
+                onPress={() => appPush(customerRoutes.bookings)}
+              />
+              <QuickTile icon={AppIcons.profile.offers} label="Offers" onPress={() => appPush(customerRoutes.offers)} />
+              <QuickTile icon={AppIcons.profile.help} label={copy.profileMenuHelp} onPress={() => appPush(customerRoutes.help)} />
+            </View>
+          </FadeSlideIn>
 
           {upcoming ? (
-            <View style={styles.block}>
-              <Text style={styles.blockTitle}>{copy.profileNextVisitTitle}</Text>
-              <HomeNextVisitCard booking={upcoming} onPress={() => appPush(bookingDetailPath(user?.role, upcoming.id))} />
-            </View>
+            <FadeSlideIn delay={stagger(2)} slideFrom={14}>
+              <View style={styles.block}>
+                <Text style={styles.blockTitle}>{copy.profileNextVisitTitle}</Text>
+                <HomeNextVisitCard booking={upcoming} onPress={() => appPush(bookingDetailPath(user?.role, upcoming.id))} />
+              </View>
+            </FadeSlideIn>
           ) : null}
 
-          <View style={styles.menu}>
-            <MenuRow icon={AppIcons.profile.addresses} label={copy.profileMenuAddresses} count={savedCount} onPress={() => appPush(customerRoutes.addresses)} />
-            <MenuRow icon={AppIcons.profile.payments} label={copy.profileMenuPayments} count={paymentCount} onPress={() => appPush(customerRoutes.paymentMethods)} />
-            <MenuRow icon={AppIcons.profile.notifications} label={copy.profileMenuNotifications} count={unread} onPress={() => appPush(customerRoutes.notifications)} />
-            <MenuRow icon={AppIcons.profile.settings} label={copy.profileMenuSettings} onPress={() => appPush(customerRoutes.settings)} />
-            <View style={styles.menuGap} />
-            <MenuRow icon={AppIcons.profile.faq} label={copy.profileMenuFaq} onPress={() => appPush(customerRoutes.faq)} />
-            <MenuRow icon={AppIcons.profile.about} label={`${copy.profileMenuAbout} ${brand}`} onPress={() => appPush(customerRoutes.about)} />
-            <MenuRow icon={AppIcons.profile.terms} label={copy.profileMenuTerms} onPress={() => appPush(customerRoutes.terms)} />
-            <MenuRow icon={AppIcons.profile.privacy} label={copy.profileMenuPrivacy} onPress={() => appPush(customerRoutes.privacy)} />
-          </View>
+          <FadeSlideIn delay={stagger(3)} slideFrom={14}>
+            <View style={styles.menu}>
+              <MenuRow icon={AppIcons.profile.addresses} label={copy.profileMenuAddresses} count={savedCount} onPress={() => appPush(customerRoutes.addresses)} />
+              <MenuRow icon={AppIcons.profile.payments} label={copy.profileMenuPayments} count={paymentCount} onPress={() => appPush(customerRoutes.paymentMethods)} />
+              <MenuRow icon={AppIcons.profile.notifications} label={copy.profileMenuNotifications} count={unread} onPress={() => appPush(customerRoutes.notifications)} />
+              <MenuRow icon={AppIcons.profile.settings} label={copy.profileMenuSettings} onPress={() => appPush(customerRoutes.settings)} />
+              <View style={styles.menuGap} />
+              <MenuRow icon={AppIcons.profile.faq} label={copy.profileMenuFaq} onPress={() => appPush(customerRoutes.faq)} />
+              <MenuRow icon={AppIcons.profile.about} label={`${copy.profileMenuAbout} ${brand}`} onPress={() => appPush(customerRoutes.about)} />
+              <MenuRow icon={AppIcons.profile.terms} label={copy.profileMenuTerms} onPress={() => appPush(customerRoutes.terms)} />
+              <MenuRow icon={AppIcons.profile.privacy} label={copy.profileMenuPrivacy} onPress={() => appPush(customerRoutes.privacy)} />
+            </View>
+          </FadeSlideIn>
 
           <Pressable
             style={({ pressed }) => [styles.logout, pressed && styles.logoutPressed]}
@@ -297,8 +309,8 @@ const styles = StyleSheet.create({
   meta: { marginTop: 4, fontFamily: fonts.bodyMedium, fontSize: 14, color: ui.textSecondary },
   city: { marginTop: 2, fontFamily: fonts.body, fontSize: 13, color: ui.textTertiary },
   tiles: { flexDirection: 'row', gap: 10, marginTop: 22 },
+  tileWrap: { flex: 1 },
   tile: {
-    flex: 1,
     minHeight: 104,
     padding: 12,
     gap: 10,

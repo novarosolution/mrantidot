@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { LayoutAnimation, StyleSheet, View } from 'react-native';
 import { CustomerContentPage } from '@/components/kit/CustomerContentPage';
 import { ListFaqRow, ListGroup, ListNavRow } from '@/components/kit/ListGroup';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -8,6 +8,7 @@ import { useAppContent } from '@/context/AppContentContext';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { customerRoutes, appPush } from '@/lib/routes';
 import { spacing } from '@/constants/theme';
+import { haptic } from '@/lib/motion';
 
 export default function FaqScreen() {
   const { content } = useAppContent();
@@ -27,7 +28,12 @@ export default function FaqScreen() {
               question={item.q}
               answer={item.a}
               open={open === i}
-              onToggle={() => setOpen(open === i ? null : i)}
+              onToggle={() => {
+                // Smoothly open the answer and close the previous one.
+                LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'opacity'));
+                haptic('select');
+                setOpen(open === i ? null : i);
+              }}
             />
           ))}
         </ListGroup>

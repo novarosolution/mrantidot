@@ -45,7 +45,8 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { stagger } from '@/lib/motion';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { useAuth } from '@/context/AuthContext';
@@ -70,6 +71,7 @@ import type { Offer, PaymentMethodRecord, PropertyTypeKey, SavedAddress, Schedul
 import { isPropertyTypeKey, propertyTypeLabel } from '@/constants/propertyTypes';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { CartSkeleton } from '@/components/kit/ScreenSkeletons';
 
 type Sheet = 'slot' | 'address' | 'property' | 'payment' | 'coupon' | 'photos' | null;
 
@@ -383,7 +385,16 @@ export default function BookCartScreen() {
     );
   }
 
-  if (!service || !pricing) return <Spinner fullScreen />;
+  if (!service || !pricing) {
+    return (
+      <View style={styles.root}>
+        <SafeAreaView style={styles.flex} edges={['left', 'right']}>
+          <CustomerPageHeader variant="premium" title="Your cart" showBack onBack={() => safeGoBack(customerRoutes.services)} />
+          <CartSkeleton />
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   const type = (service.serviceTypes?.[0] ?? 'general') as ServiceTypeKey;
   const meta = SERVICE_TYPE_META[type] ?? SERVICE_TYPE_META.general;
@@ -398,106 +409,116 @@ export default function BookCartScreen() {
 
         <ScrollView style={styles.flex} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {/* The service in the cart, with its size and a way back to change it. */}
-          <Card>
-            <View style={styles.item}>
-              <View style={[styles.itemArt, { backgroundColor: meta.bg }]}>
-                <PestImage source={meta.image} size={52} />
+          <FadeSlideIn delay={stagger(0)} slideFrom={14}>
+            <Card>
+              <View style={styles.item}>
+                <View style={[styles.itemArt, { backgroundColor: meta.bg }]}>
+                  <PestImage source={meta.image} size={52} />
+                </View>
+                <View style={styles.flex}>
+                  <Text style={styles.itemName} numberOfLines={2}>
+                    {service.name}
+                  </Text>
+                  <Text style={styles.itemMeta}>{option ? `${option.label} · ${duration}` : duration}</Text>
+                </View>
+                <Text style={styles.itemPrice}>{formatRupeeFull(basePrice)}</Text>
               </View>
-              <View style={styles.flex}>
-                <Text style={styles.itemName} numberOfLines={2}>
-                  {service.name}
-                </Text>
-                <Text style={styles.itemMeta}>{option ? `${option.label} · ${duration}` : duration}</Text>
-              </View>
-              <Text style={styles.itemPrice}>{formatRupeeFull(basePrice)}</Text>
-            </View>
-            <View style={styles.itemLinks}>
-              {(service.options?.length ?? 0) > 0 ? (
-                <Pressable onPress={() => appPush(sharedRoutes.service(service.id))} hitSlop={6} accessibilityRole="link">
-                  <Text style={styles.linkStrong}>Edit package</Text>
+              <View style={styles.itemLinks}>
+                {(service.options?.length ?? 0) > 0 ? (
+                  <Pressable onPress={() => appPush(sharedRoutes.service(service.id))} hitSlop={6} accessibilityRole="link">
+                    <Text style={styles.linkStrong}>Edit package</Text>
+                  </Pressable>
+                ) : null}
+                <Pressable onPress={() => appPush(customerRoutes.services)} hitSlop={6} style={styles.addMore} accessibilityRole="link">
+                  <Plus size={15} color={ui.brand} strokeWidth={2.6} />
+                  <Text style={styles.link}>Add more services</Text>
                 </Pressable>
+              </View>
+            </Card>
+          </FadeSlideIn>
+
+          <FadeSlideIn delay={stagger(1)} slideFrom={14}>
+            <Card>
+              <CartRow
+                icon={BadgePercent}
+                title={couponApplied ? `${coupon.trim().toUpperCase()} applied` : 'Coupons and offers'}
+                sub={couponApplied ? `You save ${formatRupeeFull(pricing.coupon)}` : activeOffers.length > 0 ? `${activeOffers.length} available` : undefined}
+                action={couponApplied ? 'Change' : 'View all'}
+                onPress={() => setSheet('coupon')}
+                last
+              />
+            </Card>
+          </FadeSlideIn>
+
+          <FadeSlideIn delay={stagger(2)} slideFrom={14}>
+            <Card>
+              <CartRow
+                icon={Phone}
+                title={contactLine || 'Add your contact details'}
+                action="Change"
+                onPress={() => appPush(customerRoutes.settings)}
+              />
+              <CartRow
+                icon={Building2}
+                title={propertyType ? propertyTypeLabel(propertyType) : 'Select property type'}
+                sub={propertyType ? 'Property type' : 'Helps the technician bring the right treatment'}
+                action={propertyType ? 'Change' : undefined}
+                onPress={() => setSheet('property')}
+                missing={!propertyType}
+              />
+              <CartRow
+                icon={CreditCard}
+                title={paymentMethod ? paymentMethodLabel(paymentMethod) : 'Choose payment method'}
+                sub="Payment"
+                action="Change"
+                onPress={() => setSheet('payment')}
+                missing={!paymentMethod}
+              />
+              <CartRow
+                icon={Camera}
+                title={photoUris.length ? `${photoUris.length} photo${photoUris.length === 1 ? '' : 's'} added` : 'Add photos of the problem'}
+                sub={photoUris.length ? undefined : 'Optional — helps us prepare'}
+                action={photoUris.length ? 'Edit' : 'Add'}
+                onPress={() => setSheet('photos')}
+                last
+              />
+            </Card>
+          </FadeSlideIn>
+
+          <FadeSlideIn delay={stagger(3)} slideFrom={14}>
+            <Card>
+              <Pressable
+                onPress={() => setBillOpen((v) => !v)}
+                style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: billOpen }}
+              >
+                <ReceiptText size={20} color={ui.text} strokeWidth={2} />
+                <View style={styles.rowBody}>
+                  <Text style={styles.rowTitle}>Total bill {formatRupeeFull(pricing.total)}</Text>
+                  <Text style={styles.rowSub}>Incl. GST{pricing.coupon > 0 ? ` · saved ${formatRupeeFull(pricing.coupon)}` : ''}</Text>
+                </View>
+                {billOpen ? <ChevronUp size={18} color={ui.textTertiary} /> : <ChevronDown size={18} color={ui.textTertiary} />}
+              </Pressable>
+              {billOpen ? (
+                <View style={styles.bill}>
+                  <BookBillSummary amount={pricing} />
+                </View>
               ) : null}
-              <Pressable onPress={() => appPush(customerRoutes.services)} hitSlop={6} style={styles.addMore} accessibilityRole="link">
-                <Plus size={15} color={ui.brand} strokeWidth={2.6} />
-                <Text style={styles.link}>Add more services</Text>
+            </Card>
+          </FadeSlideIn>
+
+          <FadeSlideIn delay={stagger(4)} slideFrom={14}>
+            <View style={styles.policy}>
+              <Text style={styles.policyTitle}>Cancellation & reschedule policy</Text>
+              <Text style={styles.policyText}>{bookingCopy.wizardCancellationNote}</Text>
+              <Text style={[styles.policyTitle, styles.policyGap]}>{bookingCopy.wizardNextStepsTitle}</Text>
+              <Text style={styles.policyText}>{bookingCopy.pendingReviewNote}</Text>
+              <Pressable onPress={() => appPush(customerRoutes.terms)} hitSlop={6} accessibilityRole="link">
+                <Text style={styles.linkUnderline}>Read full policy</Text>
               </Pressable>
             </View>
-          </Card>
-
-          <Card>
-            <CartRow
-              icon={BadgePercent}
-              title={couponApplied ? `${coupon.trim().toUpperCase()} applied` : 'Coupons and offers'}
-              sub={couponApplied ? `You save ${formatRupeeFull(pricing.coupon)}` : activeOffers.length > 0 ? `${activeOffers.length} available` : undefined}
-              action={couponApplied ? 'Change' : 'View all'}
-              onPress={() => setSheet('coupon')}
-              last
-            />
-          </Card>
-
-          <Card>
-            <CartRow
-              icon={Phone}
-              title={contactLine || 'Add your contact details'}
-              action="Change"
-              onPress={() => appPush(customerRoutes.settings)}
-            />
-            <CartRow
-              icon={Building2}
-              title={propertyType ? propertyTypeLabel(propertyType) : 'Select property type'}
-              sub={propertyType ? 'Property type' : 'Helps the technician bring the right treatment'}
-              action={propertyType ? 'Change' : undefined}
-              onPress={() => setSheet('property')}
-              missing={!propertyType}
-            />
-            <CartRow
-              icon={CreditCard}
-              title={paymentMethod ? paymentMethodLabel(paymentMethod) : 'Choose payment method'}
-              sub="Payment"
-              action="Change"
-              onPress={() => setSheet('payment')}
-              missing={!paymentMethod}
-            />
-            <CartRow
-              icon={Camera}
-              title={photoUris.length ? `${photoUris.length} photo${photoUris.length === 1 ? '' : 's'} added` : 'Add photos of the problem'}
-              sub={photoUris.length ? undefined : 'Optional — helps us prepare'}
-              action={photoUris.length ? 'Edit' : 'Add'}
-              onPress={() => setSheet('photos')}
-              last
-            />
-          </Card>
-
-          <Card>
-            <Pressable
-              onPress={() => setBillOpen((v) => !v)}
-              style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: billOpen }}
-            >
-              <ReceiptText size={20} color={ui.text} strokeWidth={2} />
-              <View style={styles.rowBody}>
-                <Text style={styles.rowTitle}>Total bill {formatRupeeFull(pricing.total)}</Text>
-                <Text style={styles.rowSub}>Incl. GST{pricing.coupon > 0 ? ` · saved ${formatRupeeFull(pricing.coupon)}` : ''}</Text>
-              </View>
-              {billOpen ? <ChevronUp size={18} color={ui.textTertiary} /> : <ChevronDown size={18} color={ui.textTertiary} />}
-            </Pressable>
-            {billOpen ? (
-              <View style={styles.bill}>
-                <BookBillSummary amount={pricing} />
-              </View>
-            ) : null}
-          </Card>
-
-          <View style={styles.policy}>
-            <Text style={styles.policyTitle}>Cancellation & reschedule policy</Text>
-            <Text style={styles.policyText}>{bookingCopy.wizardCancellationNote}</Text>
-            <Text style={[styles.policyTitle, styles.policyGap]}>{bookingCopy.wizardNextStepsTitle}</Text>
-            <Text style={styles.policyText}>{bookingCopy.pendingReviewNote}</Text>
-            <Pressable onPress={() => appPush(customerRoutes.terms)} hitSlop={6} accessibilityRole="link">
-              <Text style={styles.linkUnderline}>Read full policy</Text>
-            </Pressable>
-          </View>
+          </FadeSlideIn>
         </ScrollView>
 
         {/* Address + slot ride above the button, like a real checkout. */}
