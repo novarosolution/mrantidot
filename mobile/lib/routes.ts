@@ -71,12 +71,13 @@ export const techRoutes = {
 export const sharedRoutes = {
   service: (id: string) => `/service/${id}` as const,
   browse: (type: string) => `/browse/${type}` as const,
-  book: (serviceId: string, extras?: { coupon?: string }) =>
+  book: (serviceId: string, extras?: { coupon?: string; option?: string }) =>
     ({
       pathname: '/book/[serviceId]',
       params: {
         serviceId,
         ...(extras?.coupon ? { coupon: extras.coupon } : {}),
+        ...(extras?.option ? { option: extras.option } : {}),
       },
     }) as const,
   bookPath: (serviceId: string) => `/book/${serviceId}` as const,

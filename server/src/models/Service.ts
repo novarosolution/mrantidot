@@ -3,6 +3,15 @@ import { SERVICE_TYPE_KEYS, type ServiceTypeKey } from '../constants/serviceType
 
 export type ServiceCategory = 'residential' | 'commercial' | 'cleaning' | 'general';
 
+/** One bookable size/package (e.g. "2 BHK") — when a service has options, the booking is priced from the picked one. */
+export interface IServiceOption {
+  key: string;
+  label: string;
+  price: number;
+  /** Short helper line under the label, e.g. "Up to 1,000 sq ft". */
+  note?: string;
+}
+
 export interface IService extends Document {
   name: string;
   iconKey: string;
@@ -20,9 +29,32 @@ export interface IService extends Document {
   showInPopular: boolean;
   /** Listed in the home "All services" section. */
   showOnHome: boolean;
+  /** Heading above the options picker, e.g. "Size of home". */
+  optionsTitle: string;
+  options: IServiceOption[];
+  /** Approx. visit length in minutes (0 = derive from steps). */
+  durationMins: number;
+  /** Short bullets shown on service rows. */
+  highlights: string[];
+  /** "What is included" — admin-written lines. */
+  included: string[];
+  /** "What is excluded?" */
+  excluded: string[];
+  /** "Please note" */
+  notes: string[];
   createdAt: Date;
   updatedAt: Date;
 }
+
+const optionSchema = new Schema<IServiceOption>(
+  {
+    key: { type: String, required: true, trim: true },
+    label: { type: String, required: true, trim: true },
+    price: { type: Number, required: true, min: 0 },
+    note: { type: String, trim: true },
+  },
+  { _id: false },
+);
 
 const serviceSchema = new Schema<IService>(
   {
@@ -46,6 +78,13 @@ const serviceSchema = new Schema<IService>(
     sortOrder: { type: Number, default: 1000 },
     showInPopular: { type: Boolean, default: false },
     showOnHome: { type: Boolean, default: true },
+    optionsTitle: { type: String, trim: true, default: 'Size of home' },
+    options: { type: [optionSchema], default: [] },
+    durationMins: { type: Number, min: 0, default: 0 },
+    highlights: { type: [String], default: [] },
+    included: { type: [String], default: [] },
+    excluded: { type: [String], default: [] },
+    notes: { type: [String], default: [] },
   },
   {
     timestamps: true,

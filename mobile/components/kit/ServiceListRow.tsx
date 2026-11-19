@@ -6,6 +6,7 @@ import { serviceDisplayRating } from '@/lib/ratings';
 import { formatRupeeFull } from '@/components/kit/format';
 import type { Service } from '@/types/api';
 import { colors, fonts, ui } from '@/constants/theme';
+import { serviceStartPrice } from '@/lib/serviceDisplay';
 
 const THUMB = 100;
 
@@ -14,7 +15,7 @@ export function servicePriceLabel(service: Service): string {
   if (service.basePrice <= 50 && (service.serviceTypes?.includes('bird') || service.serviceTypes?.includes('silo'))) {
     return `₹${service.basePrice} / sq ft`;
   }
-  return formatRupeeFull(service.basePrice);
+  return formatRupeeFull(serviceStartPrice(service));
 }
 
 /**
@@ -28,6 +29,7 @@ export function ServiceListRow({
   showDivider = true,
   priceLabel,
   badge,
+  detailed = false,
 }: {
   service: Service;
   onPress: () => void;
@@ -37,17 +39,20 @@ export function ServiceListRow({
   priceLabel?: string;
   /** Small label above the name, e.g. "Popular". */
   badge?: string;
+  /** Category-page style: admin highlights as bullets + a "View details" link. */
+  detailed?: boolean;
 }) {
   const rating = serviceDisplayRating(service);
   const reviews = service.stats?.reviewCount ?? 0;
   const desc = service.shortDesc?.trim();
+  const bullets = detailed ? (service.highlights ?? []).filter(Boolean).slice(0, 3) : [];
 
   return (
     <Pressable
       style={({ pressed }) => [styles.row, showDivider && styles.divider, pressed && styles.pressed]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${service.name}, ₹${service.basePrice}`}
+      accessibilityLabel={`${service.name}, starts at ₹${serviceStartPrice(service)}`}
     >
       <View style={styles.info}>
         {badge ? <Text style={styles.badge}>{badge}</Text> : null}
@@ -66,11 +71,23 @@ export function ServiceListRow({
           <Text style={styles.reviews}>{serviceDurationLabel(service)}</Text>
         </View>
         <Text style={styles.price}>Starts at {priceLabel ?? servicePriceLabel(service)}</Text>
-        {desc ? (
+        {bullets.length > 0 ? (
+          <View style={styles.bullets}>
+            {bullets.map((b) => (
+              <View key={b} style={styles.bulletRow}>
+                <Text style={styles.bulletDot}>•</Text>
+                <Text style={styles.bulletText} numberOfLines={2}>
+                  {b}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : desc ? (
           <Text style={styles.desc} numberOfLines={3}>
             {desc}
           </Text>
         ) : null}
+        {detailed ? <Text style={styles.viewDetails}>View details</Text> : null}
       </View>
 
       <View style={styles.media}>
@@ -102,6 +119,17 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.85 },
   info: { flex: 1, minWidth: 0 },
+  bullets: {
+    marginTop: 10,
+    paddingTop: 10,
+    gap: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: ui.border,
+  },
+  bulletRow: { flexDirection: 'row', gap: 6 },
+  bulletDot: { fontFamily: fonts.bodyBold, fontSize: 13, lineHeight: 18, color: ui.textTertiary },
+  bulletText: { flex: 1, fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: ui.textSecondary },
+  viewDetails: { marginTop: 10, fontFamily: fonts.bodyBold, fontSize: 13.5, color: ui.brand },
   badge: {
     marginBottom: 4,
     fontFamily: fonts.bodyBold,

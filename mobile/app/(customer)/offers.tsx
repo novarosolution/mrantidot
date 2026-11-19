@@ -19,6 +19,7 @@ import { CACHE_TTL } from '@/lib/apiCache';
 import type { Offer, Service } from '@/types/api';
 import { spacing, ui as themeUi } from '@/constants/theme';
 import { customerRoutes, sharedRoutes, appPush } from '@/lib/routes';
+import { serviceStartPrice } from '@/lib/serviceDisplay';
 
 export default function OffersScreen() {
   const { content, homePromo, homeConfig } = useAppContent();
@@ -89,7 +90,7 @@ export default function OffersScreen() {
     ? services.slice(0, 12).map((s) => ({
         key: s.id,
         label: s.name,
-        subtitle: `₹${s.basePrice}`,
+        subtitle: `From ₹${serviceStartPrice(s)}`,
         onPress: () => appPush(sharedRoutes.book(s.id, { coupon: pickFor.code })),
       }))
     : [];

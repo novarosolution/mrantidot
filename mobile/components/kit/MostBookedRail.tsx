@@ -7,6 +7,7 @@ import { Skeleton, useSkeletonPulse } from '@/components/ui/Skeleton';
 import { serviceDisplayRating } from '@/lib/ratings';
 import type { Service } from '@/types/api';
 import { colors, fonts, ui } from '@/constants/theme';
+import { serviceStartPrice } from '@/lib/serviceDisplay';
 
 const CARD_W = 168;
 const THUMB_H = 120;
@@ -21,7 +22,7 @@ function RailCard({ service: s, badge, onPress }: { service: Service; badge?: st
       style={styles.card}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${s.name}, ₹${s.basePrice}`}
+      accessibilityLabel={`${s.name}, ₹${serviceStartPrice(s)}`}
     >
       <View>
         <ServiceThumb service={s} width={CARD_W - 16} height={THUMB_H} radius={16} iconSize={54} />
@@ -43,7 +44,7 @@ function RailCard({ service: s, badge, onPress }: { service: Service; badge?: st
           </View>
         ) : null}
         <View style={styles.priceRow}>
-          <Text style={styles.price}>₹{s.basePrice}</Text>
+          <Text style={styles.price}>₹{serviceStartPrice(s)}</Text>
           <View style={styles.book}>
             <ArrowRight size={16} color={colors.white} strokeWidth={2.5} />
           </View>

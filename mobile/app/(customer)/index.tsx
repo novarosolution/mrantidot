@@ -37,6 +37,7 @@ import type { ServiceTypeKey } from '@/constants/serviceTypes';
 import { colors, fonts, ui } from '@/constants/theme';
 import { bookingDetailPath, customerRoutes, sharedRoutes, appPush } from '@/lib/routes';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
+import { serviceStartPrice } from '@/lib/serviceDisplay';
 
 const RAIL_LIMIT = 8;
 
@@ -266,7 +267,7 @@ export default function CustomerHome() {
         key: s.id,
         // The pest type is the kicker unless the service name already says it ("Bird Management").
         kicker: s.name.toLowerCase().includes(meta.label.toLowerCase()) ? copy.homeHeroKicker : meta.label,
-        title: `${s.name} from ${formatRupeeFull(s.basePrice)}`,
+        title: `${s.name} from ${formatRupeeFull(serviceStartPrice(s))}`,
         cta,
         art: meta.image,
         onPress: () => openService(s),

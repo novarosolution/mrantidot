@@ -6,6 +6,7 @@ import { AppError } from '../utils/AppError';
 import { asyncHandler } from '../middleware/error';
 import { isServiceTypeKey, normalizeServiceTypes, SERVICE_TYPE_KEYS } from '../constants/serviceTypes';
 import { formatService } from '../utils/format';
+import { pickServiceContent, serviceContentRules } from '../utils/serviceContent';
 import { getServiceStats, getStatsForServiceIds } from '../utils/service-stats';
 import { Review } from '../models/Review';
 import { Booking } from '../models/Booking';
@@ -167,11 +168,17 @@ servicesRouter.post(
   body('rating').optional().isFloat({ min: 0, max: 5 }),
   body('showInPopular').optional().isBoolean(),
   body('showOnHome').optional().isBoolean(),
+  ...serviceContentRules,
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
     // New services go to the end of the admin's order.
     const last = await Service.findOne().sort({ sortOrder: -1 }).select('sortOrder').lean();
-    const payload = { ...req.body, active: true, sortOrder: (last?.sortOrder ?? 0) + 10 };
+    const payload = {
+      ...req.body,
+      ...pickServiceContent(req.body),
+      active: true,
+      sortOrder: (last?.sortOrder ?? 0) + 10,
+    };
     if (req.body.serviceTypes !== undefined) {
       payload.serviceTypes = normalizeServiceTypes(req.body.serviceTypes);
     }
@@ -215,9 +222,10 @@ servicesRouter.patch(
   body('sortOrder').optional().isInt({ min: 0, max: 100000 }),
   body('showInPopular').optional().isBoolean(),
   body('showOnHome').optional().isBoolean(),
+  ...serviceContentRules,
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
-    const updates = { ...req.body };
+    const updates = { ...req.body, ...pickServiceContent(req.body) };
     if (req.body.serviceTypes !== undefined) {
       updates.serviceTypes = normalizeServiceTypes(req.body.serviceTypes);
     }

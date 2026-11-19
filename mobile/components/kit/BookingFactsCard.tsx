@@ -112,6 +112,9 @@ export function BookingFactsCard({
           }
         />
       ) : null}
+      {booking.option?.label ? (
+        <FactRow label="Package" value={`${booking.option.label} · ₹${booking.option.price.toLocaleString('en-IN')}`} />
+      ) : null}
       {booking.propertyType || booking.propertyTypeLabel ? (
         <FactRow
           label={bookingCopy.factLabelProperty}

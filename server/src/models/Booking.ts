@@ -95,6 +95,8 @@ export interface IBooking extends Document {
   schedule: IBookingSchedule;
   scheduleConfirmedAt?: Date;
   propertyType?: PropertyTypeKey;
+  /** Size/package the customer picked — label and price locked at booking time. */
+  option?: { key: string; label: string; price: number };
   address: string;
   amount: {
     base: number;
@@ -227,6 +229,10 @@ const bookingSchema = new Schema<IBooking>(
     schedule: { type: scheduleSchema, required: true },
     scheduleConfirmedAt: { type: Date },
     propertyType: { type: String, enum: PROPERTY_TYPE_KEYS },
+    option: {
+      type: new Schema({ key: String, label: String, price: Number }, { _id: false }),
+      required: false,
+    },
     address: { type: String, required: true },
     amount: { type: amountSchema, required: true },
     technicianEarning: { type: Number, min: 0 },

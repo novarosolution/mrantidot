@@ -62,6 +62,14 @@ export interface User {
   createdAt?: string;
 }
 
+/** A bookable size/package — sized services are priced from the picked option. */
+export interface ServiceOption {
+  key: string;
+  label: string;
+  price: number;
+  note?: string;
+}
+
 export interface Service {
   id: string;
   name: string;
@@ -81,6 +89,16 @@ export interface Service {
   createdAt?: string;
   stepTemplate?: string[];
   stats?: ServiceStats;
+  /** Heading above the size picker, e.g. "Size of home". */
+  optionsTitle?: string;
+  options?: ServiceOption[];
+  /** Approx. visit length in minutes (0/absent = derive from steps). */
+  durationMins?: number;
+  /** Admin-written detail content — empty lists hide their section. */
+  highlights?: string[];
+  included?: string[];
+  excluded?: string[];
+  notes?: string[];
 }
 
 export interface HomePromo {
@@ -679,6 +697,8 @@ export interface Booking {
   scheduleConfirmedAt?: string;
   propertyType?: PropertyTypeKey;
   propertyTypeLabel?: string;
+  /** Size/package picked at booking — label and price locked then. */
+  option?: { key: string; label: string; price: number };
   address: string;
   amount: BookingAmount;
   paymentMethod: string;

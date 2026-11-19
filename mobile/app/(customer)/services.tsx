@@ -38,6 +38,7 @@ import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import type { Service, ServiceStats } from '@/types/api';
 import { colors, fonts, ui } from '@/constants/theme';
 import { sharedRoutes, appPush } from '@/lib/routes';
+import { serviceStartPrice } from '@/lib/serviceDisplay';
 
 type SortKey = 'popular' | 'rating' | 'price';
 
@@ -144,7 +145,7 @@ export default function ServicesListScreen() {
       filtered = filtered.filter((s) => s.serviceTypes?.includes(serviceType));
     }
     return [...filtered].sort((a, b) => {
-      if (sort === 'price') return a.basePrice - b.basePrice;
+      if (sort === 'price') return serviceStartPrice(a) - serviceStartPrice(b);
       if (sort === 'rating') return serviceDisplayRating(b) - serviceDisplayRating(a);
       return (statsMap[b.id]?.bookingCount ?? 0) - (statsMap[a.id]?.bookingCount ?? 0);
     });

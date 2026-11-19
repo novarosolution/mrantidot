@@ -8,6 +8,7 @@ import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import type { ServiceTypeKey } from '@/constants/serviceTypes';
 import type { Service } from '@/types/api';
 import { colors, fonts, ui } from '@/constants/theme';
+import { serviceStartPrice } from '@/lib/serviceDisplay';
 
 function metaFor(s: Service) {
   const key = (s.serviceTypes?.[0] ?? 'general') as ServiceTypeKey;
@@ -53,7 +54,7 @@ export function SpotlightCarousel({
               scaleTo={0.98}
               onPress={() => onOpen(s)}
               accessibilityRole="button"
-              accessibilityLabel={`${s.name}, starts at ₹${s.basePrice}`}
+              accessibilityLabel={`${s.name}, starts at ₹${serviceStartPrice(s)}`}
             >
               <View style={styles.spotDisc} pointerEvents="none" />
               <Image source={meta.image} style={styles.spotArt} resizeMode="contain" />
@@ -63,7 +64,7 @@ export function SpotlightCarousel({
                   {s.name}
                 </Text>
                 <Text style={styles.spotPrice}>
-                  Starts at <Text style={styles.spotPriceBold}>{formatRupeeFull(s.basePrice)}</Text>
+                  Starts at <Text style={styles.spotPriceBold}>{formatRupeeFull(serviceStartPrice(s))}</Text>
                 </Text>
                 <PressableScale
                   containerStyle={styles.spotCtaWrap}
@@ -201,7 +202,7 @@ export function FeatureBanner({
       scaleTo={0.985}
       onPress={() => onOpen(service)}
       accessibilityRole="button"
-      accessibilityLabel={`${service.name}, starts at ₹${service.basePrice}`}
+      accessibilityLabel={`${service.name}, starts at ₹${serviceStartPrice(service)}`}
     >
       <LinearGradient colors={['#F6F1E7', meta.bg, '#E4EFE6']} style={StyleSheet.absoluteFill} />
       <View style={styles.featBeam} pointerEvents="none" />
@@ -225,7 +226,7 @@ export function FeatureBanner({
       >
         <View style={styles.featBarText}>
           <Text style={styles.featBarName}>Starts at</Text>
-          <Text style={styles.featBarPrice}>{formatRupeeFull(service.basePrice)}</Text>
+          <Text style={styles.featBarPrice}>{formatRupeeFull(serviceStartPrice(service))}</Text>
         </View>
         <PressableScale
           style={styles.featCta}

@@ -273,6 +273,8 @@ export function formatBooking(booking: IBooking & { populate?: unknown }) {
     propertyTypeLabel: doc.propertyType
       ? PROPERTY_TYPE_LABELS[doc.propertyType as keyof typeof PROPERTY_TYPE_LABELS]
       : undefined,
+    // Size/package picked at booking (label + price locked then).
+    option: doc.option?.label ? { key: doc.option.key, label: doc.option.label, price: doc.option.price } : undefined,
     address: doc.address,
     amount: doc.amount,
     technicianEarning:

@@ -14,6 +14,7 @@ import { errorHandler } from './middleware/error';
 import { apiRouter } from './routes';
 import { runSeedDatabase } from './seed/seed';
 import { getAdminConfig, upsertAdminUser } from './utils/adminUser';
+import { backfillServiceContent } from './utils/backfillServiceContent';
 
 function ensureUploadDir(): void {
   if (!fs.existsSync(env.uploadDir)) {
@@ -47,6 +48,12 @@ async function main(): Promise<void> {
       '[db] In-memory MongoDB is empty. Set MONGO_URI to your Atlas/local DB in server/.env, ' +
         'or set SEED_ON_START=true only if you intentionally want demo data.',
     );
+  }
+
+  try {
+    await backfillServiceContent();
+  } catch (err) {
+    console.error('[services] Starter content backfill failed:', err);
   }
 
   if (env.ensureAdminOnStartup && !seedOnStart) {

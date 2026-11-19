@@ -118,6 +118,7 @@ bookingsRouter.post(
   body('propertyType').trim().notEmpty(),
   body('paymentMethod').optional().isIn(['upi_card', 'pay_after']),
   body('couponCode').optional().trim(),
+  body('optionKey').optional().isString().trim().isLength({ max: 40 }),
   body('problemPhotos').optional().isArray(),
   body('technicianId').optional().isMongoId(),
   body('assignmentMode').optional().isIn(['auto', 'customer_pick']),
@@ -147,7 +148,17 @@ bookingsRouter.post(
       req.body.addressId,
       req.body.address,
     );
-    const amount = await computeAmount(service.basePrice, req.body.couponCode);
+    // Sized services are priced from the picked option — never from a price the client sends.
+    const options = service.options ?? [];
+    let option: { key: string; label: string; price: number } | undefined;
+    if (options.length > 0) {
+      const picked = options.find((o) => o.key === req.body.optionKey);
+      if (!picked) {
+        throw new AppError(400, `Select ${service.optionsTitle?.toLowerCase() || 'a size'} for this service`);
+      }
+      option = { key: picked.key, label: picked.label, price: picked.price };
+    }
+    const amount = await computeAmount(option?.price ?? service.basePrice, req.body.couponCode);
     const steps = initServiceSteps(service);
     const { assignmentMode } = await resolveTechnicianForBooking({
       assignmentMode: 'auto',
@@ -168,6 +179,7 @@ bookingsRouter.post(
         scheduleRequest,
         schedule,
         propertyType: req.body.propertyType,
+        option,
         address,
         amount,
         paymentMethod: req.body.paymentMethod ?? 'upi_card',

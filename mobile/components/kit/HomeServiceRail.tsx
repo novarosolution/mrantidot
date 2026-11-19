@@ -8,6 +8,7 @@ import { formatRupeeFull } from '@/components/kit/format';
 import { serviceDisplayRating } from '@/lib/ratings';
 import type { Service } from '@/types/api';
 import { colors, fonts, ui } from '@/constants/theme';
+import { formatDuration, serviceDurationMins, serviceStartPrice } from '@/lib/serviceDisplay';
 
 export const SHOWCASE_W = 152;
 const GAP = 16;
@@ -20,8 +21,7 @@ function compactCount(n: number): string {
 
 /** Same estimate as the service page: ~15 min per treatment step, 30 min minimum. */
 export function serviceDurationLabel(s: Service): string {
-  const steps = s.stepTemplate?.length ?? 0;
-  return steps > 0 ? `${Math.max(30, steps * 15)} MINS` : '60 MINS';
+  return formatDuration(serviceDurationMins(s)).toUpperCase();
 }
 
 /** White "Add" button — rides the bottom-right corner of the service art. */
@@ -67,7 +67,7 @@ export const ServiceShowcaseCard = memo(function ServiceShowcaseCard({
       scaleTo={0.97}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${s.name}, starts at ₹${s.basePrice}`}
+      accessibilityLabel={`${s.name}, starts at ₹${serviceStartPrice(s)}`}
     >
       <View>
         <ServiceThumb service={s} width={width} height={width} radius={16} iconSize={64} />
@@ -90,7 +90,7 @@ export const ServiceShowcaseCard = memo(function ServiceShowcaseCard({
         </Text>
       </View>
       <Text style={styles.from}>Starts at</Text>
-      <Text style={styles.price}>{formatRupeeFull(s.basePrice)}</Text>
+      <Text style={styles.price}>{formatRupeeFull(serviceStartPrice(s))}</Text>
     </PressableScale>
   );
 });
@@ -108,7 +108,7 @@ function ServiceWideCard({ service: s, onPress, onAdd }: { service: Service; onP
       scaleTo={0.98}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${s.name}, starts at ₹${s.basePrice}`}
+      accessibilityLabel={`${s.name}, starts at ₹${serviceStartPrice(s)}`}
     >
       <View style={styles.wide}>
         <View>
@@ -127,7 +127,7 @@ function ServiceWideCard({ service: s, onPress, onAdd }: { service: Service; onP
             </Text>
           </View>
           <Text style={styles.from}>Starts at</Text>
-          <Text style={styles.price}>{formatRupeeFull(s.basePrice)}</Text>
+          <Text style={styles.price}>{formatRupeeFull(serviceStartPrice(s))}</Text>
         </View>
       </View>
     </PressableScale>

@@ -32,6 +32,10 @@ export const PROPERTY_TYPE_GROUPS: { title: string; keys: PropertyTypeKey[] }[] 
   { title: 'Commercial', keys: ['office', 'cafe_restaurant', 'hotel', 'warehouse', 'factory'] },
 ];
 
+export function isPropertyTypeKey(key: string): key is PropertyTypeKey {
+  return (PROPERTY_TYPE_KEYS as readonly string[]).includes(key);
+}
+
 export function propertyTypeLabel(key: string): string {
   return PROPERTY_TYPE_LABELS[key as PropertyTypeKey] ?? key.replace(/_/g, ' ');
 }
