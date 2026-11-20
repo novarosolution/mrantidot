@@ -8,6 +8,8 @@ import { colors, fonts, typography, ui } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { isProfileIncomplete } from '@/lib/profile-display';
 import { appHref, authRoutes, customerRoutes, homeRouteForRole } from '@/lib/routes';
+import { Platform } from 'react-native';
+import { WebAdminRedirect } from '@/components/admin/WebAdminRedirect';
 
 const Tab = AppIcons.customerTab;
 
@@ -28,7 +30,7 @@ const INCOMPLETE_PROFILE_ALLOWED = new Set([
   'services',
 ]);
 
-export default function CustomerLayout() {
+function CustomerLayout() {
   const { user, isLoading } = useAuth();
   const segments = useSegments();
   const tabBarStyle = useDockTabBarStyle();
@@ -86,3 +88,6 @@ export default function CustomerLayout() {
     </Tabs>
   );
 }
+
+/** The web build is the admin panel only — these screens redirect to the admin app or sign-in there. */
+export default Platform.OS === 'web' ? WebAdminRedirect : CustomerLayout;

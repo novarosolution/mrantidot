@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { Platform } from 'react-native';
 import {
   fetchLaunchLocation,
   getCachedAppLocation,
@@ -71,7 +72,8 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       if (cachedLoc) setLocationState(cachedLoc);
       setLoaded(true);
       // Always pull a fresh GPS fix after cache paint so chips show the real place.
-      if (!autoRefreshDone.current) {
+      // Not on web: the admin panel has no location chips, and a browser permission prompt on open is noise.
+      if (!autoRefreshDone.current && Platform.OS !== 'web') {
         autoRefreshDone.current = true;
         void refreshLocation({ silent: true });
       }

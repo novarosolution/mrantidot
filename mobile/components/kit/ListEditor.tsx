@@ -1,10 +1,11 @@
 import { memo, useCallback, useRef, useState, type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react-native';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChevronDown, Plus, Trash2 } from 'lucide-react-native';
 import { animateNextLayout, moveItem, ReorderButtons } from '@/components/kit/ReorderButtons';
 import { haptic } from '@/lib/motion';
 import { adminType, colors, fonts, spacing, ui } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
 
 /** React-style setter: the editor always edits from the latest list (no lost keystrokes). */
 export type ListSetter<T> = (updater: (prev: T[]) => T[]) => void;
@@ -159,19 +160,18 @@ function ListEditorInner<T extends object>({
 
   const onRemove = useCallback(
     (index: number, label: string) => {
-      Alert.alert('Remove this item?', label ? `“${label}” will be removed when you save.` : undefined, [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => {
-            haptic('warning');
-            animateNextLayout();
-            ids.current = ids.current.filter((_, i) => i !== index);
-            setItems((prev) => prev.filter((_, i) => i !== index));
-          },
-        },
-      ]);
+      void confirmAsync({
+        title: 'Remove this item?',
+        message: label ? `“${label}” will be removed when you save.` : undefined,
+        confirmLabel: 'Remove',
+        destructive: true,
+      }).then((ok) => {
+        if (!ok) return;
+        haptic('warning');
+        animateNextLayout();
+        ids.current = ids.current.filter((_, i) => i !== index);
+        setItems((prev) => prev.filter((_, i) => i !== index));
+      });
     },
     [setItems],
   );

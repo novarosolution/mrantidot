@@ -1,7 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -36,6 +35,8 @@ import { useReorderMode } from '@/lib/useReorderMode';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { GalleryItem, WebsiteImage } from '@/types/api';
 import { adminType, colors, fonts, spacing, ui } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
+import { adminContentWidth } from '@/lib/webAdmin';
 
 const GAP = 10;
 
@@ -169,26 +170,23 @@ function GallerySheet({
   const remove = () => {
     if (state?.mode !== 'edit') return;
     const id = state.item.id;
-    Alert.alert('Delete this photo?', 'It will be removed from the website gallery.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await api.delete(`/website/admin/gallery/${id}`, { skipErrorToast: true });
-              haptic('success');
-              Toast.show({ type: 'success', text1: 'Photo deleted' });
-              onDeleted(id);
-            } catch (err) {
-              haptic('error');
-              Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not delete the photo') });
-            }
-          })();
-        },
-      },
-    ]);
+    void confirmAsync({
+      title: 'Delete this photo?',
+      message: 'It will be removed from the website gallery.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    }).then(async (ok) => {
+      if (!ok) return;
+      try {
+        await api.delete(`/website/admin/gallery/${id}`, { skipErrorToast: true });
+        haptic('success');
+        Toast.show({ type: 'success', text1: 'Photo deleted' });
+        onDeleted(id);
+      } catch (err) {
+        haptic('error');
+        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not delete the photo') });
+      }
+    });
   };
 
   return (
@@ -248,7 +246,7 @@ function GallerySheet({
 /* ---------- screen ---------- */
 
 export default function WebsiteGalleryScreen() {
-  const { width } = useWindowDimensions();
+  const width = adminContentWidth(useWindowDimensions().width);
   const cols = width >= 700 ? 3 : 2;
   const tileWidth = Math.floor((width - spacing.md * 2 - GAP * (cols - 1)) / cols);
 

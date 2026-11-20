@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { adminGoBack, adminRoutes } from '@/lib/routes';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Plus, X } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { AdminFormCard, AdminFilterChips } from '@/components/kit/AdminPageKit';
@@ -22,6 +22,7 @@ import { serviceRealRating } from '@/lib/ratings';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { ServiceCategory, ServiceOption, ServiceStats, ServiceTypeKey, WebsiteImage } from '@/types/api';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
 
 const CATEGORIES: { key: ServiceCategory; label: string }[] = [
   { key: 'residential', label: 'Residential' },
@@ -185,26 +186,23 @@ export default function ServiceEditScreen() {
 
   function remove() {
     if (!id) return;
-    Alert.alert('Deactivate service?', 'Customers will no longer see this service.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Deactivate',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await api.delete(`/services/${id}`);
-              haptic('success');
-              Toast.show({ type: 'success', text1: 'Service deactivated' });
-              adminGoBack(adminRoutes.services);
-            } catch {
-              haptic('error');
-              Toast.show({ type: 'error', text1: 'Could not deactivate service' });
-            }
-          })();
-        },
-      },
-    ]);
+    void confirmAsync({
+      title: 'Deactivate service?',
+      message: 'Customers will no longer see this service.',
+      confirmLabel: 'Deactivate',
+      destructive: true,
+    }).then(async (ok) => {
+      if (!ok) return;
+      try {
+        await api.delete(`/services/${id}`);
+        haptic('success');
+        Toast.show({ type: 'success', text1: 'Service deactivated' });
+        adminGoBack(adminRoutes.services);
+      } catch {
+        haptic('error');
+        Toast.show({ type: 'error', text1: 'Could not deactivate service' });
+      }
+    });
   }
 
   if (id && loading) {

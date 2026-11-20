@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { adminGoBack, adminRoutes } from '@/lib/routes';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AdminFormCard, AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
@@ -20,6 +20,7 @@ import { paramString } from '@/lib/routeParams';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { User, UserRole } from '@/types/api';
 import { colors, fonts, spacing } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
 
 const ROLES: { key: UserRole; label: string }[] = [
   { key: 'customer', label: 'Customer' },
@@ -179,26 +180,23 @@ export default function UserEditScreen() {
 
   function disableAccount() {
     if (!id || roleLocked) return;
-    Alert.alert('Disable account?', 'They will not be able to sign in.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Disable',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await api.delete(`/admin/users/${id}`);
-              haptic('success');
-              Toast.show({ type: 'success', text1: 'Account disabled' });
-              adminGoBack(returnTo);
-            } catch (err) {
-              haptic('error');
-              Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not disable account') });
-            }
-          })();
-        },
-      },
-    ]);
+    void confirmAsync({
+      title: 'Disable account?',
+      message: 'They will not be able to sign in.',
+      confirmLabel: 'Disable',
+      destructive: true,
+    }).then(async (ok) => {
+      if (!ok) return;
+      try {
+        await api.delete(`/admin/users/${id}`);
+        haptic('success');
+        Toast.show({ type: 'success', text1: 'Account disabled' });
+        adminGoBack(returnTo);
+      } catch (err) {
+        haptic('error');
+        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not disable account') });
+      }
+    });
   }
 
   const title = id ? 'Edit user' : `Add ${role}`;

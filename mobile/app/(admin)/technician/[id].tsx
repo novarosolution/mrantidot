@@ -1,8 +1,8 @@
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
-  Alert,
   Linking,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -21,6 +21,8 @@ import {
 import { AdminProfileSkeleton } from '@/components/kit/AdminSkeletons';
 import { JobVisitCard } from '@/components/kit/JobVisitCard';
 import { MetricDetailSheet } from '@/components/kit/MetricDetailSheet';
+import { AdminActionSheet } from '@/components/kit/AdminActionSheet';
+import { chooseAsync } from '@/lib/confirm';
 import { TechnicianAnalyticsTab } from '@/components/kit/TechnicianAnalyticsTab';
 import { TechnicianDayCalendar } from '@/components/kit/TechnicianDayCalendar';
 import {
@@ -98,6 +100,8 @@ export default function AdminTechnicianDetailScreen() {
   const [viewMode, setViewMode] = useState<TechnicianViewMode>('calendar');
   const [month, setMonth] = useState(() => localDateKey().slice(0, 7));
   const [listStatusFilter, setListStatusFilter] = useState<string | null>(null);
+  /** Web only — the day whose attendance sheet is open (browsers have no multi-button alert). */
+  const [attendanceDate, setAttendanceDate] = useState<string | null>(null);
   const [metricSheet, setMetricSheet] = useState<MetricSheetState>({
     visible: false,
     key: 'active',
@@ -150,35 +154,34 @@ export default function AdminTechnicianDetailScreen() {
     }
   }
 
+  function setAttendance(date: string, status: 'present' | 'absent') {
+    if (!id) return;
+    void api
+      .put(`/admin/technicians/${id}/attendance/${date}`, { status })
+      .then(() => {
+        haptic('success');
+        Toast.show({ type: 'success', text1: status === 'present' ? 'Marked as came' : 'Marked as absent' });
+        return load();
+      })
+      .catch(() => haptic('error'));
+  }
+
   function overrideAttendance(date: string) {
     if (!id) return;
-    Alert.alert('Update attendance', date, [
-      {
-        text: 'Mark came',
-        onPress: () =>
-          void api
-            .put(`/admin/technicians/${id}/attendance/${date}`, { status: 'present' })
-            .then(() => {
-              haptic('success');
-              Toast.show({ type: 'success', text1: 'Marked as came' });
-              return load();
-            })
-            .catch(() => haptic('error')),
-      },
-      {
-        text: 'Absent',
-        onPress: () =>
-          void api
-            .put(`/admin/technicians/${id}/attendance/${date}`, { status: 'absent' })
-            .then(() => {
-              haptic('success');
-              Toast.show({ type: 'success', text1: 'Marked as absent' });
-              return load();
-            })
-            .catch(() => haptic('error')),
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    if (Platform.OS === 'web') {
+      setAttendanceDate(date);
+      return;
+    }
+    void chooseAsync({
+      title: 'Update attendance',
+      message: date,
+      options: [
+        { label: 'Mark came', value: 'present' },
+        { label: 'Absent', value: 'absent' },
+      ],
+    }).then((status) => {
+      if (status) setAttendance(date, status);
+    });
   }
 
   function handleViewModeChange(mode: TechnicianViewMode) {
@@ -265,6 +268,20 @@ export default function AdminTechnicianDetailScreen() {
     />
   );
 
+  const attendanceSheetEl =
+    Platform.OS === 'web' ? (
+      <AdminActionSheet
+        visible={attendanceDate != null}
+        title="Update attendance"
+        message={attendanceDate ?? undefined}
+        onClose={() => setAttendanceDate(null)}
+        options={[
+          { key: 'present', label: 'Mark came', onPress: () => attendanceDate && setAttendance(attendanceDate, 'present') },
+          { key: 'absent', label: 'Absent', onPress: () => attendanceDate && setAttendance(attendanceDate, 'absent') },
+        ]}
+      />
+    ) : null;
+
   const reviewsBlock =
     reviews.length > 0 ? (
       <AdminEntrance index={3} play={firstPaint(3)}>
@@ -311,6 +328,7 @@ export default function AdminTechnicianDetailScreen() {
           </ScrollView>
         </AdminListShell>
         {metricSheetEl}
+        {attendanceSheetEl}
       </>
     );
   }
@@ -349,6 +367,7 @@ export default function AdminTechnicianDetailScreen() {
           </ScrollView>
         </AdminListShell>
         {metricSheetEl}
+        {attendanceSheetEl}
       </>
     );
   }
@@ -413,6 +432,7 @@ export default function AdminTechnicianDetailScreen() {
         />
       </AdminListShell>
       {metricSheetEl}
+      {attendanceSheetEl}
     </>
   );
 }

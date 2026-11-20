@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { AdminEntrance, AdminListShell, adminListShellStyles, useListEntrance } from '@/components/kit/AdminListShell';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
 import { AdminFilterChips, AdminStatStrip } from '@/components/kit/AdminPageKit';
@@ -17,6 +17,7 @@ import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import type { Offer } from '@/types/api';
 import { colors, spacing } from '@/constants/theme';
 import { adminRoutes, appPush } from '@/lib/routes';
+import { notify } from '@/lib/confirm';
 
 type OfferFilter = 'all' | 'active' | 'inactive' | 'expired';
 
@@ -73,7 +74,7 @@ export default function AdminOffersScreen() {
     } catch {
       setOffers((prev) => prev.map((x) => (x.id === o.id ? { ...x, active: o.active } : x)));
       haptic('error');
-      Alert.alert('Error', 'Could not update offer');
+      notify('Error', 'Could not update offer');
     }
   }, []);
 

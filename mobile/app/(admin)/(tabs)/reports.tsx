@@ -1,6 +1,6 @@
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, RefreshControl, Share, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { StatusPipelineCard } from '@/components/kit/StatusPipelineCard';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
@@ -35,6 +35,7 @@ import { useUnreadNotifications } from '@/lib/useUnreadNotifications';
 import { userInitial } from '@/lib/userInitials';
 import type { AdminStats, TeamAttendanceStats } from '@/types/api';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { shareTextFile } from '@/lib/shareFile';
 
 const PERIODS = ['Week', 'Month', 'Quarter', 'Year'];
 
@@ -102,7 +103,12 @@ export default function AdminReportsScreen() {
       ...(a?.topTechnicians ?? []).map((t, i) => `  ${i + 1}. ${t.name} — ${t.jobs} jobs, ${formatRupee(t.revenue)}`),
     ];
     try {
-      await Share.share({ message: lines.join('\n'), title: `Mr Antidot report (${period})` });
+      await shareTextFile({
+        filename: `mrantidot-report-${period}-${new Date().toISOString().slice(0, 10)}.txt`,
+        title: `Mr Antidot report (${period})`,
+        mimeType: 'text/plain',
+        content: lines.join('\n'),
+      });
     } catch {
       Toast.show({ type: 'error', text1: 'Could not share report' });
     }

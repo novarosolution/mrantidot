@@ -48,7 +48,41 @@ function fromMetroHost(): string | undefined {
   return `http://${host}:${port}`;
 }
 
+function httpUrlOrUndefined(url: string | undefined | null): string | undefined {
+  const trimmed = url?.trim();
+  if (!trimmed) return undefined;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? stripSlash(trimmed) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Web admin panel (Expo web export):
+ * - dev (`expo start --web`): the local server on EXPO_PUBLIC_API_PORT (4001), or EXPO_PUBLIC_API_URL
+ *   when EXPO_PUBLIC_API_URL_FORCE=true — same rule as native dev builds;
+ * - production: EXPO_PUBLIC_API_URL when it was set to something other than the plain-HTTP live API
+ *   (app.config.js always injects that one for native builds, and an HTTPS page cannot call it), else
+ *   the page's own origin, so `/api/…` and `/uploads/…` go through the hosting rewrite (vercel.json).
+ */
+function resolveWebApiUrl(): string {
+  const fromEnv = httpUrlOrUndefined(process.env.EXPO_PUBLIC_API_URL);
+  if (__DEV__) {
+    if (process.env.EXPO_PUBLIC_API_URL_FORCE === 'true' && fromEnv) return fromEnv;
+    return `http://localhost:${process.env.EXPO_PUBLIC_API_PORT || '4001'}`;
+  }
+  if (fromEnv && fromEnv !== LIVE_API_URL) return fromEnv;
+  if (typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null') {
+    return stripSlash(window.location.origin);
+  }
+  return LIVE_API_URL;
+}
+
 function resolveApiUrl(): string {
+  if (Platform.OS === 'web') return resolveWebApiUrl();
+
   if (__DEV__ && process.env.EXPO_PUBLIC_API_URL_FORCE !== 'true') {
     const fromMetro = fromMetroHost();
     if (fromMetro) return fromMetro;

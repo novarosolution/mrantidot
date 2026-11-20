@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { AdminEntrance, AdminListShell, adminListShellStyles, useListEntrance } from '@/components/kit/AdminListShell';
 import { AdminFilterChips, AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { AdminListSkeleton } from '@/components/kit/AdminSkeletons';
@@ -17,6 +17,7 @@ import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import type { AdminReview } from '@/types/api';
 import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
 import { adminRoutes, appPush } from '@/lib/routes';
+import { notify } from '@/lib/confirm';
 
 type ReviewFilter = 'all' | 'visible' | 'hidden';
 
@@ -66,7 +67,7 @@ export default function AdminReviewsScreen() {
     } catch {
       setReviews((prev) => prev.map((x) => (x.id === r.id ? { ...x, hidden: r.hidden } : x)));
       haptic('error');
-      Alert.alert('Error', 'Could not update review');
+      notify('Error', 'Could not update review');
     } finally {
       setBusyId(null);
     }

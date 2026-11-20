@@ -1,7 +1,9 @@
 import { AppContent, DEFAULT_CUSTOMER_UI_COPY } from '../models/AppContent';
 import {
   WEBSITE_ICON_KEYS,
+  WEBSITE_PAGE_HEADER_KEYS,
   WebsiteContent,
+  type IWebsiteClient,
   type IWebsiteContent,
   type IWebsiteImage,
   type IWebsiteSection,
@@ -9,21 +11,25 @@ import {
 import { AppError } from './AppError';
 
 /** Sections each page can show, in their default order. The website has one component per key. */
-export const HOME_SECTIONS = ['hero', 'offers', 'services', 'why', 'process', 'sectors', 'mission', 'reviews', 'team', 'blog', 'faq', 'app', 'cta'] as const;
+export const HOME_SECTIONS = [
+  'hero', 'clients', 'offers', 'services', 'work', 'why', 'process', 'sectors', 'mission', 'reviews', 'team', 'blog', 'faq', 'app', 'cta',
+] as const;
 export const ABOUT_SECTIONS = ['intro', 'stats', 'mission', 'science', 'why', 'team', 'faq', 'cta'] as const;
 
 /** Sections that show a list of items get an admin-set item count. */
-const DEFAULT_LIMITS: Record<string, number> = { offers: 3, services: 8, reviews: 6, team: 4, blog: 3 };
+const DEFAULT_LIMITS: Record<string, number> = { offers: 3, services: 8, work: 8, reviews: 6, team: 4, blog: 3 };
 const MAX_LIMIT = 24;
 
 export const SEO_PAGES = ['home', 'services', 'about', 'blog', 'gallery', 'team', 'contact'] as const;
 
-const LIST_CAPS = { stats: 8, why: 8, steps: 8, sectors: 16, science: 8, aboutPoints: 12, heroChips: 8, whyImages: 2 };
+const LIST_CAPS = { stats: 8, why: 8, steps: 8, sectors: 16, science: 8, aboutPoints: 12, heroChips: 8, whyImages: 2, heroSlides: 6, clients: 24 };
+
+type PageHeaders = Record<(typeof WEBSITE_PAGE_HEADER_KEYS)[number], IWebsiteImage>;
 
 export type WebsiteView = {
   pages: { home: IWebsiteSection[]; about: IWebsiteSection[] };
-  images: IWebsiteContent['images'];
-  lists: IWebsiteContent['lists'];
+  images: Omit<IWebsiteContent['images'], 'heroSlides' | 'pageHeaders'> & { heroSlides: IWebsiteImage[]; pageHeaders: PageHeaders };
+  lists: Omit<IWebsiteContent['lists'], 'clients'> & { clients: IWebsiteClient[] };
   social: IWebsiteContent['social'];
   seo: Record<string, { title: string; description: string }>;
   announcement: IWebsiteContent['announcement'];
@@ -84,9 +90,14 @@ export function normalizeSections(saved: unknown, registry: readonly string[]): 
     seen.add(key);
     out.push(section(key, s.visible !== false, s.limit));
   }
-  for (const key of registry) {
-    if (!seen.has(key)) out.push(section(key, true, undefined));
-  }
+  // Keys added in code later go right after their registry neighbour, not at the very end.
+  registry.forEach((key, i) => {
+    if (seen.has(key)) return;
+    seen.add(key);
+    const prev = registry.slice(0, i).reverse().find((k) => out.some((s) => s.key === k));
+    const at = prev ? out.findIndex((s) => s.key === prev) + 1 : 0;
+    out.splice(at, 0, section(key, true, undefined));
+  });
   return out;
 }
 
@@ -159,19 +170,48 @@ const WHY_ICONS = ['badge', 'leaf', 'wind', 'shield'];
 const STEP_ICONS = ['microscope', 'clipboard', 'spray', 'repeat'];
 const SECTOR_ICONS = ['heart', 'hotel', 'users', 'building', 'pill', 'shopping', 'school', 'warehouse'];
 
+/* Real job photos bundled with the website (public/frontend/images); every one is replaceable in the app. */
+const G = (n: number) => `/frontend/images/gallery/image-${n}.jpg`;
+
+const STOCK = (name: string) => `/frontend/images/stock/${name}.jpg`;
+
+export const DEFAULT_HERO_SLIDES: IWebsiteImage[] = [
+  { url: G(7), alt: 'Mr Antidot technician fogging a building' },
+  { url: STOCK('family-home'), alt: 'Family relaxing at home on the sofa' },
+  { url: G(5), alt: 'Technician treating a restaurant dining room' },
+  { url: STOCK('living-room'), alt: 'Bright, clean living room' },
+  { url: G(4), alt: 'Technician treating a commercial kitchen' },
+];
+
+export const DEFAULT_PAGE_HEADERS: PageHeaders = {
+  services: { url: STOCK('restaurant-kitchen'), alt: 'Clean restaurant kitchen' },
+  about: { url: G(15), alt: 'Office lobby after a Mr Antidot treatment' },
+  blog: { url: STOCK('home-interior'), alt: 'Warm, tidy living room' },
+  gallery: { url: G(6), alt: 'Technician treating a warehouse' },
+  team: { url: STOCK('office'), alt: 'Bright open-plan office' },
+  contact: { url: G(14), alt: 'Technician cleaning a home' },
+};
+
+export const DEFAULT_CLIENTS: IWebsiteClient[] = [
+  'Tea Post', 'Subway', 'Gallops Food Plaza', 'TGB Cafe n Bakery', 'Hocco Ice Cream',
+  "Papa Louie's Pizza", "La Pino'z Pizza", 'Grill Kitchen', 'Pep House', 'The Latin House',
+].map((name, i) => ({ name, logo: `/frontend/images/our-partner/${i + 1}.png` }));
+
 export function websiteDefaults(copy: Record<string, string>): Omit<IWebsiteContent, 'key' | 'createdAt' | 'updatedAt'> {
   const n = [1, 2, 3, 4];
   return {
     pages: { home: normalizeSections([], HOME_SECTIONS), about: normalizeSections([], ABOUT_SECTIONS) },
     images: {
-      hero: { url: '/frontend/images/about-us-image-1-prime.jpg', alt: 'Mr Antidot technician spraying a garden' },
-      about: { url: '/frontend/images/about-us-image-1.jpg', alt: 'Mr Antidot pest control treatment' },
+      hero: DEFAULT_HERO_SLIDES[0]!,
+      about: { url: G(3), alt: 'Mr Antidot technician treating an office' },
       why: [
-        { url: '/frontend/images/why-choose-us-img-1-prime.png', alt: 'Technician treating a home' },
-        { url: '/frontend/images/why-choose-us-img-2-prime.png', alt: 'Technician treating a restaurant' },
+        { url: G(9), alt: 'Technician treating a home kitchen' },
+        { url: G(8), alt: 'Technician treating an office cabin' },
       ],
       og: { url: '/frontend/logo.png', alt: 'Mr Antidot' },
       pageHeader: { url: '', alt: '' },
+      heroSlides: DEFAULT_HERO_SLIDES,
+      pageHeaders: DEFAULT_PAGE_HEADERS,
     },
     lists: {
       stats: n.map((i) => ({ value: copy[`webStat${i}Value`] ?? '', label: copy[`webStat${i}Label`] ?? '' })).filter((s) => s.value),
@@ -185,6 +225,7 @@ export function websiteDefaults(copy: Record<string, string>): Omit<IWebsiteCont
       science: n.map((i) => ({ title: copy[`webScience${i}Title`] ?? '', text: copy[`webScience${i}Text`] ?? '' })).filter((s) => s.title),
       aboutPoints: splitList(copy.webAboutPoints),
       heroChips: [],
+      clients: DEFAULT_CLIENTS,
     },
     social: {
       facebook: copy.webSocialFacebook ?? '',
@@ -229,6 +270,8 @@ export function formatWebsite(doc: Awaited<ReturnType<typeof getOrCreateWebsite>
       why: arr(o.images?.why).map(image).slice(0, LIST_CAPS.whyImages),
       og: image(o.images?.og),
       pageHeader: image(o.images?.pageHeader),
+      heroSlides: heroSlides(o.images),
+      pageHeaders: pageHeaders(o.images?.pageHeaders),
     },
     lists: {
       stats: arr(o.lists?.stats) as WebsiteView['lists']['stats'],
@@ -238,6 +281,7 @@ export function formatWebsite(doc: Awaited<ReturnType<typeof getOrCreateWebsite>
       science: arr(o.lists?.science) as WebsiteView['lists']['science'],
       aboutPoints: arr(o.lists?.aboutPoints) as string[],
       heroChips: arr(o.lists?.heroChips) as string[],
+      clients: o.lists?.clients === undefined ? DEFAULT_CLIENTS : arr(o.lists.clients).map(client).filter((c) => c.logo),
     },
     social: {
       facebook: o.social?.facebook ?? '',
@@ -271,6 +315,16 @@ export function applyWebsitePatch(doc: Awaited<ReturnType<typeof getOrCreateWebs
   if (images && typeof images === 'object') {
     for (const k of ['hero', 'about', 'og', 'pageHeader'] as const) if (k in images) doc.set(`images.${k}`, image(images[k]));
     if ('why' in images) doc.set('images.why', arr(images.why).map(image).filter((i) => i.url).slice(0, LIST_CAPS.whyImages));
+    if ('heroSlides' in images) {
+      const slides = arr(images.heroSlides).map(image).filter((i) => i.url).slice(0, LIST_CAPS.heroSlides);
+      doc.set('images.heroSlides', slides);
+      // The single hero photo (used by older pages and as a fallback) is always the first slide.
+      doc.set('images.hero', slides[0] ?? { url: '', alt: '' });
+    }
+    if ('pageHeaders' in images) {
+      const ph = rec(images.pageHeaders);
+      doc.set('images.pageHeaders', Object.fromEntries(WEBSITE_PAGE_HEADER_KEYS.map((k) => [k, image(ph[k])])));
+    }
   }
 
   const lists = body.lists as Record<string, unknown> | undefined;
@@ -287,6 +341,7 @@ export function applyWebsitePatch(doc: Awaited<ReturnType<typeof getOrCreateWebs
       doc.set('lists.science', arr(lists.science).map((x) => rec(x)).map((x) => ({ title: str(x.title, 80), text: str(x.text, 300) })).filter((x) => x.title).slice(0, LIST_CAPS.science));
     if ('aboutPoints' in lists) doc.set('lists.aboutPoints', arr(lists.aboutPoints).map((x) => str(x, 80)).filter(Boolean).slice(0, LIST_CAPS.aboutPoints));
     if ('heroChips' in lists) doc.set('lists.heroChips', arr(lists.heroChips).map((x) => str(x, 40)).filter((x) => /^[a-f0-9]{24}$/i.test(x)).slice(0, LIST_CAPS.heroChips));
+    if ('clients' in lists) doc.set('lists.clients', arr(lists.clients).map(client).filter((c) => c.logo).slice(0, LIST_CAPS.clients));
   }
 
   const social = body.social as Record<string, unknown> | undefined;
@@ -317,4 +372,21 @@ export function applyWebsitePatch(doc: Awaited<ReturnType<typeof getOrCreateWebs
 
 function rec(x: unknown): Record<string, unknown> {
   return x && typeof x === 'object' ? (x as Record<string, unknown>) : {};
+}
+
+function client(x: unknown): IWebsiteClient {
+  const c = rec(x);
+  return { name: str(c.name, 60), logo: safeImageUrl(c.logo) };
+}
+
+/** Saved slides, or the starter slides when the admin never saved any (an older document). */
+function heroSlides(images: IWebsiteContent['images'] | undefined): IWebsiteImage[] {
+  if (images?.heroSlides === undefined || images.heroSlides === null) return DEFAULT_HERO_SLIDES;
+  return arr(images.heroSlides).map(image).filter((i) => i.url).slice(0, LIST_CAPS.heroSlides);
+}
+
+function pageHeaders(saved: unknown): PageHeaders {
+  if (saved === undefined || saved === null) return DEFAULT_PAGE_HEADERS;
+  const ph = rec(saved);
+  return Object.fromEntries(WEBSITE_PAGE_HEADER_KEYS.map((k) => [k, image(ph[k])])) as PageHeaders;
 }

@@ -162,20 +162,40 @@ function uploadTarget(options?: UploadImageOptions): UploadTarget {
   };
 }
 
-/** Native XHR multipart — reliable for React Native { uri, name, type } file parts. */
-function uploadWithXhr(
-  file: { uri: string; name: string; type: string },
-  token: string | null,
-  target: UploadTarget,
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const form = new FormData();
-    form.append(target.field, {
-      uri: file.uri,
-      name: file.name,
-      type: file.type || 'image/jpeg',
-    } as unknown as Blob);
+type UploadFile = { uri: string; name: string; type: string };
 
+/**
+ * Multipart body with the photo under `field`. Native: the React Native `{ uri, name, type }` part.
+ * Web: browsers need real bytes, so the picked / re-encoded `blob:` / `data:` URI is fetched into a
+ * Blob and appended as a `File` (no manual Content-Type — the browser writes the multipart boundary).
+ */
+async function buildUploadForm(field: string, file: UploadFile): Promise<FormData> {
+  const form = new FormData();
+  if (Platform.OS === 'web') {
+    let blob: Blob;
+    try {
+      blob = await (await fetch(file.uri)).blob();
+    } catch {
+      throw new Error('Could not read this photo. Try another one (JPG or PNG works best).');
+    }
+    const type = file.type || blob.type || 'image/jpeg';
+    const part =
+      typeof File === 'function' ? new File([blob], file.name, { type }) : blob.slice(0, blob.size, type);
+    form.append(field, part, file.name);
+    return form;
+  }
+  form.append(field, {
+    uri: file.uri,
+    name: file.name,
+    type: file.type || 'image/jpeg',
+  } as unknown as Blob);
+  return form;
+}
+
+/** Native XHR multipart — reliable for React Native { uri, name, type } file parts. */
+async function uploadWithXhr(file: UploadFile, token: string | null, target: UploadTarget): Promise<string> {
+  const form = await buildUploadForm(target.field, file);
+  return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', target.url);
     xhr.timeout = UPLOAD_TIMEOUT_MS;
@@ -240,17 +260,8 @@ function uploadWithXhr(
   });
 }
 
-async function uploadWithFetch(
-  file: { uri: string; name: string; type: string },
-  token: string | null,
-  target: UploadTarget,
-): Promise<string> {
-  const form = new FormData();
-  form.append(target.field, {
-    uri: file.uri,
-    name: file.name,
-    type: file.type || 'image/jpeg',
-  } as unknown as Blob);
+async function uploadWithFetch(file: UploadFile, token: string | null, target: UploadTarget): Promise<string> {
+  const form = await buildUploadForm(target.field, file);
 
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;

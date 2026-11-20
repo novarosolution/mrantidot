@@ -1,10 +1,10 @@
-import { Alert } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
 import { haptic } from '@/lib/motion';
 import type { Booking, BookingStatus } from '@/types/api';
 import { spacing } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
 
 /** Admin controls to advance, complete, or cancel any live booking stage. */
 export function AdminBookingActions({
@@ -86,10 +86,14 @@ export function AdminBookingActions({
         title: 'Force start job',
         key: 'in_progress',
         onPress: () => {
-          Alert.alert('Start job?', 'Marks job in progress and skips start OTP.', [
-            { text: 'Back', style: 'cancel' },
-            { text: 'Start', onPress: () => void setStatus('in_progress') },
-          ]);
+          void confirmAsync({
+            title: 'Start job?',
+            message: 'Marks job in progress and skips start OTP.',
+            confirmLabel: 'Start',
+            cancelLabel: 'Back',
+          }).then((ok) => {
+            if (ok) void setStatus('in_progress');
+          });
         },
       });
     }
@@ -100,10 +104,13 @@ export function AdminBookingActions({
       title: 'Send for verification',
       key: 'awaiting_verification',
       onPress: () => {
-        Alert.alert('Send for verification?', 'Customer will enter the completion code.', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Continue', onPress: () => void setStatus('awaiting_verification') },
-        ]);
+        void confirmAsync({
+          title: 'Send for verification?',
+          message: 'Customer will enter the completion code.',
+          confirmLabel: 'Continue',
+        }).then((ok) => {
+          if (ok) void setStatus('awaiting_verification');
+        });
       },
     });
   }
@@ -114,10 +121,13 @@ export function AdminBookingActions({
       key: 'complete',
       variant: 'premium',
       onPress: () => {
-        Alert.alert('Complete booking?', 'Overrides customer OTP and marks job done.', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Complete', onPress: () => void markCompleted() },
-        ]);
+        void confirmAsync({
+          title: 'Complete booking?',
+          message: 'Overrides customer OTP and marks job done.',
+          confirmLabel: 'Complete',
+        }).then((ok) => {
+          if (ok) void markCompleted();
+        });
       },
     });
   }
@@ -128,10 +138,15 @@ export function AdminBookingActions({
       key: 'cancel',
       variant: 'secondary',
       onPress: () => {
-        Alert.alert('Cancel this booking?', 'Customer and technician will be notified.', [
-          { text: 'Keep', style: 'cancel' },
-          { text: 'Cancel booking', style: 'destructive', onPress: () => void cancelBooking() },
-        ]);
+        void confirmAsync({
+          title: 'Cancel this booking?',
+          message: 'Customer and technician will be notified.',
+          confirmLabel: 'Cancel booking',
+          cancelLabel: 'Keep',
+          destructive: true,
+        }).then((ok) => {
+          if (ok) void cancelBooking();
+        });
       },
     });
   }

@@ -6,12 +6,13 @@ import { AppIcons } from '@/constants/appIcons';
 import { SERVICE_TYPE_KEYS, type ServiceTypeKey } from '@/constants/serviceTypes';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import { colors, fonts, gradients, premium, spacing } from '@/constants/theme';
+import { adminContentWidth } from '@/lib/webAdmin';
 
 const COLS = 3;
 const GAP = 10;
 
 function tileWidth(contentInset = 48) {
-  const usable = Dimensions.get('window').width - contentInset - GAP * (COLS - 1);
+  const usable = adminContentWidth(Dimensions.get('window').width) - contentInset - GAP * (COLS - 1);
   return Math.floor(usable / COLS);
 }
 

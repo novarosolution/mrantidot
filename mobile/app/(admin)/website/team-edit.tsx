@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminCollapsibleCard, AdminFormCard } from '@/components/kit/AdminPageKit';
@@ -21,6 +21,7 @@ import { adminGoBack, adminRoutes } from '@/lib/routes';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { TeamMember, TeamMemberSocials, WebsiteImage } from '@/types/api';
 import { adminType, colors, fonts, spacing, ui } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -140,26 +141,23 @@ export default function WebsiteTeamEditScreen() {
 
   function remove() {
     if (!id) return;
-    Alert.alert('Delete team member?', `${name || 'This person'} will be removed from the website.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await api.delete(`/website/admin/team/${id}`, { skipErrorToast: true });
-              haptic('success');
-              Toast.show({ type: 'success', text1: 'Team member deleted' });
-              adminGoBack(adminRoutes.websiteTeam);
-            } catch (err) {
-              haptic('error');
-              Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not delete the team member') });
-            }
-          })();
-        },
-      },
-    ]);
+    void confirmAsync({
+      title: 'Delete team member?',
+      message: `${name || 'This person'} will be removed from the website.`,
+      confirmLabel: 'Delete',
+      destructive: true,
+    }).then(async (ok) => {
+      if (!ok) return;
+      try {
+        await api.delete(`/website/admin/team/${id}`, { skipErrorToast: true });
+        haptic('success');
+        Toast.show({ type: 'success', text1: 'Team member deleted' });
+        adminGoBack(adminRoutes.websiteTeam);
+      } catch (err) {
+        haptic('error');
+        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not delete the team member') });
+      }
+    });
   }
 
   if (id && loading) {

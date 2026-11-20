@@ -45,8 +45,14 @@
       }
     },
     "web": {
+      "output": "single",
+      "bundler": "metro",
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "name": "Mr Antidot Admin",
+      "shortName": "MA Admin",
+      "description": "Mr Antidot admin panel",
+      "themeColor": "#087B35",
+      "backgroundColor": "#F7F9F7"
     },
     "plugins": [
       "expo-router",

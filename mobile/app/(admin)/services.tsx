@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, RefreshControl } from 'react-native';
+import { FlatList, RefreshControl } from 'react-native';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
 import { AdminEntrance, AdminListShell, adminListShellStyles, useListEntrance } from '@/components/kit/AdminListShell';
 import { AdminFilterChips } from '@/components/kit/AdminPageKit';
@@ -19,6 +19,7 @@ import { SERVICE_TYPE_LABELS } from '@/constants/serviceTypes';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import type { Service, ServiceTypeKey } from '@/types/api';
 import { colors } from '@/constants/theme';
+import { confirmAsync, notify } from '@/lib/confirm';
 
 type ServiceFilter = 'all' | 'active' | 'inactive';
 type BrowseMode = 'types' | 'list';
@@ -60,30 +61,23 @@ export default function AdminServicesScreen() {
 
   const toggleActive = useCallback((s: Service) => {
     const next = s.active === false;
-    Alert.alert(
-      next ? 'Restore service?' : 'Deactivate service?',
-      next ? 'Service will appear for customers again.' : 'Customers will no longer see this service.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: next ? 'Restore' : 'Deactivate',
-          style: next ? 'default' : 'destructive',
-          onPress: () => {
-            void (async () => {
-              setServices((prev) => prev.map((x) => (x.id === s.id ? { ...x, active: next } : x)));
-              try {
-                await api.patch(`/services/${s.id}`, { active: next });
-                haptic('success');
-              } catch {
-                setServices((prev) => prev.map((x) => (x.id === s.id ? { ...x, active: s.active } : x)));
-                haptic('error');
-                Alert.alert('Error', `Could not ${next ? 'restore' : 'deactivate'} service`);
-              }
-            })();
-          },
-        },
-      ],
-    );
+    void confirmAsync({
+      title: next ? 'Restore service?' : 'Deactivate service?',
+      message: next ? 'Service will appear for customers again.' : 'Customers will no longer see this service.',
+      confirmLabel: next ? 'Restore' : 'Deactivate',
+      destructive: !next,
+    }).then(async (ok) => {
+      if (!ok) return;
+      setServices((prev) => prev.map((x) => (x.id === s.id ? { ...x, active: next } : x)));
+      try {
+        await api.patch(`/services/${s.id}`, { active: next });
+        haptic('success');
+      } catch {
+        setServices((prev) => prev.map((x) => (x.id === s.id ? { ...x, active: s.active } : x)));
+        haptic('error');
+        notify('Error', `Could not ${next ? 'restore' : 'deactivate'} service`);
+      }
+    });
   }, []);
 
   function openType(type: ServiceTypeKey | 'all') {

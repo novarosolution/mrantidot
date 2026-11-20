@@ -7,10 +7,12 @@ import { AppIcons } from '@/constants/appIcons';
 import { colors, fonts, typography, ui } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { appHref, authRoutes, homeRouteForRole } from '@/lib/routes';
+import { Platform } from 'react-native';
+import { WebAdminRedirect } from '@/components/admin/WebAdminRedirect';
 
 const Tab = AppIcons.techTab;
 
-export default function TechLayout() {
+function TechLayout() {
   const { user, isLoading } = useAuth();
   const tabBarStyle = useDockTabBarStyle();
 
@@ -60,3 +62,6 @@ export default function TechLayout() {
     </Tabs>
   );
 }
+
+/** The web build is the admin panel only — these screens redirect to the admin app or sign-in there. */
+export default Platform.OS === 'web' ? WebAdminRedirect : TechLayout;

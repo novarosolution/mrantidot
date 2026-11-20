@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AdminCollapsibleCard, AdminFilterChips, AdminFormCard } from '@/components/kit/AdminPageKit';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
@@ -19,6 +19,7 @@ import { adminGoBack, adminRoutes } from '@/lib/routes';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { OfferDiscountType } from '@/types/api';
 import { colors, fonts, spacing } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
 
 function addDays(days: number): string {
   const d = new Date();
@@ -128,26 +129,23 @@ export default function OfferEditScreen() {
 
   function deactivate() {
     if (!id) return;
-    Alert.alert('Deactivate offer?', 'Customers will no longer see this coupon at checkout.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Deactivate',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await api.delete(`/admin/offers/${id}`);
-              haptic('success');
-              Toast.show({ type: 'success', text1: 'Offer deactivated' });
-              adminGoBack(adminRoutes.offers);
-            } catch (err) {
-              haptic('error');
-              Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not deactivate offer') });
-            }
-          })();
-        },
-      },
-    ]);
+    void confirmAsync({
+      title: 'Deactivate offer?',
+      message: 'Customers will no longer see this coupon at checkout.',
+      confirmLabel: 'Deactivate',
+      destructive: true,
+    }).then(async (ok) => {
+      if (!ok) return;
+      try {
+        await api.delete(`/admin/offers/${id}`);
+        haptic('success');
+        Toast.show({ type: 'success', text1: 'Offer deactivated' });
+        adminGoBack(adminRoutes.offers);
+      } catch (err) {
+        haptic('error');
+        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not deactivate offer') });
+      }
+    });
   }
 
   if (id && loading) {

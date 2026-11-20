@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, Share, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Share2, Trash2 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { AdminEntrance, AdminListShell, adminListShellStyles, useListEntrance } from '@/components/kit/AdminListShell';
@@ -17,6 +17,11 @@ import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { Subscriber } from '@/types/api';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
+import { shareTextFile } from '@/lib/shareFile';
+
+/** Browsers download the list as a text file; phones open the share sheet. */
+const IS_WEB = Platform.OS === 'web';
 
 type Filter = 'all' | 'active' | 'off';
 
@@ -106,26 +111,23 @@ export default function WebsiteSubscribersScreen() {
   }, []);
 
   const onDelete = useCallback((s: Subscriber) => {
-    Alert.alert('Delete subscriber?', `${s.email} will be removed from the list for good.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await api.delete(`/website/admin/subscribers/${s.id}`, { skipErrorToast: true });
-              haptic('success');
-              setSubs((prev) => prev.filter((x) => x.id !== s.id));
-              Toast.show({ type: 'success', text1: 'Subscriber deleted' });
-            } catch (err) {
-              haptic('error');
-              Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not delete the subscriber') });
-            }
-          })();
-        },
-      },
-    ]);
+    void confirmAsync({
+      title: 'Delete subscriber?',
+      message: `${s.email} will be removed from the list for good.`,
+      confirmLabel: 'Delete',
+      destructive: true,
+    }).then(async (ok) => {
+      if (!ok) return;
+      try {
+        await api.delete(`/website/admin/subscribers/${s.id}`, { skipErrorToast: true });
+        haptic('success');
+        setSubs((prev) => prev.filter((x) => x.id !== s.id));
+        Toast.show({ type: 'success', text1: 'Subscriber deleted' });
+      } catch (err) {
+        haptic('error');
+        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not delete the subscriber') });
+      }
+    });
   }, []);
 
   const shareActive = useCallback(async () => {
@@ -136,7 +138,12 @@ export default function WebsiteSubscribersScreen() {
     }
     haptic('tap');
     try {
-      await Share.share({ title: 'Newsletter subscribers', message: emails.join('\n') });
+      await shareTextFile({
+        filename: `mrantidot-subscribers-${new Date().toISOString().slice(0, 10)}.txt`,
+        title: 'Newsletter subscribers',
+        mimeType: 'text/plain',
+        content: emails.join('\n'),
+      });
     } catch {
       Toast.show({ type: 'error', text1: 'Could not open the share sheet' });
     }
@@ -194,11 +201,11 @@ export default function WebsiteSubscribersScreen() {
       onPress={() => void shareActive()}
       style={({ pressed }) => [styles.shareBtn, pressed && styles.pressed]}
       accessibilityRole="button"
-      accessibilityLabel="Share active subscriber emails"
+      accessibilityLabel={IS_WEB ? 'Download active subscriber emails' : 'Share active subscriber emails'}
       hitSlop={6}
     >
       <Share2 size={16} color={colors.white} strokeWidth={2.4} />
-      <Text style={styles.shareText}>Share</Text>
+      <Text style={styles.shareText}>{IS_WEB ? 'Download' : 'Share'}</Text>
     </Pressable>
   );
 

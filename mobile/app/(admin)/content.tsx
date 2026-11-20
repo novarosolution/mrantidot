@@ -33,6 +33,7 @@ import {
 import { DEFAULT_HOME_CONFIG, DEFAULT_HOME_PROMO } from '@/constants/homeContent';
 import { DEFAULT_APP_CONFIG, mergeAppConfig, mergeHomeConfig } from '@/lib/mergeHomeConfig';
 import { colors, fonts, spacing, surfaces, ui } from '@/constants/theme';
+import { adminContentWidth } from '@/lib/webAdmin';
 
 const CONTENT_TABS: AdminSectionTab[] = [
   { key: 'promo', label: 'Promo', icon: AppIcons.contentTab.promo },
@@ -867,7 +868,7 @@ function ServiceChips({
 /** What shoppers get: the promo as a slide of the green home header. Drawn even while switched off, with a note. */
 function PromoPreview({ promo }: { promo: HomePromo }) {
   const copy = useCustomerUiCopy();
-  const { width } = useWindowDimensions();
+  const width = adminContentWidth(useWindowDimensions().width);
   const slide = promoHeroSlide({ ...promo, active: true }, copy, () => {});
   // previewShell sits in a 16pt gutter and has a 1pt border on each side.
   const innerWidth = width - spacing.md * 2 - 2;

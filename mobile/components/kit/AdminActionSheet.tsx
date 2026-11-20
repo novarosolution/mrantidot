@@ -1,6 +1,7 @@
-import { type ReactNode } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, type ReactNode } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { IS_WEB, useWideWebLayout } from '@/lib/webAdmin';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 export interface ActionSheetOption {
@@ -13,7 +14,7 @@ export interface ActionSheetOption {
 }
 
 /**
- * White bottom-sheet picker / confirmation (replaces Alert.alert) — options sit in one grouped
+ * White bottom-sheet picker / confirmation (instead of a native alert) — options sit in one grouped
  * list with hairline dividers; Cancel is a separate pill below, iOS action-sheet style.
  */
 export function AdminActionSheet({
@@ -32,12 +33,31 @@ export function AdminActionSheet({
   cancelLabel?: string;
 }) {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  // Desktop browsers: a centred dialog instead of a full-width sheet; Escape closes it.
+  const dialog = useWideWebLayout();
+
+  useEffect(() => {
+    if (!IS_WEB || !visible) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [visible, onClose]);
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose} statusBarTranslucent>
-      <View style={styles.backdrop}>
+    <Modal visible={visible} animationType={dialog ? 'fade' : 'slide'} transparent onRequestClose={onClose} statusBarTranslucent>
+      <View style={[styles.backdrop, dialog && styles.backdropDialog]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
-          <View style={styles.handle} />
+        <View
+          style={[
+            styles.sheet,
+            { paddingBottom: Math.max(insets.bottom, spacing.md) },
+            dialog && [styles.dialog, { width: Math.min(460, width - 48) }],
+          ]}
+        >
+          {dialog ? null : <View style={styles.handle} />}
           <Text style={styles.title}>{title}</Text>
           {message ? <Text style={styles.message}>{message}</Text> : null}
           <ScrollView style={styles.list} contentContainerStyle={styles.listInner} bounces={false}>
@@ -75,6 +95,8 @@ export function AdminActionSheet({
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(8,14,10,0.45)', justifyContent: 'flex-end' },
+  backdropDialog: { justifyContent: 'center', alignItems: 'center' },
+  dialog: { borderRadius: 24, paddingTop: 20, boxShadow: '0 24px 64px -24px rgba(8,14,10,0.45)' },
   sheet: {
     backgroundColor: colors.white,
     borderTopLeftRadius: 24,

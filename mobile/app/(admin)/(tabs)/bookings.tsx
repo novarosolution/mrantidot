@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AdminBookingListCard } from '@/components/kit/AdminBookingListCard';
 import { AdminEntrance, adminListShellStyles, useListEntrance } from '@/components/kit/AdminListShell';
@@ -28,6 +28,7 @@ import { userInitial } from '@/lib/userInitials';
 import type { Booking, BookingStatusCounts, User } from '@/types/api';
 import { colors, spacing } from '@/constants/theme';
 import { adminRoutes, appPush } from '@/lib/routes';
+import { notify } from '@/lib/confirm';
 
 const FILTERS = [
   { key: 'all', label: 'All' },
@@ -128,7 +129,7 @@ export default function AdminBookingsScreen() {
   const assign = useCallback(
     (booking: Booking) => {
       if (assignableTechnicians(techs, booking.schedule?.date).length === 0) {
-        Alert.alert('No technicians available', 'Everyone is disabled or off duty for this visit.');
+        notify('No technicians available', 'Everyone is disabled or off duty for this visit.');
         return;
       }
       setAssignTarget(booking);

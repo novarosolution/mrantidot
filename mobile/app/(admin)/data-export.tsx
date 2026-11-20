@@ -1,6 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Share, StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AdminLightHeader } from '@/components/kit/AdminLightHeader';
 import { AdminSectionTitle } from '@/components/kit/AdminListShell';
@@ -15,6 +15,7 @@ import { AppIcons } from '@/constants/appIcons';
 import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
 import { haptic, stagger } from '@/lib/motion';
 import { adminRoutes } from '@/lib/routes';
+import { shareTextFile } from '@/lib/shareFile';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { colors, fonts, premiumType, spacing, ui } from '@/constants/theme';
 
@@ -78,9 +79,8 @@ function formatWhen(iso: string): string {
   }
 }
 
-async function shareText(title: string, message: string) {
-  await Share.share({ title, message });
-}
+/** Browsers download the export as a file; phones open the share sheet. */
+const IS_WEB = Platform.OS === 'web';
 
 export default function AdminDataExportScreen() {
   const [bundle, setBundle] = useState<AdminExportBundle | null>(null);
@@ -139,16 +139,21 @@ export default function AdminDataExportScreen() {
       '',
       ...sections,
     ].join('\n\n');
-    await shareText(`mrantidot-export-${stamp}`, message);
-    Toast.show({ type: 'success', text1: 'Export ready to save or share' });
+    const done = await shareTextFile({
+      filename: `mrantidot-export-${stamp}.txt`,
+      title: `mrantidot-export-${stamp}`,
+      mimeType: 'text/plain',
+      content: message,
+    });
+    Toast.show({ type: 'success', text1: done === 'downloaded' ? 'Export downloaded' : 'Export ready to save or share' });
   }
 
   async function shareJson() {
     if (!bundle) return;
     const { csv: _csv, ...jsonBody } = bundle;
     const message = JSON.stringify(jsonBody, null, 2);
-    await shareText('mrantidot-export.json', message);
-    Toast.show({ type: 'success', text1: 'JSON export shared' });
+    const done = await shareTextFile({ filename: 'mrantidot-export.json', mimeType: 'application/json', content: message });
+    Toast.show({ type: 'success', text1: done === 'downloaded' ? 'JSON export downloaded' : 'JSON export shared' });
   }
 
   async function copyJson() {
@@ -166,8 +171,8 @@ export default function AdminDataExportScreen() {
       Toast.show({ type: 'info', text1: `No ${label.toLowerCase()} rows yet` });
       return;
     }
-    await shareText(`mrantidot-${key}.csv`, csv);
-    Toast.show({ type: 'success', text1: `${label} CSV ready` });
+    const done = await shareTextFile({ filename: `mrantidot-${key}.csv`, mimeType: 'text/csv', content: csv });
+    Toast.show({ type: 'success', text1: done === 'downloaded' ? `${label} CSV downloaded` : `${label} CSV ready` });
   }
 
   if (!bundle) {
@@ -231,7 +236,7 @@ export default function AdminDataExportScreen() {
           />
           <View style={styles.rowBtns}>
             <Button
-              title="Share JSON"
+              title={IS_WEB ? 'Download JSON' : 'Share JSON'}
               variant="secondary"
               loading={busy === 'json'}
               onPress={() => void runAction('json', shareJson)}
@@ -256,7 +261,11 @@ export default function AdminDataExportScreen() {
       </FadeSlideIn>
 
       <FadeSlideIn delay={stagger(1)} slideFrom={14}>
-        <AdminSectionTitle flush title="CSV sheets" hint="Share one dataset at a time" />
+        <AdminSectionTitle
+          flush
+          title="CSV sheets"
+          hint={IS_WEB ? 'Download one dataset at a time' : 'Share one dataset at a time'}
+        />
       </FadeSlideIn>
       <View style={styles.sheets}>
         {CSV_SHEETS.map((sheet, i) => {
@@ -268,7 +277,7 @@ export default function AdminDataExportScreen() {
                 disabled={busy === sheet.key}
                 scaleTo={0.98}
                 accessibilityRole="button"
-                accessibilityLabel={`Share ${sheet.label} CSV, ${count} rows`}
+                accessibilityLabel={`${IS_WEB ? 'Download' : 'Share'} ${sheet.label} CSV, ${count} rows`}
               >
                 <GlassPanel padded={false} style={styles.sheetPanel}>
                   <View style={styles.sheetInner}>

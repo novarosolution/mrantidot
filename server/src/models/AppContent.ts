@@ -698,6 +698,12 @@ export interface ICustomerUiCopy {
   webHeroCardTitle: string;
   webHeroCardText: string;
   webHeroRatingText: string;
+  webHeroScrollHint: string;
+  webClientsTitle: string;
+  webWorkEyebrow: string;
+  webWorkTitle: string;
+  webWorkSubtitle: string;
+  webWorkCta: string;
   webStickyBookText: string;
   webAppStoreLabel: string;
   webPlayStoreLabel: string;
@@ -1546,6 +1552,12 @@ export const DEFAULT_CUSTOMER_UI_COPY: ICustomerUiCopy = {
   webHeroCardTitle: 'Visit booked in 60 seconds',
   webHeroCardText: 'Photo proof of every step',
   webHeroRatingText: 'Loved by {count}+ customers',
+  webHeroScrollHint: 'Scroll to explore',
+  webClientsTitle: 'Trusted by brands across Gujarat',
+  webWorkEyebrow: 'Our work',
+  webWorkTitle: 'Real jobs, real results',
+  webWorkSubtitle: 'A look at treatments our technicians have carried out for homes, kitchens and offices.',
+  webWorkCta: 'View full gallery',
   webStickyBookText: 'Pest problem? Book in 60 seconds',
   webAppStoreLabel: 'App Store',
   webPlayStoreLabel: 'Google Play',

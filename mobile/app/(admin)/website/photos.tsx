@@ -5,6 +5,7 @@ import { AdminListShell, AdminSectionTitle, adminListShellStyles } from '@/compo
 import { AdminFormCard, AdminTabHint } from '@/components/kit/AdminPageKit';
 import { AdminFormSkeleton } from '@/components/kit/AdminSkeletons';
 import { ImageField, imagesHaveAlt, useBusyCounter } from '@/components/kit/ImageField';
+import { ListEditor, type ListSetter } from '@/components/kit/ListEditor';
 import { Button } from '@/components/ui/Button';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
@@ -12,10 +13,22 @@ import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { haptic, stagger } from '@/lib/motion';
 import { adminRoutes } from '@/lib/routes';
 import { useWebsiteConfig } from '@/lib/useWebsiteConfig';
-import type { WebsiteImage, WebsiteImages } from '@/types/api';
+import type { WebsiteImage, WebsiteImages, WebsitePageHeaderKey } from '@/types/api';
 import { fonts, spacing, ui } from '@/constants/theme';
 
 const EMPTY: WebsiteImage = { url: '', alt: '' };
+
+const PAGE_HEADERS: { key: WebsitePageHeaderKey; label: string }[] = [
+  { key: 'services', label: 'Services page' },
+  { key: 'about', label: 'About page' },
+  { key: 'blog', label: 'Blog' },
+  { key: 'gallery', label: 'Gallery' },
+  { key: 'team', label: 'Team' },
+  { key: 'contact', label: 'Contact' },
+];
+
+const slideTitle = (s: WebsiteImage, i: number) => s.alt.trim() || `Slide ${i + 1}`;
+const slideSub = (s: WebsiteImage) => (s.url ? undefined : 'No photo yet — open to add one');
 
 /** Draft keeps both why-us slots so each has its own field; empty ones are dropped on save. */
 type Draft = Omit<WebsiteImages, 'why'> & { why: [WebsiteImage, WebsiteImage] };
@@ -25,7 +38,7 @@ function toDraft(images: WebsiteImages): Draft {
 }
 
 function toPayload(d: Draft): WebsiteImages {
-  return { ...d, why: d.why.filter((w) => w.url) };
+  return { ...d, why: d.why.filter((w) => w.url), heroSlides: d.heroSlides.filter((s) => s.url) };
 }
 
 export default function WebsitePhotosScreen() {
@@ -35,7 +48,33 @@ export default function WebsitePhotosScreen() {
     useCallback((w) => setDraft(toDraft(w.images)), []),
   );
 
-  const setHero = useCallback((hero: WebsiteImage) => setDraft((d) => d && { ...d, hero }), []);
+  const setSlides: ListSetter<WebsiteImage> = useCallback(
+    (fn) => setDraft((d) => d && { ...d, heroSlides: fn(d.heroSlides) }),
+    [],
+  );
+  const renderSlide = useCallback(
+    (item: WebsiteImage, update: (patch: Partial<WebsiteImage>) => void, index: number) => (
+      <ImageField
+        label={`Slide ${index + 1}`}
+        hint={index === 0 ? 'Shown first and loaded fastest — pick your best photo' : undefined}
+        value={item}
+        onChange={update}
+        aspectRatio={16 / 9}
+        onBusyChange={onBusyChange}
+      />
+    ),
+    [onBusyChange],
+  );
+  const pageHeaderSetters = useMemo(
+    () =>
+      Object.fromEntries(
+        PAGE_HEADERS.map(({ key }) => [
+          key,
+          (img: WebsiteImage) => setDraft((d) => d && { ...d, pageHeaders: { ...d.pageHeaders, [key]: img } }),
+        ]),
+      ) as Record<WebsitePageHeaderKey, (img: WebsiteImage) => void>,
+    [],
+  );
   const setAbout = useCallback((about: WebsiteImage) => setDraft((d) => d && { ...d, about }), []);
   const setOg = useCallback((og: WebsiteImage) => setDraft((d) => d && { ...d, og }), []);
   const setPageHeader = useCallback((pageHeader: WebsiteImage) => setDraft((d) => d && { ...d, pageHeader }), []);
@@ -49,7 +88,7 @@ export default function WebsitePhotosScreen() {
 
   async function onSave() {
     if (!draft) return;
-    const all = [draft.hero, draft.about, draft.og, draft.pageHeader, ...draft.why];
+    const all = [draft.about, draft.og, draft.pageHeader, ...draft.why, ...draft.heroSlides, ...Object.values(draft.pageHeaders)];
     if (!imagesHaveAlt(all)) {
       haptic('error');
       Toast.show({ type: 'error', text1: 'Add alt text to every photo', text2: 'A few words that describe each picture' });
@@ -105,16 +144,27 @@ export default function WebsitePhotosScreen() {
         </FadeSlideIn>
 
         <FadeSlideIn delay={stagger(1)} slideFrom={14}>
-          <AdminSectionTitle title="Home page" hint="Top banner and the why-us block" />
+          <AdminSectionTitle title="Hero slideshow" hint="Full-screen photos at the top of the home page" />
           <AdminFormCard>
-            <ImageField
-              label="Hero photo"
-              hint="Large photo next to the main headline"
-              value={draft.hero}
-              onChange={setHero}
-              aspectRatio={4 / 3}
-              onBusyChange={onBusyChange}
+            <ListEditor
+              title="Slides"
+              hint="Wide, bright photos of real jobs look best. They fade and zoom slowly, one every 6 seconds."
+              items={draft.heroSlides}
+              setItems={setSlides}
+              makeItem={() => ({ ...EMPTY })}
+              max={6}
+              itemTitle={slideTitle}
+              itemSubtitle={slideSub}
+              renderFields={renderSlide}
+              addLabel="Add slide"
+              emptyText="No slides — the hero shows a plain green background."
             />
+          </AdminFormCard>
+        </FadeSlideIn>
+
+        <FadeSlideIn delay={stagger(2)} slideFrom={14}>
+          <AdminSectionTitle title="Home page" hint="The why-us block" />
+          <AdminFormCard>
             <ImageField
               label="Why-us photo 1"
               value={draft.why[0]}
@@ -132,7 +182,7 @@ export default function WebsitePhotosScreen() {
           </AdminFormCard>
         </FadeSlideIn>
 
-        <FadeSlideIn delay={stagger(2)} slideFrom={14}>
+        <FadeSlideIn delay={stagger(3)} slideFrom={14}>
           <AdminSectionTitle title="About page" />
           <AdminFormCard>
             <ImageField
@@ -146,7 +196,7 @@ export default function WebsitePhotosScreen() {
           </AdminFormCard>
         </FadeSlideIn>
 
-        <FadeSlideIn delay={stagger(3)} slideFrom={14}>
+        <FadeSlideIn delay={stagger(4)} slideFrom={14}>
           <AdminSectionTitle title="Sharing & page headers" />
           <AdminFormCard>
             <ImageField
@@ -159,12 +209,28 @@ export default function WebsitePhotosScreen() {
             />
             <ImageField
               label="Default page header"
-              hint="Background behind page titles (Services, Blog, Contact…). Leave empty for the plain green header."
+              hint="Used by any page below that has no photo of its own. Leave empty for the plain header."
               value={draft.pageHeader}
               onChange={setPageHeader}
               aspectRatio={16 / 6}
               onBusyChange={onBusyChange}
             />
+          </AdminFormCard>
+        </FadeSlideIn>
+
+        <FadeSlideIn delay={stagger(5)} slideFrom={14}>
+          <AdminSectionTitle title="Page headers" hint="Wide photo behind each page title" />
+          <AdminFormCard>
+            {PAGE_HEADERS.map(({ key, label }) => (
+              <ImageField
+                key={key}
+                label={label}
+                value={draft.pageHeaders[key] ?? EMPTY}
+                onChange={pageHeaderSetters[key]}
+                aspectRatio={16 / 6}
+                onBusyChange={onBusyChange}
+              />
+            ))}
           </AdminFormCard>
         </FadeSlideIn>
         <Text style={styles.foot}>Changes go live on the website within a minute of saving.</Text>

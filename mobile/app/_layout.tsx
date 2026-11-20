@@ -11,7 +11,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { premiumToastConfig, TOAST_DEFAULTS, useToastTopOffset } from '@/components/ui/PremiumToast';
@@ -35,6 +35,9 @@ function AppToastHost() {
     />
   );
 }
+
+/** Web (admin panel) browser-tab title until a screen sets its own. */
+const WEB_ROOT_TITLE = Platform.OS === 'web' ? { title: 'Mr Antidot Admin' } : null;
 
 registerGlobalErrorHandlers();
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -93,7 +96,9 @@ export default function RootLayout() {
               {/* Every screen opens on a dark forest hero (HeroDarkSlice / auth / launch),
                   so the clock + battery need light glyphs to stay legible. */}
               <StatusBar style="light" />
-              <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: design.screenBg } }} />
+              <Stack
+                screenOptions={{ headerShown: false, contentStyle: { backgroundColor: design.screenBg }, ...WEB_ROOT_TITLE }}
+              />
               <AppToastHost />
             </AppContentProvider>
           </LocationProvider>

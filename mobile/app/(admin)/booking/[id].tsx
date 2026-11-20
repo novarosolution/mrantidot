@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { adminGoBack, adminRoutes, appPush } from '@/lib/routes';
 import { paramString } from '@/lib/routeParams';
 import {
-  Alert,
   Image,
   Pressable,
   RefreshControl,
@@ -61,6 +60,7 @@ import { useBookingCopy } from '@/lib/schedule-copy';
 import { mediaUrl } from '@/lib/images';
 import type { Booking, ScheduleMode, User, WorkOtpAdminView } from '@/types/api';
 import { colors, fonts, spacing, surfaces, ui } from '@/constants/theme';
+import { notify } from '@/lib/confirm';
 
 export default function AdminBookingDetailScreen() {
   const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
@@ -125,7 +125,7 @@ export default function AdminBookingDetailScreen() {
   function assignTech() {
     if (!booking) return;
     if (assignable.length === 0) {
-      Alert.alert('No technicians', 'Add technicians first.');
+      notify('No technicians', 'Add technicians first.');
       return;
     }
     setAssignOpen(true);

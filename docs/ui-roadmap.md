@@ -52,12 +52,33 @@ Everything on the website is managed from the app: **Admin → Manage → Websit
 - **Sections:** home/about render `pages.home` / `pages.about` from the API in the admin's order; each key maps to one component in `mranti/components/site/sections.tsx`. Adding a section = add its key to `HOME_SECTIONS`/`ABOUT_SECTIONS` (`server/src/utils/websiteContent.ts`), a component in the registry, and a name in the app's Pages screen.
 - **Rate limits:** the site sends `X-Website-Key` + the visitor's IP, so the API limits per visitor instead of per Vercel server. Set `TRUST_PROXY=1` on the API when it runs behind a proxy (Render).
 - **SEO:** per-page title/description and share image from the admin, `sitemap.xml`, `robots.txt`, JSON-LD (business, services, FAQ, articles, breadcrumbs). Old URLs (`/services/<old-slug>`, `/book-service`, `/signup`, `/user/*`, `/verify-email`) redirect.
+- **Look & motion:**
+  - The home hero is a full-screen photo slideshow (Photos → Hero slideshow, up to 6). Each photo crossfades with a slow zoom, and the menu sits transparent on top.
+  - Inner pages get full-width photo headers (Photos → Page headers).
+  - "Trusted by" shows a moving strip of client logos (Lists → Clients), and "Our work" is a drag/scroll reel of gallery photos. Both are sections in Pages & sections.
+  - Numbers count up, sections reveal and parallax as you scroll, and desktop scrolling is smoothed with Lenis.
+  - Everything respects "reduce motion".
+- **Photos:** real job photos come from `mranti/public/frontend/images/gallery`. Five free stock photos from Pexels (Pexels License: free commercial use, no credit needed) are in `mranti/public/frontend/images/stock`. Every photo can be replaced from the app.
+
+## Web admin (`mobile/`, Expo web)
+
+The app's admin also runs in a browser, for example at `admin.mrantidot.com`:
+- It is the same code as the app.
+- On a wide screen it shows a left sidebar instead of the bottom tabs.
+- On the web, only admins can sign in. Customers are pointed to the website.
+
+Local run: `npx expo start --web` in `mobile/`.
+
+Deploy: a separate Vercel project rooted at `mobile/`. `mobile/vercel.json` builds it with `npx expo export -p web`. It also rewrites `/api` and `/uploads` to the API, so the HTTPS page never calls the plain-HTTP API directly.
+
+On the website, `/admin` redirects to `ADMIN_URL` when that is set. Long term, the API should get its own HTTPS domain (e.g. `api.mrantidot.com`).
 
 ### Going live (one time)
 1. API env: `BLOB_READ_WRITE_TOKEN` (the website's existing Vercel Blob token), `WEBSITE_API_KEY` (new random secret), `WEBSITE_URL` (the site's https origin), `TRUST_PROXY=1` if behind a proxy. Deploy the API.
 2. From this repo: `WEB_MONGODB_URI=<old website MongoDB> npm run import:website --workspace=server` (dry run), then add `-- --apply --upload-images` to copy blog, gallery, team, testimonials, messages and subscribers (and bundled photos to Blob).
 3. Build and install the app (admin Website screens).
-4. Website env on Vercel: `MRANTIDOT_API_URL`, `WEBSITE_API_KEY` (same value), `APP_BASE_URL`. Remove the old `MONGODB_URI`, NextAuth, SMTP and WhatsApp variables. Deploy.
+4. Website env on Vercel: `MRANTIDOT_API_URL`, `WEBSITE_API_KEY` (same value), `APP_BASE_URL`, and `ADMIN_URL` once the web admin is live. Remove the old `MONGODB_URI`, NextAuth, SMTP and WhatsApp variables. Deploy.
+5. Web admin: create a Vercel project from `mobile/`, add the domain (e.g. `admin.mrantidot.com`) and deploy.
 
 ## 4. Screen status
 

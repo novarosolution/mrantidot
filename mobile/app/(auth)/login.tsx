@@ -1,6 +1,6 @@
-import { Link } from 'expo-router';
+import { Link, Stack } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Smartphone } from 'lucide-react-native';
 import { AppIcons } from '@/constants/appIcons';
 import {
@@ -10,7 +10,8 @@ import {
   AuthSecureNote,
 } from '@/components/kit/auth/AuthScreenKit';
 import { AuthField, AuthPrimaryButton, authScreenStyles } from '@/components/kit/auth/AuthScreenLayout';
-import { useAuth } from '@/context/AuthContext';
+import { WebAuthFrame } from '@/components/admin/WebAuthFrame';
+import { isWebAdminOnlyError, useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
 import { getApiErrorMessage } from '@/lib/api';
 import { appPush, appReplace, authRoutes, customerRoutes, homeRouteForRole } from '@/lib/routes';
@@ -20,6 +21,12 @@ import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { colors, fonts, ui as themeUi } from '@/constants/theme';
 import { DEFAULT_CUSTOMER_UI_COPY, fillCopy } from '@/constants/customerUiCopy';
 import { haptic } from '@/lib/motion';
+import { WEB_LOGIN_DOCUMENT_TITLE } from '@/lib/webAdmin';
+
+/** The web build is the admin panel: admin heading, no customer sign-up link. */
+const IS_WEB = Platform.OS === 'web';
+const WEB_LOGIN_TITLE = 'Admin panel';
+const WEB_LOGIN_SUBTITLE = 'Sign in with your admin account to manage Mr Antidot.';
 
 /**
  * A placeholder that only repeats the field label adds nothing — show the built-in example instead
@@ -84,6 +91,13 @@ export default function LoginScreen() {
       }
       appReplace(homeRouteForRole(signedIn.role));
     } catch (err) {
+      if (isWebAdminOnlyError(err)) {
+        // Signed in fine, but not an admin — the session was never kept (see AuthContext).
+        haptic('error');
+        setPasswordError(err.message);
+        appToast.error(WEB_LOGIN_TITLE, err.message);
+        return;
+      }
       const message = getApiErrorMessage(err, 'Check your credentials and try again');
       haptic('error');
       setPasswordError(message === 'Invalid credentials' ? ui.authWrongCredentials : message);
@@ -94,12 +108,13 @@ export default function LoginScreen() {
   }, [identifier, loading, login, password, ui]);
 
   return (
-    <>
+    <WebAuthFrame>
+      {IS_WEB ? <Stack.Screen options={{ title: WEB_LOGIN_DOCUMENT_TITLE }} /> : null}
       <AuthLoginShell
         brandName={brandName}
         brandTag={content.branding.tagline}
-        title={ui.authLoginTitle}
-        subtitle={ui.authLoginSubtitle}
+        title={IS_WEB ? WEB_LOGIN_TITLE : ui.authLoginTitle}
+        subtitle={IS_WEB ? WEB_LOGIN_SUBTITLE : ui.authLoginSubtitle}
         compact
       >
         <AuthFormSection>
@@ -182,14 +197,16 @@ export default function LoginScreen() {
           <AuthSecureNote text={ui.authSecureNote} />
         </AuthFormSection>
 
-        <AuthFooterText>
-          <Text style={authScreenStyles.footer}>{ui.authNewHere} </Text>
-          <Link href={authRoutes.register}>
-            <Text style={authScreenStyles.footerLink}>{ui.authCreateAccountLink}</Text>
-          </Link>
-        </AuthFooterText>
+        {IS_WEB ? null : (
+          <AuthFooterText>
+            <Text style={authScreenStyles.footer}>{ui.authNewHere} </Text>
+            <Link href={authRoutes.register}>
+              <Text style={authScreenStyles.footerLink}>{ui.authCreateAccountLink}</Text>
+            </Link>
+          </AuthFooterText>
+        )}
       </AuthLoginShell>
-    </>
+    </WebAuthFrame>
   );
 }
 

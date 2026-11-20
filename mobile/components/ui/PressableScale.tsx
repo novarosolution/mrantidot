@@ -1,7 +1,11 @@
 import { type ReactNode, useRef } from 'react';
-import { Animated, Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Platform, Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import { useReducedMotion } from '@/lib/a11yPrefs';
 import { haptic as playHaptic } from '@/lib/motion';
+
+const IS_WEB = Platform.OS === 'web';
+/** Web only: a soft dip while the mouse is over the card (react-native-web already sets cursor: pointer). */
+const HOVER_OPACITY = 0.9;
 
 /**
  * Pressable with a short spring "give" (scale ~0.97) — the shared press feedback for cards and tiles.
@@ -27,6 +31,7 @@ export function PressableScale({
   const reduced = useReducedMotion();
   const scale = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(1)).current;
+  const hovered = useRef(false);
 
   const to = (s: number, o: number, fast: boolean) =>
     Animated.parallel([
@@ -43,9 +48,23 @@ export function PressableScale({
         rest.onPressIn?.(e);
       }}
       onPressOut={(e) => {
-        to(1, 1, false);
+        to(1, hovered.current ? HOVER_OPACITY : 1, false);
         rest.onPressOut?.(e);
       }}
+      {...(IS_WEB
+        ? {
+            onHoverIn: (e: Parameters<NonNullable<PressableProps['onHoverIn']>>[0]) => {
+              hovered.current = true;
+              if (!rest.disabled) to(1, HOVER_OPACITY, true);
+              rest.onHoverIn?.(e);
+            },
+            onHoverOut: (e: Parameters<NonNullable<PressableProps['onHoverOut']>>[0]) => {
+              hovered.current = false;
+              to(1, 1, false);
+              rest.onHoverOut?.(e);
+            },
+          }
+        : null)}
       onPress={(e) => {
         if (haptic) playHaptic(haptic);
         rest.onPress?.(e);

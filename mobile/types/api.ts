@@ -803,6 +803,12 @@ export interface CustomerUiCopy {
   webHeroCardTitle: string;
   webHeroCardText: string;
   webHeroRatingText: string;
+  webHeroScrollHint: string;
+  webClientsTitle: string;
+  webWorkEyebrow: string;
+  webWorkTitle: string;
+  webWorkSubtitle: string;
+  webWorkCta: string;
   webStickyBookText: string;
   webAppStoreLabel: string;
   webPlayStoreLabel: string;
@@ -1358,8 +1364,10 @@ export interface WebsiteImage {
 
 export type WebsiteHomeSectionKey =
   | 'hero'
+  | 'clients'
   | 'offers'
   | 'services'
+  | 'work'
   | 'why'
   | 'process'
   | 'sectors'
@@ -1434,6 +1442,18 @@ export interface WebsiteImages {
   why: WebsiteImage[];
   og: WebsiteImage;
   pageHeader: WebsiteImage;
+  /** Full-screen hero slideshow, up to 6 (the first one is also `hero`). */
+  heroSlides: WebsiteImage[];
+  /** Header photo per page; an empty one falls back to `pageHeader`. */
+  pageHeaders: Record<WebsitePageHeaderKey, WebsiteImage>;
+}
+
+export type WebsitePageHeaderKey = 'services' | 'about' | 'blog' | 'gallery' | 'team' | 'contact';
+
+/** A "Trusted by" client logo on the home page. */
+export interface WebsiteClient {
+  name: string;
+  logo: string;
 }
 
 export interface WebsiteLists {
@@ -1445,6 +1465,8 @@ export interface WebsiteLists {
   aboutPoints: string[];
   /** Service ids shown as quick-pick chips under the hero (max 8). */
   heroChips: string[];
+  /** Client logos for the "Trusted by" strip (max 24). */
+  clients: WebsiteClient[];
 }
 
 export interface WebsiteSocial {

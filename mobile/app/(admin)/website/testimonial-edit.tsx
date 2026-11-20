@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Star } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
@@ -20,6 +20,7 @@ import { adminGoBack, adminRoutes } from '@/lib/routes';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { Testimonial, WebsiteImage } from '@/types/api';
 import { adminType, colors, fonts, spacing, ui } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
 
 const RATING_LABELS = ['', 'Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
 
@@ -126,26 +127,23 @@ export default function WebsiteTestimonialEditScreen() {
 
   function remove() {
     if (!id) return;
-    Alert.alert('Delete testimonial?', `The quote from ${name || 'this client'} will be removed from the website.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await api.delete(`/website/admin/testimonials/${id}`, { skipErrorToast: true });
-              haptic('success');
-              Toast.show({ type: 'success', text1: 'Testimonial deleted' });
-              adminGoBack(adminRoutes.websiteTestimonials);
-            } catch (err) {
-              haptic('error');
-              Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not delete the testimonial') });
-            }
-          })();
-        },
-      },
-    ]);
+    void confirmAsync({
+      title: 'Delete testimonial?',
+      message: `The quote from ${name || 'this client'} will be removed from the website.`,
+      confirmLabel: 'Delete',
+      destructive: true,
+    }).then(async (ok) => {
+      if (!ok) return;
+      try {
+        await api.delete(`/website/admin/testimonials/${id}`, { skipErrorToast: true });
+        haptic('success');
+        Toast.show({ type: 'success', text1: 'Testimonial deleted' });
+        adminGoBack(adminRoutes.websiteTestimonials);
+      } catch (err) {
+        haptic('error');
+        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not delete the testimonial') });
+      }
+    });
   }
 
   if (id && loading) {

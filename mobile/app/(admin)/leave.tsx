@@ -1,6 +1,6 @@
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminEntrance, AdminListShell, adminListShellStyles, useListEntrance } from '@/components/kit/AdminListShell';
@@ -14,6 +14,7 @@ import { haptic } from '@/lib/motion';
 import { adminRoutes } from '@/lib/routes';
 import type { LeaveRequest } from '@/types/api';
 import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
 
 const FILTERS = [
   { key: 'pending', label: 'Pending' },
@@ -79,18 +80,14 @@ export default function AdminLeaveScreen() {
 
   function confirm(id: string, action: 'approve' | 'reject') {
     if (busyId) return;
-    Alert.alert(
-      action === 'approve' ? 'Approve leave?' : 'Reject leave?',
-      action === 'approve' ? 'Attendance will be marked as leave for these dates.' : undefined,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: action === 'approve' ? 'Approve' : 'Reject',
-          style: action === 'approve' ? 'default' : 'destructive',
-          onPress: () => void decide(id, action),
-        },
-      ],
-    );
+    void confirmAsync({
+      title: action === 'approve' ? 'Approve leave?' : 'Reject leave?',
+      message: action === 'approve' ? 'Attendance will be marked as leave for these dates.' : undefined,
+      confirmLabel: action === 'approve' ? 'Approve' : 'Reject',
+      destructive: action !== 'approve',
+    }).then((ok) => {
+      if (ok) void decide(id, action);
+    });
   }
 
   return (

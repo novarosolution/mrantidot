@@ -28,9 +28,11 @@ import type { WebsiteIconKey, WebsitePageKey, WebsiteSeoPage } from '@/types/api
 /** Plain-English names for the website's page blocks (admin screens are not CMS-managed). */
 export const WEBSITE_SECTION_META: Record<WebsitePageKey, Record<string, { name: string; desc: string }>> = {
   home: {
-    hero: { name: 'Hero banner', desc: 'Big headline, photo and booking buttons at the top' },
+    hero: { name: 'Hero banner', desc: 'Full-screen photo slideshow, headline and booking search' },
+    clients: { name: 'Trusted by', desc: 'Moving strip of client logos (Lists → Clients)' },
     offers: { name: 'Offers', desc: 'Live coupon codes from the Offers screen' },
     services: { name: 'Services', desc: 'Service cards from the catalog' },
+    work: { name: 'Our work', desc: 'Scrolling reel of gallery photos' },
     why: { name: 'Why choose us', desc: 'Reasons to trust you, with two photos' },
     process: { name: 'How it works', desc: 'Your step-by-step treatment process' },
     sectors: { name: 'Sectors we serve', desc: 'Hospitals, hotels, offices and more' },

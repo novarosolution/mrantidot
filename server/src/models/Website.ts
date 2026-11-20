@@ -16,6 +16,15 @@ export interface IWebsiteImage {
   alt: string;
 }
 
+/** Pages that can have their own header photo (falls back to `images.pageHeader`). */
+export const WEBSITE_PAGE_HEADER_KEYS = ['services', 'about', 'blog', 'gallery', 'team', 'contact'] as const;
+export type WebsitePageHeaderKey = (typeof WEBSITE_PAGE_HEADER_KEYS)[number];
+
+export interface IWebsiteClient {
+  name: string;
+  logo: string;
+}
+
 export interface IWebsiteSection {
   key: string;
   visible: boolean;
@@ -31,6 +40,9 @@ export interface IWebsiteContent {
     why: IWebsiteImage[];
     og: IWebsiteImage;
     pageHeader: IWebsiteImage;
+    /** Full-screen hero slideshow. Undefined until first saved, so new defaults reach older documents. */
+    heroSlides?: IWebsiteImage[];
+    pageHeaders?: Partial<Record<WebsitePageHeaderKey, IWebsiteImage>>;
   };
   lists: {
     stats: Array<{ value: string; label: string }>;
@@ -40,6 +52,8 @@ export interface IWebsiteContent {
     science: Array<{ title: string; text: string }>;
     aboutPoints: string[];
     heroChips: string[];
+    /** "Trusted by" client logos. Undefined until first saved. */
+    clients?: IWebsiteClient[];
   };
   social: { facebook: string; instagram: string; youtube: string; linkedin: string; x: string };
   seo: Record<string, { title: string; description: string }>;
@@ -69,6 +83,14 @@ const websiteContentSchema = new Schema<IWebsiteContent>(
       why: { type: [imageSchema], default: [] },
       og: { type: imageSchema, default: () => ({}) },
       pageHeader: { type: imageSchema, default: () => ({}) },
+      heroSlides: { type: [imageSchema], default: undefined },
+      pageHeaders: {
+        type: new Schema(
+          Object.fromEntries(WEBSITE_PAGE_HEADER_KEYS.map((k) => [k, { type: imageSchema, default: () => ({}) }])),
+          { _id: false },
+        ),
+        default: undefined,
+      },
     },
     lists: {
       stats: { type: [new Schema({ value: String, label: String }, { _id: false })], default: [] },
@@ -78,6 +100,7 @@ const websiteContentSchema = new Schema<IWebsiteContent>(
       science: { type: [new Schema({ title: String, text: String }, { _id: false })], default: [] },
       aboutPoints: { type: [String], default: [] },
       heroChips: { type: [String], default: [] },
+      clients: { type: [new Schema({ name: String, logo: String }, { _id: false })], default: undefined },
     },
     social: {
       facebook: { type: String, default: '' },

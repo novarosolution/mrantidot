@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { CheckCheck, Mail, MailOpen, MessageCircle, Phone, Trash2, type LucideIcon } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { AdminEntrance, AdminListShell, adminListShellStyles, useListEntrance } from '@/components/kit/AdminListShell';
@@ -23,6 +23,7 @@ import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import type { ContactMessage, ContactMessageStatus } from '@/types/api';
 import { adminType, colors, fonts, spacing, ui } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
 
 type Filter = ContactMessageStatus | 'all';
 
@@ -256,27 +257,24 @@ export default function WebsiteMessagesScreen() {
   );
 
   const onDelete = useCallback((m: ContactMessage) => {
-    Alert.alert('Delete this message?', `The message from ${m.name} will be removed for good.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await api.delete(`/website/admin/messages/${m.id}`, { skipErrorToast: true });
-              haptic('success');
-              setOpenId(null);
-              setMessages((prev) => prev.filter((x) => x.id !== m.id));
-              Toast.show({ type: 'success', text1: 'Message deleted' });
-            } catch (err) {
-              haptic('error');
-              Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not delete the message') });
-            }
-          })();
-        },
-      },
-    ]);
+    void confirmAsync({
+      title: 'Delete this message?',
+      message: `The message from ${m.name} will be removed for good.`,
+      confirmLabel: 'Delete',
+      destructive: true,
+    }).then(async (ok) => {
+      if (!ok) return;
+      try {
+        await api.delete(`/website/admin/messages/${m.id}`, { skipErrorToast: true });
+        haptic('success');
+        setOpenId(null);
+        setMessages((prev) => prev.filter((x) => x.id !== m.id));
+        Toast.show({ type: 'success', text1: 'Message deleted' });
+      } catch (err) {
+        haptic('error');
+        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not delete the message') });
+      }
+    });
   }, []);
 
   const header = useMemo(
