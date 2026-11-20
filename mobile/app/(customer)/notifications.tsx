@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { CustomerListShell, listShellStyles } from '@/components/kit/CustomerListShell';
 import { NotificationRow, type NotificationGroupPos } from '@/components/kit/NotificationRow';
@@ -18,6 +18,11 @@ import type { AppNotification } from '@/types/api';
 import { fonts, spacing, ui as themeUi } from '@/constants/theme';
 import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { haptic, stagger } from '@/lib/motion';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { ListRowsSkeleton } from '@/components/kit/ScreenSkeletons';
 
 export default function NotificationsScreen() {
   const ui = useCustomerUiCopy();
@@ -65,6 +70,7 @@ export default function NotificationsScreen() {
 
   async function markAllRead() {
     setMarkingAll(true);
+    haptic('success');
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
     try {
       await api.patch('/notifications/read-all');
@@ -98,19 +104,25 @@ export default function NotificationsScreen() {
   return (
     <CustomerListShell
       title={ui.notificationsScreenTitle}
-      subtitle={items.length === 0 ? undefined : hasUnread ? `${unreadCount} unread` : 'All caught up'}
+      subtitle={
+        items.length === 0
+          ? undefined
+          : hasUnread
+            ? fillCopy(ui.notificationsUnreadSub, { count: unreadCount })
+            : ui.notificationsCaughtUpSub
+      }
       rightAction={
         hasUnread ? (
-          <Pressable
+          <PressableScale
             onPress={markAllRead}
             disabled={markingAll}
-            style={({ pressed }) => [styles.markAll, pressed && styles.markAllPressed]}
+            style={styles.markAll}
             accessibilityRole="button"
-            accessibilityLabel="Mark all notifications as read"
+            accessibilityLabel={ui.notificationsMarkAll}
           >
             <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={13} color={themeUi.brand} strokeWidth={2.6} />
-            <Text style={styles.markAllText}>{markingAll ? '…' : 'Mark all read'}</Text>
-          </Pressable>
+            <Text style={styles.markAllText}>{markingAll ? '…' : ui.notificationsMarkAll}</Text>
+          </PressableScale>
         ) : undefined
       }
     >
@@ -119,7 +131,7 @@ export default function NotificationsScreen() {
         loading={loading}
         error={loadError && items.length === 0 ? loadError : null}
         onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
-        loadingLabel="Loading notifications…"
+        skeleton={<ListRowsSkeleton rows={5} />}
       >
         <SectionList
           sections={sections}
@@ -133,18 +145,21 @@ export default function NotificationsScreen() {
               <View style={styles.filterWrap}>
                 <SegmentedTabs
                   tabs={[
-                    { key: 'all', label: 'All', count: items.length },
-                    { key: 'unread', label: 'Unread', count: unreadCount },
+                    { key: 'all', label: ui.notificationsFilterAll, count: items.length },
+                    { key: 'unread', label: ui.notificationsFilterUnread, count: unreadCount },
                   ]}
                   selected={filter}
-                  onSelect={setFilter}
+                  onSelect={(key) => {
+                    if (key !== filter) haptic('select');
+                    setFilter(key);
+                  }}
                 />
               </View>
             ) : null
           }
           ListEmptyComponent={
             filter === 'unread' && items.length > 0 ? (
-              <EmptyState title="You're all caught up" message="No unread notifications right now." />
+              <EmptyState title={ui.notificationsUnreadEmptyTitle} message={ui.notificationsUnreadEmptyMessage} />
             ) : (
               <EmptyState title={ui.notificationsEmptyTitle} message={ui.notificationsEmptyMessage} />
             )
@@ -154,7 +169,13 @@ export default function NotificationsScreen() {
             const last = section.data.length - 1;
             const pos: NotificationGroupPos =
               last === 0 ? 'only' : index === 0 ? 'first' : index === last ? 'last' : 'middle';
-            return <NotificationRow item={item} groupPos={pos} onPress={() => void openItem(item)} />;
+            // Only the first screenful animates in; later rows render straight away.
+            const order = sections.slice(0, sections.indexOf(section)).reduce((n, s) => n + s.data.length, 0) + index;
+            return (
+              <FadeSlideIn delay={stagger(order)} slideFrom={12} disabled={order > 6}>
+                <NotificationRow item={item} groupPos={pos} onPress={() => void openItem(item)} />
+              </FadeSlideIn>
+            );
           }}
           SectionSeparatorComponent={() => <View style={styles.sectionGap} />}
         />
@@ -187,6 +208,5 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 14,
   },
-  markAllPressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
   markAllText: { fontFamily: fonts.bodyBold, fontSize: 12, color: themeUi.brand },
 });

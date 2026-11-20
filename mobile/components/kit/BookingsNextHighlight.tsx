@@ -11,6 +11,7 @@ import {
   isBookingLive,
 } from '@/lib/booking-helpers';
 import { useBookingCopy } from '@/lib/schedule-copy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import type { Booking } from '@/types/api';
 import { colors, fonts, gradients, spacing, ui } from '@/constants/theme';
 import { localDateKey } from '@/lib/dates';
@@ -24,6 +25,7 @@ export function BookingsNextHighlight({
   onPress?: () => void;
 }) {
   const copy = useBookingCopy();
+  const labels = useCustomerUiCopy();
   const live = isBookingLive(booking.status);
   // "Happening now" only for today's visit — an older job that is still open just reads "In progress".
   const liveLabel = booking.schedule?.date === localDateKey() ? copy.liveNowLabel : copy.liveOngoingLabel;
@@ -84,7 +86,7 @@ export function BookingsNextHighlight({
         </View>
 
         <View style={styles.cta}>
-          <Text style={styles.ctaText}>{live ? 'Track live visit' : 'View visit details'}</Text>
+          <Text style={styles.ctaText}>{live ? labels.bookingsTrackLive : labels.bookingsViewVisit}</Text>
           <View style={styles.ctaIcon}>
             <ArrowRight size={16} color={ui.brand} strokeWidth={2.5} />
           </View>

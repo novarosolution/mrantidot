@@ -1,21 +1,23 @@
 import { Children, isValidElement, type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react-native';
 import { ChevronRight } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
-import { adminShadow } from '@/components/kit/homeUi';
+import { StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { adminType, colors, fonts, spacing, ui } from '@/constants/theme';
 
 /** White settings-style card that stacks hub rows with inset hairlines. */
 export function AdminHubGroup({ children }: { children: ReactNode }) {
   const rows = Children.toArray(children);
   return (
-    <View style={styles.group}>
-      {rows.map((row, i) => (
-        <View key={isValidElement(row) && row.key != null ? row.key : i}>
-          {i > 0 ? <View style={styles.divider} /> : null}
-          {row}
-        </View>
-      ))}
+    <View style={styles.groupShell}>
+      <View style={styles.group}>
+        {rows.map((row, i) => (
+          <View key={isValidElement(row) && row.key != null ? row.key : i}>
+            {i > 0 ? <View style={styles.divider} /> : null}
+            {row}
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
@@ -41,8 +43,9 @@ export function AdminHubLink({
 }) {
   const badgeText = badge && badge > 0 ? (badge > 99 ? '99+' : String(badge)) : null;
   return (
-    <Pressable
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+    <PressableScale
+      style={styles.row}
+      scaleTo={0.98}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={badgeText ? `${label}, ${badgeText} new` : label}
@@ -66,21 +69,26 @@ export function AdminHubLink({
         </View>
       ) : null}
       <ChevronRight size={18} color={ui.textTertiary} strokeWidth={2.2} />
-    </Pressable>
+    </PressableScale>
   );
 }
 
 const ICON = 40;
 
 const styles = StyleSheet.create({
-  group: {
+  /** Shadow lives on an unclipped shell — iOS drops shadows on views with overflow hidden. */
+  groupShell: {
     marginHorizontal: spacing.md,
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    ...ui.shadow,
+  },
+  group: {
     borderRadius: 20,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.hairline,
     overflow: 'hidden',
-    ...adminShadow.card,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
@@ -95,7 +103,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     backgroundColor: colors.white,
   },
-  pressed: { backgroundColor: ui.surfaceMuted },
   iconBox: {
     width: ICON,
     height: ICON,

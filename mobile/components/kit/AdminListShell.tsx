@@ -1,16 +1,52 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { AppIcons } from '@/constants/appIcons';
+import { stagger } from '@/lib/motion';
 import { AdminLightHeader } from './AdminLightHeader';
 import { GlassBackdrop, TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
 import { adminType, colors, spacing, surfaces, ui } from '@/constants/theme';
 
-/** Bottom padding when a sticky save bar sits above the tab bar. */
-export const ADMIN_STICKY_FOOTER_PAD = 108;
+/**
+ * Bottom padding when a sticky save bar is docked at the bottom: the bar is ~102pt tall on a
+ * home-indicator iPhone (16 top + 52 button + 34 inset), so this leaves ~20pt of air above it.
+ */
+export const ADMIN_STICKY_FOOTER_PAD = 124;
 /** When sticky bar has two buttons (save + deactivate). */
 export const ADMIN_STICKY_FOOTER_PAD_TALL = 152;
+
+/** Leading rows of an admin list that get the staggered entrance; later rows appear instantly. */
+export const ADMIN_ENTRANCE_ROWS = 7;
+
+/**
+ * Decides which list rows play the entrance. Only rows painted in the first batch after `ready`
+ * turns true (and only the first few) animate — pull-to-refresh, filter changes and rows that
+ * virtualisation remounts while scrolling all appear instantly, so the list plays once per visit.
+ */
+export function useListEntrance(ready = true): (index: number) => boolean {
+  const settled = useRef(false);
+  useEffect(() => {
+    if (ready) settled.current = true;
+  }, [ready]);
+  return useCallback((index: number) => !settled.current && index < ADMIN_ENTRANCE_ROWS, []);
+}
+
+/**
+ * Staggered fade/slide for one list row. Whether it animates is latched at mount, so the row's
+ * tree never changes shape afterwards (no remounts when its index or the list re-renders).
+ */
+export function AdminEntrance({ index, play, children }: { index: number; play: boolean; children: ReactNode }) {
+  const [animate] = useState(play);
+  const [delay] = useState(() => stagger(index));
+  if (!animate) return <>{children}</>;
+  return (
+    <FadeSlideIn delay={delay} slideFrom={14}>
+      {children}
+    </FadeSlideIn>
+  );
+}
 
 export function AdminListShell({
   title,
@@ -87,12 +123,20 @@ export function AdminSectionTitle({
       <View style={adminStyles.sectionRow}>
         <View style={adminStyles.titleCol}>
           <View style={adminStyles.sectionTextCol}>
-            <Text style={adminStyles.sectionTitle}>{title}</Text>
+            <Text style={adminStyles.sectionTitle} numberOfLines={1}>
+              {title}
+            </Text>
             {hint ? <Text style={adminStyles.sectionHint}>{hint}</Text> : null}
           </View>
         </View>
         {actionLabel && onAction ? (
-          <Pressable onPress={onAction} hitSlop={8} style={adminStyles.sectionAction}>
+          <Pressable
+            onPress={onAction}
+            hitSlop={8}
+            style={({ pressed }) => [adminStyles.sectionAction, pressed && adminStyles.sectionActionPressed]}
+            accessibilityRole="button"
+            accessibilityLabel={`${actionLabel}, ${title}`}
+          >
             <Text style={adminStyles.sectionLink}>{actionLabel}</Text>
             <View style={adminStyles.chevronBtn}>
               <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={14} color={colors.forest} strokeWidth={2.5} />
@@ -150,6 +194,7 @@ export const adminStyles = StyleSheet.create({
     color: ui.textSecondary,
   },
   sectionAction: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  sectionActionPressed: { opacity: 0.6 },
   sectionLink: { ...adminType.sectionLink },
   chevronBtn: {
     width: 28,

@@ -13,6 +13,7 @@ import { ArrowRight, CircleCheck, Eye, EyeOff, type LucideIcon } from 'lucide-re
 import { AuthLoginShell, AuthFormSection, AuthFooterText } from '@/components/kit/auth/AuthScreenKit';
 import { colors, fonts, premiumType, spacing, ui } from '@/constants/theme';
 import { textInputDefaults, textInputStyles } from '@/components/ui/textInputDefaults';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 export type AuthFieldProps = {
   label: string;
@@ -46,6 +47,7 @@ export function AuthField({
   keyboardType = 'default',
   autoCapitalize = 'none',
 }: AuthFieldProps) {
+  const copy = useCustomerUiCopy();
   const [focused, setFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const filled = value.trim().length > 0;
@@ -54,7 +56,7 @@ export function AuthField({
     <View style={styles.field}>
       <View style={styles.labelRow}>
         <Text style={[styles.fieldLabel, focused && styles.fieldLabelFocused]}>{label}</Text>
-        {optional ? <Text style={styles.optional}>Optional</Text> : null}
+        {optional ? <Text style={styles.optional}>{copy.authFieldOptional}</Text> : null}
       </View>
       <View
         style={[

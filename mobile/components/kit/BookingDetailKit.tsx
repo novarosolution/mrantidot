@@ -6,6 +6,7 @@ import { AppIcons } from '@/constants/appIcons';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { mediaUrl } from '@/lib/images';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { colors, fonts, premium, shadows, spacing, surfaces } from '@/constants/theme';
 
 const STAGE_ICONS: LucideIcon[] = [
@@ -42,11 +43,12 @@ export function BookingStageTracker({ steps }: { steps: { title: string; done: b
   const doneCount = steps.filter((s) => s.done).length;
   const pct = steps.length ? Math.round((doneCount / steps.length) * 100) : 0;
   const activeIdx = steps.findIndex((s) => !s.done);
+  const labels = useCustomerUiCopy();
 
   return (
     <View style={styles.stageWrap}>
       <View style={styles.stageHead}>
-        <Text style={styles.stageTitle}>Booking journey</Text>
+        <Text style={styles.stageTitle}>{labels.bookingDetailJourneyTitle}</Text>
         <View style={styles.stagePctChip}>
           <Text style={styles.stagePct}>{pct}%</Text>
         </View>
@@ -73,7 +75,7 @@ export function BookingStageTracker({ steps }: { steps: { title: string; done: b
               <Text style={[styles.stageLabel, !step.done && styles.stageLabelMuted, isActive && styles.stageLabelActive]}>
                 {step.title}
               </Text>
-              {isActive ? <Text style={styles.stageHint}>Current step</Text> : null}
+              {isActive ? <Text style={styles.stageHint}>{labels.bookingDetailCurrentStep}</Text> : null}
             </View>
           </View>
         );

@@ -31,3 +31,10 @@ export function homeGreetingName(user: Pick<StoredUser, 'name'> | null | undefin
   if (!name || name.toLowerCase() === 'customer') return 'Guest';
   return name.split(' ')[0] ?? name;
 }
+
+/** 10-digit Indian mobile → "+91 98765 43210"; anything else is shown as entered. */
+export function formatPhoneDisplay(raw?: string | null): string | undefined {
+  const phone = raw?.trim();
+  if (!phone) return undefined;
+  return /^\d{10}$/.test(phone) ? `+91 ${phone.slice(0, 5)} ${phone.slice(5)}` : phone;
+}

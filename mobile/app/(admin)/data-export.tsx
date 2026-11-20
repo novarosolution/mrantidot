@@ -1,19 +1,22 @@
 import * as Clipboard from 'expo-clipboard';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Share, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AdminLightHeader } from '@/components/kit/AdminLightHeader';
 import { AdminSectionTitle } from '@/components/kit/AdminListShell';
 import { GlassPanel, GlassScreen } from '@/components/kit/GlassScreenKit';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AdminExportSkeleton } from '@/components/kit/AdminSkeletons';
 import { Button } from '@/components/ui/Button';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { AppIcons } from '@/constants/appIcons';
 import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
+import { haptic, stagger } from '@/lib/motion';
 import { adminRoutes } from '@/lib/routes';
 import { useScreenLoad } from '@/lib/useScreenLoad';
-import { colors, fonts, premiumType, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, premiumType, spacing, ui } from '@/constants/theme';
 
 type ExportSummary = {
   users: number;
@@ -114,6 +117,7 @@ export default function AdminDataExportScreen() {
     try {
       await fn();
     } catch (err) {
+      haptic('error');
       Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not share export') });
     } finally {
       setBusy(null);
@@ -151,6 +155,7 @@ export default function AdminDataExportScreen() {
     if (!bundle) return;
     const { csv: _csv, ...jsonBody } = bundle;
     await Clipboard.setStringAsync(JSON.stringify(jsonBody));
+    haptic('success');
     Toast.show({ type: 'success', text1: 'Full JSON copied' });
   }
 
@@ -165,26 +170,23 @@ export default function AdminDataExportScreen() {
     Toast.show({ type: 'success', text1: `${label} CSV ready` });
   }
 
-  if (loading && !bundle) return <Spinner fullScreen />;
-
-  if (error && !bundle) {
+  if (!bundle) {
+    const header = (
+      <AdminLightHeader title="Data export" subtitle="Download business data" showBack backFallback={adminRoutes.team} />
+    );
+    if (error && !loading) {
+      return (
+        <GlassScreen header={header}>
+          <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
+        </GlassScreen>
+      );
+    }
     return (
-      <GlassScreen
-        header={
-          <AdminLightHeader
-            title="Data export"
-            subtitle="Download business data"
-            showBack
-            backFallback={adminRoutes.team}
-          />
-        }
-      >
-        <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
+      <GlassScreen header={header}>
+        <AdminExportSkeleton />
       </GlassScreen>
     );
   }
-
-  if (!bundle) return <Spinner fullScreen />;
 
   return (
     <GlassScreen
@@ -197,86 +199,99 @@ export default function AdminDataExportScreen() {
         />
       }
     >
-      <GlassPanel>
-        <Text style={styles.heroEyebrow}>FULL BACKUP</Text>
-        <Text style={styles.heroTitle}>Export everything</Text>
-        <Text style={styles.heroBody}>
-          Pull bookings, people, catalog, offers, reviews, leave and attendance into CSV or JSON —
-          passwords and live OTPs are excluded.
-        </Text>
-        <Text style={styles.meta}>Generated {formatWhen(bundle.exportedAt)}</Text>
+      <FadeSlideIn delay={stagger(0)} slideFrom={14}>
+        <GlassPanel>
+          <Text style={styles.heroEyebrow}>FULL BACKUP</Text>
+          <Text style={styles.heroTitle}>Export everything</Text>
+          <Text style={styles.heroBody}>
+            Pull bookings, people, catalog, offers, reviews, leave and attendance into CSV or JSON —
+            passwords and live OTPs are excluded.
+          </Text>
+          <Text style={styles.meta}>Generated {formatWhen(bundle.exportedAt)}</Text>
 
-        <View style={styles.summaryGrid}>
-          {summaryCards.map((c) => (
-            <View key={c.label} style={styles.summaryCell}>
-              <Text style={styles.summaryValue}>{c.value}</Text>
-              <Text style={styles.summaryLabel}>{c.label}</Text>
-            </View>
-          ))}
-        </View>
+          <View style={styles.summaryGrid}>
+            {summaryCards.map((c) => (
+              <View key={c.label} style={styles.summaryCell}>
+                <Text style={styles.summaryValue} numberOfLines={1}>
+                  {c.value}
+                </Text>
+                <Text style={styles.summaryLabel} numberOfLines={1}>
+                  {c.label}
+                </Text>
+              </View>
+            ))}
+          </View>
 
-        <Button
-          title="Download all data"
-          variant="premium"
-          loading={busy === 'all'}
-          onPress={() => void runAction('all', downloadAll)}
-          style={{ marginTop: spacing.md }}
-        />
-        <View style={styles.rowBtns}>
           <Button
-            title="Share JSON"
-            variant="secondary"
-            loading={busy === 'json'}
-            onPress={() => void runAction('json', shareJson)}
-            style={styles.halfBtn}
+            title="Download all data"
+            variant="premium"
+            loading={busy === 'all'}
+            onPress={() => void runAction('all', downloadAll)}
+            style={styles.btnGapMd}
           />
+          <View style={styles.rowBtns}>
+            <Button
+              title="Share JSON"
+              variant="secondary"
+              loading={busy === 'json'}
+              onPress={() => void runAction('json', shareJson)}
+              style={styles.halfBtn}
+            />
+            <Button
+              title="Copy JSON"
+              variant="outline"
+              loading={busy === 'copy'}
+              onPress={() => void runAction('copy', copyJson)}
+              style={styles.halfBtn}
+            />
+          </View>
           <Button
-            title="Copy JSON"
-            variant="outline"
-            loading={busy === 'copy'}
-            onPress={() => void runAction('copy', copyJson)}
-            style={styles.halfBtn}
+            title="Refresh snapshot"
+            variant="ghost"
+            loading={busy === 'reload'}
+            onPress={() => void runAction('reload', async () => { await reload(load); })}
+            style={styles.btnGap}
           />
-        </View>
-        <Button
-          title="Refresh snapshot"
-          variant="ghost"
-          loading={busy === 'reload'}
-          onPress={() => void runAction('reload', async () => { await reload(load); })}
-          style={{ marginTop: spacing.sm }}
-        />
-      </GlassPanel>
+        </GlassPanel>
+      </FadeSlideIn>
 
-      <AdminSectionTitle flush title="CSV sheets" hint="Share one dataset at a time" />
+      <FadeSlideIn delay={stagger(1)} slideFrom={14}>
+        <AdminSectionTitle flush title="CSV sheets" hint="Share one dataset at a time" />
+      </FadeSlideIn>
       <View style={styles.sheets}>
-        {CSV_SHEETS.map((sheet) => {
+        {CSV_SHEETS.map((sheet, i) => {
           const count = bundle.summary[sheet.countKey];
           return (
-            <Pressable
-              key={sheet.key}
-              style={({ pressed }) => [styles.sheetCard, pressed && styles.pressed]}
-              onPress={() => void runAction(sheet.key, () => shareSheet(sheet.key, sheet.label))}
-              disabled={busy === sheet.key}
-            >
-              <GlassPanel padded={false} style={styles.sheetPanel}>
-                <View style={styles.sheetInner}>
-                  <PremiumIcon
-                    icon={AppIcons.ui.download}
-                    variant="mint"
-                    size="md"
-                    color={colors.forest}
-                    boxSize={42}
-                  />
-                  <View style={styles.sheetCopy}>
-                    <Text style={styles.sheetLabel}>{sheet.label}</Text>
-                    <Text style={styles.sheetHint}>
-                      {sheet.hint} · {count} rows
-                    </Text>
+            <FadeSlideIn key={sheet.key} delay={stagger(i + 2)} slideFrom={14}>
+              <PressableScale
+                onPress={() => void runAction(sheet.key, () => shareSheet(sheet.key, sheet.label))}
+                disabled={busy === sheet.key}
+                scaleTo={0.98}
+                accessibilityRole="button"
+                accessibilityLabel={`Share ${sheet.label} CSV, ${count} rows`}
+              >
+                <GlassPanel padded={false} style={styles.sheetPanel}>
+                  <View style={styles.sheetInner}>
+                    <PremiumIcon
+                      icon={AppIcons.ui.download}
+                      variant="mint"
+                      size="md"
+                      color={colors.forest}
+                      boxSize={42}
+                    />
+                    <View style={styles.sheetCopy}>
+                      <Text style={styles.sheetLabel} numberOfLines={1}>
+                        {sheet.label}
+                      </Text>
+                      <Text style={styles.sheetHint} numberOfLines={1}>
+                        {sheet.hint} · {count} rows
+                      </Text>
+                    </View>
+                    <Text style={styles.sheetAction}>{busy === sheet.key ? '…' : 'CSV'}</Text>
                   </View>
-                  <Text style={styles.sheetAction}>{busy === sheet.key ? '…' : 'CSV'}</Text>
-                </View>
-              </GlassPanel>
-            </Pressable>
+                </GlassPanel>
+              </PressableScale>
+            </FadeSlideIn>
           );
         })}
       </View>
@@ -318,9 +333,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 10,
-    backgroundColor: surfaces.glassInput,
+    backgroundColor: ui.surfaceMuted,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.hairline,
   },
   summaryValue: {
     fontFamily: fonts.displayExtra,
@@ -340,12 +355,13 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   halfBtn: { flex: 1 },
+  btnGap: { marginTop: spacing.sm },
+  btnGapMd: { marginTop: spacing.md },
+  /** GlassScreen already pads 16pt each side — sheets line up with the backup card above. */
   sheets: {
-    paddingHorizontal: spacing.md,
     gap: spacing.sm,
     paddingBottom: spacing.xl,
   },
-  sheetCard: {},
   sheetPanel: { overflow: 'hidden' },
   sheetInner: {
     flexDirection: 'row',
@@ -372,5 +388,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     color: colors.forest,
   },
-  pressed: { opacity: 0.88 },
 });

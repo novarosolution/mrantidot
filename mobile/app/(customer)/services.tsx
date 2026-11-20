@@ -40,15 +40,11 @@ import { colors, fonts, ui } from '@/constants/theme';
 import { sharedRoutes, appPush } from '@/lib/routes';
 import { serviceStartPrice } from '@/lib/serviceDisplay';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
-import { stagger } from '@/lib/motion';
+import { haptic, stagger } from '@/lib/motion';
 
 type SortKey = 'popular' | 'rating' | 'price';
 
-const SORTS: { key: SortKey; label: string }[] = [
-  { key: 'popular', label: 'Popular' },
-  { key: 'rating', label: 'Top rated' },
-  { key: 'price', label: 'Price: low to high' },
-];
+const SORT_KEYS: SortKey[] = ['popular', 'rating', 'price'];
 
 const H_PAD = 16;
 const PEST_TILE = 72;
@@ -243,12 +239,15 @@ export default function ServicesListScreen() {
       >
         {(['all', ...availableTypes] as const).map((k) => {
           const on = serviceType === k;
-          const label = k === 'all' ? 'All' : SERVICE_TYPE_LABELS[k];
+          const label = k === 'all' ? copy.servicesAllLabel : SERVICE_TYPE_LABELS[k];
           return (
             <Pressable
               key={k}
               style={styles.pestItem}
-              onPress={() => setServiceType(k)}
+              onPress={() => {
+                if (k !== serviceType) haptic('select');
+                setServiceType(k);
+              }}
               accessibilityRole="button"
               accessibilityState={{ selected: on }}
               accessibilityLabel={k === 'all' ? 'All types' : label}
@@ -269,14 +268,19 @@ export default function ServicesListScreen() {
       </ScrollView>
     ) : null;
 
-  const sortLabel = SORTS.find((s) => s.key === sort)?.label ?? 'Popular';
+  const sortLabels: Record<SortKey, string> = {
+    popular: copy.servicesSortPopular,
+    rating: copy.servicesSortRating,
+    price: copy.servicesSortPrice,
+  };
+  const sortLabel = sortLabels[sort];
   const filterRow = (
     <View style={styles.filterRow}>
       <Text style={styles.count}>{plural(visibleServices.length, 'service')}</Text>
       <View style={styles.pills}>
         {homeConfig.categoryChips.length > 1 ? (
           <FilterPill
-            label={categoryActive ? categoryLabel : 'Category'}
+            label={categoryActive ? categoryLabel : copy.servicesCategoryLabel}
             active={categoryActive}
             onPress={() => setSheet('category')}
           />
@@ -287,11 +291,11 @@ export default function ServicesListScreen() {
   );
 
   const tick = <Check size={18} color={ui.brand} strokeWidth={2.6} />;
-  const sortOptions: ActionSheetOption[] = SORTS.map((s) => ({
-    key: s.key,
-    label: s.label,
-    icon: sort === s.key ? tick : undefined,
-    onPress: () => setSort(s.key),
+  const sortOptions: ActionSheetOption[] = SORT_KEYS.map((k) => ({
+    key: k,
+    label: sortLabels[k],
+    icon: sort === k ? tick : undefined,
+    onPress: () => setSort(k),
   }));
   const categoryOptions: ActionSheetOption[] = homeConfig.categoryChips.map((c) => ({
     key: c.label,
@@ -303,12 +307,12 @@ export default function ServicesListScreen() {
   const emptyBlock = (
     <View style={styles.emptyWrap}>
       <EmptyState
-        title={hasFilters ? 'No services found' : 'No services'}
-        message={hasFilters ? 'Try a different search or clear the filters' : 'Check back soon.'}
+        title={hasFilters ? copy.servicesEmptyTitle : copy.homeEmptyNoServicesTitle}
+        message={hasFilters ? copy.servicesEmptyMessage : copy.homeEmptyNoServicesMessage}
       />
       {hasFilters ? (
         <Pressable style={({ pressed }) => [styles.clearBtn, pressed && styles.pillPressed]} onPress={resetFilters}>
-          <Text style={styles.clearBtnText}>Clear filters</Text>
+          <Text style={styles.clearBtnText}>{copy.servicesClearFilters}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -365,10 +369,10 @@ export default function ServicesListScreen() {
         )}
       </SafeAreaView>
 
-      <AdminActionSheet visible={sheet === 'sort'} title="Sort by" options={sortOptions} onClose={() => setSheet(null)} />
+      <AdminActionSheet visible={sheet === 'sort'} title={copy.servicesSortTitle} options={sortOptions} onClose={() => setSheet(null)} />
       <AdminActionSheet
         visible={sheet === 'category'}
-        title="Category"
+        title={copy.servicesCategoryLabel}
         options={categoryOptions}
         onClose={() => setSheet(null)}
       />

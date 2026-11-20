@@ -5,14 +5,16 @@ import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AdminFormCard, AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { AdminFormSkeleton } from '@/components/kit/AdminSkeletons';
 import { IconInput } from '@/components/kit/IconInput';
 import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
 import { Button } from '@/components/ui/Button';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
 import { useAuth } from '@/context/AuthContext';
 import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
+import { haptic, stagger } from '@/lib/motion';
 import { technicianRealRating } from '@/lib/ratings';
 import { paramString } from '@/lib/routeParams';
 import { useScreenLoad } from '@/lib/useScreenLoad';
@@ -94,6 +96,7 @@ export default function UserEditScreen() {
     }
     setErrors(next);
     if (Object.keys(next).length > 0) {
+      haptic('error');
       Toast.show({ type: 'error', text1: 'Fix the highlighted fields' });
       return;
     }
@@ -119,6 +122,7 @@ export default function UserEditScreen() {
           if (payMode === 'percent') {
             const pct = parseFloat(payPercent);
             if (Number.isNaN(pct) || pct < 0 || pct > 100) {
+              haptic('error');
               Toast.show({ type: 'error', text1: 'Pay percent must be 0–100' });
               setSaving(false);
               return;
@@ -127,6 +131,7 @@ export default function UserEditScreen() {
           } else {
             const flat = parseFloat(payFlat);
             if (Number.isNaN(flat) || flat < 0) {
+              haptic('error');
               Toast.show({ type: 'error', text1: 'Flat pay must be 0 or more' });
               setSaving(false);
               return;
@@ -161,9 +166,11 @@ export default function UserEditScreen() {
         }
         await api.post('/admin/users', createBody);
       }
+      haptic('success');
       Toast.show({ type: 'success', text1: 'Saved' });
       adminGoBack(returnTo);
     } catch (err) {
+      haptic('error');
       Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not save user') });
     } finally {
       setSaving(false);
@@ -181,9 +188,11 @@ export default function UserEditScreen() {
           void (async () => {
             try {
               await api.delete(`/admin/users/${id}`);
+              haptic('success');
               Toast.show({ type: 'success', text1: 'Account disabled' });
               adminGoBack(returnTo);
             } catch (err) {
+              haptic('error');
               Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not disable account') });
             }
           })();
@@ -195,11 +204,17 @@ export default function UserEditScreen() {
   const title = id ? 'Edit user' : `Add ${role}`;
   const subtitle = id ? `Role: ${role}` : 'New account';
 
-  if (id && loading) return <Spinner fullScreen />;
+  if (id && loading) {
+    return (
+      <AdminListShell title="Edit user" subtitle="Loading account…" backFallback={returnTo}>
+        <AdminFormSkeleton cards={[5, 2]} />
+      </AdminListShell>
+    );
+  }
 
   if (id && error) {
     return (
-      <AdminListShell title="User" subtitle="Error">
+      <AdminListShell title="User" subtitle="Error" backFallback={returnTo}>
         <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
       </AdminListShell>
     );
@@ -225,155 +240,159 @@ export default function UserEditScreen() {
         keyboardShouldPersistTaps="always"
         showsVerticalScrollIndicator={false}
       >
-        <AdminFormCard>
-          <Text style={styles.sectionTitle}>Account</Text>
-          <Text style={styles.sectionHint}>Who they are and how they sign in</Text>
-          <Text style={styles.label}>Role</Text>
-          <AdminFilterChips
-            chips={ROLES.map((r) => ({ key: r.key, label: r.label, disabled: roleLocked }))}
-            selected={role}
-            onSelect={(key) => {
-              if (roleLocked) {
-                Toast.show({
-                  type: 'info',
-                  text1: 'Role locked',
-                  text2: 'The primary admin account cannot change role.',
-                });
-                return;
-              }
-              setRole(key as UserRole);
-            }}
-          />
-          {roleLocked ? (
-            <Text style={styles.hint}>Primary admin role is locked and cannot be changed.</Text>
-          ) : null}
+        <FadeSlideIn delay={stagger(0)} slideFrom={14}>
+          <AdminFormCard>
+            <Text style={styles.sectionTitle}>Account</Text>
+            <Text style={styles.sectionHint}>Who they are and how they sign in</Text>
+            <Text style={styles.label}>Role</Text>
+            <AdminFilterChips
+              chips={ROLES.map((r) => ({ key: r.key, label: r.label, disabled: roleLocked }))}
+              selected={role}
+              onSelect={(key) => {
+                if (roleLocked) {
+                  Toast.show({
+                    type: 'info',
+                    text1: 'Role locked',
+                    text2: 'The primary admin account cannot change role.',
+                  });
+                  return;
+                }
+                setRole(key as UserRole);
+              }}
+            />
+            {roleLocked ? (
+              <Text style={styles.hint}>Primary admin role is locked and cannot be changed.</Text>
+            ) : null}
 
-          <IconInput
-            label="Name"
-            value={name}
-            onChangeText={(t) => {
-              setName(t);
-              if (errors.name) setErrors((e) => ({ ...e, name: undefined }));
-            }}
-            error={errors.name}
-          />
-          <IconInput
-            label="Phone"
-            value={phone}
-            onChangeText={(t) => {
-              setPhone(t);
-              if (errors.phone) setErrors((e) => ({ ...e, phone: undefined }));
-            }}
-            keyboardType="phone-pad"
-            error={errors.phone}
-          />
-          <IconInput
-            label="Email"
-            value={email}
-            onChangeText={(t) => {
-              setEmail(t);
-              if (errors.email) setErrors((e) => ({ ...e, email: undefined }));
-            }}
-            autoCapitalize="none"
-            error={errors.email}
-          />
-          <IconInput label="City" value={city} onChangeText={setCity} />
-          <IconInput
-            label={id ? 'New password (optional)' : 'Password'}
-            value={password}
-            onChangeText={(t) => {
-              setPassword(t);
-              if (errors.password) setErrors((e) => ({ ...e, password: undefined }));
-            }}
-            secure
-            error={errors.password}
-          />
+            <IconInput
+              label="Name"
+              value={name}
+              onChangeText={(t) => {
+                setName(t);
+                if (errors.name) setErrors((e) => ({ ...e, name: undefined }));
+              }}
+              error={errors.name}
+            />
+            <IconInput
+              label="Phone"
+              value={phone}
+              onChangeText={(t) => {
+                setPhone(t);
+                if (errors.phone) setErrors((e) => ({ ...e, phone: undefined }));
+              }}
+              keyboardType="phone-pad"
+              error={errors.phone}
+            />
+            <IconInput
+              label="Email"
+              value={email}
+              onChangeText={(t) => {
+                setEmail(t);
+                if (errors.email) setErrors((e) => ({ ...e, email: undefined }));
+              }}
+              autoCapitalize="none"
+              error={errors.email}
+            />
+            <IconInput label="City" value={city} onChangeText={setCity} />
+            <IconInput
+              label={id ? 'New password (optional)' : 'Password'}
+              value={password}
+              onChangeText={(t) => {
+                setPassword(t);
+                if (errors.password) setErrors((e) => ({ ...e, password: undefined }));
+              }}
+              secure
+              error={errors.password}
+            />
 
-          {id ? (
-            <View style={styles.toggleRow}>
-              <View style={styles.flex}>
-                <Text style={styles.toggleLabel}>Account active</Text>
+            {id ? (
+              <View style={styles.toggleRow}>
+                <View style={styles.flex}>
+                  <Text style={styles.toggleLabel}>Account active</Text>
+                </View>
+                <ToggleSwitch
+                  value={active}
+                  onToggle={() => !roleLocked && setActive((v) => !v)}
+                  accessibilityLabel="Account active"
+                />
               </View>
-              <ToggleSwitch
-                value={active}
-                onToggle={() => !roleLocked && setActive((v) => !v)}
-                accessibilityLabel="Account active"
-              />
-            </View>
-          ) : null}
-        </AdminFormCard>
+            ) : null}
+          </AdminFormCard>
+        </FadeSlideIn>
 
         {role === 'technician' ? (
-          <AdminFormCard>
-            <Text style={styles.sectionTitle}>Technician</Text>
-            <Text style={styles.sectionHint}>Duty status and public rating</Text>
-            {id ? (
-              <>
-                <IconInput
-                  label="Public rating"
-                  value={displayRating}
-                  onChangeText={(t) => {
-                    setDisplayRating(t);
-                    if (errors.displayRating) setErrors((e) => ({ ...e, displayRating: undefined }));
-                  }}
-                  keyboardType="decimal-pad"
-                  placeholder="Empty = real average"
-                  error={errors.displayRating}
-                />
-                {realTechRating != null ? (
-                  <Text style={styles.hint}>Real avg: ★ {realTechRating.toFixed(1)}</Text>
-                ) : null}
-                <View style={styles.toggleRow}>
-                  <View style={styles.flex}>
-                    <Text style={styles.toggleLabel}>On duty</Text>
-                  </View>
-                  <ToggleSwitch
-                    value={available}
-                    onToggle={() => setAvailable((v) => !v)}
-                    accessibilityLabel="On duty"
+          <FadeSlideIn delay={stagger(1)} slideFrom={14}>
+            <AdminFormCard>
+              <Text style={styles.sectionTitle}>Technician</Text>
+              <Text style={styles.sectionHint}>Duty status and public rating</Text>
+              {id ? (
+                <>
+                  <IconInput
+                    label="Public rating"
+                    value={displayRating}
+                    onChangeText={(t) => {
+                      setDisplayRating(t);
+                      if (errors.displayRating) setErrors((e) => ({ ...e, displayRating: undefined }));
+                    }}
+                    keyboardType="decimal-pad"
+                    placeholder="Empty = real average"
+                    error={errors.displayRating}
                   />
-                </View>
-              </>
-            ) : (
-              <Text style={styles.hint}>Save the account first, then set rating and duty.</Text>
-            )}
+                  {realTechRating != null ? (
+                    <Text style={styles.hint}>Real avg: ★ {realTechRating.toFixed(1)}</Text>
+                  ) : null}
+                  <View style={styles.toggleRow}>
+                    <View style={styles.flex}>
+                      <Text style={styles.toggleLabel}>On duty</Text>
+                    </View>
+                    <ToggleSwitch
+                      value={available}
+                      onToggle={() => setAvailable((v) => !v)}
+                      accessibilityLabel="On duty"
+                    />
+                  </View>
+                </>
+              ) : (
+                <Text style={styles.hint}>Save the account first, then set rating and duty.</Text>
+              )}
 
-            <Text style={[styles.sectionTitle, styles.payTitle]}>Technician pay</Text>
-            <Text style={styles.sectionHint}>
-              Take-home per completed job. Locked when the job is marked complete.
-            </Text>
-            <Text style={styles.label}>Pay mode</Text>
-            <AdminFilterChips
-              chips={[
-                { key: 'percent', label: '% of job' },
-                { key: 'flat', label: 'Flat ₹' },
-              ]}
-              selected={payMode}
-              onSelect={(key) => setPayMode(key as 'percent' | 'flat')}
-            />
-            {payMode === 'percent' ? (
-              <IconInput
-                label="Percent of job value"
-                value={payPercent}
-                onChangeText={setPayPercent}
-                keyboardType="decimal-pad"
-                placeholder="e.g. 70"
+              <Text style={[styles.sectionTitle, styles.payTitle]}>Technician pay</Text>
+              <Text style={styles.sectionHint}>
+                Take-home per completed job. Locked when the job is marked complete.
+              </Text>
+              <Text style={styles.label}>Pay mode</Text>
+              <AdminFilterChips
+                chips={[
+                  { key: 'percent', label: '% of job' },
+                  { key: 'flat', label: 'Flat ₹' },
+                ]}
+                selected={payMode}
+                onSelect={(key) => setPayMode(key as 'percent' | 'flat')}
               />
-            ) : (
-              <IconInput
-                label="Flat pay (₹)"
-                value={payFlat}
-                onChangeText={setPayFlat}
-                keyboardType="number-pad"
-                placeholder="e.g. 500"
-              />
-            )}
-            <Text style={styles.hint}>
-              {payMode === 'percent'
-                ? `Tech earns ${payPercent || '0'}% of each completed job total`
-                : `Tech earns ₹${payFlat || '0'} per completed job`}
-            </Text>
-          </AdminFormCard>
+              {payMode === 'percent' ? (
+                <IconInput
+                  label="Percent of job value"
+                  value={payPercent}
+                  onChangeText={setPayPercent}
+                  keyboardType="decimal-pad"
+                  placeholder="e.g. 70"
+                />
+              ) : (
+                <IconInput
+                  label="Flat pay (₹)"
+                  value={payFlat}
+                  onChangeText={setPayFlat}
+                  keyboardType="number-pad"
+                  placeholder="e.g. 500"
+                />
+              )}
+              <Text style={styles.hint}>
+                {payMode === 'percent'
+                  ? `Tech earns ${payPercent || '0'}% of each completed job total`
+                  : `Tech earns ₹${payFlat || '0'} per completed job`}
+              </Text>
+            </AdminFormCard>
+          </FadeSlideIn>
         ) : null}
       </ScrollView>
     </AdminListShell>
@@ -383,7 +402,7 @@ export default function UserEditScreen() {
 const styles = StyleSheet.create({
   footerSecondary: { flex: 1 },
   footerPrimary: { flex: 1.6 },
-  sectionTitle: { fontFamily: fonts.displayExtra, fontSize: 16, color: '#0B2213', letterSpacing: -0.3 },
+  sectionTitle: { fontFamily: fonts.displayExtra, fontSize: 16, color: colors.ink, letterSpacing: -0.3 },
   payTitle: { marginTop: spacing.lg },
   sectionHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginBottom: spacing.sm, marginTop: 2 },
   label: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, marginBottom: 8 },

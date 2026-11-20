@@ -15,6 +15,7 @@ import { apiRouter } from './routes';
 import { runSeedDatabase } from './seed/seed';
 import { getAdminConfig, upsertAdminUser } from './utils/adminUser';
 import { backfillServiceContent } from './utils/backfillServiceContent';
+import { backfillSupportContact } from './utils/backfillSupportContact';
 
 function ensureUploadDir(): void {
   if (!fs.existsSync(env.uploadDir)) {
@@ -54,6 +55,12 @@ async function main(): Promise<void> {
     await backfillServiceContent();
   } catch (err) {
     console.error('[services] Starter content backfill failed:', err);
+  }
+
+  try {
+    await backfillSupportContact();
+  } catch (err) {
+    console.error('[content] Support contact fix failed:', err);
   }
 
   if (env.ensureAdminOnStartup && !seedOnStart) {

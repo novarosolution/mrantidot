@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { AdminEntrance, AdminListShell, adminListShellStyles, useListEntrance } from '@/components/kit/AdminListShell';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
 import { AdminFilterChips, AdminSearchField, AdminStatStrip } from '@/components/kit/AdminPageKit';
+import { AdminListSkeleton } from '@/components/kit/AdminSkeletons';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { api, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
@@ -15,7 +17,8 @@ import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import type { User, UserRole } from '@/types/api';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
+
 type RoleFilter = 'all' | UserRole;
 
 const ROLE_LABEL: Record<UserRole, string> = {
@@ -36,6 +39,7 @@ export default function AdminUsersScreen() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
   const { loading, error, refreshing, runLoad, reload, refresh } = useScreenLoad();
+  const entrance = useListEntrance(!loading);
 
   const load = useCallback(async () => {
     const params: Record<string, string> = {};
@@ -86,43 +90,51 @@ export default function AdminUsersScreen() {
 
   const header = useMemo(
     () => (
-      <View style={styles.header}>
-        <AdminStatStrip
-          flush
-          items={
-            filter === 'all'
-              ? [
-                  { label: 'Total', value: roleCounts.total },
-                  { label: 'Customers', value: roleCounts.customer },
-                  { label: 'Techs', value: roleCounts.technician },
-                  { label: 'Admins', value: roleCounts.admin },
-                ]
-              : [{ label: 'Showing', value: users.length, color: colors.forest }]
-          }
-        />
-        <AdminFilterChips
-          chips={[
-            { key: 'all', label: 'All' },
-            { key: 'customer', label: 'Customers' },
-            { key: 'technician', label: 'Technicians' },
-            { key: 'admin', label: 'Admins' },
-          ]}
-          selected={filter}
-          onSelect={(key) => setFilter(key as RoleFilter)}
-        />
-        <View style={styles.search}>
-          <AdminSearchField value={search} onChangeText={setSearch} placeholder="Search name, email, phone" />
+      <FadeSlideIn slideFrom={14}>
+        <View style={styles.header}>
+          <AdminStatStrip
+            flush
+            items={
+              filter === 'all'
+                ? [
+                    { label: 'Total', value: roleCounts.total },
+                    { label: 'Customers', value: roleCounts.customer },
+                    { label: 'Techs', value: roleCounts.technician },
+                    { label: 'Admins', value: roleCounts.admin },
+                  ]
+                : [{ label: 'Showing', value: users.length, color: colors.forest }]
+            }
+          />
+          <AdminFilterChips
+            chips={[
+              { key: 'all', label: 'All' },
+              { key: 'customer', label: 'Customers' },
+              { key: 'technician', label: 'Technicians' },
+              { key: 'admin', label: 'Admins' },
+            ]}
+            selected={filter}
+            onSelect={(key) => setFilter(key as RoleFilter)}
+          />
+          <View style={styles.search}>
+            <AdminSearchField value={search} onChangeText={setSearch} placeholder="Search name, email, phone" />
+          </View>
         </View>
-      </View>
+      </FadeSlideIn>
     ),
     [filter, search, roleCounts, users.length],
   );
 
-  if (loading) return <Spinner fullScreen />;
+  if (loading) {
+    return (
+      <AdminListShell title="Users & roles" subtitle="Accounts · roles & access" backFallback={adminRoutes.team}>
+        <AdminListSkeleton variant="person" strip chips search />
+      </AdminListShell>
+    );
+  }
 
   if (error) {
     return (
-      <AdminListShell title="Users & roles" subtitle="Error">
+      <AdminListShell title="Users & roles" subtitle="Error" backFallback={adminRoutes.team}>
         <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
       </AdminListShell>
     );
@@ -154,39 +166,53 @@ export default function AdminUsersScreen() {
         }
         contentContainerStyle={visible.length === 0 ? adminListShellStyles.empty : adminListShellStyles.list}
         ListEmptyComponent={<EmptyState title="No users" message="Try another filter or search" />}
-        renderItem={({ item }) => (
-          <Pressable
-            style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-            onPress={() =>
-              appPush({
-                pathname: adminRoutes.userEdit,
-                params: { id: item.id, returnTo: adminRoutes.users },
-              })
-            }
-          >
-            <View style={styles.row}>
-              <View style={styles.avatar}>
-                <Text style={styles.initials}>
-                  {item.name
-                    .split(' ')
-                    .map((w) => w[0])
-                    .join('')
-                    .slice(0, 2)
-                    .toUpperCase()}
-                </Text>
+        renderItem={({ item, index }) => (
+          <AdminEntrance index={index + 1} play={entrance(index)}>
+            <PressableScale
+              containerStyle={styles.cardWrap}
+              style={styles.card}
+              scaleTo={0.98}
+              onPress={() =>
+                appPush({
+                  pathname: adminRoutes.userEdit,
+                  params: { id: item.id, returnTo: adminRoutes.users },
+                })
+              }
+              accessibilityRole="button"
+              accessibilityLabel={`${item.name}, ${ROLE_LABEL[item.role]}${item.disabled ? ', disabled' : ''}. Edit user`}
+            >
+              <View style={styles.row}>
+                <View style={styles.avatar}>
+                  <Text style={styles.initials}>
+                    {item.name
+                      .split(' ')
+                      .map((w) => w[0])
+                      .join('')
+                      .slice(0, 2)
+                      .toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.flex}>
+                  <Text style={styles.name} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.meta} numberOfLines={1}>
+                    {item.email}
+                  </Text>
+                  {item.phone ? (
+                    <Text style={styles.meta} numberOfLines={1}>
+                      {item.phone}
+                    </Text>
+                  ) : null}
+                </View>
+                <View style={styles.badges}>
+                  <StatusBadge label={ROLE_LABEL[item.role]} tone={ROLE_TONE[item.role]} />
+                  {item.disabled ? <StatusBadge label="Disabled" tone="danger" /> : null}
+                  {item.protected ? <StatusBadge label="Primary" tone="neutral" /> : null}
+                </View>
               </View>
-              <View style={styles.flex}>
-                <Text style={styles.name}>{item.name}</Text>
-                <Text style={styles.meta}>{item.email}</Text>
-                {item.phone ? <Text style={styles.meta}>{item.phone}</Text> : null}
-              </View>
-              <View style={styles.badges}>
-                <StatusBadge label={ROLE_LABEL[item.role]} tone={ROLE_TONE[item.role]} />
-                {item.disabled ? <StatusBadge label="Disabled" tone="danger" /> : null}
-                {item.protected ? <StatusBadge label="Primary" tone="neutral" /> : null}
-              </View>
-            </View>
-          </Pressable>
+            </PressableScale>
+          </AdminEntrance>
         )}
       />
     </AdminListShell>
@@ -195,18 +221,17 @@ export default function AdminUsersScreen() {
 
 const styles = StyleSheet.create({
   header: { paddingBottom: spacing.sm },
-  search: { paddingHorizontal: spacing.md, marginTop: spacing.sm },
+  /** The list already pads 16pt each side — the search field lines up with the strip and chips. */
+  search: { marginTop: spacing.xs },
+  cardWrap: { marginBottom: spacing.sm },
   card: {
     padding: spacing.md,
-    paddingTop: spacing.md + 2,
-    marginBottom: spacing.sm,
     borderRadius: premium.radiusCard,
-    backgroundColor: 'rgba(255,255,255,0.82)',
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: '#EEF2EF',
-    ...shadows.card,
+    borderColor: ui.hairline,
+    ...ui.shadow,
   },
-  pressed: { opacity: 0.92 },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   avatar: {
     width: 44,
@@ -218,7 +243,7 @@ const styles = StyleSheet.create({
   },
   initials: { fontFamily: fonts.displayExtra, fontSize: 14, color: colors.forest },
   flex: { flex: 1, minWidth: 0 },
-  name: { fontFamily: fonts.display, fontSize: 14, color: colors.ink },
-  meta: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 2 },
+  name: { fontFamily: fonts.display, fontSize: 14, color: ui.text },
+  meta: { fontFamily: fonts.body, fontSize: 12, color: ui.textSecondary, marginTop: 2 },
   badges: { alignItems: 'flex-end', gap: 4 },
 });

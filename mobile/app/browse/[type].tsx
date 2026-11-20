@@ -131,7 +131,7 @@ export default function ServicesByTypeScreen() {
                     ) : null}
                     {from != null ? (
                       <Text style={styles.from}>
-                        Starts at <Text style={styles.fromStrong}>{formatRupeeFull(from)}</Text>
+                        {copy.serviceStartsAtLabel} <Text style={styles.fromStrong}>{formatRupeeFull(from)}</Text>
                       </Text>
                     ) : null}
                   </View>
@@ -139,7 +139,7 @@ export default function ServicesByTypeScreen() {
                     <View style={styles.earliest}>
                       <View style={styles.earliestHead}>
                         <View style={styles.dot} />
-                        <Text style={styles.earliestLabel}>Earliest</Text>
+                        <Text style={styles.earliestLabel}>{copy.serviceEarliestLabel}</Text>
                       </View>
                       <Text style={styles.earliestValue}>{earliest}</Text>
                     </View>
@@ -178,14 +178,14 @@ export default function ServicesByTypeScreen() {
 
             {services.length === 0 ? (
               <View style={styles.white}>
-                <EmptyState title="No services yet" message="Nothing listed for this type right now." />
+                <EmptyState title={copy.browseEmptyTitle} message={copy.browseEmptyMessage} />
               </View>
             ) : (
               groups.map((g, gi) => (
                 <FadeSlideIn key={g.key} delay={stagger(gi + 1)} slideFrom={14}>
                   <View style={styles.band} />
                   <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>{groups.length > 1 ? g.title : 'Available treatments'}</Text>
+                    <Text style={styles.sectionTitle}>{groups.length > 1 ? g.title : copy.browseAvailableTitle}</Text>
                     {g.services.map((s, i) => (
                       <ServiceListRow
                         key={s.id}
@@ -207,8 +207,8 @@ export default function ServicesByTypeScreen() {
               <ListGroup>
                 <ListNavRow
                   icon={AppIcons.ui.help}
-                  title="Not sure which service?"
-                  subtitle="Talk to our team — we'll point you to the right treatment"
+                  title={copy.browseHelpTitle}
+                  subtitle={copy.browseHelpSub}
                   onPress={() => appPush(customerRoutes.help)}
                 />
               </ListGroup>
@@ -234,8 +234,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemi,
     fontSize: 13.5,
     color: ui.text,
-    textDecorationLine: 'underline',
-    textDecorationStyle: 'dotted',
   },
   from: { marginTop: 5, fontFamily: fonts.bodyMedium, fontSize: 13.5, color: ui.textSecondary },
   fromStrong: { fontFamily: fonts.bodyBold, color: ui.text },

@@ -12,6 +12,7 @@ import {
   isSchedulePending,
 } from '@/lib/booking-helpers';
 import type { Booking } from '@/types/api';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { formatRupeeFull } from '@/components/kit/format';
 import { colors, fonts, statusColors, ui } from '@/constants/theme';
 
@@ -39,6 +40,7 @@ export const BookingListCard = memo(function BookingListCard({
   hintTone?: 'status' | 'warning';
   compact?: boolean;
 }) {
+  const labels = useCustomerUiCopy();
   const iconKey = bookingServiceIconKey(booking);
   const name = bookingServiceName(booking);
   const customer = showCustomer ? bookingCustomerName(booking) : null;
@@ -109,7 +111,7 @@ export const BookingListCard = memo(function BookingListCard({
 
             {schedulePending && !hint ? (
               <View style={[styles.callout, { backgroundColor: accentBg }]}>
-                <Text style={[styles.calloutText, { color: accent }]}>Visit time being confirmed</Text>
+                <Text style={[styles.calloutText, { color: accent }]}>{labels.bookingsTimeConfirming}</Text>
               </View>
             ) : null}
             {hint ? (

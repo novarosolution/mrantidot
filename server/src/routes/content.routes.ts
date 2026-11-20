@@ -15,6 +15,7 @@ import {
 } from '../models/AppContent';
 import { Service } from '../models/Service';
 import { requireAuth, requireRole } from '../middleware/auth';
+import { LEGACY_DEFAULT_SUPPORT_PHONE } from '../utils/backfillSupportContact';
 import { asyncHandler } from '../middleware/error';
 
 export const contentRouter = Router();
@@ -280,7 +281,7 @@ function formatAppConfig(doc: Awaited<ReturnType<typeof getOrCreateAppDoc>>): IA
   const d = DEFAULT_APP_CONFIG;
   return {
     support: {
-      phone: a.support?.phone ?? d.support.phone,
+      phone: a.support?.phone === LEGACY_DEFAULT_SUPPORT_PHONE ? d.support.phone : a.support?.phone ?? d.support.phone,
       email: a.support?.email ?? d.support.email,
       whatsapp: a.support?.whatsapp ?? d.support.whatsapp,
       hours: a.support?.hours ?? d.support.hours,

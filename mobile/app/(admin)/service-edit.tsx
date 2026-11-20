@@ -6,15 +6,17 @@ import { Plus, X } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { AdminFormCard, AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { AdminFormSkeleton } from '@/components/kit/AdminSkeletons';
 import { IconInput } from '@/components/kit/IconInput';
 import { ServiceIconPicker } from '@/components/kit/ServiceIconPicker';
 import { ServiceTypePicker } from '@/components/kit/ServiceTypePicker';
 import { Button } from '@/components/ui/Button';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
+import { haptic, stagger } from '@/lib/motion';
 import { serviceRealRating } from '@/lib/ratings';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { ServiceCategory, ServiceOption, ServiceStats, ServiceTypeKey } from '@/types/api';
@@ -125,6 +127,7 @@ export default function ServiceEditScreen() {
     const duration = durationMins.trim() ? parseInt(durationMins, 10) : 0;
     setErrors(next);
     if (Object.keys(next).length > 0) {
+      haptic('error');
       Toast.show({ type: 'error', text1: next.serviceTypes || next.options || 'Fix the highlighted fields' });
       return;
     }
@@ -157,8 +160,12 @@ export default function ServiceEditScreen() {
       } else {
         await api.post('/services', body);
       }
+      haptic('success');
       Toast.show({ type: 'success', text1: 'Saved' });
       adminGoBack(adminRoutes.services);
+    } catch {
+      // The api interceptor already shows the error toast; just make the failure felt.
+      haptic('error');
     } finally {
       setSaving(false);
     }
@@ -175,9 +182,11 @@ export default function ServiceEditScreen() {
           void (async () => {
             try {
               await api.delete(`/services/${id}`);
+              haptic('success');
               Toast.show({ type: 'success', text1: 'Service deactivated' });
               adminGoBack(adminRoutes.services);
             } catch {
+              haptic('error');
               Toast.show({ type: 'error', text1: 'Could not deactivate service' });
             }
           })();
@@ -186,11 +195,17 @@ export default function ServiceEditScreen() {
     ]);
   }
 
-  if (id && loading) return <Spinner fullScreen />;
+  if (id && loading) {
+    return (
+      <AdminListShell title="Edit Service" subtitle="Catalog item" backFallback={adminRoutes.services}>
+        <AdminFormSkeleton cards={[5, 2, 3]} />
+      </AdminListShell>
+    );
+  }
 
   if (id && error) {
     return (
-      <AdminListShell title="Edit Service" subtitle="Error">
+      <AdminListShell title="Edit Service" subtitle="Error" backFallback={adminRoutes.services}>
         <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
       </AdminListShell>
     );
@@ -216,145 +231,154 @@ export default function ServiceEditScreen() {
         keyboardShouldPersistTaps="always"
         showsVerticalScrollIndicator={false}
       >
-        <PremiumSectionHeader title="Details" style={styles.sectionHead} />
-        <AdminFormCard style={styles.form}>
-          <IconInput
-            label="Name"
-            value={name}
-            onChangeText={(t) => {
-              setName(t);
-              if (errors.name) setErrors((e) => ({ ...e, name: undefined }));
-            }}
-            error={errors.name}
+        <FadeSlideIn delay={stagger(0)} slideFrom={14}>
+          <PremiumSectionHeader title="Details" style={styles.sectionHead} />
+          <AdminFormCard style={styles.form}>
+            <IconInput
+              label="Name"
+              value={name}
+              onChangeText={(t) => {
+                setName(t);
+                if (errors.name) setErrors((e) => ({ ...e, name: undefined }));
+              }}
+              error={errors.name}
+            />
+            <Text style={styles.label}>Category</Text>
+            <AdminFilterChips
+              chips={CATEGORIES.map((c) => ({ key: c.key, label: c.label }))}
+              selected={category}
+              onSelect={(key) => setCategory(key as ServiceCategory)}
+            />
+            <IconInput
+              label="Base price"
+              value={basePrice}
+              onChangeText={(t) => {
+                setBasePrice(t);
+                if (errors.basePrice) setErrors((e) => ({ ...e, basePrice: undefined }));
+              }}
+              keyboardType="numeric"
+              error={errors.basePrice}
+            />
+            <IconInput
+              label="Public rating"
+              value={rating}
+              onChangeText={(t) => {
+                setRating(t);
+                if (errors.rating) setErrors((e) => ({ ...e, rating: undefined }));
+              }}
+              keyboardType="decimal-pad"
+              error={errors.rating}
+            />
+            {id ? (
+              <Text style={styles.realHint}>
+                {realRating != null
+                  ? `Customer reviews average ★ ${realRating.toFixed(1)} from ${reviewCount} review${reviewCount === 1 ? '' : 's'}`
+                  : 'No customer reviews yet'}
+              </Text>
+            ) : null}
+            <IconInput
+              label="Short description"
+              value={shortDesc}
+              onChangeText={(t) => {
+                setShortDesc(t);
+                if (errors.shortDesc) setErrors((e) => ({ ...e, shortDesc: undefined }));
+              }}
+              error={errors.shortDesc}
+            />
+            <IconInput label="Steps (comma-separated)" value={steps} onChangeText={setSteps} />
+          </AdminFormCard>
+        </FadeSlideIn>
+        <FadeSlideIn delay={stagger(1)} slideFrom={14}>
+          <PremiumSectionHeader
+            title="Sizes & pricing"
+            subtitle="Customers pick one size and the booking is priced from it. Leave empty to use the base price."
+            style={styles.sectionHead}
           />
-          <Text style={styles.label}>Category</Text>
-          <AdminFilterChips
-            chips={CATEGORIES.map((c) => ({ key: c.key, label: c.label }))}
-            selected={category}
-            onSelect={(key) => setCategory(key as ServiceCategory)}
-          />
-          <IconInput
-            label="Base price"
-            value={basePrice}
-            onChangeText={(t) => {
-              setBasePrice(t);
-              if (errors.basePrice) setErrors((e) => ({ ...e, basePrice: undefined }));
-            }}
-            keyboardType="numeric"
-            error={errors.basePrice}
-          />
-          <IconInput
-            label="Public rating"
-            value={rating}
-            onChangeText={(t) => {
-              setRating(t);
-              if (errors.rating) setErrors((e) => ({ ...e, rating: undefined }));
-            }}
-            keyboardType="decimal-pad"
-            error={errors.rating}
-          />
-          {id ? (
-            <Text style={styles.realHint}>
-              {realRating != null
-                ? `Customer reviews average ★ ${realRating.toFixed(1)} from ${reviewCount} review${reviewCount === 1 ? '' : 's'}`
-                : 'No customer reviews yet'}
-            </Text>
-          ) : null}
-          <IconInput
-            label="Short description"
-            value={shortDesc}
-            onChangeText={(t) => {
-              setShortDesc(t);
-              if (errors.shortDesc) setErrors((e) => ({ ...e, shortDesc: undefined }));
-            }}
-            error={errors.shortDesc}
-          />
-          <IconInput label="Steps (comma-separated)" value={steps} onChangeText={setSteps} />
-        </AdminFormCard>
-        <PremiumSectionHeader
-          title="Sizes & pricing"
-          subtitle="Customers pick one size and the booking is priced from it. Leave empty to use the base price."
-          style={styles.sectionHead}
-        />
-        <AdminFormCard style={styles.form}>
-          <IconInput label="Picker heading" value={optionsTitle} onChangeText={setOptionsTitle} placeholder="Size of home" />
-          {options.map((o, i) => (
-            <View key={o.key ?? `new-${i}`} style={styles.optionRow}>
-              <View style={styles.optionLabel}>
-                <IconInput
-                  label={i === 0 ? 'Size' : ' '}
-                  value={o.label}
-                  placeholder="2 BHK"
-                  onChangeText={(t) => setOptions((prev) => prev.map((p, j) => (j === i ? { ...p, label: t } : p)))}
-                />
+          <AdminFormCard style={styles.form}>
+            <IconInput label="Picker heading" value={optionsTitle} onChangeText={setOptionsTitle} placeholder="Size of home" />
+            {options.map((o, i) => (
+              <View key={o.key ?? `new-${i}`} style={styles.optionRow}>
+                <View style={styles.optionLabel}>
+                  <IconInput
+                    label={i === 0 ? 'Size' : ' '}
+                    value={o.label}
+                    placeholder="2 BHK"
+                    onChangeText={(t) => setOptions((prev) => prev.map((p, j) => (j === i ? { ...p, label: t } : p)))}
+                  />
+                </View>
+                <View style={styles.optionPrice}>
+                  <IconInput
+                    label={i === 0 ? 'Price ₹' : ' '}
+                    value={o.price}
+                    placeholder="899"
+                    keyboardType="numeric"
+                    onChangeText={(t) => setOptions((prev) => prev.map((p, j) => (j === i ? { ...p, price: t } : p)))}
+                  />
+                </View>
+                <Pressable
+                  style={({ pressed }) => [styles.optionRemove, pressed && styles.pressed]}
+                  onPress={() => setOptions((prev) => prev.filter((_, j) => j !== i))}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove size ${o.label || i + 1}`}
+                >
+                  <X size={18} color={colors.error} strokeWidth={2.4} />
+                </Pressable>
               </View>
-              <View style={styles.optionPrice}>
-                <IconInput
-                  label={i === 0 ? 'Price ₹' : ' '}
-                  value={o.price}
-                  placeholder="899"
-                  keyboardType="numeric"
-                  onChangeText={(t) => setOptions((prev) => prev.map((p, j) => (j === i ? { ...p, price: t } : p)))}
-                />
-              </View>
-              <Pressable
-                style={({ pressed }) => [styles.optionRemove, pressed && styles.pressed]}
-                onPress={() => setOptions((prev) => prev.filter((_, j) => j !== i))}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={`Remove size ${o.label || i + 1}`}
-              >
-                <X size={18} color={colors.error} strokeWidth={2.4} />
-              </Pressable>
-            </View>
-          ))}
-          {errors.options ? <Text style={styles.fieldError}>{errors.options}</Text> : null}
-          <Pressable
-            style={({ pressed }) => [styles.addOption, pressed && styles.pressed]}
-            onPress={() => setOptions((prev) => [...prev, { label: '', price: '', note: '' }])}
-            accessibilityRole="button"
-          >
-            <Plus size={16} color={ui.brand} strokeWidth={2.6} />
-            <Text style={styles.addOptionText}>Add size</Text>
-          </Pressable>
-        </AdminFormCard>
+            ))}
+            {errors.options ? <Text style={styles.fieldError}>{errors.options}</Text> : null}
+            <Pressable
+              style={({ pressed }) => [styles.addOption, pressed && styles.pressed]}
+              onPress={() => setOptions((prev) => [...prev, { label: '', price: '', note: '' }])}
+              accessibilityRole="button"
+            >
+              <Plus size={16} color={ui.brand} strokeWidth={2.6} />
+              <Text style={styles.addOptionText}>Add size</Text>
+            </Pressable>
+          </AdminFormCard>
+        </FadeSlideIn>
 
-        <PremiumSectionHeader
-          title="Detail page content"
-          subtitle="One point per line. Empty boxes hide their section in the app."
-          style={styles.sectionHead}
-        />
-        <AdminFormCard style={styles.form}>
-          <IconInput
-            label="Visit length (minutes)"
-            value={durationMins}
-            onChangeText={setDurationMins}
-            keyboardType="numeric"
-            placeholder="60"
+        <FadeSlideIn delay={stagger(2)} slideFrom={14}>
+          <PremiumSectionHeader
+            title="Detail page content"
+            subtitle="One point per line. Empty boxes hide their section in the app."
+            style={styles.sectionHead}
           />
-          <IconInput label="Highlights (shown on service rows)" value={highlights} onChangeText={setHighlights} multiline />
-          <IconInput label="What is included" value={included} onChangeText={setIncluded} multiline />
-          <IconInput label="What is excluded" value={excluded} onChangeText={setExcluded} multiline />
-          <IconInput label="Please note" value={notes} onChangeText={setNotes} multiline />
-        </AdminFormCard>
+          <AdminFormCard style={styles.form}>
+            <IconInput
+              label="Visit length (minutes)"
+              value={durationMins}
+              onChangeText={setDurationMins}
+              keyboardType="numeric"
+              placeholder="60"
+            />
+            <IconInput label="Highlights (shown on service rows)" value={highlights} onChangeText={setHighlights} multiline />
+            <IconInput label="What is included" value={included} onChangeText={setIncluded} multiline />
+            <IconInput label="What is excluded" value={excluded} onChangeText={setExcluded} multiline />
+            <IconInput label="Please note" value={notes} onChangeText={setNotes} multiline />
+          </AdminFormCard>
+        </FadeSlideIn>
 
-        <PremiumSectionHeader title="Pest control types" style={styles.sectionHead} />
-        <AdminFormCard style={styles.form}>
-          <ServiceTypePicker
-            value={serviceTypes}
-            onChange={(v) => {
-              setServiceTypes(v);
-              if (errors.serviceTypes) setErrors((e) => ({ ...e, serviceTypes: undefined }));
-            }}
-          />
-          {errors.serviceTypes ? <Text style={styles.fieldError}>{errors.serviceTypes}</Text> : null}
-        </AdminFormCard>
+        <FadeSlideIn delay={stagger(3)} slideFrom={14}>
+          <PremiumSectionHeader title="Pest control types" style={styles.sectionHead} />
+          <AdminFormCard style={styles.form}>
+            <ServiceTypePicker
+              value={serviceTypes}
+              onChange={(v) => {
+                setServiceTypes(v);
+                if (errors.serviceTypes) setErrors((e) => ({ ...e, serviceTypes: undefined }));
+              }}
+            />
+            {errors.serviceTypes ? <Text style={styles.fieldError}>{errors.serviceTypes}</Text> : null}
+          </AdminFormCard>
+        </FadeSlideIn>
 
-        <PremiumSectionHeader title="Icon" style={styles.sectionHead} />
-        <AdminFormCard style={styles.form}>
-          <ServiceIconPicker value={iconKey} onChange={setIconKey} />
-        </AdminFormCard>
-
+        <FadeSlideIn delay={stagger(4)} slideFrom={14}>
+          <PremiumSectionHeader title="Icon" style={styles.sectionHead} />
+          <AdminFormCard style={styles.form}>
+            <ServiceIconPicker value={iconKey} onChange={setIconKey} />
+          </AdminFormCard>
+        </FadeSlideIn>
       </ScrollView>
     </AdminListShell>
   );

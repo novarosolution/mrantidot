@@ -11,6 +11,7 @@ import { appReplace, authRoutes, homeRouteForRole } from '@/lib/routes';
 import { useBrandFill, useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { AppIcons } from '@/constants/appIcons';
 import { spacing } from '@/constants/theme';
+import { haptic } from '@/lib/motion';
 
 type Errors = Partial<Record<'name' | 'phone' | 'email' | 'password', string>>;
 
@@ -47,10 +48,10 @@ export default function RegisterScreen() {
 
   function validate() {
     const next: Errors = {};
-    if (!name.trim()) next.name = 'Required';
-    if (!phone.trim()) next.phone = 'Required';
-    if (!email.trim()) next.email = 'Required';
-    if (!password.trim()) next.password = 'Required';
+    if (!name.trim()) next.name = ui.authRequired;
+    if (!phone.trim()) next.phone = ui.authRequired;
+    if (!email.trim()) next.email = ui.authRequired;
+    if (!password.trim()) next.password = ui.authRequired;
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -67,9 +68,11 @@ export default function RegisterScreen() {
         password: password.trim(),
         city: city.trim() || undefined,
       });
-      appToast.success(ui.authRegisterSuccessToast, `Welcome to ${content.branding.name}`);
+      haptic('success');
+      appToast.success(ui.authRegisterSuccessToast, fill(ui.authRegisterWelcome));
       appReplace(homeRouteForRole(signedIn.role));
     } catch (err) {
+      haptic('error');
       appToast.error(ui.authRegisterErrorToast, getApiErrorMessage(err, 'Check your details and try again'));
     } finally {
       setLoading(false);
@@ -86,21 +89,21 @@ export default function RegisterScreen() {
       scroll
       footer={
         <>
-          <Text style={authScreenStyles.footer}>Already have an account? </Text>
+          <Text style={authScreenStyles.footer}>{ui.authHaveAccount} </Text>
           <Link href={authRoutes.login}>
-            <Text style={authScreenStyles.footerLink}>Sign in</Text>
+            <Text style={authScreenStyles.footerLink}>{ui.authSignInLink}</Text>
           </Link>
         </>
       }
     >
       <AuthField
-        label="Full name"
+        label={ui.authFieldName}
         value={name}
         onChangeText={(t) => {
           setName(t);
           clearError('name');
         }}
-        placeholder="Your name"
+        placeholder={ui.authFieldNamePlaceholder}
         error={errors.name}
         icon={AppIcons.ui.user}
         autoCapitalize="words"
@@ -109,13 +112,13 @@ export default function RegisterScreen() {
       />
 
       <AuthField
-        label="Phone"
+        label={ui.authFieldPhone}
         value={phone}
         onChangeText={(t) => {
           setPhone(t);
           clearError('phone');
         }}
-        placeholder="Mobile number"
+        placeholder={ui.authFieldPhonePlaceholder}
         error={errors.phone}
         icon={AppIcons.ui.phone}
         keyboardType="phone-pad"
@@ -125,13 +128,13 @@ export default function RegisterScreen() {
       />
 
       <AuthField
-        label="Email"
+        label={ui.authFieldEmail}
         value={email}
         onChangeText={(t) => {
           setEmail(t);
           clearError('email');
         }}
-        placeholder="Email address"
+        placeholder={ui.authFieldEmailPlaceholder}
         error={errors.email}
         icon={AppIcons.ui.mail}
         keyboardType="email-address"
@@ -141,13 +144,13 @@ export default function RegisterScreen() {
       />
 
       <AuthField
-        label="Password"
+        label={ui.authFieldPassword}
         value={password}
         onChangeText={(t) => {
           setPassword(t);
           clearError('password');
         }}
-        placeholder="Create a password"
+        placeholder={ui.authFieldNewPasswordPlaceholder}
         error={errors.password}
         icon={AppIcons.ui.lock}
         secure
@@ -157,10 +160,10 @@ export default function RegisterScreen() {
       />
 
       <AuthField
-        label="City"
+        label={ui.authFieldCity}
         value={city}
         onChangeText={setCity}
-        placeholder="Your city"
+        placeholder={ui.authFieldCityPlaceholder}
         icon={AppIcons.ui.mapPin}
         optional
         autoCapitalize="words"
@@ -172,7 +175,7 @@ export default function RegisterScreen() {
       <View style={styles.ctaWrap}>
         <AuthPrimaryButton
           title={ui.authRegisterButton}
-          loadingTitle="Creating account…"
+          loadingTitle={ui.authCreatingAccount}
           loading={loading}
           onPress={() => void submit()}
         />

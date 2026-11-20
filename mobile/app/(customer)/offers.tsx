@@ -20,6 +20,10 @@ import type { Offer, Service } from '@/types/api';
 import { spacing, ui as themeUi } from '@/constants/theme';
 import { customerRoutes, sharedRoutes, appPush } from '@/lib/routes';
 import { serviceStartPrice } from '@/lib/serviceDisplay';
+import { formatRupeeFull } from '@/components/kit/format';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { stagger } from '@/lib/motion';
+import { ListRowsSkeleton } from '@/components/kit/ScreenSkeletons';
 
 export default function OffersScreen() {
   const { content, homePromo, homeConfig } = useAppContent();
@@ -90,7 +94,7 @@ export default function OffersScreen() {
     ? services.slice(0, 12).map((s) => ({
         key: s.id,
         label: s.name,
-        subtitle: `From ₹${serviceStartPrice(s)}`,
+        subtitle: fillCopy(ui.offersFromPrice, { price: formatRupeeFull(serviceStartPrice(s)) }),
         onPress: () => appPush(sharedRoutes.book(s.id, { coupon: pickFor.code })),
       }))
     : [];
@@ -99,7 +103,7 @@ export default function OffersScreen() {
     <HeaderActionButton
       icon={AppIcons.ui.layoutGrid}
       onPress={() => appPush(customerRoutes.services)}
-      accessibilityLabel="Browse services"
+      accessibilityLabel={ui.offersBrowseLabel}
     />
   );
 
@@ -110,7 +114,7 @@ export default function OffersScreen() {
         loading={loading}
         error={loadError && offers.length === 0 ? loadError : null}
         onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
-        loadingLabel="Loading offers…"
+        skeleton={<ListRowsSkeleton rows={3} tall />}
       >
         <ScrollView
           contentContainerStyle={styles.content}
@@ -129,13 +133,13 @@ export default function OffersScreen() {
                 fallbackSub={ui.offersHeroFallbackSub}
                 subtitle={
                   homeConfig.promoCodeHint
-                    ? `Use code ${homeConfig.promoCodeHint} at checkout`
+                    ? fillCopy(ui.offersCodeHint, { code: homeConfig.promoCodeHint })
                     : content.trust.guaranteeText
                 }
               />
               <ListSectionTitle title={`${ui.offersSectionAvailable} · ${offers.length}`} />
               {offers.map((o, i) => (
-                <FadeSlideIn key={o.id} delay={Math.min(i, 5) * 60} slideFrom={14}>
+                <FadeSlideIn key={o.id} delay={stagger(i + 1)} slideFrom={14}>
                   <OfferCouponCard
                     offer={o}
                     index={i}
@@ -144,7 +148,7 @@ export default function OffersScreen() {
                   />
                 </FadeSlideIn>
               ))}
-              <ListFootnote>Tap a coupon, then pick a service to apply it.</ListFootnote>
+              <ListFootnote>{ui.offersFootnote}</ListFootnote>
             </View>
           )}
         </ScrollView>
@@ -152,7 +156,7 @@ export default function OffersScreen() {
       <AdminActionSheet
         visible={pickFor !== null}
         title={ui.offersPickServiceTitle}
-        message={pickFor ? `Apply ${pickFor.code} to which service?` : undefined}
+        message={pickFor ? fillCopy(ui.offersApplyQuestion, { code: pickFor.code }) : undefined}
         options={pickOptions}
         onClose={() => setPickFor(null)}
       />

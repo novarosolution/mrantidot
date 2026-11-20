@@ -17,6 +17,7 @@ import { BrandLogo } from '@/components/BrandLogo';
 import { FloatingPest } from '@/components/kit/auth/AuthBrandArt';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { useAppContent } from '@/context/AppContentContext';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { SERVICE_TYPE_IMAGES } from '@/constants/serviceImages';
 import { setOnboardingDone } from '@/lib/onboarding';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
@@ -92,6 +93,7 @@ function CenterBadge({ icon: Icon }: { icon: LucideIcon }) {
 }
 
 function SlideArt({ art, size }: { art: ArtKey; size: number }) {
+  const copy = useCustomerUiCopy();
   const r = size / 2;
   if (art === 'spray') {
     return (
@@ -109,9 +111,9 @@ function SlideArt({ art, size }: { art: ArtKey; size: number }) {
       <View style={[styles.artCircle, { width: size, height: size, borderRadius: r }]}>
         <View style={[styles.ring, { width: size * 0.72, height: size * 0.72, borderRadius: size * 0.36 }]} />
         <CenterBadge icon={MapPin} />
-        <FloatChip icon={UserCheck} label="Expert assigned" style={{ top: size * 0.08, left: -18 }} />
-        <FloatChip icon={Clock3} label="Arriving · 12 min" style={{ top: size * 0.44, right: -26 }} />
-        <FloatChip icon={Camera} label="Photo proof" style={{ bottom: size * 0.06, left: 0 }} />
+        <FloatChip icon={UserCheck} label={copy.onboardChipExpert} style={{ top: size * 0.08, left: -18 }} />
+        <FloatChip icon={Clock3} label={copy.onboardChipArriving} style={{ top: size * 0.44, right: -26 }} />
+        <FloatChip icon={Camera} label={copy.onboardChipPhoto} style={{ bottom: size * 0.06, left: 0 }} />
       </View>
     );
   }
@@ -119,9 +121,9 @@ function SlideArt({ art, size }: { art: ArtKey; size: number }) {
     <View style={[styles.artCircle, { width: size, height: size, borderRadius: r }]}>
       <View style={[styles.ring, { width: size * 0.72, height: size * 0.72, borderRadius: size * 0.36 }]} />
       <CenterBadge icon={ShieldCheck} />
-      <FloatChip icon={Leaf} label="Eco-safe" style={{ top: size * 0.1, right: -14 }} />
-      <FloatChip icon={BadgeCheck} label="Verified pros" style={{ top: size * 0.42, left: -26 }} />
-      <FloatChip icon={CircleCheckBig} label="100% guarantee" style={{ bottom: size * 0.06, right: -8 }} />
+      <FloatChip icon={Leaf} label={copy.onboardChipEco} style={{ top: size * 0.1, right: -14 }} />
+      <FloatChip icon={BadgeCheck} label={copy.onboardChipVerified} style={{ top: size * 0.42, left: -26 }} />
+      <FloatChip icon={CircleCheckBig} label={copy.onboardChipGuarantee} style={{ bottom: size * 0.06, right: -8 }} />
     </View>
   );
 }
@@ -131,6 +133,7 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const { content } = useAppContent();
+  const copy = useCustomerUiCopy();
   const slides = content.onboarding.slides.length > 0 ? content.onboarding.slides : FALLBACK_SLIDES;
   const brandName = content.branding?.name || 'Mr Antidot';
   const scrollRef = useRef<ScrollView>(null);
@@ -168,7 +171,7 @@ export default function OnboardingScreen() {
         </View>
         {!last ? (
           <Pressable onPress={() => void finish()} hitSlop={12} accessibilityRole="button" style={({ pressed }) => [styles.skip, pressed && styles.pressedLight]}>
-            <Text style={styles.skipText}>Skip</Text>
+            <Text style={styles.skipText}>{copy.onboardSkip}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -222,12 +225,12 @@ export default function OnboardingScreen() {
           onPress={next}
           style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
         >
-          <Text style={styles.primaryText}>{last ? 'Get started' : 'Next'}</Text>
+          <Text style={styles.primaryText}>{last ? copy.onboardGetStarted : copy.onboardNext}</Text>
           <ArrowRight size={18} color={colors.white} strokeWidth={2.4} />
         </Pressable>
         <Pressable onPress={() => void finish()} hitSlop={8} accessibilityRole="button" style={styles.signInRow}>
           <Text style={styles.signInText}>
-            Already have an account? <Text style={styles.signInLink}>Sign in</Text>
+            {copy.authHaveAccount} <Text style={styles.signInLink}>{copy.authSignInLink}</Text>
           </Text>
         </Pressable>
       </View>

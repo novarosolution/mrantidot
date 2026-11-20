@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, RefreshControl } from 'react-native';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
-import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { AdminEntrance, AdminListShell, adminListShellStyles, useListEntrance } from '@/components/kit/AdminListShell';
 import { AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminServiceListCard } from '@/components/kit/AdminServiceListCard';
 import { AdminServiceTypeGrid } from '@/components/kit/AdminServiceTypeGrid';
+import { AdminServiceTypesSkeleton } from '@/components/kit/AdminSkeletons';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
+import { haptic } from '@/lib/motion';
 import { adminRoutes, appPush } from '@/lib/routes';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
@@ -28,6 +29,8 @@ export default function AdminServicesScreen() {
   const [selectedType, setSelectedType] = useState<ServiceTypeKey | 'all'>('all');
   const [listFilter, setListFilter] = useState<ServiceFilter>('all');
   const { loading, error, refreshing, runLoad, reload, refresh } = useScreenLoad();
+  // The list view mounts later (after a type is picked) — its rows animate on that first open.
+  const entrance = useListEntrance(!loading && browseMode === 'list');
 
   const load = useCallback(async (opts?: { skipCache?: boolean }) => {
     const { data } = await api.get<{ services: Service[] }>('/services', {
@@ -70,8 +73,10 @@ export default function AdminServicesScreen() {
               setServices((prev) => prev.map((x) => (x.id === s.id ? { ...x, active: next } : x)));
               try {
                 await api.patch(`/services/${s.id}`, { active: next });
+                haptic('success');
               } catch {
                 setServices((prev) => prev.map((x) => (x.id === s.id ? { ...x, active: s.active } : x)));
+                haptic('error');
                 Alert.alert('Error', `Could not ${next ? 'restore' : 'deactivate'} service`);
               }
             })();
@@ -95,7 +100,13 @@ export default function AdminServicesScreen() {
     appPush(id ? { pathname: adminRoutes.serviceEdit, params: { id } } : adminRoutes.serviceEdit);
   }
 
-  if (loading) return <Spinner fullScreen />;
+  if (loading) {
+    return (
+      <AdminListShell title="Services" subtitle="Loading catalog…" rightAction={<AdminAddButton onPress={() => openEdit()} />}>
+        <AdminServiceTypesSkeleton />
+      </AdminListShell>
+    );
+  }
 
   if (error) {
     return (
@@ -172,13 +183,15 @@ export default function AdminServicesScreen() {
           />
         }
         renderItem={({ item, index }) => (
-          <AdminServiceListCard
-            service={item}
-            index={index}
-            onPress={() => openEdit(item.id)}
-            onEdit={() => openEdit(item.id)}
-            onToggleActive={() => toggleActive(item)}
-          />
+          <AdminEntrance index={index} play={entrance(index)}>
+            <AdminServiceListCard
+              service={item}
+              index={index}
+              onPress={() => openEdit(item.id)}
+              onEdit={() => openEdit(item.id)}
+              onToggleActive={() => toggleActive(item)}
+            />
+          </AdminEntrance>
         )}
       />
     </AdminListShell>

@@ -17,6 +17,7 @@ import {
   bookingStatusLabel,
 } from '@/lib/booking-helpers';
 import type { Booking, BookingStatus } from '@/types/api';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { colors, fonts, spacing, surfaces, ui } from '@/constants/theme';
 
 /** Status visual — icon + tint per stage (same palette as StatusPill). */
@@ -50,6 +51,7 @@ export function BookingDetailHero({
   /** Treatment steps done / total — shown as a progress bar while the visit is live. */
   progress?: { done: number; total: number } | null;
 }) {
+  const labels = useCustomerUiCopy();
   const enter = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(1)).current;
   const visual = STATUS_VISUAL[booking.status] ?? STATUS_VISUAL.pending;
@@ -112,7 +114,7 @@ export function BookingDetailHero({
                 <View style={styles.liveDot} />
               </View>
             ) : null}
-            <Text style={[styles.eyebrow, live && styles.eyebrowLive]}>{live ? 'Happening now' : 'Booking status'}</Text>
+            <Text style={[styles.eyebrow, live && styles.eyebrowLive]}>{live ? labels.bookingDetailLiveEyebrow : labels.bookingDetailStatusEyebrow}</Text>
           </View>
           <Text style={styles.statusTitle}>{bookingStatusLabel(booking.status)}</Text>
         </View>

@@ -3,16 +3,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AdminFilterChips } from '@/components/kit/AdminPageKit';
-import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { AdminEntrance, AdminListShell, adminListShellStyles, useListEntrance } from '@/components/kit/AdminListShell';
+import { AdminListSkeleton } from '@/components/kit/AdminSkeletons';
 import { GlassPanel, customerScrollProps } from '@/components/kit/GlassScreenKit';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
+import { haptic } from '@/lib/motion';
 import { adminRoutes } from '@/lib/routes';
 import type { LeaveRequest } from '@/types/api';
-import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
 
 const FILTERS = [
   { key: 'pending', label: 'Pending' },
@@ -27,6 +28,7 @@ export default function AdminLeaveScreen() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const entrance = useListEntrance(!loading);
 
   const load = useCallback(async () => {
     setError(null);
@@ -39,7 +41,8 @@ export default function AdminLeaveScreen() {
 
   useStaleFocusRefresh(() => load().catch(() => undefined), 15_000);
 
-  useEffect(() => {
+  /** First load and filter changes — shows the shimmer list while the request is in flight. */
+  const loadWithSkeleton = useCallback(() => {
     setLoading(true);
     safeAsync(
       async () => {
@@ -54,14 +57,20 @@ export default function AdminLeaveScreen() {
     );
   }, [load]);
 
+  useEffect(() => {
+    loadWithSkeleton();
+  }, [loadWithSkeleton]);
+
   async function decide(id: string, action: 'approve' | 'reject') {
     if (busyId) return;
     setBusyId(`${id}:${action}`);
     try {
       await api.post(`/leave/${id}/${action}`);
+      haptic('success');
       Toast.show({ type: 'success', text1: action === 'approve' ? 'Leave approved' : 'Leave rejected' });
       await load();
     } catch (err) {
+      haptic('error');
       Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not update leave') });
     } finally {
       setBusyId(null);
@@ -95,9 +104,9 @@ export default function AdminLeaveScreen() {
         />
       </View>
       {loading ? (
-        <Spinner />
+        <AdminListSkeleton variant="leave" rows={3} />
       ) : error && leaves.length === 0 ? (
-        <ListEmptyRetry message={error} onRetry={() => void load()} />
+        <ListEmptyRetry message={error} onRetry={loadWithSkeleton} />
       ) : (
         <ScrollView
           contentContainerStyle={[adminListShellStyles.scroll, styles.content]}
@@ -108,6 +117,8 @@ export default function AdminLeaveScreen() {
                 setRefreshing(true);
                 try {
                   await load();
+                } catch (err) {
+                  setError(getApiErrorMessage(err, 'Could not refresh'));
                 } finally {
                   setRefreshing(false);
                 }
@@ -123,46 +134,50 @@ export default function AdminLeaveScreen() {
               message={filter === 'pending' ? 'New time-off requests from technicians show up here.' : undefined}
             />
           ) : (
-            leaves.map((l) => {
+            leaves.map((l, i) => {
               const approving = busyId === `${l.id}:approve`;
               const rejecting = busyId === `${l.id}:reject`;
               const rowBusy = Boolean(busyId?.startsWith(`${l.id}:`));
               return (
-                <GlassPanel key={l.id} goldEdge tone="light" style={styles.card}>
-                  <Text style={styles.name}>{l.technicianName || 'Technician'}</Text>
-                  <Text style={styles.meta}>
-                    {l.from === l.to ? l.from : `${l.from} → ${l.to}`} · {l.type}
-                  </Text>
-                  {l.reason ? <Text style={styles.reason}>{l.reason}</Text> : null}
-                  {l.status === 'pending' ? (
-                    <View style={styles.actions}>
-                      <Button
-                        title="Approve"
-                        variant="premium"
-                        size="md"
-                        fullWidth={false}
-                        style={styles.actionBtn}
-                        loading={approving}
-                        disabled={rowBusy}
-                        onPress={() => confirm(l.id, 'approve')}
-                      />
-                      <Button
-                        title="Reject"
-                        variant="danger"
-                        size="md"
-                        fullWidth={false}
-                        style={styles.actionBtn}
-                        loading={rejecting}
-                        disabled={rowBusy}
-                        onPress={() => confirm(l.id, 'reject')}
-                      />
-                    </View>
-                  ) : (
-                    <View style={styles.statusPill}>
-                      <Text style={styles.status}>{l.status}</Text>
-                    </View>
-                  )}
-                </GlassPanel>
+                <AdminEntrance key={l.id} index={i} play={entrance(i)}>
+                  <GlassPanel goldEdge tone="light" style={styles.card}>
+                    <Text style={styles.name} numberOfLines={1}>
+                      {l.technicianName || 'Technician'}
+                    </Text>
+                    <Text style={styles.meta} numberOfLines={1}>
+                      {l.from === l.to ? l.from : `${l.from} → ${l.to}`} · {l.type}
+                    </Text>
+                    {l.reason ? <Text style={styles.reason}>{l.reason}</Text> : null}
+                    {l.status === 'pending' ? (
+                      <View style={styles.actions}>
+                        <Button
+                          title="Approve"
+                          variant="premium"
+                          size="md"
+                          fullWidth={false}
+                          style={styles.actionBtn}
+                          loading={approving}
+                          disabled={rowBusy}
+                          onPress={() => confirm(l.id, 'approve')}
+                        />
+                        <Button
+                          title="Reject"
+                          variant="danger"
+                          size="md"
+                          fullWidth={false}
+                          style={styles.actionBtn}
+                          loading={rejecting}
+                          disabled={rowBusy}
+                          onPress={() => confirm(l.id, 'reject')}
+                        />
+                      </View>
+                    ) : (
+                      <View style={styles.statusPill}>
+                        <Text style={styles.status}>{l.status}</Text>
+                      </View>
+                    )}
+                  </GlassPanel>
+                </AdminEntrance>
               );
             })
           )}
@@ -185,11 +200,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 10,
-    backgroundColor: surfaces.glassSoft,
+    backgroundColor: ui.surfaceMuted,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.border,
   },
-  status: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, textTransform: 'capitalize' },
+  status: { fontFamily: fonts.bodySemi, fontSize: 12, color: ui.textSecondary, textTransform: 'capitalize' },
   actions: { flexDirection: 'row', gap: 10, marginTop: 14 },
   actionBtn: { flex: 1 },
 });

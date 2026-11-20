@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -17,14 +16,19 @@ import { PremiumAurora } from '@/components/kit/PremiumAurora';
 import { TAB_BAR_SCROLL_PAD, customerScrollProps } from '@/components/kit/GlassScreenKit';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { BookingsSkeleton } from '@/components/kit/ScreenSkeletons';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { stagger } from '@/lib/motion';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { bookingDetailPath, customerRoutes, appPush } from '@/lib/routes';
 import { bookingHasTechnician, isRequestedTimePast, nextActiveBooking } from '@/lib/booking-helpers';
 import { useBookingCopy } from '@/lib/schedule-copy';
 import { useAuth } from '@/context/AuthContext';
-import type { Booking, BookingCopyConfig } from '@/types/api';
+import type { Booking, BookingCopyConfig, CustomerUiCopy } from '@/types/api';
 import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
@@ -40,22 +44,23 @@ function sortBookings(list: Booking[], filter: FilterKey): Booking[] {
   });
 }
 
-function customerActionHint(booking: Booking, copy: BookingCopyConfig): string | undefined {
+function customerActionHint(booking: Booking, copy: BookingCopyConfig, labels: CustomerUiCopy): string | undefined {
   if (isRequestedTimePast(booking)) return copy.listPendingPastHint;
-  if (booking.status === 'awaiting_verification') return 'Share your completion code';
-  if (booking.status === 'confirmed' && bookingHasTechnician(booking)) return 'Expert assigned · share start code on arrival';
+  if (booking.status === 'awaiting_verification') return labels.bookingsHintCode;
+  if (booking.status === 'confirmed' && bookingHasTechnician(booking)) return labels.bookingsHintAssigned;
   return undefined;
 }
 
-function sectionLabel(filter: FilterKey): string {
-  if (filter === 'completed') return 'Past visits';
-  if (filter === 'cancelled') return 'Cancelled visits';
-  return 'Upcoming visits';
+function sectionLabel(filter: FilterKey, labels: CustomerUiCopy): string {
+  if (filter === 'completed') return labels.bookingsPastTitle;
+  if (filter === 'cancelled') return labels.bookingsCancelledTitle;
+  return labels.bookingsUpcomingTitle;
 }
 
 export default function MyBookingsScreen() {
   const { user } = useAuth();
   const bookingCopy = useBookingCopy();
+  const labels = useCustomerUiCopy();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filter, setFilter] = useState<FilterKey>('active');
   const [loading, setLoading] = useState(true);
@@ -112,10 +117,11 @@ export default function MyBookingsScreen() {
 
   const total = counts.active + counts.completed + counts.cancelled;
   const subtitle = loading
-    ? 'Loading your visits…'
+    ? labels.bookingsLoadingSub
     : total === 0
-      ? 'No visits yet — book your first service'
-      : `${counts.active} active · ${total} total`;
+      ? labels.bookingsEmptySub
+      : fillCopy(labels.bookingsCountSub, { active: counts.active, total });
+  const shownCount = filter === 'active' && nextActive ? listData.length + 1 : listData.length;
 
   async function onRefresh() {
     setRefreshing(true);
@@ -132,28 +138,31 @@ export default function MyBookingsScreen() {
     <View style={styles.header}>
       <PremiumAurora tone="light" base={false} topFade />
       <View style={styles.heroLeft}>
-        <Text style={styles.kicker}>YOUR VISITS</Text>
+        <Text style={styles.kicker}>{labels.bookingsKicker}</Text>
         <Text style={styles.heroTitle}>{bookingCopy.listScreenTitle}</Text>
         <Text style={styles.heroSub}>{subtitle}</Text>
       </View>
       <View style={styles.heroActions}>
-        <Pressable
-          style={({ pressed }) => [styles.guideBtn, pressed && styles.pressedSm]}
+        <PressableScale
+          scaleTo={0.92}
+          style={styles.guideBtn}
           onPress={() => appPush(customerRoutes.bookGuide)}
           accessibilityRole="button"
-          accessibilityLabel="How to book a service"
+          accessibilityLabel={labels.helpGuideTitle}
         >
           <CircleHelp size={18} color={ui.brand} strokeWidth={2.2} />
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.bookBtn, pressed && styles.pressedSm]}
+        </PressableScale>
+        <PressableScale
+          scaleTo={0.94}
+          haptic="tap"
+          style={styles.bookBtn}
           onPress={() => appPush(customerRoutes.services)}
           accessibilityRole="button"
-          accessibilityLabel="Book a service"
+          accessibilityLabel={labels.bookingsBookButton}
         >
           <Plus size={18} color={colors.white} strokeWidth={2.6} />
-          <Text style={styles.bookBtnText}>Book</Text>
-        </Pressable>
+          <Text style={styles.bookBtnText}>{labels.bookingsBookButton}</Text>
+        </PressableScale>
       </View>
     </View>
   );
@@ -170,19 +179,18 @@ export default function MyBookingsScreen() {
           onSelect={setFilter}
         />
         {filter === 'active' && nextActive ? (
-          <BookingsNextHighlight
-            booking={nextActive}
-            onPress={() => appPush(bookingDetailPath(user?.role, nextActive.id))}
-          />
+          <FadeSlideIn key={nextActive.id} delay={stagger(0)} slideFrom={14}>
+            <BookingsNextHighlight
+              booking={nextActive}
+              onPress={() => appPush(bookingDetailPath(user?.role, nextActive.id))}
+            />
+          </FadeSlideIn>
         ) : null}
-        {listData.length > 0 || (filter === 'active' && nextActive) ? (
+        {shownCount > 0 ? (
           <View style={styles.sectionPad}>
-            <Text style={styles.sectionTitle}>{sectionLabel(filter)}</Text>
+            <Text style={styles.sectionTitle}>{sectionLabel(filter, labels)}</Text>
             <Text style={styles.sectionCount}>
-              {filter === 'active' && nextActive ? listData.length + 1 : listData.length}{' '}
-              {(filter === 'active' && nextActive ? listData.length + 1 : listData.length) === 1
-                ? 'booking'
-                : 'bookings'}
+              {shownCount === 1 ? labels.bookingsCountOne : fillCopy(labels.bookingsCountMany, { count: shownCount })}
             </Text>
           </View>
         ) : null}
@@ -198,9 +206,7 @@ export default function MyBookingsScreen() {
         {loading ? (
           <View style={styles.flex}>
             {hero}
-            <View style={styles.loadingBody}>
-              <Spinner />
-            </View>
+            <BookingsSkeleton />
           </View>
         ) : loadError && bookings.length === 0 ? (
           <View style={styles.flex}>
@@ -232,15 +238,15 @@ export default function MyBookingsScreen() {
             }
             {...CUSTOMER_LIST_PERF}
             {...customerScrollProps}
-            renderItem={({ item }) => (
-              <View style={styles.cardPad}>
+            renderItem={({ item, index }) => (
+              <FadeSlideIn delay={stagger(index + 1)} slideFrom={14} disabled={index > 6} style={styles.cardPad}>
                 <BookingListCard
                   booking={item}
-                  hint={customerActionHint(item, bookingCopy)}
+                  hint={customerActionHint(item, bookingCopy, labels)}
                   hintTone={isRequestedTimePast(item) ? 'warning' : 'status'}
                   onPress={() => appPush(bookingDetailPath(user?.role, item.id))}
                 />
-              </View>
+              </FadeSlideIn>
             )}
           />
         )}
@@ -257,7 +263,6 @@ const styles = StyleSheet.create({
   listContent: { paddingBottom: TAB_BAR_SCROLL_PAD + 12, flexGrow: 1 },
   listEmptyGrow: { flexGrow: 1 },
   loadingBody: { flex: 1, justifyContent: 'center', paddingTop: 24 },
-  pressedSm: { transform: [{ scale: 0.94 }], opacity: 0.92 },
 
   headerBlock: { marginBottom: 2 },
   header: {

@@ -17,6 +17,9 @@ import { BrandLogo } from '@/components/BrandLogo';
 import { AUTH_HERO_GRADIENT, AuthHeroBackdrop } from '@/components/kit/auth/AuthBrandArt';
 import { PremiumAurora } from '@/components/kit/PremiumAurora';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { stagger } from '@/lib/motion';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 /* ─── Splash ───────────────────────────────────────────────────────── */
@@ -144,6 +147,7 @@ export function AuthLoginShell({
   children: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  const copy = useCustomerUiCopy();
   const heroH = insets.top + (compact ? HERO_H_COMPACT : HERO_H);
   const tag = brandTag?.trim();
 
@@ -159,7 +163,7 @@ export function AuthLoginShell({
             onPress={() => safeGoBack(authRoutes.login)}
             hitSlop={12}
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel={copy.authBackLabel}
           >
             <ArrowLeft size={20} color={colors.white} strokeWidth={2.3} />
           </Pressable>
@@ -167,7 +171,7 @@ export function AuthLoginShell({
           <View style={styles.backSpacer} />
         )}
 
-        <View style={styles.brandBlock}>
+        <FadeSlideIn slideFrom={14} style={styles.brandBlock}>
           <View style={styles.brandTile}>
             <BrandLogo size={40} animate={false} />
           </View>
@@ -179,7 +183,7 @@ export function AuthLoginShell({
               {tag}
             </Text>
           ) : null}
-        </View>
+        </FadeSlideIn>
       </View>
 
       <View style={styles.sheet}>
@@ -192,8 +196,11 @@ export function AuthLoginShell({
           bounces={false}
         >
           {/* CMS titles were written for the old two-line hero ("Create\naccount") — show them on one line. */}
-          <Text style={styles.title}>{title.replace(/\s*\n\s*/g, ' ')}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          {/* Only the heading animates — the form below must not sit inside an animated view. */}
+          <FadeSlideIn delay={stagger(1)} slideFrom={10}>
+            <Text style={styles.title}>{title.replace(/\s*\n\s*/g, ' ')}</Text>
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          </FadeSlideIn>
           {children}
         </ScrollView>
       </View>

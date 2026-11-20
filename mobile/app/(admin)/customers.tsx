@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { AdminEntrance, AdminListShell, adminListShellStyles, useListEntrance } from '@/components/kit/AdminListShell';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
 import { AdminFilterChips, AdminSearchField, AdminStatStrip } from '@/components/kit/AdminPageKit';
-import { Card } from '@/components/ui/Card';
+import { AdminListSkeleton } from '@/components/kit/AdminSkeletons';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { formatRupee } from '@/components/kit/format';
 import { api, screenLoadConfig } from '@/lib/api';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
@@ -16,7 +17,7 @@ import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { isAccountDisabled } from '@/lib/user-helpers';
 import type { AdminCustomer, AdminCustomersResponse } from '@/types/api';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 
 type CustomerFilter = 'all' | 'active' | 'disabled' | 'vip';
@@ -35,6 +36,7 @@ export default function AdminCustomersScreen() {
   const [listFilter, setListFilter] = useState<CustomerFilter>('all');
   const debouncedSearch = useDebouncedValue(search, 300);
   const { loading, error, refreshing, runLoad, reload, refresh } = useScreenLoad();
+  const entrance = useListEntrance(!loading);
 
   const load = useCallback(async () => {
     const { data } = await api.get<AdminCustomersResponse>('/admin/customers', screenLoadConfig);
@@ -66,7 +68,7 @@ export default function AdminCustomersScreen() {
   }, [customers, debouncedSearch, listFilter]);
 
   const listHeader = (
-    <View>
+    <FadeSlideIn slideFrom={14}>
       <AdminStatStrip
         flush
         items={[
@@ -88,14 +90,20 @@ export default function AdminCustomersScreen() {
         selected={listFilter}
         onSelect={(k) => setListFilter(k as CustomerFilter)}
       />
-    </View>
+    </FadeSlideIn>
   );
 
-  if (loading) return <Spinner fullScreen />;
+  if (loading) {
+    return (
+      <AdminListShell title="Customers" subtitle="Accounts · search & filter" backFallback={adminRoutes.team}>
+        <AdminListSkeleton variant="person" strip stripCells={3} search chips />
+      </AdminListShell>
+    );
+  }
 
   if (error) {
     return (
-      <AdminListShell title="Customers" subtitle="Error">
+      <AdminListShell title="Customers" subtitle="Error" backFallback={adminRoutes.team}>
         <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
       </AdminListShell>
     );
@@ -128,32 +136,43 @@ export default function AdminCustomersScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />}
         contentContainerStyle={visibleCustomers.length === 0 ? adminListShellStyles.empty : adminListShellStyles.list}
         ListEmptyComponent={<EmptyState title="No customers" message="Try another filter or add a customer" />}
-        renderItem={({ item }) => (
-          <Pressable onPress={() => appPush(adminRoutes.customer(item.id))}>
-            <Card variant="premium" style={{ ...styles.card, ...(isAccountDisabled(item) ? styles.cardDisabled : {}) }}>
-              <View style={styles.avatar}>
-                <Text style={styles.initial}>
-                  {item.name.trim()
-                    ? item.name.split(' ').map((w) => w[0]).join('').slice(0, 2)
-                    : '?'}
-                </Text>
-              </View>
-              <View style={styles.flex}>
-                <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.meta}>
-                  {[item.city, `${item.bookingCount} bookings`].filter(Boolean).join(' · ')}
-                </Text>
-              </View>
-              <View style={styles.right}>
-                <Text style={styles.spend}>{formatRupee(item.totalSpend)}</Text>
-                {(() => {
-                  const badge = customerBadge(item);
-                  return <StatusBadge label={badge.label} tone={badge.tone} />;
-                })()}
-              </View>
-            </Card>
-          </Pressable>
-        )}
+        renderItem={({ item, index }) => {
+          const badge = customerBadge(item);
+          return (
+            <AdminEntrance index={index + 1} play={entrance(index)}>
+              <PressableScale
+                onPress={() => appPush(adminRoutes.customer(item.id))}
+                containerStyle={styles.cardWrap}
+                style={[styles.card, isAccountDisabled(item) && styles.cardDisabled]}
+                scaleTo={0.98}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.name}, ${badge.label}. Open profile`}
+              >
+                <View style={styles.avatar}>
+                  <Text style={styles.initial}>
+                    {item.name.trim()
+                      ? item.name.split(' ').map((w) => w[0]).join('').slice(0, 2)
+                      : '?'}
+                  </Text>
+                </View>
+                <View style={styles.flex}>
+                  <Text style={styles.name} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.meta} numberOfLines={1}>
+                    {[item.city, `${item.bookingCount} bookings`].filter(Boolean).join(' · ')}
+                  </Text>
+                </View>
+                <View style={styles.right}>
+                  <Text style={styles.spend} numberOfLines={1}>
+                    {formatRupee(item.totalSpend)}
+                  </Text>
+                  <StatusBadge label={badge.label} tone={badge.tone} />
+                </View>
+              </PressableScale>
+            </AdminEntrance>
+          );
+        }}
       />
     </AdminListShell>
   );
@@ -161,13 +180,17 @@ export default function AdminCustomersScreen() {
 
 const styles = StyleSheet.create({
   searchWrap: { paddingBottom: spacing.sm },
+  cardWrap: { marginBottom: spacing.sm },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: spacing.sm,
-    padding: 13,
-    borderColor: '#EEF2EF',
+    padding: 14,
+    borderRadius: premium.radiusCard,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
+    ...ui.shadow,
   },
   cardDisabled: { opacity: 0.65 },
   avatar: {
@@ -179,9 +202,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   initial: { fontFamily: fonts.displayExtra, fontSize: 12, color: colors.green },
-  flex: { flex: 1 },
-  name: { fontFamily: fonts.displayExtra, fontSize: 14, color: '#0B2213' },
-  meta: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
+  flex: { flex: 1, minWidth: 0 },
+  name: { fontFamily: fonts.displayExtra, fontSize: 14, color: ui.text },
+  meta: { fontFamily: fonts.body, fontSize: 11.5, color: ui.textSecondary, marginTop: 2 },
   right: { alignItems: 'flex-end', gap: 6 },
-  spend: { fontFamily: fonts.displayExtra, fontSize: 13 },
+  spend: { fontFamily: fonts.displayExtra, fontSize: 13, color: ui.text },
 });

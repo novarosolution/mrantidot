@@ -2,17 +2,19 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { CalendarCheck } from 'lucide-react-native';
 import { Button } from '@/components/ui/Button';
 import { useBookingCopy } from '@/lib/schedule-copy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
 
-const EMPTY_HINT: Record<'active' | 'completed' | 'cancelled', string> = {
-  active: 'Book a service and your upcoming visits will appear here with live status updates.',
-  completed: 'Finished jobs show here with receipts and review options.',
-  cancelled: 'Cancelled visits are kept here for your records.',
-};
-
 export function BookingsEmpty({ filter }: { filter: 'active' | 'completed' | 'cancelled' }) {
   const copy = useBookingCopy();
+  const ui2 = useCustomerUiCopy();
+  const hint =
+    filter === 'active'
+      ? ui2.bookingsEmptyHintActive
+      : filter === 'completed'
+        ? ui2.bookingsEmptyHintCompleted
+        : ui2.bookingsEmptyHintCancelled;
   const title =
     filter === 'active'
       ? copy.listEmptyActive
@@ -27,10 +29,10 @@ export function BookingsEmpty({ filter }: { filter: 'active' | 'completed' | 'ca
           <CalendarCheck size={28} color={ui.brand} strokeWidth={1.9} />
         </View>
         <Text style={styles.title}>{title}</Text>
-        <Text style={styles.message}>{EMPTY_HINT[filter]}</Text>
+        <Text style={styles.message}>{hint}</Text>
         {filter === 'active' || filter === 'completed' ? (
           <Button
-            title={filter === 'active' ? copy.listBookServiceButton : 'Book again'}
+            title={filter === 'active' ? copy.listBookServiceButton : ui2.bookingsBookAgain}
             variant="premium"
             size="md"
             onPress={() => appPush(customerRoutes.services)}
@@ -43,7 +45,7 @@ export function BookingsEmpty({ filter }: { filter: 'active' | 'completed' | 'ca
           accessibilityLabel="How to book a service"
           style={({ pressed }) => [styles.guideLink, pressed && { opacity: 0.7 }]}
         >
-          <Text style={styles.guideLinkText}>How to book →</Text>
+          <Text style={styles.guideLinkText}>{ui2.bookingsHowToBook}</Text>
         </Pressable>
       </View>
     </View>

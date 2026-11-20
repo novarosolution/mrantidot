@@ -4,7 +4,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import Toast from 'react-native-toast-message';
-import { AdminCollapsibleCard, AdminFormCard, AdminTabHint } from '@/components/kit/AdminPageKit';
+import { AdminCollapsibleCard, AdminFormCard, AdminSearchField, AdminTabHint } from '@/components/kit/AdminPageKit';
 import { ADMIN_STICKY_FOOTER_PAD, AdminListShell, AdminSectionTitle } from '@/components/kit/AdminListShell';
 import { AdminSectionTabs, type AdminSectionTab } from '@/components/kit/AdminSectionTabs';
 import { PendingScheduleCard } from '@/components/kit/PendingScheduleCard';
@@ -24,6 +24,8 @@ import type { AppConfig, BookingCopyConfig, CustomerUiCopy, HomeConfig, HomeProm
 import { DEFAULT_BOOKING_COPY, BOOKING_COPY_ADMIN_GROUPS, type BookingCopyFieldKey } from '@/constants/bookingCopy';
 import {
   CUSTOMER_UI_ADMIN_GROUPS,
+  WEBSITE_GROUP_META,
+  WEBSITE_UI_ADMIN_GROUPS,
   DEFAULT_CUSTOMER_UI_COPY,
   type CustomerUiFieldKey,
 } from '@/constants/customerUiCopy';
@@ -39,6 +41,7 @@ const CONTENT_TABS: AdminSectionTab[] = [
   { key: 'booking', label: 'Booking', icon: AppIcons.contentTab.booking },
   { key: 'onboard', label: 'Onboard', icon: AppIcons.contentTab.onboard },
   { key: 'legal', label: 'Legal', icon: AppIcons.contentTab.legal },
+  { key: 'website', label: 'Website', icon: AppIcons.contentTab.website },
 ];
 
 const CONTENT_TAB_HINTS: Record<string, { title: string; body: string }> = {
@@ -70,6 +73,10 @@ const CONTENT_TAB_HINTS: Record<string, { title: string; body: string }> = {
     title: 'Legal & help',
     body: 'Terms, privacy policy, FAQ entries, and about page markdown.',
   },
+  website: {
+    title: 'Website',
+    body: 'Text on mrantidot.com — menu, home sections, about, contact, footer and checkout. Phone, email, WhatsApp, hours and FAQ come from the Brand and Legal tabs.',
+  },
 };
 
 const BOOKING_GROUP_META: Record<
@@ -92,14 +99,27 @@ const SCREENS_GROUP_META: Record<
   { title: string; subtitle: string; defaultOpen?: boolean }
 > = {
   home: { title: 'Home chrome', subtitle: 'Greetings, location, empty states & carousel kickers', defaultOpen: true },
-  auth: { title: 'Auth', subtitle: 'Login, register & OTP copy' },
+  catalog: { title: 'Services catalog', subtitle: 'Search, pest filters, sort & empty state' },
+  browse: { title: 'Category page', subtitle: 'Browse-by-pest page titles, sections & help row' },
+  service: { title: 'Service detail', subtitle: 'Sizes, included / excluded, trust, share & book bar' },
+  cart: { title: 'Cart & checkout', subtitle: 'Cart rows, bill, policy, sheets & step buttons' },
+  bookings: { title: 'My bookings', subtitle: 'Bookings list header, sections & card hints' },
+  bookingDetail: { title: 'Booking detail', subtitle: 'Status card, journey, treatment steps, invoice & actions' },
   offers: { title: 'Offers', subtitle: 'Coupons screen titles & empty states' },
   profile: { title: 'Profile', subtitle: 'Quick actions, stats & menu rows' },
+  account: { title: 'Account screens', subtitle: 'Addresses, payments, notifications & settings' },
   help: { title: 'Help', subtitle: 'Support page section labels' },
-  account: { title: 'Account screens', subtitle: 'Addresses, payments, notifications, settings & services' },
-  service: { title: 'Service pages', subtitle: 'Service detail & browse-by-pest copy' },
+  auth: { title: 'Auth', subtitle: 'Login, register & OTP copy' },
+  onboarding: { title: 'Onboarding buttons', subtitle: 'Skip / Next / Get started and slide art chips' },
   review: { title: 'Review screen', subtitle: 'Rate & review copy after a visit' },
 };
+
+
+type CopyGroupMeta = { title: string; subtitle: string; defaultOpen?: boolean };
+type CopyGroups = Record<string, readonly (readonly [CustomerUiFieldKey, string])[]>;
+
+const APP_COPY_SECTIONS = { groups: CUSTOMER_UI_ADMIN_GROUPS as CopyGroups, meta: SCREENS_GROUP_META as Record<string, CopyGroupMeta> };
+const WEBSITE_COPY_SECTIONS = { groups: WEBSITE_UI_ADMIN_GROUPS as CopyGroups, meta: WEBSITE_GROUP_META as Record<string, CopyGroupMeta> };
 
 const DEFAULT_CONFIG: HomeConfig = DEFAULT_HOME_CONFIG;
 
@@ -117,6 +137,8 @@ export default function AdminContentScreen() {
   const [services, setServices] = useState<Service[]>([]);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState(CONTENT_TABS[0].key);
+  const [screenQuery, setScreenQuery] = useState('');
+  const [webQuery, setWebQuery] = useState('');
 
   const load = useCallback(async () => {
     const [homeRes, appRes, svcRes] = await Promise.all([
@@ -211,28 +233,59 @@ export default function AdminContentScreen() {
     );
   }
 
-  function renderCustomerUiFields(groupKey: keyof typeof CUSTOMER_UI_ADMIN_GROUPS) {
-    const meta = SCREENS_GROUP_META[groupKey];
-    const fields = CUSTOMER_UI_ADMIN_GROUPS[groupKey];
+  function renderCustomerUiField(key: CustomerUiFieldKey, label: string) {
     return (
-      <AdminCollapsibleCard title={meta.title} subtitle={meta.subtitle} defaultOpen={meta.defaultOpen}>
-        {fields.map(([key, label]) => (
-          <IconInput
-            key={key}
-            label={label}
-            multiline={
-              key.includes('Subtitle') ||
-              key.includes('Message') ||
-              key.includes('Hint') ||
-              key.includes('Sub') ||
-              key.includes('Body')
-            }
-            value={appConfig.customerUi?.[key] ?? DEFAULT_CUSTOMER_UI_COPY[key]}
-            onChangeText={(value) => patchCustomerUiField(key, value)}
-          />
-        ))}
-      </AdminCollapsibleCard>
+      <IconInput
+        key={key}
+        label={label}
+        multiline={
+          key.includes('Subtitle') ||
+          key.includes('Message') ||
+          key.includes('Hint') ||
+          key.includes('Sub') ||
+          key.includes('Body') ||
+          key.includes('Line') ||
+          key.includes('Text') ||
+          key.includes('Intro') ||
+          key.includes('Description') ||
+          key.endsWith('List') ||
+          key.endsWith('Points')
+        }
+        value={appConfig.customerUi?.[key] ?? DEFAULT_CUSTOMER_UI_COPY[key]}
+        onChangeText={(value) => patchCustomerUiField(key, value)}
+      />
     );
+  }
+
+  function renderCopyGroups(sections: { groups: CopyGroups; meta: Record<string, CopyGroupMeta> }) {
+    return Object.keys(sections.meta).map((groupKey) => {
+      const meta = sections.meta[groupKey];
+      return (
+        <AdminCollapsibleCard key={groupKey} title={meta.title} subtitle={meta.subtitle} defaultOpen={meta.defaultOpen}>
+          {sections.groups[groupKey].map(([key, label]) => renderCustomerUiField(key, label))}
+        </AdminCollapsibleCard>
+      );
+    });
+  }
+
+  /** Every field whose label, current text or default text contains the query, grouped by screen. */
+  function renderCopySearchResults(query: string, sections: { groups: CopyGroups; meta: Record<string, CopyGroupMeta> }) {
+    const q = query.trim().toLowerCase();
+    const groups = Object.keys(sections.meta).map((g) => ({
+      g,
+      fields: sections.groups[g].filter(([key, label]) =>
+        [label, appConfig.customerUi?.[key] ?? '', DEFAULT_CUSTOMER_UI_COPY[key]].some((s) => s.toLowerCase().includes(q)),
+      ),
+    })).filter((x) => x.fields.length > 0);
+    if (groups.length === 0) {
+      return <Text style={styles.searchEmpty}>No field matches “{query.trim()}”.</Text>;
+    }
+    return groups.map(({ g, fields }) => (
+      <AdminFormCard key={g}>
+        <Text style={styles.searchGroup}>{sections.meta[g].title}</Text>
+        {fields.map(([key, label]) => renderCustomerUiField(key, label))}
+      </AdminFormCard>
+    ));
   }
 
   function setChip(index: number, partial: { label?: string; category?: string }) {
@@ -505,16 +558,37 @@ export default function AdminContentScreen() {
           <>
             <AdminSectionTitle
               title="Customer screens"
-              hint="Use {brand} where the app name should appear · save to publish"
+              hint="Words in {braces} are filled in by the app ({brand}, {price}, {count}…) — keep them · save to publish"
             />
-            {renderCustomerUiFields('home')}
-            {renderCustomerUiFields('auth')}
-            {renderCustomerUiFields('offers')}
-            {renderCustomerUiFields('profile')}
-            {renderCustomerUiFields('help')}
-            {renderCustomerUiFields('account')}
-            {renderCustomerUiFields('review')}
-            {renderCustomerUiFields('service')}
+            <View style={styles.searchWrap}>
+              <AdminSearchField
+                value={screenQuery}
+                onChangeText={setScreenQuery}
+                placeholder="Find a label, e.g. “Book now” or “cart”"
+              />
+            </View>
+            {screenQuery.trim()
+              ? renderCopySearchResults(screenQuery, APP_COPY_SECTIONS)
+              : renderCopyGroups(APP_COPY_SECTIONS)}
+          </>
+        ) : null}
+
+        {activeTab === 'website' ? (
+          <>
+            <AdminSectionTitle
+              title="Website text"
+              hint="Shown on the website within a minute of saving · {phone}, {year}, {code}, {amount} are filled in automatically"
+            />
+            <View style={styles.searchWrap}>
+              <AdminSearchField
+                value={webQuery}
+                onChangeText={setWebQuery}
+                placeholder="Find a label, e.g. “hero” or “footer”"
+              />
+            </View>
+            {webQuery.trim()
+              ? renderCopySearchResults(webQuery, WEBSITE_COPY_SECTIONS)
+              : renderCopyGroups(WEBSITE_COPY_SECTIONS)}
           </>
         ) : null}
 
@@ -863,6 +937,23 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   /** Cards and section titles carry their own 16pt gutter — no extra container padding. */
   scrollContent: { paddingTop: spacing.xs, paddingBottom: ADMIN_STICKY_FOOTER_PAD },
+  searchWrap: { paddingHorizontal: spacing.md, marginBottom: spacing.sm },
+  searchGroup: {
+    marginBottom: 6,
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: ui.textTertiary,
+  },
+  searchEmpty: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.lg,
+    textAlign: 'center',
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: ui.textSecondary,
+  },
   previewShell: {
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,

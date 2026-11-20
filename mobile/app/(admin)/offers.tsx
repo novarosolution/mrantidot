@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
-import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { AdminEntrance, AdminListShell, adminListShellStyles, useListEntrance } from '@/components/kit/AdminListShell';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
 import { AdminFilterChips, AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { AdminOfferCard } from '@/components/kit/AdminOfferCard';
+import { AdminListSkeleton } from '@/components/kit/AdminSkeletons';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
+import { haptic } from '@/lib/motion';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import type { Offer } from '@/types/api';
@@ -22,6 +24,7 @@ export default function AdminOffersScreen() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [listFilter, setListFilter] = useState<OfferFilter>('all');
   const { loading, error, refreshing, runLoad, reload, refresh } = useScreenLoad();
+  const entrance = useListEntrance(!loading);
 
   const load = useCallback(async (skipCache = false) => {
     const { data } = await api.get<{ offers: Offer[] }>('/admin/offers', {
@@ -69,41 +72,50 @@ export default function AdminOffersScreen() {
       await api.patch(`/admin/offers/${o.id}`, { active: next });
     } catch {
       setOffers((prev) => prev.map((x) => (x.id === o.id ? { ...x, active: o.active } : x)));
+      haptic('error');
       Alert.alert('Error', 'Could not update offer');
     }
   }, []);
 
   const header = useMemo(
     () => (
-      <View style={styles.headerBlock}>
-        <AdminStatStrip
-          flush
-          items={[
-            { label: 'Total', value: counts.total },
-            { label: 'Active', value: counts.active, color: colors.forest },
-            { label: 'Inactive', value: counts.inactive, color: colors.muted },
-            { label: 'Expired', value: counts.expired, color: '#9E3F1C' },
-          ]}
-        />
-        <View style={styles.chipsWrap}>
-          <AdminFilterChips
-            inset
-            chips={[
-              { key: 'all', label: `All (${counts.total})` },
-              { key: 'active', label: `Active (${counts.active})` },
-              { key: 'inactive', label: `Off (${counts.inactive})` },
-              { key: 'expired', label: `Expired (${counts.expired})` },
+      <FadeSlideIn slideFrom={14}>
+        <View style={styles.headerBlock}>
+          <AdminStatStrip
+            flush
+            items={[
+              { label: 'Total', value: counts.total },
+              { label: 'Active', value: counts.active, color: colors.forest },
+              { label: 'Inactive', value: counts.inactive, color: colors.muted },
+              { label: 'Expired', value: counts.expired, color: colors.error },
             ]}
-            selected={listFilter}
-            onSelect={(key) => setListFilter(key as OfferFilter)}
           />
+          <View style={styles.chipsWrap}>
+            <AdminFilterChips
+              inset
+              chips={[
+                { key: 'all', label: `All (${counts.total})` },
+                { key: 'active', label: `Active (${counts.active})` },
+                { key: 'inactive', label: `Off (${counts.inactive})` },
+                { key: 'expired', label: `Expired (${counts.expired})` },
+              ]}
+              selected={listFilter}
+              onSelect={(key) => setListFilter(key as OfferFilter)}
+            />
+          </View>
         </View>
-      </View>
+      </FadeSlideIn>
     ),
     [counts, listFilter],
   );
 
-  if (loading) return <Spinner fullScreen />;
+  if (loading) {
+    return (
+      <AdminListShell title="Offers & coupons" subtitle="Manage checkout promos">
+        <AdminListSkeleton variant="offer" strip chips rows={4} />
+      </AdminListShell>
+    );
+  }
 
   if (error) {
     return (
@@ -141,13 +153,15 @@ export default function AdminOffersScreen() {
             }
           />
         }
-        renderItem={({ item }) => (
-          <AdminOfferCard
-            offer={item}
-            onPress={() => appPush({ pathname: adminRoutes.offerEdit, params: { id: item.id } })}
-            onEdit={() => appPush({ pathname: adminRoutes.offerEdit, params: { id: item.id } })}
-            onToggle={() => void toggleActive(item)}
-          />
+        renderItem={({ item, index }) => (
+          <AdminEntrance index={index + 1} play={entrance(index)}>
+            <AdminOfferCard
+              offer={item}
+              onPress={() => appPush({ pathname: adminRoutes.offerEdit, params: { id: item.id } })}
+              onEdit={() => appPush({ pathname: adminRoutes.offerEdit, params: { id: item.id } })}
+              onToggle={() => void toggleActive(item)}
+            />
+          </AdminEntrance>
         )}
       />
     </AdminListShell>

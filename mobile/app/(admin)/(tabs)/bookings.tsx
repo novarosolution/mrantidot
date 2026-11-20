@@ -3,15 +3,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AdminBookingListCard } from '@/components/kit/AdminBookingListCard';
-import { adminListShellStyles } from '@/components/kit/AdminListShell';
+import { AdminEntrance, adminListShellStyles, useListEntrance } from '@/components/kit/AdminListShell';
 import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/AdminActionSheet';
 import { AdminFilterChips, AdminSearchField, AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { AdminScreenHeader } from '@/components/kit/AdminScreenHeader';
 import { AdminTabScreen } from '@/components/kit/AdminScreenKit';
+import { AdminListSkeleton } from '@/components/kit/AdminSkeletons';
 import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
 import { useAuth } from '@/context/AuthContext';
 import { api, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
@@ -19,6 +20,7 @@ import { bookingServiceName } from '@/lib/booking-helpers';
 import { assignableTechnicians } from '@/lib/user-helpers';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
+import { haptic } from '@/lib/motion';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { useUnreadNotifications } from '@/lib/useUnreadNotifications';
@@ -57,6 +59,7 @@ export default function AdminBookingsScreen() {
   const countsLoaded = useRef(false);
   const [assignTarget, setAssignTarget] = useState<Booking | null>(null);
   const { loading, error, refreshing, runLoad, reload, refresh } = useScreenLoad();
+  const entrance = useListEntrance(!loading);
 
   useEffect(() => {
     if (statusParam && FILTERS.some((f) => f.key === statusParam)) {
@@ -143,10 +146,12 @@ export default function AdminBookingsScreen() {
         void (async () => {
           try {
             await api.patch(`/bookings/${assignTarget.id}/assign`, { technicianId: t.id });
+            haptic('success');
             Toast.show({ type: 'success', text1: 'Technician assigned' });
             await Promise.all([load(), loadCounts()]);
           } catch {
             // interceptor toast
+            haptic('error');
           }
         })();
       },
@@ -186,41 +191,49 @@ export default function AdminBookingsScreen() {
   );
 
   const listHeader = (
-    <View style={styles.headerExtra}>
-      {statusCounts ? (
-        <AdminStatStrip
-          flush
-          items={[
-            { label: 'Total', value: statusCounts.total },
-            { label: 'Pending', value: statusCounts.byStatus.pending ?? 0, color: colors.forest },
-            {
-              label: 'Active',
-              value:
-                (statusCounts.byStatus.pending ?? 0) +
-                (statusCounts.byStatus.confirmed ?? 0) +
-                (statusCounts.byStatus.in_progress ?? 0) +
-                (statusCounts.byStatus.awaiting_verification ?? 0),
-            },
-            {
-              label: 'Verify',
-              value: statusCounts.byStatus.awaiting_verification ?? 0,
-              color: colors.forest,
-            },
-          ]}
+    <FadeSlideIn slideFrom={14}>
+      <View style={styles.headerExtra}>
+        {statusCounts ? (
+          <AdminStatStrip
+            flush
+            items={[
+              { label: 'Total', value: statusCounts.total },
+              { label: 'Pending', value: statusCounts.byStatus.pending ?? 0, color: colors.forest },
+              {
+                label: 'Active',
+                value:
+                  (statusCounts.byStatus.pending ?? 0) +
+                  (statusCounts.byStatus.confirmed ?? 0) +
+                  (statusCounts.byStatus.in_progress ?? 0) +
+                  (statusCounts.byStatus.awaiting_verification ?? 0),
+              },
+              {
+                label: 'Verify',
+                value: statusCounts.byStatus.awaiting_verification ?? 0,
+                color: colors.forest,
+              },
+            ]}
+          />
+        ) : null}
+        <View style={styles.searchWrap}>
+          <AdminSearchField value={search} onChangeText={setSearch} placeholder="Search ref, customer, service" />
+        </View>
+        <AdminFilterChips
+          chips={FILTERS.map((f) => ({ key: f.key, label: `${f.label} (${count(f.key)})` }))}
+          selected={filter}
+          onSelect={setFilter}
         />
-      ) : null}
-      <View style={styles.searchWrap}>
-        <AdminSearchField value={search} onChangeText={setSearch} placeholder="Search ref, customer, service" />
       </View>
-      <AdminFilterChips
-        chips={FILTERS.map((f) => ({ key: f.key, label: `${f.label} (${count(f.key)})` }))}
-        selected={filter}
-        onSelect={setFilter}
-      />
-    </View>
+    </FadeSlideIn>
   );
 
-  if (loading) return <Spinner fullScreen />;
+  if (loading) {
+    return (
+      <AdminTabScreen header={header} scroll={false}>
+        <AdminListSkeleton variant="booking" strip search chips rows={4} />
+      </AdminTabScreen>
+    );
+  }
 
   if (error) {
     return (
@@ -254,8 +267,10 @@ export default function AdminBookingsScreen() {
           { paddingBottom: TAB_BAR_SCROLL_PAD },
         ]}
         ListEmptyComponent={<EmptyState title="No bookings" message="Try another filter or search" />}
-        renderItem={({ item }) => (
-          <AdminBookingListCard item={item} onOpen={openBooking} onAssign={assign} />
+        renderItem={({ item, index }) => (
+          <AdminEntrance index={index + 1} play={entrance(index)}>
+            <AdminBookingListCard item={item} onOpen={openBooking} onAssign={assign} />
+          </AdminEntrance>
         )}
       />
       <AdminActionSheet

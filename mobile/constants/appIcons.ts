@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react-native';
 import {
   Activity,
+  Globe,
   ArrowRight,
   BriefcaseBusiness,
   CalendarCheck,
@@ -194,6 +195,7 @@ export const AppIcons = {
     screens: UserRealIcon,
     onboard: SprayIcon,
     legal: ShieldRealIcon,
+    website: Globe,
   } satisfies Record<string, LucideIcon>,
 
   trust: {

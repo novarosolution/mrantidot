@@ -1,10 +1,11 @@
 import { memo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { adminShadow } from '@/components/kit/homeUi';
 import { AppIcons } from '@/constants/appIcons';
 import { Button } from '@/components/ui/Button';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import { bookingRef, formatRupeeFull } from '@/components/kit/format';
@@ -15,7 +16,7 @@ import {
   bookingTechnicianName,
 } from '@/lib/booking-helpers';
 import type { Booking, Service, User } from '@/types/api';
-import { adminType, colors, customerType, spacing, surfaces, fonts } from '@/constants/theme';
+import { adminType, colors, customerType, spacing, fonts, ui } from '@/constants/theme';
 
 export const AdminBookingListCard = memo(function AdminBookingListCard({
   item,
@@ -37,9 +38,17 @@ export const AdminBookingListCard = memo(function AdminBookingListCard({
   return (
     <View style={styles.shell}>
       <GlassPanel style={styles.panel} padded={false} tone="light" goldEdge intensity={40}>
-        <Pressable onPress={() => onOpen(item.id)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+        <PressableScale
+          onPress={() => onOpen(item.id)}
+          style={styles.card}
+          scaleTo={0.98}
+          accessibilityRole="button"
+          accessibilityLabel={`${bookingServiceName(item)}, ${bookingCustomerName(item)}, ${scheduleLabel}. Open booking`}
+        >
           <View style={styles.top}>
-            <Text style={styles.ref}>{bookingRef(item.id)}</Text>
+            <Text style={styles.ref} numberOfLines={1}>
+              {bookingRef(item.id)}
+            </Text>
             <StatusPill status={item.status} />
           </View>
           <View style={styles.main}>
@@ -64,11 +73,11 @@ export const AdminBookingListCard = memo(function AdminBookingListCard({
                 {isPending ? <Text style={styles.pendingBadge}>Confirm</Text> : null}
               </View>
             </View>
-            <Text style={styles.price}>
+            <Text style={styles.price} numberOfLines={1}>
               {item.amount?.total != null ? formatRupeeFull(item.amount.total) : '—'}
             </Text>
           </View>
-        </Pressable>
+        </PressableScale>
         {canAssign ? (
           <View style={styles.footer}>
             <Text style={[styles.unassigned, !tech && styles.needsTech]} numberOfLines={1}>
@@ -92,10 +101,9 @@ export const AdminBookingListCard = memo(function AdminBookingListCard({
 const styles = StyleSheet.create({
   shell: { marginBottom: spacing.sm, borderRadius: 20, ...adminShadow.card },
   panel: { borderRadius: 20 },
-  card: { padding: spacing.md, paddingTop: spacing.sm + 8 },
-  pressed: { opacity: 0.92 },
-  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  ref: { ...adminType.listRef, color: colors.muted },
+  card: { padding: spacing.md },
+  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  ref: { ...adminType.listRef, flexShrink: 1, color: colors.muted },
   main: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: spacing.sm },
   flex: { flex: 1, minWidth: 0 },
   svc: { ...adminType.listTitle, color: colors.ink },
@@ -105,9 +113,9 @@ const styles = StyleSheet.create({
   pendingBadge: {
     ...customerType.pillLabel,
     color: colors.forest,
-    backgroundColor: 'rgba(238,248,230,0.92)',
+    backgroundColor: colors.mint,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.border,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 999,
@@ -123,7 +131,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: surfaces.glassBorderStrong,
+    borderTopColor: ui.border,
   },
   unassigned: { flex: 1, ...adminType.listMeta, color: colors.muted },
   needsTech: { color: colors.warning, fontFamily: fonts.bodyBold },

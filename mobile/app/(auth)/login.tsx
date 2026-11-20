@@ -18,6 +18,18 @@ import { isProfileIncomplete } from '@/lib/profile-display';
 import { appToast } from '@/lib/toast';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { colors, fonts, ui as themeUi } from '@/constants/theme';
+import { DEFAULT_CUSTOMER_UI_COPY, fillCopy } from '@/constants/customerUiCopy';
+import { haptic } from '@/lib/motion';
+
+/**
+ * A placeholder that only repeats the field label adds nothing — show the built-in example instead
+ * (or nothing, if that would repeat the label too).
+ */
+function distinctPlaceholder(placeholder: string, label: string, example: string): string {
+  const same = (a: string) => a.trim().toLowerCase() === label.trim().toLowerCase();
+  if (!same(placeholder)) return placeholder;
+  return same(example) ? '' : example;
+}
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -45,14 +57,14 @@ export default function LoginScreen() {
     let valid = true;
 
     if (!id) {
-      setIdentifierError('Required');
+      setIdentifierError(ui.authRequired);
       valid = false;
     } else {
       setIdentifierError(undefined);
     }
 
     if (!pass) {
-      setPasswordError('Required');
+      setPasswordError(ui.authRequired);
       valid = false;
     } else {
       setPasswordError(undefined);
@@ -63,21 +75,23 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const signedIn = await login(id, pass);
-      appToast.success(ui.authLoginSuccessToast, displayUserGreeting(signedIn.name));
+      haptic('success');
+      appToast.success(ui.authLoginSuccessToast, displayUserGreeting(signedIn.name, ui.authSignedInFallback));
       if (signedIn.role === 'customer' && isProfileIncomplete(signedIn)) {
-        appToast.info('Complete your profile', 'Add your name and email to finish setup.');
+        appToast.info(ui.authCompleteProfileTitle, ui.authCompleteProfileBody);
         appReplace(customerRoutes.settings);
         return;
       }
       appReplace(homeRouteForRole(signedIn.role));
     } catch (err) {
       const message = getApiErrorMessage(err, 'Check your credentials and try again');
-      setPasswordError(message === 'Invalid credentials' ? 'Wrong phone/email or password' : message);
+      haptic('error');
+      setPasswordError(message === 'Invalid credentials' ? ui.authWrongCredentials : message);
       appToast.error(ui.authLoginErrorToast, message);
     } finally {
       setLoading(false);
     }
-  }, [identifier, loading, login, password, ui.authLoginErrorToast, ui.authLoginSuccessToast]);
+  }, [identifier, loading, login, password, ui]);
 
   return (
     <>
@@ -90,13 +104,17 @@ export default function LoginScreen() {
       >
         <AuthFormSection>
           <AuthField
-            label="Email or phone"
+            label={ui.authFieldIdentifier}
             value={identifier}
             onChangeText={(text) => {
               setIdentifier(text);
               if (identifierError) setIdentifierError(undefined);
             }}
-            placeholder={ui.authLoginEmailPlaceholder}
+            placeholder={distinctPlaceholder(
+              ui.authLoginEmailPlaceholder,
+              ui.authFieldIdentifier,
+              DEFAULT_CUSTOMER_UI_COPY.authLoginEmailPlaceholder,
+            )}
             error={identifierError}
             icon={AppIcons.ui.mail}
             returnKeyType="next"
@@ -104,13 +122,17 @@ export default function LoginScreen() {
           />
 
           <AuthField
-            label="Password"
+            label={ui.authFieldPassword}
             value={password}
             onChangeText={(text) => {
               setPassword(text);
               if (passwordError) setPasswordError(undefined);
             }}
-            placeholder={ui.authLoginPasswordPlaceholder}
+            placeholder={distinctPlaceholder(
+              ui.authLoginPasswordPlaceholder,
+              ui.authFieldPassword,
+              DEFAULT_CUSTOMER_UI_COPY.authLoginPasswordPlaceholder,
+            )}
             error={passwordError}
             secure
             icon={AppIcons.ui.lock}
@@ -123,20 +145,18 @@ export default function LoginScreen() {
             style={styles.forgotBtn}
             onPress={() => {
               appToast.info(
-                'Password reset',
-                supportContact
-                  ? `Contact support: ${supportContact}`
-                  : 'Contact support from Help in the app.',
+                ui.authForgotTitle,
+                supportContact ? fillCopy(ui.authForgotBody, { contact: supportContact }) : ui.authForgotBodyFallback,
               );
             }}
             hitSlop={8}
           >
-            <Text style={styles.forgotText}>Forgot password?</Text>
+            <Text style={styles.forgotText}>{ui.authForgotPassword}</Text>
           </Pressable>
 
           <AuthPrimaryButton
             title={ui.authLoginButton}
-            loadingTitle="Signing in…"
+            loadingTitle={ui.authSigningIn}
             loading={loading}
             onPress={() => void handleLogin()}
           />
@@ -145,7 +165,7 @@ export default function LoginScreen() {
             <>
               <View style={styles.dividerRow}>
                 <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>or</Text>
+                <Text style={styles.dividerText}>{ui.authOrDivider}</Text>
                 <View style={styles.dividerLine} />
               </View>
               <Pressable
@@ -154,18 +174,18 @@ export default function LoginScreen() {
                 accessibilityRole="button"
               >
                 <Smartphone size={18} color={themeUi.text} strokeWidth={2} />
-                <Text style={styles.otpText}>Continue with OTP</Text>
+                <Text style={styles.otpText}>{ui.authOtpContinue}</Text>
               </Pressable>
             </>
           ) : null}
 
-          <AuthSecureNote />
+          <AuthSecureNote text={ui.authSecureNote} />
         </AuthFormSection>
 
         <AuthFooterText>
-          <Text style={authScreenStyles.footer}>New here? </Text>
+          <Text style={authScreenStyles.footer}>{ui.authNewHere} </Text>
           <Link href={authRoutes.register}>
-            <Text style={authScreenStyles.footerLink}>Create account</Text>
+            <Text style={authScreenStyles.footerLink}>{ui.authCreateAccountLink}</Text>
           </Link>
         </AuthFooterText>
       </AuthLoginShell>
@@ -173,9 +193,9 @@ export default function LoginScreen() {
   );
 }
 
-function displayUserGreeting(name?: string): string {
+function displayUserGreeting(name: string | undefined, fallback: string): string {
   const trimmed = name?.trim();
-  if (!trimmed || trimmed.toLowerCase() === 'customer') return 'Signed in successfully';
+  if (!trimmed || trimmed.toLowerCase() === 'customer') return fallback;
   return trimmed.split(' ')[0] ?? trimmed;
 }
 

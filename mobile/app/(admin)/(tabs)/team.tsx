@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { ArrowUpDown, UserPlus, UserRoundPlus } from 'lucide-react-native';
 import { AdminHubGroup, AdminHubLink } from '@/components/kit/AdminHubLink';
-import { adminShadow } from '@/components/kit/homeUi';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { AdminScreenHeader } from '@/components/kit/AdminScreenHeader';
 import { AdminTabScreen } from '@/components/kit/AdminScreenKit';
 import { AdminSectionTitle } from '@/components/kit/AdminListShell';
@@ -9,6 +10,7 @@ import { AppIcons } from '@/constants/appIcons';
 import { AppIconImages, AppImageIcons } from '@/constants/appImageIcons';
 import { useAuth } from '@/context/AuthContext';
 import { adminRoutes, appPush, type RouteInput } from '@/lib/routes';
+import { stagger } from '@/lib/motion';
 import { useUnreadNotifications } from '@/lib/useUnreadNotifications';
 import { userInitial } from '@/lib/userInitials';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
@@ -178,25 +180,27 @@ export default function TeamHubScreen() {
         />
       }
     >
-      <View style={styles.addRow}>
-        <AddTile
-          icon={UserPlus}
-          label="Add technician"
-          onPress={() =>
-            appPush({ pathname: adminRoutes.userEdit, params: { role: 'technician', returnTo: adminRoutes.team } })
-          }
-        />
-        <AddTile
-          icon={UserRoundPlus}
-          label="Add customer"
-          onPress={() =>
-            appPush({ pathname: adminRoutes.userEdit, params: { role: 'customer', returnTo: adminRoutes.team } })
-          }
-        />
-      </View>
+      <FadeSlideIn delay={stagger(0)} slideFrom={14}>
+        <View style={styles.addRow}>
+          <AddTile
+            icon={UserPlus}
+            label="Add technician"
+            onPress={() =>
+              appPush({ pathname: adminRoutes.userEdit, params: { role: 'technician', returnTo: adminRoutes.team } })
+            }
+          />
+          <AddTile
+            icon={UserRoundPlus}
+            label="Add customer"
+            onPress={() =>
+              appPush({ pathname: adminRoutes.userEdit, params: { role: 'customer', returnTo: adminRoutes.team } })
+            }
+          />
+        </View>
+      </FadeSlideIn>
 
-      {SECTIONS.map((section) => (
-        <View key={section.title}>
+      {SECTIONS.map((section, i) => (
+        <FadeSlideIn key={section.title} delay={stagger(i + 1)} slideFrom={14}>
           <AdminSectionTitle title={section.title} hint={section.hint} />
           <AdminHubGroup>
             {section.links.map((l) => (
@@ -210,7 +214,7 @@ export default function TeamHubScreen() {
               />
             ))}
           </AdminHubGroup>
-        </View>
+        </FadeSlideIn>
       ))}
     </AdminTabScreen>
   );
@@ -218,10 +222,12 @@ export default function TeamHubScreen() {
 
 function AddTile({ icon: Icon, label, onPress }: { icon: LucideIcon; label: string; onPress: () => void }) {
   return (
-    <Pressable
-      style={({ pressed }) => [styles.addTile, pressed && styles.addPressed]}
+    <PressableScale
+      containerStyle={styles.addCell}
+      style={styles.addTile}
       onPress={onPress}
       accessibilityRole="button"
+      accessibilityLabel={label}
     >
       <View style={styles.addIcon}>
         <Icon size={18} color={colors.white} strokeWidth={2.2} />
@@ -229,26 +235,25 @@ function AddTile({ icon: Icon, label, onPress }: { icon: LucideIcon; label: stri
       <Text style={styles.addLabel} numberOfLines={1}>
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
   addRow: { flexDirection: 'row', gap: 10, paddingHorizontal: spacing.md, marginTop: spacing.xs },
+  addCell: { flex: 1 },
   addTile: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     paddingVertical: 12,
     paddingHorizontal: 12,
-    borderRadius: 16,
+    borderRadius: 18,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.hairline,
-    ...adminShadow.tile,
+    ...ui.shadow,
   },
-  addPressed: { backgroundColor: ui.surfaceMuted },
   addIcon: {
     width: 34,
     height: 34,

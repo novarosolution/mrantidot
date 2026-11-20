@@ -1,19 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { AdminEntrance, AdminListShell, adminListShellStyles, useListEntrance } from '@/components/kit/AdminListShell';
 import { AdminFilterChips, AdminStatStrip } from '@/components/kit/AdminPageKit';
+import { AdminListSkeleton } from '@/components/kit/AdminSkeletons';
 import { StarRating } from '@/components/ui/StarRating';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
+import { haptic } from '@/lib/motion';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import type { AdminReview } from '@/types/api';
-import { colors, fonts, premium, shadows, spacing } from '@/constants/theme';
+import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
 import { adminRoutes, appPush } from '@/lib/routes';
 
 type ReviewFilter = 'all' | 'visible' | 'hidden';
@@ -23,6 +25,7 @@ export default function AdminReviewsScreen() {
   const [filter, setFilter] = useState<ReviewFilter>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
   const { loading, error, refreshing, runLoad, reload, refresh } = useScreenLoad();
+  const entrance = useListEntrance(!loading);
 
   const load = useCallback(async (skipCache = false) => {
     const { data } = await api.get<{ reviews: AdminReview[] }>('/admin/reviews', {
@@ -62,6 +65,7 @@ export default function AdminReviewsScreen() {
       await api.patch(`/admin/reviews/${r.id}`, { hidden: next });
     } catch {
       setReviews((prev) => prev.map((x) => (x.id === r.id ? { ...x, hidden: r.hidden } : x)));
+      haptic('error');
       Alert.alert('Error', 'Could not update review');
     } finally {
       setBusyId(null);
@@ -70,7 +74,7 @@ export default function AdminReviewsScreen() {
 
   const header = useMemo(
     () => (
-      <View>
+      <FadeSlideIn slideFrom={14}>
         <AdminStatStrip
           flush
           items={[
@@ -88,12 +92,18 @@ export default function AdminReviewsScreen() {
           selected={filter}
           onSelect={(key) => setFilter(key as ReviewFilter)}
         />
-      </View>
+      </FadeSlideIn>
     ),
     [filter, reviews.length, avgStars, hiddenCount],
   );
 
-  if (loading) return <Spinner fullScreen />;
+  if (loading) {
+    return (
+      <AdminListShell title="Reviews" subtitle="Moderate feedback">
+        <AdminListSkeleton variant="review" strip stripCells={3} chips rows={4} />
+      </AdminListShell>
+    );
+  }
 
   if (error) {
     return (
@@ -115,42 +125,46 @@ export default function AdminReviewsScreen() {
         }
         contentContainerStyle={visible.length === 0 ? adminListShellStyles.empty : adminListShellStyles.list}
         ListEmptyComponent={<EmptyState title="No reviews" message="Reviews appear after completed bookings" />}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <StarRating rating={item.stars} size={15} showValue />
-              {item.hidden ? <StatusBadge label="Hidden" tone="danger" /> : null}
-            </View>
-            <Text style={styles.meta}>
-              {item.customerName} · {item.serviceName}
-            </Text>
-            {item.comment ? (
-              <Text style={styles.comment} numberOfLines={3}>
-                {item.comment}
+        renderItem={({ item, index }) => (
+          <AdminEntrance index={index + 1} play={entrance(index)}>
+            <View style={styles.card}>
+              <View style={styles.row}>
+                <StarRating rating={item.stars} size={15} showValue />
+                {item.hidden ? <StatusBadge label="Hidden" tone="danger" /> : null}
+              </View>
+              <Text style={styles.meta} numberOfLines={1}>
+                {item.customerName} · {item.serviceName}
               </Text>
-            ) : null}
-            <View style={styles.actions}>
-              <Pressable
-                onPress={() => appPush(adminRoutes.booking(item.bookingId))}
-                accessibilityRole="button"
-                accessibilityLabel="Open booking"
-                hitSlop={8}
-              >
-                <Text style={styles.link}>Booking</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => void toggleHidden(item)}
-                disabled={busyId === item.id}
-                accessibilityRole="button"
-                accessibilityLabel={item.hidden ? 'Show review' : 'Hide review'}
-                hitSlop={8}
-              >
-                <Text style={[styles.link, busyId === item.id && styles.linkBusy]}>
-                  {busyId === item.id ? '…' : item.hidden ? 'Show' : 'Hide'}
+              {item.comment ? (
+                <Text style={styles.comment} numberOfLines={3}>
+                  {item.comment}
                 </Text>
-              </Pressable>
+              ) : null}
+              <View style={styles.actions}>
+                <Pressable
+                  onPress={() => appPush(adminRoutes.booking(item.bookingId))}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open booking"
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.linkBtn, pressed && styles.linkPressed]}
+                >
+                  <Text style={styles.link}>Booking</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => void toggleHidden(item)}
+                  disabled={busyId === item.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.hidden ? 'Show review' : 'Hide review'}
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.linkBtn, pressed && styles.linkPressed]}
+                >
+                  <Text style={[styles.link, busyId === item.id && styles.linkBusy]}>
+                    {busyId === item.id ? '…' : item.hidden ? 'Show' : 'Hide'}
+                  </Text>
+                </Pressable>
+              </View>
             </View>
-          </View>
+          </AdminEntrance>
         )}
       />
     </AdminListShell>
@@ -160,18 +174,27 @@ export default function AdminReviewsScreen() {
 const styles = StyleSheet.create({
   card: {
     padding: spacing.md,
-    paddingTop: spacing.md + 2,
     marginBottom: spacing.sm,
     borderRadius: premium.radiusCard,
-    backgroundColor: 'rgba(255,255,255,0.82)',
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: '#EEF2EF',
-    ...shadows.card,
+    borderColor: ui.hairline,
+    ...ui.shadow,
   },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  meta: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 6 },
-  comment: { fontFamily: fonts.body, fontSize: 13, color: colors.ink, marginTop: 8, lineHeight: 18 },
-  actions: { flexDirection: 'row', gap: 16, marginTop: 12 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  meta: { fontFamily: fonts.body, fontSize: 12, color: ui.textSecondary, marginTop: 6 },
+  comment: { fontFamily: fonts.body, fontSize: 13, color: ui.text, marginTop: 8, lineHeight: 18 },
+  actions: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  /** Small outlined pills — a clearer tap target than bare text links. */
+  linkBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: ui.border,
+    backgroundColor: colors.white,
+  },
+  linkPressed: { backgroundColor: ui.surfaceMuted },
   link: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
   linkBusy: { opacity: 0.5 },
 });

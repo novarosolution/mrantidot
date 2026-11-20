@@ -1,5 +1,6 @@
 import { SegmentedTabs } from '@/components/kit/SegmentedTabs';
 import { useBookingCopy } from '@/lib/schedule-copy';
+import { haptic } from '@/lib/motion';
 
 type FilterKey = 'active' | 'completed' | 'cancelled';
 
@@ -26,7 +27,10 @@ export function BookingsSummaryBar({
         { key: 'cancelled', label: copy.listFilterCancelled, count: cancelled },
       ]}
       selected={selected}
-      onSelect={onSelect}
+      onSelect={(key) => {
+        if (key !== selected) haptic('select');
+        onSelect(key);
+      }}
     />
   );
 }

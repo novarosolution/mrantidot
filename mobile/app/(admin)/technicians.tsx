@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { ChevronRight, Pencil, Phone } from 'lucide-react-native';
-import { adminShadow } from '@/components/kit/homeUi';
-import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { AdminEntrance, AdminListShell, adminListShellStyles, useListEntrance } from '@/components/kit/AdminListShell';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
 import { AdminSearchField, AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { formatDayKey, initials } from '@/components/kit/format';
+import { AdminListSkeleton } from '@/components/kit/AdminSkeletons';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { api, screenLoadConfig } from '@/lib/api';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
@@ -17,7 +18,7 @@ import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { technicianDisplayRating, technicianRealRating } from '@/lib/ratings';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { AdminTechnician, User } from '@/types/api';
-import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 
 function techStatus(u: User): { label: string; tone: BadgeTone } {
@@ -31,6 +32,7 @@ export default function AdminTechniciansScreen() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
   const { loading, error, refreshing, runLoad, reload, refresh } = useScreenLoad();
+  const entrance = useListEntrance(!loading);
 
   const load = useCallback(async () => {
     const { data } = await api.get<{ technicians: AdminTechnician[] }>('/admin/technicians', screenLoadConfig);
@@ -59,11 +61,17 @@ export default function AdminTechniciansScreen() {
   const offDutyCount = useMemo(() => techs.filter((t) => t.available === false && !t.disabled).length, [techs]);
   const disabledCount = useMemo(() => techs.filter((t) => t.disabled).length, [techs]);
 
-  if (loading) return <Spinner fullScreen />;
+  if (loading) {
+    return (
+      <AdminListShell title="Technicians" subtitle="Roster & availability" backFallback={adminRoutes.team}>
+        <AdminListSkeleton variant="technician" strip search rows={3} />
+      </AdminListShell>
+    );
+  }
 
   if (error) {
     return (
-      <AdminListShell title="Technicians" subtitle="Error">
+      <AdminListShell title="Technicians" subtitle="Error" backFallback={adminRoutes.team}>
         <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
       </AdminListShell>
     );
@@ -81,7 +89,7 @@ export default function AdminTechniciansScreen() {
   );
 
   const listHeader = (
-    <View>
+    <FadeSlideIn slideFrom={14}>
       <AdminStatStrip
         flush
         items={[
@@ -94,7 +102,7 @@ export default function AdminTechniciansScreen() {
       <View style={styles.searchWrap}>
         <AdminSearchField value={search} onChangeText={setSearch} placeholder="Search name, phone, city" />
       </View>
-    </View>
+    </FadeSlideIn>
   );
 
   return (
@@ -114,88 +122,98 @@ export default function AdminTechniciansScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />
         }
         contentContainerStyle={visibleTechnicians.length === 0 ? adminListShellStyles.empty : adminListShellStyles.list}
-        ListEmptyComponent={<EmptyState title="No technicians" />}
-        renderItem={({ item }) => {
+        ListEmptyComponent={
+          <EmptyState
+            title={debouncedSearch.trim() ? 'No matches' : 'No technicians'}
+            message={debouncedSearch.trim() ? 'Try another name, phone or city' : 'Add a technician to build your field team'}
+          />
+        }
+        renderItem={({ item, index }) => {
           const st = techStatus(item);
           const shown = technicianDisplayRating(item);
           const real = technicianRealRating(item);
           return (
-            <View style={styles.card}>
-              <Pressable
-                style={({ pressed }) => [styles.head, pressed && styles.headPressed]}
-                onPress={() => appPush(adminRoutes.technician(item.id))}
-                accessibilityRole="button"
-                accessibilityLabel={`${item.name}, ${st.label}. Open profile`}
-              >
-                <View style={styles.avatar}>
-                  <Text style={styles.init}>{initials(item.name)}</Text>
-                </View>
-                <View style={styles.flex}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.name} numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                    <StatusBadge label={st.label} tone={st.tone} />
+            <AdminEntrance index={index + 1} play={entrance(index)}>
+              <View style={styles.card}>
+                <PressableScale
+                  style={styles.head}
+                  scaleTo={0.98}
+                  onPress={() => appPush(adminRoutes.technician(item.id))}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.name}, ${st.label}. Open profile`}
+                >
+                  <View style={styles.avatar}>
+                    <Text style={styles.init}>{initials(item.name)}</Text>
                   </View>
-                  <Text style={styles.meta} numberOfLines={1}>
-                    {item.city ?? 'Field'} · {item.phone ?? item.email}
-                  </Text>
-                  {item.lastJobDate || item.activeJobs ? (
-                    <Text style={styles.jobHint} numberOfLines={1}>
-                      {item.activeJobs ? `${item.activeJobs} active` : null}
-                      {item.activeJobs && item.lastJobDate ? ' · ' : null}
-                      {item.lastJobDate ? `Last job ${formatDayKey(item.lastJobDate)}` : null}
+                  <View style={styles.flex}>
+                    <View style={styles.nameRow}>
+                      <Text style={styles.name} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      <StatusBadge label={st.label} tone={st.tone} />
+                    </View>
+                    <Text style={styles.meta} numberOfLines={1}>
+                      {item.city ?? 'Field'} · {item.phone ?? item.email}
                     </Text>
+                    {item.lastJobDate || item.activeJobs ? (
+                      <Text style={styles.jobHint} numberOfLines={1}>
+                        {item.activeJobs ? `${item.activeJobs} active` : null}
+                        {item.activeJobs && item.lastJobDate ? ' · ' : null}
+                        {item.lastJobDate ? `Last job ${formatDayKey(item.lastJobDate)}` : null}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <ChevronRight size={18} color={ui.textTertiary} strokeWidth={2.2} />
+                </PressableScale>
+
+                <View style={styles.stats}>
+                  <View style={styles.stat}>
+                    <Text style={styles.statVal} numberOfLines={1}>
+                      {shown > 0 ? `★ ${shown.toFixed(1)}` : '—'}
+                    </Text>
+                    <Text style={styles.statLabel}>Shown rating</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.stat}>
+                    <Text style={styles.statVal}>{real != null ? real.toFixed(1) : '—'}</Text>
+                    <Text style={styles.statLabel}>Reviews avg</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.stat}>
+                    <Text style={styles.statVal}>{item.completedJobs ?? item.jobsDone ?? 0}</Text>
+                    <Text style={styles.statLabel}>Jobs done</Text>
+                  </View>
+                </View>
+
+                <View style={styles.actions}>
+                  {item.phone ? (
+                    <Pressable
+                      style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}
+                      onPress={() => void Linking.openURL(`tel:${item.phone}`)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Call ${item.name}`}
+                    >
+                      <Phone size={15} color={ui.brand} strokeWidth={2.2} />
+                      <Text style={styles.actionText}>Call</Text>
+                    </Pressable>
                   ) : null}
-                </View>
-                <ChevronRight size={18} color={ui.textTertiary} strokeWidth={2.2} />
-              </Pressable>
-
-              <View style={styles.stats}>
-                <View style={styles.stat}>
-                  <Text style={styles.statVal}>{shown > 0 ? `★ ${shown.toFixed(1)}` : '—'}</Text>
-                  <Text style={styles.statLabel}>Shown rating</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.stat}>
-                  <Text style={styles.statVal}>{real != null ? real.toFixed(1) : '—'}</Text>
-                  <Text style={styles.statLabel}>Reviews avg</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.stat}>
-                  <Text style={styles.statVal}>{item.completedJobs ?? item.jobsDone ?? 0}</Text>
-                  <Text style={styles.statLabel}>Jobs done</Text>
-                </View>
-              </View>
-
-              <View style={styles.actions}>
-                {item.phone ? (
                   <Pressable
                     style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}
-                    onPress={() => void Linking.openURL(`tel:${item.phone}`)}
+                    onPress={() =>
+                      appPush({
+                        pathname: adminRoutes.userEdit,
+                        params: { id: item.id, returnTo: adminRoutes.technicians },
+                      })
+                    }
                     accessibilityRole="button"
-                    accessibilityLabel={`Call ${item.name}`}
+                    accessibilityLabel={`Edit ${item.name}`}
                   >
-                    <Phone size={15} color={ui.brand} strokeWidth={2.2} />
-                    <Text style={styles.actionText}>Call</Text>
+                    <Pencil size={15} color={ui.brand} strokeWidth={2.2} />
+                    <Text style={styles.actionText}>Edit</Text>
                   </Pressable>
-                ) : null}
-                <Pressable
-                  style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}
-                  onPress={() =>
-                    appPush({
-                      pathname: adminRoutes.userEdit,
-                      params: { id: item.id, returnTo: adminRoutes.technicians },
-                    })
-                  }
-                  accessibilityRole="button"
-                  accessibilityLabel={`Edit ${item.name}`}
-                >
-                  <Pencil size={15} color={ui.brand} strokeWidth={2.2} />
-                  <Text style={styles.actionText}>Edit</Text>
-                </Pressable>
+                </View>
               </View>
-            </View>
+            </AdminEntrance>
           );
         }}
       />
@@ -208,14 +226,13 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: spacing.sm,
     padding: 14,
-    borderRadius: 18,
+    borderRadius: premium.radiusCard,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.hairline,
-    ...adminShadow.card,
+    ...ui.shadow,
   },
   head: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12 },
-  headPressed: { opacity: 0.7 },
   avatar: {
     width: 46,
     height: 46,

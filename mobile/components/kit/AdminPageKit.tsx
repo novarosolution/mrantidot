@@ -3,11 +3,13 @@ import { type ReactNode, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ImageSourcePropType } from 'react-native';
 import { Search, X } from 'lucide-react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { AppIcons } from '@/constants/appIcons';
 import { AdminGoldBar } from '@/components/kit/AdminScreenKit';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { adminShadow } from '@/components/kit/homeUi';
 import { ADMIN_QUICK_COLS, adminGridCellWidth } from '@/lib/adminGrid';
+import { haptic } from '@/lib/motion';
 import { adminSurfaces, adminType, colors, fonts, premium, spacing, ui } from '@/constants/theme';
 
 export function AdminQuickGrid({
@@ -23,20 +25,21 @@ export function AdminQuickGrid({
   return (
     <View style={styles.quickGrid}>
       {items.map(({ key, icon: Icon, label }) => (
-        <Pressable
+        <PressableScale
           key={key}
-          style={({ pressed }) => [{ width: tileWidth }, pressed && styles.pressed]}
+          containerStyle={{ width: tileWidth }}
+          style={styles.quickTile}
           onPress={() => onPress(key)}
+          accessibilityRole="button"
+          accessibilityLabel={label}
         >
-          <View style={styles.quickTile}>
-            <View style={styles.quickIcon}>
-              <Icon size={21} color={colors.forest} strokeWidth={2} />
-            </View>
-            <Text style={styles.quickLabel} numberOfLines={1}>
-              {label}
-            </Text>
+          <View style={styles.quickIcon}>
+            <Icon size={21} color={colors.forest} strokeWidth={2} />
           </View>
-        </Pressable>
+          <Text style={styles.quickLabel} numberOfLines={1}>
+            {label}
+          </Text>
+        </PressableScale>
       ))}
     </View>
   );
@@ -73,12 +76,16 @@ export function AdminFilterChips({
             disabled={locked}
             onPress={() => {
               if (locked) return;
+              haptic('select');
               onSelect(c.key);
             }}
             style={({ pressed }) => [pressed && !locked && styles.chipPressed, locked && styles.chipLocked]}
           >
             <View style={[styles.chip, active && styles.chipActive, locked && styles.chipDisabled]}>
-              <Text style={[styles.chipText, active && styles.chipTextActive, locked && styles.chipTextDisabled]}>
+              <Text
+                style={[styles.chipText, active && styles.chipTextActive, locked && styles.chipTextDisabled]}
+                numberOfLines={1}
+              >
                 {c.label}
               </Text>
             </View>
@@ -140,8 +147,12 @@ export function AdminStatStrip({
           <View style={styles.stripRow}>
             {items.map((item, index) => (
               <View key={item.label} style={[styles.stripCell, index < items.length - 1 && styles.stripBorder]}>
-                <Text style={[styles.stripValue, item.color ? { color: item.color } : null]}>{item.value}</Text>
-                <Text style={styles.stripLabel}>{item.label}</Text>
+                <Text style={[styles.stripValue, item.color ? { color: item.color } : null]} numberOfLines={1}>
+                  {item.value}
+                </Text>
+                <Text style={styles.stripLabel} numberOfLines={1}>
+                  {item.label}
+                </Text>
               </View>
             ))}
           </View>
@@ -179,7 +190,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   quickLabel: { ...adminType.quickLabel, fontSize: 12, color: ui.text },
   search: {
     flexDirection: 'row',
@@ -329,6 +339,8 @@ export function AdminCollapsibleCard({
         <Pressable
           onPress={() => setOpen((v) => !v)}
           style={({ pressed }) => [collapseStyles.head, pressed && collapseStyles.pressed]}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: open }}
         >
           <View style={collapseStyles.headText}>
             <Text style={collapseStyles.title}>{title}</Text>
@@ -400,7 +412,7 @@ const collapseStyles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#F3FAEF',
+    backgroundColor: ui.brandSoft,
     borderWidth: 1,
     borderColor: adminSurfaces.chipBorder,
     alignItems: 'center',

@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
   },
-  optionPressed: { backgroundColor: '#EEF2EF' },
+  optionPressed: { backgroundColor: ui.hairline },
   divider: {
     position: 'absolute',
     top: 0,

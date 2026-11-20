@@ -2,6 +2,7 @@ import { Alert } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
+import { haptic } from '@/lib/motion';
 import type { Booking, BookingStatus } from '@/types/api';
 import { spacing } from '@/constants/theme';
 
@@ -23,10 +24,12 @@ export function AdminBookingActions({
     setBusy(status);
     try {
       await api.patch(`/bookings/${booking.id}/status`, { status });
+      haptic('success');
       Toast.show({ type: 'success', text1: 'Process updated' });
       await onUpdated();
     } catch {
       // error toast shown by the api interceptor
+      haptic('error');
     } finally {
       setBusy(null);
     }
@@ -36,10 +39,12 @@ export function AdminBookingActions({
     setBusy('complete');
     try {
       await api.patch(`/bookings/${booking.id}/complete`);
+      haptic('success');
       Toast.show({ type: 'success', text1: 'Booking completed' });
       await onUpdated();
     } catch {
       // error toast shown by the api interceptor
+      haptic('error');
     } finally {
       setBusy(null);
     }
@@ -49,10 +54,12 @@ export function AdminBookingActions({
     setBusy('cancel');
     try {
       await api.patch(`/bookings/${booking.id}/cancel`);
+      haptic('success');
       Toast.show({ type: 'success', text1: 'Booking cancelled' });
       await onUpdated();
     } catch {
       // error toast shown by the api interceptor
+      haptic('error');
     } finally {
       setBusy(null);
     }

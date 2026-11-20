@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { colors, fonts, premium, spacing, surfaces, ui } from '@/constants/theme';
 
 export type AnalyticsStatItem = {
   key: string;
@@ -27,24 +28,31 @@ export function AnalyticsStatGrid({ items, glass = false }: { items: AnalyticsSt
               bg={item.iconBg ?? colors.soft}
               boxSize={36}
             />
-            <Text style={styles.value}>{item.value}</Text>
-            <Text style={styles.label}>{item.label}</Text>
+            <Text style={styles.value} numberOfLines={1}>
+              {item.value}
+            </Text>
+            <Text style={styles.label} numberOfLines={2}>
+              {item.label}
+            </Text>
           </>
         );
         const chipStyle = [styles.chip, glass && styles.chipGlass];
         if (item.onPress) {
           return (
-            <Pressable
+            <PressableScale
               key={item.key}
-              style={({ pressed }) => [...chipStyle, pressed && styles.pressed]}
+              containerStyle={styles.cell}
+              style={[...chipStyle, styles.fill]}
               onPress={item.onPress}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.label}, ${item.value}`}
             >
               {inner}
-            </Pressable>
+            </PressableScale>
           );
         }
         return (
-          <View key={item.key} style={chipStyle}>
+          <View key={item.key} style={[...chipStyle, styles.cell]}>
             {inner}
           </View>
         );
@@ -55,23 +63,23 @@ export function AnalyticsStatGrid({ items, glass = false }: { items: AnalyticsSt
 
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, width: '100%' },
+  /** Grid sizing sits on the outer touch target so pressable and static tiles line up. */
+  cell: { width: '47%', flexGrow: 1 },
+  fill: { flexGrow: 1 },
   chip: {
-    width: '47%',
-    flexGrow: 1,
     padding: spacing.md,
     borderRadius: premium.radiusCard,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: '#EEF2EF',
+    borderColor: ui.hairline,
     gap: 8,
     alignItems: 'center',
-    ...premium.shadowSoft,
+    ...ui.shadow,
   },
   chipGlass: {
     backgroundColor: 'rgba(255,255,255,0.55)',
     borderColor: surfaces.glassBorderStrong,
   },
-  pressed: { opacity: 0.85 },
   value: { fontFamily: fonts.displayExtra, fontSize: 18, color: colors.forest, textAlign: 'center' },
   label: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2, textAlign: 'center' },
 });

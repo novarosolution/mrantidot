@@ -1,26 +1,29 @@
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text } from 'react-native';
-import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { AdminEntrance, AdminListShell, adminListShellStyles, useListEntrance } from '@/components/kit/AdminListShell';
 import { AdminStatStrip } from '@/components/kit/AdminPageKit';
+import { AdminListSkeleton } from '@/components/kit/AdminSkeletons';
 import { NotificationRow } from '@/components/kit/NotificationRow';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { bookingDetailPath, appPush } from '@/lib/routes';
 import { useAuth } from '@/context/AuthContext';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
+import { haptic } from '@/lib/motion';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import type { AppNotification } from '@/types/api';
-import { colors, fonts } from '@/constants/theme';
+import { colors, fonts, spacing } from '@/constants/theme';
 
 export default function AdminNotificationsScreen() {
   const { user } = useAuth();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [markingAll, setMarkingAll] = useState(false);
   const { loading, error, refreshing, runLoad, refresh, reload } = useScreenLoad();
+  const entrance = useListEntrance(!loading);
 
   const load = useCallback(async (skipCache = false) => {
     const { data } = await api.get<{ notifications: AppNotification[] }>('/notifications', {
@@ -42,8 +45,10 @@ export default function AdminNotificationsScreen() {
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
     try {
       await api.patch('/notifications/read-all');
+      haptic('success');
     } catch {
-      void load();
+      haptic('error');
+      void load().catch(() => undefined);
     } finally {
       setMarkingAll(false);
     }
@@ -64,7 +69,13 @@ export default function AdminNotificationsScreen() {
   const unreadCount = items.filter((n) => !n.read).length;
   const hasUnread = unreadCount > 0;
 
-  if (loading) return <Spinner fullScreen />;
+  if (loading) {
+    return (
+      <AdminListShell title="Notifications" subtitle="Alerts & activity">
+        <AdminListSkeleton variant="notification" strip stripCells={3} rows={6} />
+      </AdminListShell>
+    );
+  }
 
   if (error) {
     return (
@@ -79,6 +90,9 @@ export default function AdminNotificationsScreen() {
       onPress={() => void markAllRead()}
       disabled={markingAll}
       style={({ pressed }) => [styles.markAll, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel="Mark all notifications as read"
+      hitSlop={6}
     >
       <Text style={styles.markAllText}>{markingAll ? '…' : 'Read all'}</Text>
     </Pressable>
@@ -90,13 +104,17 @@ export default function AdminNotificationsScreen() {
       subtitle={hasUnread ? `${unreadCount} unread` : 'All caught up'}
       rightAction={markAllBtn}
     >
-      <AdminStatStrip
-        items={[
-          { label: 'Total', value: items.length },
-          { label: 'Unread', value: unreadCount, color: unreadCount > 0 ? colors.forest : undefined },
-          { label: 'Read', value: items.length - unreadCount },
-        ]}
-      />
+      <FadeSlideIn slideFrom={14}>
+        <View style={styles.stripWrap}>
+          <AdminStatStrip
+            items={[
+              { label: 'Total', value: items.length },
+              { label: 'Unread', value: unreadCount, color: unreadCount > 0 ? colors.forest : undefined },
+              { label: 'Read', value: items.length - unreadCount },
+            ]}
+          />
+        </View>
+      </FadeSlideIn>
       <FlatList
         data={items}
         keyExtractor={(n) => n.id}
@@ -106,13 +124,18 @@ export default function AdminNotificationsScreen() {
         }
         contentContainerStyle={items.length === 0 ? adminListShellStyles.empty : adminListShellStyles.list}
         ListEmptyComponent={<EmptyState title="No notifications" message="New bookings and jobs will appear here" />}
-        renderItem={({ item }) => <NotificationRow item={item} onPress={() => void openItem(item)} />}
+        renderItem={({ item, index }) => (
+          <AdminEntrance index={index + 1} play={entrance(index)}>
+            <NotificationRow item={item} onPress={() => openItem(item)} />
+          </AdminEntrance>
+        )}
       />
     </AdminListShell>
   );
 }
 
 const styles = StyleSheet.create({
+  stripWrap: { paddingTop: spacing.sm },
   markAll: {
     backgroundColor: colors.forest,
     paddingHorizontal: 14,

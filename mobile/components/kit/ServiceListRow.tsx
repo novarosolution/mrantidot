@@ -7,6 +7,7 @@ import { formatRupeeFull } from '@/components/kit/format';
 import type { Service } from '@/types/api';
 import { colors, fonts, ui } from '@/constants/theme';
 import { serviceStartPrice } from '@/lib/serviceDisplay';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 const THUMB = 100;
 
@@ -42,6 +43,7 @@ export function ServiceListRow({
   /** Category-page style: admin highlights as bullets + a "View details" link. */
   detailed?: boolean;
 }) {
+  const copy = useCustomerUiCopy();
   const rating = serviceDisplayRating(service);
   const reviews = service.stats?.reviewCount ?? 0;
   const desc = service.shortDesc?.trim();
@@ -70,7 +72,9 @@ export function ServiceListRow({
           ) : null}
           <Text style={styles.reviews}>{serviceDurationLabel(service)}</Text>
         </View>
-        <Text style={styles.price}>Starts at {priceLabel ?? servicePriceLabel(service)}</Text>
+        <Text style={styles.price}>
+          {copy.serviceStartsAtLabel} {priceLabel ?? servicePriceLabel(service)}
+        </Text>
         {bullets.length > 0 ? (
           <View style={styles.bullets}>
             {bullets.map((b) => (
@@ -87,7 +91,7 @@ export function ServiceListRow({
             {desc}
           </Text>
         ) : null}
-        {detailed ? <Text style={styles.viewDetails}>View details</Text> : null}
+        {detailed ? <Text style={styles.viewDetails}>{copy.serviceRowViewDetails}</Text> : null}
       </View>
 
       <View style={styles.media}>
@@ -99,7 +103,7 @@ export function ServiceListRow({
           accessibilityRole="button"
           accessibilityLabel={`Book ${service.name}`}
         >
-          <Text style={styles.bookText}>Book</Text>
+          <Text style={styles.bookText}>{copy.serviceRowBook}</Text>
         </Pressable>
       </View>
     </Pressable>

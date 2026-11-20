@@ -32,7 +32,24 @@ Principles:
 - **Success** — check-mark draw + confetti + success haptic after a booking.
 - **Accessibility** — everything respects iOS/Android "Reduce motion" (`useReducedMotion`): entrances become instant, presses only dim.
 
-## 3. Screen status
+## 3. Managing content
+
+Every customer-facing label lives in **Admin → App content → Screens** (`customerUi` in the app config), grouped by screen: catalog, category page, service detail, cart, bookings, booking detail, offers, profile, account screens, help, auth, onboarding and review.
+
+- Use the search box at the top of the Screens tab to find a label by its name or its current text.
+- Words in braces are filled in by the app — keep them when editing: `{brand}`, `{price}`, `{count}`, `{code}`, `{duration}`, `{amount}`, `{service}`, `{type}`, `{active}`, `{total}`, `{contact}`, `{terms}`, `{privacy}`.
+- Adding a label: add the key to `CustomerUiCopy` (`mobile/types/api.ts`) and `ICustomerUiCopy` (`server/src/models/AppContent.ts`), its default to **both** `DEFAULT_CUSTOMER_UI_COPY` objects, and a row in `CUSTOMER_UI_ADMIN_GROUPS` (`mobile/constants/customerUiCopy.ts`). The server drops keys it has no default for.
+- Error messages from the API and a few developer-only screens (OTP demo code) stay in code.
+- Website text lives in the same store under **Admin → App content → Website** (keys starting with `web…`, grouped in `WEBSITE_UI_ADMIN_GROUPS`). The website also reuses the app's labels (cart, service detail, bookings, auth), Brand (phone, email, WhatsApp, hours, trust badges) and Legal (FAQ, terms, privacy). Edits show on the website within about a minute.
+
+## Website (`mranti/`, Next.js)
+
+- Talks to the same API as the app (`MRANTIDOT_API_URL`, server-side only; the customer token sits in an httpOnly cookie). Services, offers, login/register, booking, my bookings and addresses all go through it, so a website booking appears in the app's admin and technician screens.
+- Blog, gallery, team, testimonials, contact messages and newsletter subscribers stay in the website's own MongoDB and admin panel (`/admin`). That admin no longer shows services, offers or users; its bookings list is the old-site archive.
+- Design kit: `components/site/*` (Container, ButtonLink, SectionHeading, ServiceCard, Reveal…), theme tokens in `app/(frontend)/site.css` (Tailwind v4, `leaf-*` greens, Inter). The old Bootstrap/jQuery template was removed.
+- Old URLs keep working: `/services/<old-slug>` redirects to `/services/<name>-<id>`, `/book-service`, `/signup`, `/user/*` and `/verify-email` redirect to their new pages.
+
+## 4. Screen status
 
 | Screen | Layout | Motion (this pass) | Next |
 | --- | --- | --- | --- |
@@ -42,13 +59,15 @@ Principles:
 | Service detail | Done — sizes, included/excluded, reviews | Hero parallax + stretch, staggered sections, option select haptic, shimmer loader | Before/after photos, admin-uploaded images per included item |
 | Your cart (checkout) | Done — one page + bottom sheets | Staggered cards, CTA haptic, shimmer loader | Tip for technician (needs server support) |
 | Booking success | Done | Check draw, confetti, success haptic | Add-to-calendar |
-| Bookings / booking detail | Done | Existing | Live-tracking map polish |
-| Offers | Done | Staggered coupons (existing) | Copy-code haptic |
+| Bookings / booking detail | Done | Shimmer loaders, staggered cards, filter + cancel/reschedule haptics | Live-tracking map polish |
+| Offers | Done | Shimmer loader, staggered coupons | Copy-code haptic |
 | Profile | Done — reference layout | Staggered sections, pressed tiles | Refer & earn (needs backend) |
 | Help · FAQ · About · Terms · Privacy | Done — list style | Staggered content | Search inside FAQ |
-| Settings · Addresses · Payment methods | Done | Existing | Inline validation polish |
+| Notifications · Addresses | Done | Shimmer loaders, staggered rows, save/delete haptics | — |
+| Login · Register · Onboarding | Done | Brand + heading glide in, success/error haptics | Real OTP provider |
+| Settings · Payment methods | Done | Existing | Inline validation polish |
 
-## 4. Phases
+## 5. Phases
 
 1. **Motion kit + entrances + press feedback** — shared tokens, haptics, staggered sections on detail, cart, category, profile and content pages. *(this pass)*
 2. **Scroll effects** — service-detail hero parallax/stretch, header fade. *(this pass)*
@@ -56,7 +75,7 @@ Principles:
 4. **Content depth** — admin-uploaded photos for "What is included" tiles and before/after gallery on service detail.
 5. **Engagement** — refer & earn, technician tip, add-to-calendar (each needs server work first).
 
-## 5. Definition of done for a screen
+## 6. Definition of done for a screen
 
 - Matches the rules in section 1 and uses only kit components (`ListGroup`, `ServiceListRow`, `BottomSheet`, `PressableScale`, …).
 - All copy either comes from CMS / service data or is a short, neutral label.

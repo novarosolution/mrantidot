@@ -3,10 +3,14 @@ import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { PestImage } from '@/components/kit/ServiceThumb';
 import { AppIcons } from '@/constants/appIcons';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
+import { stagger } from '@/lib/motion';
 import { SERVICE_TYPE_KEYS, type ServiceTypeKey } from '@/constants/serviceTypes';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import type { Service } from '@/types/api';
-import { adminSurfaces, colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 function countForType(services: Service[], type: ServiceTypeKey): number {
   return services.filter((s) => s.serviceTypes?.includes(type)).length;
@@ -25,66 +29,94 @@ export function AdminServiceTypeGrid({
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-      <LinearGradient colors={[colors.headerGreen, colors.forest, colors.forestDeep]} locations={[0, 0.55, 1]} style={styles.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        <Text style={styles.heroKicker}>Service catalog</Text>
-        <Text style={styles.heroTitle}>{activeCount} active services</Text>
-        <Text style={styles.heroSub}>{services.length} total · tap a pest type</Text>
-        <Pressable style={({ pressed }) => [styles.addBtn, pressed && styles.pressed]} onPress={onAddService}>
-          <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size="sm" color={colors.forest} />
-          <Text style={styles.addBtnText}>Add service</Text>
-        </Pressable>
-      </LinearGradient>
+      <FadeSlideIn delay={stagger(0)} slideFrom={14}>
+        <LinearGradient
+          colors={[colors.headerGreen, colors.forest, colors.forestDeep]}
+          locations={[0, 0.55, 1]}
+          style={styles.hero}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Text style={styles.heroKicker}>Service catalog</Text>
+          <Text style={styles.heroTitle} numberOfLines={1}>
+            {activeCount} active services
+          </Text>
+          <Text style={styles.heroSub} numberOfLines={1}>
+            {services.length} total · tap a pest type
+          </Text>
+          <Pressable
+            style={({ pressed }) => [styles.addBtn, pressed && styles.pressed]}
+            onPress={onAddService}
+            accessibilityRole="button"
+          >
+            <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size="sm" color={colors.forest} />
+            <Text style={styles.addBtnText}>Add service</Text>
+          </Pressable>
+        </LinearGradient>
+      </FadeSlideIn>
 
-      <Pressable
-        style={({ pressed }) => [styles.allTile, pressed && styles.pressed]}
-        onPress={() => onSelectType('all')}
-      >
-        <View style={styles.allIcon}>
-          <PremiumIcon icon={AppIcons.brand} variant="mint" size="lg" color={colors.forest} boxSize={46} />
-        </View>
-        <View style={styles.allBody}>
-          <Text style={styles.allTitle}>All services</Text>
-          <Text style={styles.allCount}>{services.length} in catalog</Text>
-        </View>
-        <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size="md" color={colors.muted} />
-      </Pressable>
+      <FadeSlideIn delay={stagger(1)} slideFrom={14}>
+        <PressableScale
+          style={styles.allTile}
+          onPress={() => onSelectType('all')}
+          accessibilityRole="button"
+          accessibilityLabel={`All services, ${services.length} in catalog`}
+        >
+          <View style={styles.allIcon}>
+            <PremiumIcon icon={AppIcons.brand} variant="mint" size="lg" color={colors.forest} boxSize={46} />
+          </View>
+          <View style={styles.allBody}>
+            <Text style={styles.allTitle} numberOfLines={1}>
+              All services
+            </Text>
+            <Text style={styles.allCount} numberOfLines={1}>
+              {services.length} in catalog
+            </Text>
+          </View>
+          <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size="md" color={colors.muted} />
+        </PressableScale>
+      </FadeSlideIn>
 
-      <Text style={styles.sectionTitle}>Pest control types</Text>
-      <View style={styles.grid}>
-        {SERVICE_TYPE_KEYS.map((key) => {
-          const meta = SERVICE_TYPE_META[key];
-          const count = countForType(services, key);
-          return (
-            <Pressable
-              key={key}
-              style={({ pressed }) => [styles.typeTile, pressed && styles.pressed]}
-              onPress={() => onSelectType(key)}
-            >
-              <View style={[styles.typeIcon, { backgroundColor: meta.bg }]}>
-                <PestImage source={meta.image} size={28} />
-              </View>
-              <Text style={styles.typeLabel} numberOfLines={2}>
-                {meta.label}
-              </Text>
-              <Text style={styles.typeCount}>
-                {count} service{count === 1 ? '' : 's'}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <FadeSlideIn delay={stagger(2)} slideFrom={14}>
+        <Text style={styles.sectionTitle}>Pest control types</Text>
+        <View style={styles.grid}>
+          {SERVICE_TYPE_KEYS.map((key) => {
+            const meta = SERVICE_TYPE_META[key];
+            const count = countForType(services, key);
+            return (
+              <PressableScale
+                key={key}
+                containerStyle={styles.typeCell}
+                style={styles.typeTile}
+                onPress={() => onSelectType(key)}
+                accessibilityRole="button"
+                accessibilityLabel={`${meta.label}, ${count} service${count === 1 ? '' : 's'}`}
+              >
+                <View style={[styles.typeIcon, { backgroundColor: meta.bg }]}>
+                  <PestImage source={meta.image} size={28} />
+                </View>
+                <Text style={styles.typeLabel} numberOfLines={2}>
+                  {meta.label}
+                </Text>
+                <Text style={styles.typeCount} numberOfLines={1}>
+                  {count} service{count === 1 ? '' : 's'}
+                </Text>
+              </PressableScale>
+            );
+          })}
+        </View>
+      </FadeSlideIn>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  scroll: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.md },
+  scroll: { padding: spacing.md, paddingBottom: TAB_BAR_SCROLL_PAD, gap: spacing.md },
   hero: {
     borderRadius: 20,
     padding: spacing.lg,
     overflow: 'hidden',
-    ...premium.shadowSoft,
   },
   heroKicker: {
     fontFamily: fonts.bodySemi,
@@ -123,11 +155,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 14,
-    borderRadius: 18,
-    backgroundColor: adminSurfaces.card,
+    borderRadius: 20,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: adminSurfaces.cardBorder,
-    ...premium.shadowSoft,
+    borderColor: ui.hairline,
+    ...ui.shadow,
   },
   allIcon: {
     width: 46,
@@ -137,9 +169,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  allBody: { flex: 1 },
-  allTitle: { fontFamily: fonts.bodySemi, fontSize: 15, color: colors.ink },
-  allCount: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 2 },
+  allBody: { flex: 1, minWidth: 0 },
+  allTitle: { fontFamily: fonts.bodySemi, fontSize: 15, color: ui.text },
+  allCount: { fontFamily: fonts.body, fontSize: 12, color: ui.textSecondary, marginTop: 2 },
   sectionTitle: {
     fontFamily: fonts.bodySemi,
     fontSize: 13,
@@ -147,18 +179,20 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     paddingHorizontal: 2,
+    marginBottom: spacing.sm,
   },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  typeCell: { width: '31%' },
   typeTile: {
-    width: '31%',
+    flexGrow: 1,
     minHeight: 118,
     padding: 12,
     borderRadius: 16,
-    backgroundColor: adminSurfaces.card,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: adminSurfaces.cardBorder,
+    borderColor: ui.hairline,
     alignItems: 'center',
-    ...premium.shadowSoft,
+    ...ui.shadow,
   },
   typeIcon: {
     width: 44,
@@ -171,7 +205,7 @@ const styles = StyleSheet.create({
   typeLabel: {
     fontFamily: fonts.bodySemi,
     fontSize: 11.5,
-    color: colors.ink,
+    color: ui.text,
     textAlign: 'center',
     lineHeight: 15,
     minHeight: 30,
@@ -179,7 +213,7 @@ const styles = StyleSheet.create({
   typeCount: {
     fontFamily: fonts.body,
     fontSize: 10,
-    color: colors.muted,
+    color: ui.textSecondary,
     marginTop: 4,
     textAlign: 'center',
   },

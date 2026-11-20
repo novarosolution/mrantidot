@@ -17,6 +17,7 @@ import { AppIcons } from '@/constants/appIcons';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import { useAppContent } from '@/context/AppContentContext';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { fillCopy } from '@/constants/customerUiCopy';
 import { api, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { useScreenLoad } from '@/lib/useScreenLoad';
@@ -108,9 +109,9 @@ export default function ServiceDetailScreen() {
   if (!id || (!loading && (error || !service))) {
     return (
       <View style={styles.root}>
-        <CustomerPageHeader variant="premium" title="Service" showBack onBack={() => safeGoBack(customerRoutes.services)} />
+        <CustomerPageHeader variant="premium" title={copy.serviceUnavailableTitle} showBack onBack={() => safeGoBack(customerRoutes.services)} />
         <ListEmptyRetry
-          title="Service unavailable"
+          title={copy.serviceUnavailableTitle}
           message={!id ? 'This service link is invalid.' : (error ?? 'This service is no longer available.')}
           onRetry={() => (id ? void runLoad(() => load(true)) : safeGoBack(customerRoutes.services))}
         />
@@ -154,7 +155,11 @@ export default function ServiceDetailScreen() {
   function shareService() {
     if (!service) return;
     void Share.share({
-      message: `${service.name} by ${brand} — starts at ${formatRupeeFull(serviceStartPrice(service))}. Book it on the ${brand} app.`,
+      message: fillCopy(copy.serviceShareMessage, {
+        service: service.name,
+        brand,
+        price: formatRupeeFull(serviceStartPrice(service)),
+      }),
     }).catch(() => undefined);
   }
 
@@ -218,14 +223,14 @@ export default function ServiceDetailScreen() {
                 <View style={styles.earliest}>
                   <View style={styles.earliestHead}>
                     <View style={styles.earliestDot} />
-                    <Text style={styles.earliestLabel}>Earliest</Text>
+                    <Text style={styles.earliestLabel}>{copy.serviceEarliestLabel}</Text>
                   </View>
                   <Text style={styles.earliestValue}>{earliest}</Text>
                 </View>
               ) : null}
             </View>
             <Text style={styles.priceLine}>
-              Starts at <Text style={styles.priceStrong}>{formatRupeeFull(serviceStartPrice(service))}</Text>
+              {copy.serviceStartsAtLabel} <Text style={styles.priceStrong}>{formatRupeeFull(serviceStartPrice(service))}</Text>
               {'  ·  '}
               {duration}
             </Text>
@@ -256,7 +261,7 @@ export default function ServiceDetailScreen() {
             <Band />
             <FadeSlideIn delay={stagger(2)} slideFrom={16}>
               <View style={styles.white}>
-                <SectionTitle title="Select requirements" />
+                <SectionTitle title={copy.serviceOptionsHeading} />
                 <View style={styles.reqHead}>
                   <View style={styles.reqNum}>
                     <Text style={styles.reqNumText}>1</Text>
@@ -304,7 +309,7 @@ export default function ServiceDetailScreen() {
                 </View>
                 {included.length > 0 ? (
                   <Pressable onPress={() => scrollTo(includedY.current)} hitSlop={6} accessibilityRole="link">
-                    <Text style={styles.link}>What is included in my service?</Text>
+                    <Text style={styles.link}>{copy.serviceIncludedLink}</Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -316,7 +321,7 @@ export default function ServiceDetailScreen() {
           <>
             <Band />
             <View style={styles.white}>
-              <SectionTitle title="Please note" />
+              <SectionTitle title={copy.serviceNotesTitle} />
               {notes.map((n) => (
                 <View key={n} style={styles.noteRow}>
                   <Info size={17} color={ui.textTertiary} strokeWidth={2} />
@@ -336,7 +341,7 @@ export default function ServiceDetailScreen() {
                 includedY.current = e.nativeEvent.layout.y;
               }}
             >
-              <SectionTitle title="What is included" />
+              <SectionTitle title={copy.serviceIncludedTitle} />
               <View style={styles.tileGrid}>
                 {included.map((item) => (
                   <View key={item} style={styles.tile}>
@@ -353,7 +358,7 @@ export default function ServiceDetailScreen() {
           <>
             <Band />
             <View style={styles.white}>
-              <SectionTitle title={copy.serviceStepsTitle} sub={`About ${duration} on site`} />
+              <SectionTitle title={copy.serviceStepsTitle} sub={fillCopy(copy.serviceStepsSub, { duration })} />
               {steps.map((t, i) => (
                 <View key={`${t}-${i}`} style={styles.stepRow}>
                   <View style={styles.stepRail}>
@@ -373,7 +378,7 @@ export default function ServiceDetailScreen() {
           <>
             <Band />
             <View style={styles.white}>
-              <SectionTitle title="What is excluded?" />
+              <SectionTitle title={copy.serviceExcludedTitle} />
               {excluded.map((x) => (
                 <View key={x} style={styles.noteRow}>
                   <X size={18} color={colors.error} strokeWidth={2.4} />
@@ -388,7 +393,7 @@ export default function ServiceDetailScreen() {
           <>
             <Band />
             <View style={styles.white}>
-              <SectionTitle title={`Why ${brand}`} />
+              <SectionTitle title={fillCopy(copy.serviceWhyTitle, { brand })} />
               <View style={styles.trustCard}>
                 <View style={styles.flex}>
                   {trustBadges.slice(0, 4).map((b) => (
@@ -457,14 +462,14 @@ export default function ServiceDetailScreen() {
 
         <Band />
         <View style={[styles.white, styles.shareBlock]}>
-          <Text style={styles.shareText}>Share this service with your loved ones</Text>
+          <Text style={styles.shareText}>{copy.serviceShareText}</Text>
           <PressableScale
             containerStyle={styles.shareBtnWrap}
             style={styles.shareBtn}
             onPress={shareService}
             accessibilityRole="button"
           >
-            <Text style={styles.shareBtnText}>Share</Text>
+            <Text style={styles.shareBtnText}>{copy.serviceShareButton}</Text>
             <Share2 size={15} color={ui.brand} strokeWidth={2.4} />
           </PressableScale>
         </View>
@@ -537,8 +542,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyMedium,
     fontSize: 13.5,
     color: ui.textSecondary,
-    textDecorationLine: 'underline',
-    textDecorationStyle: 'dotted',
   },
   earliest: {
     paddingHorizontal: 10,

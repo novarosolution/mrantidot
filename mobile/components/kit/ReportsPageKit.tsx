@@ -6,7 +6,8 @@ import { formatRupee } from '@/components/kit/format';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { adminShadow } from '@/components/kit/homeUi';
-import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { colors, fonts, premium, spacing, surfaces, ui } from '@/constants/theme';
 
 /** Premium section card with gold accent for reports. */
 export function ReportsSectionCard({
@@ -44,12 +45,20 @@ export function ReportsSectionCard({
       <View style={styles.sectionHead}>
         <View style={styles.titleCol}>
           <View style={styles.sectionText}>
-            <Text style={styles.sectionTitle}>{title}</Text>
+            <Text style={styles.sectionTitle} numberOfLines={1}>
+              {title}
+            </Text>
             {hint ? <Text style={styles.sectionHint}>{hint}</Text> : null}
           </View>
         </View>
         {actionLabel && onAction ? (
-          <Pressable onPress={onAction} hitSlop={8}>
+          <Pressable
+            onPress={onAction}
+            hitSlop={8}
+            style={({ pressed }) => pressed && styles.actionPressed}
+            accessibilityRole="button"
+            accessibilityLabel={`${actionLabel}, ${title}`}
+          >
             <Text style={styles.sectionAction}>{actionLabel}</Text>
           </Pressable>
         ) : null}
@@ -115,9 +124,16 @@ export function ReportsRankList({
 
         if (item.onPress) {
           return (
-            <Pressable key={item.key} style={({ pressed }) => [styles.rankRow, pressed && styles.pressed]} onPress={item.onPress}>
+            <PressableScale
+              key={item.key}
+              containerStyle={styles.rankRow}
+              scaleTo={0.98}
+              onPress={item.onPress}
+              accessibilityRole="button"
+              accessibilityLabel={`${index + 1}. ${item.title}, ${item.subtitle}`}
+            >
               {inner}
-            </Pressable>
+            </PressableScale>
           );
         }
         return (
@@ -130,41 +146,54 @@ export function ReportsRankList({
   );
 }
 
+/** Tallest bar in the 7-day chart. Bars are sized in points so count + label never push them past the card. */
+const TREND_BAR_MAX = 72;
+const TREND_BAR_MIN = 8;
+
 /** 7-day booking volume mini chart. */
 export function BookingsTrendChart({
   data,
   title = 'Bookings this week',
   flush = false,
+  hideTitle = false,
 }: {
   data: { label: string; count: number }[];
   title?: string;
   flush?: boolean;
+  /** Keep only the "7 days" chip when a section heading already names the chart. */
+  hideTitle?: boolean;
 }) {
   const buckets = data.length > 0 ? data : [{ label: '-', count: 0 }];
   const max = Math.max(...buckets.map((b) => b.count), 1);
 
   return (
     <View style={flush ? styles.chartFlush : styles.chartCard}>
-      <View style={styles.chartHead}>
-        <Text style={styles.chartTitle}>{title}</Text>
+      <View style={[styles.chartHead, hideTitle && styles.chartHeadEnd]}>
+        {hideTitle ? null : (
+          <Text style={styles.chartTitle} numberOfLines={1}>
+            {title}
+          </Text>
+        )}
         <View style={styles.chartChip}>
           <Text style={styles.chartChipText}>7 days</Text>
         </View>
       </View>
       <View style={styles.bars}>
         {buckets.map((b, i) => {
-          const pct = Math.max(8, Math.round((b.count / max) * 100));
+          const h = Math.max(TREND_BAR_MIN, Math.round((b.count / max) * TREND_BAR_MAX));
           const isLast = i === buckets.length - 1;
           return (
             <View key={`${b.label}-${i}`} style={styles.col}>
               <Text style={styles.barCount}>{b.count > 0 ? b.count : ''}</Text>
               <LinearGradient
                 colors={isLast ? [colors.limeBright, colors.green] : [colors.forest, colors.green]}
-                style={[styles.bar, { height: `${pct}%` }]}
+                style={[styles.bar, { height: h }]}
                 start={{ x: 0, y: 1 }}
                 end={{ x: 0, y: 0 }}
               />
-              <Text style={styles.barLabel}>{b.label}</Text>
+              <Text style={styles.barLabel} numberOfLines={1}>
+                {b.label}
+              </Text>
             </View>
           );
         })}
@@ -187,9 +216,17 @@ export function ReportsInsightGrid({ items, glass = false }: { items: ReportsIns
     <View style={styles.insightGrid}>
       {items.map((item) => (
         <View key={item.key} style={[styles.insightTile, glass && styles.insightTileGlass]}>
-          <Text style={[styles.insightValue, item.accent ? { color: item.accent } : null]}>{item.value}</Text>
-          <Text style={styles.insightLabel}>{item.label}</Text>
-          {item.hint ? <Text style={styles.insightHint}>{item.hint}</Text> : null}
+          <Text style={[styles.insightValue, item.accent ? { color: item.accent } : null]} numberOfLines={1}>
+            {item.value}
+          </Text>
+          <Text style={styles.insightLabel} numberOfLines={1}>
+            {item.label}
+          </Text>
+          {item.hint ? (
+            <Text style={styles.insightHint} numberOfLines={1}>
+              {item.hint}
+            </Text>
+          ) : null}
         </View>
       ))}
     </View>
@@ -228,8 +265,16 @@ export function ReportsTeamCard({
         <>
           <Text style={styles.teamSub}>Needs attention</Text>
           {lowAttendance.map((t) => (
-            <Pressable key={t.id} style={styles.teamRow} onPress={() => onTechPress(t.id)}>
-              <Text style={styles.teamName}>{t.name}</Text>
+            <Pressable
+              key={t.id}
+              style={({ pressed }) => [styles.teamRow, pressed && styles.pressed]}
+              onPress={() => onTechPress(t.id)}
+              accessibilityRole="button"
+              accessibilityLabel={`${t.name}, ${t.rate}% attendance`}
+            >
+              <Text style={styles.teamName} numberOfLines={1}>
+                {t.name}
+              </Text>
               <Text style={styles.teamRate}>{t.rate}%</Text>
             </Pressable>
           ))}
@@ -275,6 +320,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: fonts.displayExtra, fontSize: 17, color: colors.ink, letterSpacing: -0.35 },
   sectionHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 3, lineHeight: 17 },
   sectionAction: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest, paddingTop: 2 },
+  actionPressed: { opacity: 0.6 },
   sectionBody: { paddingHorizontal: spacing.md, marginTop: spacing.sm },
   sectionBodyGlass: { paddingHorizontal: spacing.md, marginTop: spacing.sm },
   glassShell: { borderRadius: premium.radiusCard, ...adminShadow.card },
@@ -300,7 +346,7 @@ const styles = StyleSheet.create({
   rankText: { flex: 1, minWidth: 0 },
   rankTitle: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink },
   rankSub: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 1 },
-  rankTrack: { height: 8, backgroundColor: colors.bg, borderRadius: 5, overflow: 'hidden' },
+  rankTrack: { height: 8, backgroundColor: ui.hairline, borderRadius: 5, overflow: 'hidden' },
   rankFill: { height: '100%', borderRadius: 5 },
   chartCard: {
     borderRadius: premium.radiusCard,
@@ -314,12 +360,13 @@ const styles = StyleSheet.create({
   },
   chartGold: { height: 3, marginHorizontal: -spacing.md, marginTop: -spacing.sm - 4, marginBottom: spacing.sm },
   chartFlush: {},
-  chartHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  chartTitle: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
+  chartHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm, gap: 8 },
+  chartHeadEnd: { justifyContent: 'flex-end' },
+  chartTitle: { flex: 1, fontFamily: fonts.display, fontSize: 15, color: colors.ink },
   chartChip: { backgroundColor: colors.mint, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: surfaces.glassBorderStrong },
   chartChipText: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.forest },
-  bars: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 110, paddingTop: 8, gap: 6 },
-  col: { flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' },
+  bars: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingTop: 8, gap: 6 },
+  col: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
   barCount: { fontFamily: fonts.bodySemi, fontSize: 9, color: colors.muted, marginBottom: 4, minHeight: 12 },
   bar: { width: '70%', borderTopLeftRadius: 6, borderTopRightRadius: 6, minHeight: 8 },
   barLabel: { fontFamily: fonts.bodySemi, fontSize: 9, color: colors.muted, marginTop: 6 },
@@ -334,9 +381,12 @@ const styles = StyleSheet.create({
     borderColor: surfaces.glassBorderStrong,
     ...adminShadow.tile,
   },
+  /** Inside a white section card: a quiet grey tile instead of a second floating card. */
   insightTileGlass: {
-    backgroundColor: 'rgba(255,255,255,0.72)',
-    borderColor: surfaces.glassBorderStrong,
+    backgroundColor: ui.surfaceMuted,
+    borderColor: ui.hairline,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   insightValue: { fontFamily: fonts.displayExtra, fontSize: 20, color: colors.forest },
   insightLabel: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.ink, marginTop: 4 },
@@ -358,8 +408,15 @@ const styles = StyleSheet.create({
   teamStatLbl: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
   teamDivider: { width: 1, height: 36, backgroundColor: surfaces.glassBorderStrong },
   teamSub: { fontFamily: fonts.display, fontSize: 13, color: colors.ink, marginTop: spacing.sm, marginBottom: 6 },
-  teamRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: 1, borderTopColor: surfaces.glassBorderStrong },
-  teamName: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink },
+  teamRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: ui.border,
+  },
+  teamName: { flex: 1, fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink },
   teamRate: { fontFamily: fonts.displayExtra, fontSize: 13, color: colors.forest },
   teamOk: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, marginTop: spacing.xs },
   manageGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },

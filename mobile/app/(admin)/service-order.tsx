@@ -2,16 +2,24 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ArrowDown, ArrowUp } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
-import { ADMIN_STICKY_FOOTER_PAD, AdminListShell } from '@/components/kit/AdminListShell';
+import {
+  ADMIN_STICKY_FOOTER_PAD,
+  AdminEntrance,
+  AdminListShell,
+  useListEntrance,
+} from '@/components/kit/AdminListShell';
 import { AdminTabHint } from '@/components/kit/AdminPageKit';
+import { AdminListSkeleton } from '@/components/kit/AdminSkeletons';
 import { ServiceThumb } from '@/components/kit/ServiceThumb';
 import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
-import { adminShadow } from '@/components/kit/homeUi';
+import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
 import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { api, screenLoadConfig } from '@/lib/api';
+import { haptic } from '@/lib/motion';
 import { adminRoutes } from '@/lib/routes';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { Service } from '@/types/api';
@@ -26,6 +34,7 @@ export default function ServiceOrderScreen() {
   const [services, setServices] = useState<Service[]>([]);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const entrance = useListEntrance(!loading);
 
   const load = useCallback(async () => {
     const { data } = await api.get<{ services: Service[] }>('/services', {
@@ -46,6 +55,7 @@ export default function ServiceOrderScreen() {
   function move(index: number, by: -1 | 1) {
     const to = index + by;
     if (to < 0 || to >= services.length) return;
+    haptic('select');
     setServices((prev) => {
       const next = [...prev];
       [next[index], next[to]] = [next[to]!, next[index]!];
@@ -60,6 +70,7 @@ export default function ServiceOrderScreen() {
       await api.patch(`/services/${service.id}`, { [field]: value });
     } catch {
       setServices((prev) => prev.map((s) => (s.id === service.id ? { ...s, [field]: !value } : s)));
+      haptic('error');
     }
   }
 
@@ -68,15 +79,23 @@ export default function ServiceOrderScreen() {
     try {
       await api.put('/services/order', { ids: services.map((s) => s.id) });
       setSavedIds(services.map((s) => s.id));
+      haptic('success');
       Toast.show({ type: 'success', text1: 'Order saved', text2: 'Customers see the new order right away.' });
     } catch {
       // interceptor shows the error
+      haptic('error');
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading && services.length === 0) return <Spinner fullScreen />;
+  if (loading && services.length === 0) {
+    return (
+      <AdminListShell title="Arrange services" subtitle="Order & home placement" backFallback={adminRoutes.services}>
+        <AdminListSkeleton variant="service" rows={5} />
+      </AdminListShell>
+    );
+  }
 
   if (error && services.length === 0) {
     return (
@@ -114,58 +133,66 @@ export default function ServiceOrderScreen() {
       }
     >
       <ScrollView
-        contentContainerStyle={[styles.list, dirty && { paddingBottom: ADMIN_STICKY_FOOTER_PAD }]}
+        contentContainerStyle={[styles.list, { paddingBottom: dirty ? ADMIN_STICKY_FOOTER_PAD : TAB_BAR_SCROLL_PAD }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={ui.brand} />}
       >
-        <View style={styles.hintWrap}>
-          <AdminTabHint
-            title="How this works"
-            body={`Arrows set the order in every customer list. "Most booked" pins a service to that home row (${pinnedCount} pinned — none pinned uses booking counts). "On Home" shows it in the home All services list.`}
-          />
-        </View>
+        <FadeSlideIn slideFrom={14}>
+          <View style={styles.hintWrap}>
+            <AdminTabHint
+              title="How this works"
+              body={`Arrows set the order in every customer list. "Most booked" pins a service to that home row (${pinnedCount} pinned — none pinned uses booking counts). "On Home" shows it in the home All services list.`}
+            />
+          </View>
+        </FadeSlideIn>
+
+        {services.length === 0 ? (
+          <EmptyState title="No services yet" message="Add services to the catalog to arrange them here." />
+        ) : null}
 
         {services.map((s, i) => {
           const off = s.active === false;
           return (
-            <View key={s.id} style={[styles.card, off && styles.cardOff]}>
-              <View style={styles.top}>
-                <Text style={styles.pos}>{i + 1}</Text>
-                <ServiceThumb service={s} width={46} radius={14} iconSize={24} />
-                <View style={styles.body}>
-                  <Text style={styles.name} numberOfLines={1}>
-                    {s.name}
-                  </Text>
-                  <Text style={styles.meta} numberOfLines={1}>
-                    ₹{s.basePrice}
-                    {off ? ' · Off (hidden from customers)' : ''}
-                  </Text>
+            <AdminEntrance key={s.id} index={i + 1} play={entrance(i)}>
+              <View style={[styles.card, off && styles.cardOff]}>
+                <View style={styles.top}>
+                  <Text style={styles.pos}>{i + 1}</Text>
+                  <ServiceThumb service={s} width={46} radius={14} iconSize={24} />
+                  <View style={styles.body}>
+                    <Text style={styles.name} numberOfLines={1}>
+                      {s.name}
+                    </Text>
+                    <Text style={styles.meta} numberOfLines={1}>
+                      ₹{s.basePrice}
+                      {off ? ' · Off (hidden from customers)' : ''}
+                    </Text>
+                  </View>
+                  <View style={styles.arrows}>
+                    <ArrowBtn up disabled={i === 0} onPress={() => move(i, -1)} label={`Move ${s.name} up`} />
+                    <ArrowBtn disabled={i === services.length - 1} onPress={() => move(i, 1)} label={`Move ${s.name} down`} />
+                  </View>
                 </View>
-                <View style={styles.arrows}>
-                  <ArrowBtn up disabled={i === 0} onPress={() => move(i, -1)} label={`Move ${s.name} up`} />
-                  <ArrowBtn disabled={i === services.length - 1} onPress={() => move(i, 1)} label={`Move ${s.name} down`} />
+                <View style={styles.switches}>
+                  <View style={styles.switchCell}>
+                    <Text style={styles.switchLabel}>Most booked</Text>
+                    <ToggleSwitch
+                      value={Boolean(s.showInPopular)}
+                      onToggle={() => void toggle(s, 'showInPopular')}
+                      accessibilityLabel={`Pin ${s.name} to Most booked`}
+                    />
+                  </View>
+                  <View style={styles.switchDivider} />
+                  <View style={styles.switchCell}>
+                    <Text style={styles.switchLabel}>On Home</Text>
+                    <ToggleSwitch
+                      value={s.showOnHome !== false}
+                      onToggle={() => void toggle(s, 'showOnHome')}
+                      accessibilityLabel={`Show ${s.name} on home`}
+                    />
+                  </View>
                 </View>
               </View>
-              <View style={styles.switches}>
-                <View style={styles.switchCell}>
-                  <Text style={styles.switchLabel}>Most booked</Text>
-                  <ToggleSwitch
-                    value={Boolean(s.showInPopular)}
-                    onToggle={() => void toggle(s, 'showInPopular')}
-                    accessibilityLabel={`Pin ${s.name} to Most booked`}
-                  />
-                </View>
-                <View style={styles.switchDivider} />
-                <View style={styles.switchCell}>
-                  <Text style={styles.switchLabel}>On Home</Text>
-                  <ToggleSwitch
-                    value={s.showOnHome !== false}
-                    onToggle={() => void toggle(s, 'showOnHome')}
-                    accessibilityLabel={`Show ${s.name} on home`}
-                  />
-                </View>
-              </View>
-            </View>
+            </AdminEntrance>
           );
         })}
       </ScrollView>
@@ -195,11 +222,11 @@ const styles = StyleSheet.create({
   footerSecondary: { flex: 1 },
   footerPrimary: { flex: 1.8 },
   card: {
-    borderRadius: 18,
+    borderRadius: 20,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.hairline,
-    ...adminShadow.card,
+    ...ui.shadow,
   },
   cardOff: { opacity: 0.6 },
   top: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },

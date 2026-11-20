@@ -5,13 +5,15 @@ import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AdminCollapsibleCard, AdminFilterChips, AdminFormCard } from '@/components/kit/AdminPageKit';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { AdminFormSkeleton } from '@/components/kit/AdminSkeletons';
 import { IconInput } from '@/components/kit/IconInput';
 import { Button } from '@/components/ui/Button';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
 import { localDateKey } from '@/lib/dates';
+import { haptic, stagger } from '@/lib/motion';
 import { paramString } from '@/lib/routeParams';
 import { adminGoBack, adminRoutes } from '@/lib/routes';
 import { useScreenLoad } from '@/lib/useScreenLoad';
@@ -101,6 +103,7 @@ export default function OfferEditScreen() {
     else if (discountType === 'percent' && amount > 100) next.discount = 'Cannot exceed 100%';
     setErrors(next);
     if (Object.keys(next).length > 0) {
+      haptic('error');
       Toast.show({ type: 'error', text1: 'Fix the highlighted fields' });
       return;
     }
@@ -112,9 +115,11 @@ export default function OfferEditScreen() {
       } else {
         await api.post('/admin/offers', { ...body, active: true });
       }
+      haptic('success');
       Toast.show({ type: 'success', text1: 'Saved' });
       adminGoBack(adminRoutes.offers);
     } catch (err) {
+      haptic('error');
       Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not save offer') });
     } finally {
       setSaving(false);
@@ -132,9 +137,11 @@ export default function OfferEditScreen() {
           void (async () => {
             try {
               await api.delete(`/admin/offers/${id}`);
+              haptic('success');
               Toast.show({ type: 'success', text1: 'Offer deactivated' });
               adminGoBack(adminRoutes.offers);
             } catch (err) {
+              haptic('error');
               Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not deactivate offer') });
             }
           })();
@@ -143,7 +150,13 @@ export default function OfferEditScreen() {
     ]);
   }
 
-  if (id && loading) return <Spinner fullScreen />;
+  if (id && loading) {
+    return (
+      <AdminListShell title="Edit offer" subtitle="Coupon code · discount · limits" backFallback={adminRoutes.offers}>
+        <AdminFormSkeleton preview cards={[2, 2]} />
+      </AdminListShell>
+    );
+  }
 
   if (id && error) {
     return (
@@ -177,110 +190,122 @@ export default function OfferEditScreen() {
         keyboardShouldPersistTaps="always"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.previewWrap}>
-          <LinearGradient
-            colors={[colors.headerGreen, colors.forest, colors.forestDeep]}
-            style={styles.preview}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+        <FadeSlideIn delay={stagger(0)} slideFrom={14}>
+          <View style={styles.previewWrap}>
+            <LinearGradient
+              colors={[colors.headerGreen, colors.forest, colors.forestDeep]}
+              style={styles.preview}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.previewAccent} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+              <Text style={styles.previewEyebrow}>CHECKOUT PREVIEW</Text>
+              <Text style={styles.previewCode} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+                {code.trim() ? code.trim().toUpperCase() : 'CODE'}
+              </Text>
+              <Text style={styles.previewDiscount} numberOfLines={1}>
+                {previewDiscount}
+              </Text>
+              <Text style={styles.previewDesc} numberOfLines={2}>
+                {description.trim() || 'Short description customers will see'}
+              </Text>
+            </LinearGradient>
+          </View>
+        </FadeSlideIn>
+
+        <FadeSlideIn delay={stagger(1)} slideFrom={14}>
+          <AdminFormCard>
+            <Text style={styles.sectionTitle}>Basics</Text>
+            <Text style={styles.sectionHint}>Code and message shown at checkout</Text>
+            <IconInput
+              label="Coupon code"
+              value={code}
+              onChangeText={(t) => {
+                setCode(t);
+                if (errors.code) setErrors((e) => ({ ...e, code: undefined }));
+              }}
+              autoCapitalize="characters"
+              error={errors.code}
+            />
+            <IconInput
+              label="Description"
+              value={description}
+              onChangeText={(t) => {
+                setDescription(t);
+                if (errors.description) setErrors((e) => ({ ...e, description: undefined }));
+              }}
+              placeholder="e.g. Flat ₹50 off first booking"
+              error={errors.description}
+            />
+          </AdminFormCard>
+        </FadeSlideIn>
+
+        <FadeSlideIn delay={stagger(2)} slideFrom={14}>
+          <AdminFormCard>
+            <Text style={styles.sectionTitle}>Discount</Text>
+            <Text style={styles.sectionHint}>Choose fixed amount or percent off</Text>
+            <Text style={styles.label}>Type</Text>
+            <AdminFilterChips
+              chips={[
+                { key: 'fixed', label: 'Fixed ₹' },
+                { key: 'percent', label: 'Percent %' },
+              ]}
+              selected={discountType}
+              onSelect={(key) => setDiscountType(key as OfferDiscountType)}
+            />
+            <IconInput
+              label={discountType === 'percent' ? 'Discount (%)' : 'Discount (₹)'}
+              value={discount}
+              onChangeText={(t) => {
+                setDiscount(t);
+                if (errors.discount) setErrors((e) => ({ ...e, discount: undefined }));
+              }}
+              keyboardType="numeric"
+              error={errors.discount}
+            />
+          </AdminFormCard>
+        </FadeSlideIn>
+
+        <FadeSlideIn delay={stagger(3)} slideFrom={14}>
+          <AdminCollapsibleCard
+            title="Limits & expiry"
+            subtitle="Optional rules for usage and validity"
+            defaultOpen={Boolean(expiresAt || maxUses || minOrderAmount)}
           >
-            <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.previewAccent} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
-            <Text style={styles.previewEyebrow}>CHECKOUT PREVIEW</Text>
-            <Text style={styles.previewCode}>{code.trim() ? code.trim().toUpperCase() : 'CODE'}</Text>
-            <Text style={styles.previewDiscount}>{previewDiscount}</Text>
-            <Text style={styles.previewDesc} numberOfLines={2}>
-              {description.trim() || 'Short description customers will see'}
-            </Text>
-          </LinearGradient>
-        </View>
-
-        <AdminFormCard>
-          <Text style={styles.sectionTitle}>Basics</Text>
-          <Text style={styles.sectionHint}>Code and message shown at checkout</Text>
-          <IconInput
-            label="Coupon code"
-            value={code}
-            onChangeText={(t) => {
-              setCode(t);
-              if (errors.code) setErrors((e) => ({ ...e, code: undefined }));
-            }}
-            autoCapitalize="characters"
-            error={errors.code}
-          />
-          <IconInput
-            label="Description"
-            value={description}
-            onChangeText={(t) => {
-              setDescription(t);
-              if (errors.description) setErrors((e) => ({ ...e, description: undefined }));
-            }}
-            placeholder="e.g. Flat ₹50 off first booking"
-            error={errors.description}
-          />
-        </AdminFormCard>
-
-        <AdminFormCard>
-          <Text style={styles.sectionTitle}>Discount</Text>
-          <Text style={styles.sectionHint}>Choose fixed amount or percent off</Text>
-          <Text style={styles.label}>Type</Text>
-          <AdminFilterChips
-            chips={[
-              { key: 'fixed', label: 'Fixed ₹' },
-              { key: 'percent', label: 'Percent %' },
-            ]}
-            selected={discountType}
-            onSelect={(key) => setDiscountType(key as OfferDiscountType)}
-          />
-          <IconInput
-            label={discountType === 'percent' ? 'Discount (%)' : 'Discount (₹)'}
-            value={discount}
-            onChangeText={(t) => {
-              setDiscount(t);
-              if (errors.discount) setErrors((e) => ({ ...e, discount: undefined }));
-            }}
-            keyboardType="numeric"
-            error={errors.discount}
-          />
-        </AdminFormCard>
-
-        <AdminCollapsibleCard
-          title="Limits & expiry"
-          subtitle="Optional rules for usage and validity"
-          defaultOpen={Boolean(expiresAt || maxUses || minOrderAmount)}
-        >
-          <Text style={styles.label}>Quick expiry</Text>
-          <AdminFilterChips
-            chips={[
-              { key: 'none', label: 'No expiry' },
-              ...[7, 30, 90].map((d) => ({ key: String(d), label: `+${d}d` })),
-            ]}
-            selected={expirySelected === 'custom' ? '' : expirySelected}
-            onSelect={(key) => {
-              if (key === 'none') setExpiresAt('');
-              else setExpiresAt(addDays(Number(key)));
-            }}
-          />
-          <IconInput
-            label="Expires (YYYY-MM-DD)"
-            value={expiresAt}
-            onChangeText={setExpiresAt}
-            placeholder="2026-12-31"
-          />
-          <IconInput
-            label="Max uses"
-            value={maxUses}
-            onChangeText={setMaxUses}
-            keyboardType="number-pad"
-            placeholder="Unlimited if empty"
-          />
-          <IconInput
-            label="Min order ₹"
-            value={minOrderAmount}
-            onChangeText={setMinOrderAmount}
-            keyboardType="numeric"
-            placeholder="No minimum if empty"
-          />
-        </AdminCollapsibleCard>
+            <Text style={styles.label}>Quick expiry</Text>
+            <AdminFilterChips
+              chips={[
+                { key: 'none', label: 'No expiry' },
+                ...[7, 30, 90].map((d) => ({ key: String(d), label: `+${d}d` })),
+              ]}
+              selected={expirySelected === 'custom' ? '' : expirySelected}
+              onSelect={(key) => {
+                if (key === 'none') setExpiresAt('');
+                else setExpiresAt(addDays(Number(key)));
+              }}
+            />
+            <IconInput
+              label="Expires (YYYY-MM-DD)"
+              value={expiresAt}
+              onChangeText={setExpiresAt}
+              placeholder="2026-12-31"
+            />
+            <IconInput
+              label="Max uses"
+              value={maxUses}
+              onChangeText={setMaxUses}
+              keyboardType="number-pad"
+              placeholder="Unlimited if empty"
+            />
+            <IconInput
+              label="Min order ₹"
+              value={minOrderAmount}
+              onChangeText={setMinOrderAmount}
+              keyboardType="numeric"
+              placeholder="No minimum if empty"
+            />
+          </AdminCollapsibleCard>
+        </FadeSlideIn>
       </ScrollView>
     </AdminListShell>
   );
@@ -336,7 +361,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: fonts.displayExtra,
     fontSize: 16,
-    color: '#0B2213',
+    color: colors.ink,
     letterSpacing: -0.3,
     marginBottom: 2,
   },

@@ -10,6 +10,7 @@ export function ScreenState({
   loadingLabel,
   /** When true, use inline spinner (for use inside shells that already have a header). */
   embedded,
+  skeleton,
   children,
 }: {
   loading?: boolean;
@@ -18,9 +19,11 @@ export function ScreenState({
   title?: string;
   loadingLabel?: string;
   embedded?: boolean;
+  /** Content-shaped placeholder shown instead of the spinner while loading. */
+  skeleton?: ReactNode;
   children: ReactNode;
 }) {
-  if (loading) return <Spinner fullScreen={!embedded} label={loadingLabel} />;
+  if (loading) return skeleton ? <>{skeleton}</> : <Spinner fullScreen={!embedded} label={loadingLabel} />;
   if (error) {
     return <ListEmptyRetry title={title} message={error} onRetry={onRetry} />;
   }

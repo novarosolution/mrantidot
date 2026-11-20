@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { haptic } from '@/lib/motion';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 export type AdminSectionTab = {
@@ -28,7 +29,10 @@ export function AdminSectionTabs({
             <Pressable
               key={tab.key}
               style={({ pressed }) => [styles.tab, selected && styles.tabOn, pressed && styles.pressed]}
-              onPress={() => onChange(tab.key)}
+              onPress={() => {
+                if (!selected) haptic('select');
+                onChange(tab.key);
+              }}
               accessibilityRole="tab"
               accessibilityState={{ selected }}
             >

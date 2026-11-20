@@ -55,6 +55,9 @@ import { defaultPaymentType, resolvePaymentMethods } from '@/lib/bookingPayment'
 import { paymentMethodLabel } from '@/lib/booking-helpers';
 import { computePricing } from '@/lib/pricing';
 import { useBookingCopy } from '@/lib/schedule-copy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { formatPhoneDisplay } from '@/lib/profile-display';
 import { findOption, formatDuration, serviceDurationMins, servicePriceFor } from '@/lib/serviceDisplay';
 import { safeGoBack, customerRoutes, sharedRoutes, appPush, appReplace } from '@/lib/routes';
 import { uploadImages, type PickedImage } from '@/lib/upload';
@@ -122,6 +125,7 @@ function Card({ children, style }: { children: ReactNode; style?: object }) {
 
 export default function BookCartScreen() {
   const bookingCopy = useBookingCopy();
+  const copy = useCustomerUiCopy();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { location, locating, detectAddress } = useLocation();
@@ -240,11 +244,15 @@ export default function BookCartScreen() {
   }, [date, slot, scheduleMode]);
 
   // A home-size package ("2 BHK") already answers the property question — pre-pick it, still changeable.
+  // Wait for the service so an unknown size key (old link) can't pre-pick a property that the
+  // package — which falls back to the first size — doesn't match.
   useEffect(() => {
-    if (!optionKey || propertyType) return;
-    const guess = optionKey.replace(/[^a-z0-9]/gi, '').toLowerCase();
+    if (!service || propertyType) return;
+    const picked = findOption(service, optionKey);
+    if (!picked) return;
+    const guess = picked.key.replace(/[^a-z0-9]/gi, '').toLowerCase();
     if (isPropertyTypeKey(guess)) setPropertyType(guess);
-  }, [optionKey, propertyType]);
+  }, [service, optionKey, propertyType]);
 
   const option = service ? findOption(service, optionKey) : undefined;
   const basePrice = service ? servicePriceFor(service, optionKey) : 0;
@@ -292,13 +300,13 @@ export default function BookCartScreen() {
 
   /** The bar's one button walks the customer through whatever is still missing, then submits. */
   const nextStep: { label: string; run: () => void } = !addressReady
-    ? { label: 'Add address', run: () => setSheet('address') }
+    ? { label: copy.cartStepAddress, run: () => setSheet('address') }
     : !slotConfirmed
-      ? { label: 'Select slot', run: () => setSheet('slot') }
+      ? { label: copy.cartStepSlot, run: () => setSheet('slot') }
       : !propertyType
-        ? { label: 'Select property type', run: () => setSheet('property') }
+        ? { label: copy.cartStepProperty, run: () => setSheet('property') }
         : !paymentMethod
-          ? { label: 'Choose payment', run: () => setSheet('payment') }
+          ? { label: copy.cartStepPayment, run: () => setSheet('payment') }
           : { label: bookingCopy.wizardSubmitButton, run: () => void confirm() };
 
   async function confirm() {
@@ -375,7 +383,7 @@ export default function BookCartScreen() {
     return (
       <View style={styles.root}>
         <SafeAreaView style={styles.flex} edges={['left', 'right']}>
-          <CustomerPageHeader variant="premium" title="Your cart" showBack onBack={() => safeGoBack(customerRoutes.services)} />
+          <CustomerPageHeader variant="premium" title={copy.cartTitle} showBack onBack={() => safeGoBack(customerRoutes.services)} />
           <ListEmptyRetry
             message={loadError}
             onRetry={() => safeAsync(() => loadData(true), undefined, (msg) => setLoadError(msg))}
@@ -389,7 +397,7 @@ export default function BookCartScreen() {
     return (
       <View style={styles.root}>
         <SafeAreaView style={styles.flex} edges={['left', 'right']}>
-          <CustomerPageHeader variant="premium" title="Your cart" showBack onBack={() => safeGoBack(customerRoutes.services)} />
+          <CustomerPageHeader variant="premium" title={copy.cartTitle} showBack onBack={() => safeGoBack(customerRoutes.services)} />
           <CartSkeleton />
         </SafeAreaView>
       </View>
@@ -400,12 +408,12 @@ export default function BookCartScreen() {
   const meta = SERVICE_TYPE_META[type] ?? SERVICE_TYPE_META.general;
   const duration = formatDuration(serviceDurationMins(service));
   const activeOffers = offers.filter((o) => o.active);
-  const contactLine = [user?.name?.trim(), user?.phone ? `+91 ${user.phone}` : ''].filter(Boolean).join(', ');
+  const contactLine = [user?.name?.trim(), formatPhoneDisplay(user?.phone)].filter(Boolean).join(', ');
 
   return (
     <View style={styles.root}>
       <SafeAreaView style={styles.flex} edges={['left', 'right']}>
-        <CustomerPageHeader variant="premium" title="Your cart" subtitle={service.name} showBack onBack={() => safeGoBack(customerRoutes.services)} />
+        <CustomerPageHeader variant="premium" title={copy.cartTitle} subtitle={service.name} showBack onBack={() => safeGoBack(customerRoutes.services)} />
 
         <ScrollView style={styles.flex} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {/* The service in the cart, with its size and a way back to change it. */}
@@ -426,12 +434,12 @@ export default function BookCartScreen() {
               <View style={styles.itemLinks}>
                 {(service.options?.length ?? 0) > 0 ? (
                   <Pressable onPress={() => appPush(sharedRoutes.service(service.id))} hitSlop={6} accessibilityRole="link">
-                    <Text style={styles.linkStrong}>Edit package</Text>
+                    <Text style={styles.linkStrong}>{copy.cartEditPackage}</Text>
                   </Pressable>
                 ) : null}
                 <Pressable onPress={() => appPush(customerRoutes.services)} hitSlop={6} style={styles.addMore} accessibilityRole="link">
                   <Plus size={15} color={ui.brand} strokeWidth={2.6} />
-                  <Text style={styles.link}>Add more services</Text>
+                  <Text style={styles.link}>{copy.cartAddMore}</Text>
                 </Pressable>
               </View>
             </Card>
@@ -441,9 +449,15 @@ export default function BookCartScreen() {
             <Card>
               <CartRow
                 icon={BadgePercent}
-                title={couponApplied ? `${coupon.trim().toUpperCase()} applied` : 'Coupons and offers'}
-                sub={couponApplied ? `You save ${formatRupeeFull(pricing.coupon)}` : activeOffers.length > 0 ? `${activeOffers.length} available` : undefined}
-                action={couponApplied ? 'Change' : 'View all'}
+                title={couponApplied ? fillCopy(copy.cartCouponApplied, { code: coupon.trim().toUpperCase() }) : copy.cartCouponsTitle}
+                sub={
+                  couponApplied
+                    ? fillCopy(copy.cartCouponSaved, { amount: formatRupeeFull(pricing.coupon) })
+                    : activeOffers.length > 0
+                      ? fillCopy(copy.cartCouponsAvailable, { count: activeOffers.length })
+                      : undefined
+                }
+                action={couponApplied ? copy.cartChange : copy.cartViewAll}
                 onPress={() => setSheet('coupon')}
                 last
               />
@@ -454,31 +468,31 @@ export default function BookCartScreen() {
             <Card>
               <CartRow
                 icon={Phone}
-                title={contactLine || 'Add your contact details'}
-                action="Change"
+                title={contactLine || copy.cartContactMissing}
+                action={copy.cartChange}
                 onPress={() => appPush(customerRoutes.settings)}
               />
               <CartRow
                 icon={Building2}
-                title={propertyType ? propertyTypeLabel(propertyType) : 'Select property type'}
-                sub={propertyType ? 'Property type' : 'Helps the technician bring the right treatment'}
-                action={propertyType ? 'Change' : undefined}
+                title={propertyType ? propertyTypeLabel(propertyType) : copy.cartPropertyMissing}
+                sub={propertyType ? copy.cartPropertyLabel : copy.cartPropertyHint}
+                action={propertyType ? copy.cartChange : undefined}
                 onPress={() => setSheet('property')}
                 missing={!propertyType}
               />
               <CartRow
                 icon={CreditCard}
-                title={paymentMethod ? paymentMethodLabel(paymentMethod) : 'Choose payment method'}
-                sub="Payment"
-                action="Change"
+                title={paymentMethod ? paymentMethodLabel(paymentMethod) : copy.cartPaymentMissing}
+                sub={copy.cartPaymentLabel}
+                action={copy.cartChange}
                 onPress={() => setSheet('payment')}
                 missing={!paymentMethod}
               />
               <CartRow
                 icon={Camera}
-                title={photoUris.length ? `${photoUris.length} photo${photoUris.length === 1 ? '' : 's'} added` : 'Add photos of the problem'}
-                sub={photoUris.length ? undefined : 'Optional — helps us prepare'}
-                action={photoUris.length ? 'Edit' : 'Add'}
+                title={photoUris.length ? fillCopy(copy.cartPhotosAdded, { count: photoUris.length }) : copy.cartPhotosMissing}
+                sub={photoUris.length ? undefined : copy.cartPhotosHint}
+                action={photoUris.length ? copy.cartEdit : copy.cartAdd}
                 onPress={() => setSheet('photos')}
                 last
               />
@@ -495,8 +509,11 @@ export default function BookCartScreen() {
               >
                 <ReceiptText size={20} color={ui.text} strokeWidth={2} />
                 <View style={styles.rowBody}>
-                  <Text style={styles.rowTitle}>Total bill {formatRupeeFull(pricing.total)}</Text>
-                  <Text style={styles.rowSub}>Incl. GST{pricing.coupon > 0 ? ` · saved ${formatRupeeFull(pricing.coupon)}` : ''}</Text>
+                  <Text style={styles.rowTitle}>{fillCopy(copy.cartTotalLabel, { amount: formatRupeeFull(pricing.total) })}</Text>
+                  <Text style={styles.rowSub}>
+                    {copy.cartGstNote}
+                    {pricing.coupon > 0 ? ` · ${fillCopy(copy.cartSavedNote, { amount: formatRupeeFull(pricing.coupon) })}` : ''}
+                  </Text>
                 </View>
                 {billOpen ? <ChevronUp size={18} color={ui.textTertiary} /> : <ChevronDown size={18} color={ui.textTertiary} />}
               </Pressable>
@@ -510,12 +527,12 @@ export default function BookCartScreen() {
 
           <FadeSlideIn delay={stagger(4)} slideFrom={14}>
             <View style={styles.policy}>
-              <Text style={styles.policyTitle}>Cancellation & reschedule policy</Text>
+              <Text style={styles.policyTitle}>{copy.cartPolicyTitle}</Text>
               <Text style={styles.policyText}>{bookingCopy.wizardCancellationNote}</Text>
               <Text style={[styles.policyTitle, styles.policyGap]}>{bookingCopy.wizardNextStepsTitle}</Text>
               <Text style={styles.policyText}>{bookingCopy.pendingReviewNote}</Text>
               <Pressable onPress={() => appPush(customerRoutes.terms)} hitSlop={6} accessibilityRole="link">
-                <Text style={styles.linkUnderline}>Read full policy</Text>
+                <Text style={styles.linkUnderline}>{copy.cartReadPolicy}</Text>
               </Pressable>
             </View>
           </FadeSlideIn>
@@ -527,7 +544,7 @@ export default function BookCartScreen() {
             <Pressable style={styles.bottomRow} onPress={() => setSheet('address')} accessibilityRole="button">
               <House size={17} color={ui.text} strokeWidth={2} />
               <Text style={styles.bottomText} numberOfLines={1}>
-                <Text style={styles.bottomStrong}>{savedAddress?.label || addressForm.saveAs || 'Address'}</Text>
+                <Text style={styles.bottomStrong}>{savedAddress?.label || addressForm.saveAs || copy.cartAddressFallback}</Text>
                 {' - '}
                 {addressSummary}
               </Text>
@@ -545,15 +562,19 @@ export default function BookCartScreen() {
           ) : null}
           <Button title={nextStep.label} variant="premium" onPress={nextStep.run} loading={loading} />
           <Text style={styles.terms}>
-            By proceeding, you agree to our{' '}
-            <Text style={styles.termsLink} onPress={() => appPush(customerRoutes.terms)}>
-              T&C
-            </Text>{' '}
-            and{' '}
-            <Text style={styles.termsLink} onPress={() => appPush(customerRoutes.privacy)}>
-              Privacy Policy
-            </Text>
-            .
+            {copy.cartTermsLine.split(/(\{terms\}|\{privacy\})/).map((part, i) =>
+              part === '{terms}' ? (
+                <Text key={i} style={styles.termsLink} onPress={() => appPush(customerRoutes.terms)}>
+                  {copy.cartTermsLink}
+                </Text>
+              ) : part === '{privacy}' ? (
+                <Text key={i} style={styles.termsLink} onPress={() => appPush(customerRoutes.privacy)}>
+                  {copy.cartPrivacyLink}
+                </Text>
+              ) : (
+                part
+              ),
+            )}
           </Text>
         </View>
       </SafeAreaView>
@@ -561,11 +582,11 @@ export default function BookCartScreen() {
       <BottomSheet
         visible={sheet === 'slot'}
         onClose={() => setSheet(null)}
-        title="When should the professional arrive?"
-        hint={`Service will take approx. ${duration}`}
+        title={copy.cartSlotTitle}
+        hint={fillCopy(copy.cartSlotHint, { duration })}
         footer={
           <Button
-            title="Confirm slot"
+            title={copy.cartSlotConfirm}
             variant="premium"
             onPress={() => {
               if (!scheduleValid()) return;
@@ -614,10 +635,10 @@ export default function BookCartScreen() {
       <BottomSheet
         visible={sheet === 'address'}
         onClose={() => setSheet(null)}
-        title="Saved address"
+        title={copy.cartAddressTitle}
         footer={
           <Button
-            title="Use this address"
+            title={copy.cartAddressUse}
             variant="premium"
             onPress={() => {
               if (!addressReady) {
@@ -663,7 +684,7 @@ export default function BookCartScreen() {
             accessibilityRole="button"
           >
             <Plus size={17} color={ui.brand} strokeWidth={2.6} />
-            <Text style={styles.link}>Add another address</Text>
+            <Text style={styles.link}>{copy.cartAddressAddAnother}</Text>
           </Pressable>
         )}
       </BottomSheet>
@@ -673,7 +694,7 @@ export default function BookCartScreen() {
         onClose={() => setSheet(null)}
         title={bookingCopy.wizardPropertyTitle}
         hint={bookingCopy.wizardPropertySubtitle}
-        footer={<Button title="Done" variant="premium" disabled={!propertyType} onPress={() => setSheet(null)} />}
+        footer={<Button title={copy.cartDone} variant="premium" disabled={!propertyType} onPress={() => setSheet(null)} />}
       >
         <PropertyTypePicker value={propertyType} onChange={setPropertyType} />
       </BottomSheet>
@@ -682,7 +703,7 @@ export default function BookCartScreen() {
         visible={sheet === 'payment'}
         onClose={() => setSheet(null)}
         title={bookingCopy.wizardPaymentTitle}
-        footer={<Button title="Done" variant="premium" disabled={!paymentMethod} onPress={() => setSheet(null)} />}
+        footer={<Button title={copy.cartDone} variant="premium" disabled={!paymentMethod} onPress={() => setSheet(null)} />}
       >
         <BookPaymentPicker
           methods={paymentMethods}
@@ -695,8 +716,8 @@ export default function BookCartScreen() {
       <BottomSheet
         visible={sheet === 'coupon'}
         onClose={() => setSheet(null)}
-        title="Coupons and offers"
-        footer={<Button title="Done" variant="premium" disabled={couponInvalid} onPress={() => setSheet(null)} />}
+        title={copy.cartCouponsTitle}
+        footer={<Button title={copy.cartDone} variant="premium" disabled={couponInvalid} onPress={() => setSheet(null)} />}
       >
         {activeOffers.length > 0 ? (
           <View style={styles.sheetBottomGap}>
@@ -711,7 +732,7 @@ export default function BookCartScreen() {
         onClose={() => setSheet(null)}
         title={bookingCopy.wizardPhotosTitle}
         hint={bookingCopy.wizardPhotosSubtitle}
-        footer={<Button title="Done" variant="premium" onPress={() => setSheet(null)} />}
+        footer={<Button title={copy.cartDone} variant="premium" onPress={() => setSheet(null)} />}
       >
         <AddressPhotoGrid photos={photoUris} onChange={setPhotoUris} max={6} />
       </BottomSheet>

@@ -16,6 +16,7 @@ import { displayUserName } from '@/lib/profile-display';
 import type { Booking, BookingCopyConfig, DayAttendanceStatus, TechnicianStats, User } from '@/types/api';
 import { homeShadow } from '@/components/kit/homeUi';
 import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+import { formatPhoneDisplay } from '@/lib/profile-display';
 
 export function TechnicianProfilePanel({
   copy,
@@ -101,7 +102,7 @@ export function TechnicianProfilePanel({
         compact
         showStats={true}
         name={displayUserName(user)}
-        phone={user?.phone}
+        phone={formatPhoneDisplay(user?.phone)}
         city={user?.city}
         stats={stats}
         todayStatus={todayStatus}

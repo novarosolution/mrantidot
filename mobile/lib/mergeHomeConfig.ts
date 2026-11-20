@@ -59,9 +59,9 @@ export function mergeHomePromo(incoming?: HomePromo | null): HomePromo {
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
   support: {
-    phone: '+91 67007 00106',
+    phone: '+91 76006 00106',
     email: 'support@mrantidot.com',
-    whatsapp: '',
+    whatsapp: '+91 76006 00106',
     hours: 'Open 24/7',
   },
   branding: { name: 'Mr Antidot', tagline: 'Trusted pest control & home services' },

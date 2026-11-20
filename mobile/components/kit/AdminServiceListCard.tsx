@@ -1,10 +1,10 @@
 import { memo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Star } from 'lucide-react-native';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import { ServiceTypeBadges } from '@/components/kit/ServiceTypeBadges';
 import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
-import { adminShadow } from '@/components/kit/homeUi';
+import { PressableScale } from '@/components/ui/PressableScale';
 import type { Service } from '@/types/api';
 import { serviceDisplayRating, serviceRealRating } from '@/lib/ratings';
 import { adminType, colors, fonts, spacing, ui } from '@/constants/theme';
@@ -28,8 +28,10 @@ function AdminServiceListCardComponent({
   const booked = service.stats?.bookingCount;
 
   return (
-    <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+    <PressableScale
+      style={styles.card}
+      containerStyle={styles.cardWrap}
+      scaleTo={0.98}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${service.name}, ${inactive ? 'off' : 'live'}. Edit service`}
@@ -44,18 +46,26 @@ function AdminServiceListCardComponent({
         </Text>
         <ServiceTypeBadges types={service.serviceTypes} max={2} />
         <View style={styles.metaRow}>
-          <Text style={[styles.price, inactive && styles.nameOff]}>₹{service.basePrice}</Text>
+          <Text style={[styles.price, inactive && styles.nameOff]} numberOfLines={1}>
+            ₹{service.basePrice}
+          </Text>
           <View style={styles.dot} />
           <Star size={12} color={ui.text} fill={ui.text} strokeWidth={0} />
           <Text style={styles.meta}>{display.toFixed(1)}</Text>
           {booked != null ? (
             <>
               <View style={styles.dot} />
-              <Text style={styles.meta}>{booked} booked</Text>
+              <Text style={styles.meta} numberOfLines={1}>
+                {booked} booked
+              </Text>
             </>
           ) : null}
         </View>
-        {real != null ? <Text style={styles.real}>Customer reviews average {real.toFixed(1)}</Text> : null}
+        {real != null ? (
+          <Text style={styles.real} numberOfLines={1}>
+            Customer reviews average {real.toFixed(1)}
+          </Text>
+        ) : null}
       </View>
 
       <View style={styles.side}>
@@ -66,26 +76,25 @@ function AdminServiceListCardComponent({
         />
         <Text style={[styles.state, inactive ? styles.stateOff : styles.stateOn]}>{inactive ? 'Off' : 'Live'}</Text>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
 export const AdminServiceListCard = memo(AdminServiceListCardComponent);
 
 const styles = StyleSheet.create({
+  cardWrap: { marginBottom: spacing.sm },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     padding: 14,
-    marginBottom: spacing.sm,
-    borderRadius: 18,
+    borderRadius: 20,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.hairline,
-    ...adminShadow.card,
+    ...ui.shadow,
   },
-  pressed: { backgroundColor: ui.surfaceMuted },
   icon: {
     width: 52,
     height: 52,

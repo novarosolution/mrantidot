@@ -7,9 +7,10 @@ import { AdminScreenHeader } from '@/components/kit/AdminScreenHeader';
 import { AdminTabScreen } from '@/components/kit/AdminScreenKit';
 import { AdminSectionTitle } from '@/components/kit/AdminListShell';
 import { KpiCard } from '@/components/kit/KpiCard';
+import { AdminDashboardSkeleton } from '@/components/kit/AdminSkeletons';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
 import { AppIcons } from '@/constants/appIcons';
 import { AppIconImages } from '@/constants/appImageIcons';
 import { useAuth } from '@/context/AuthContext';
@@ -19,8 +20,9 @@ import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useUnreadNotifications } from '@/lib/useUnreadNotifications';
 import { userInitial } from '@/lib/userInitials';
 import { bookingStatusLabel } from '@/lib/booking-helpers';
+import { stagger } from '@/lib/motion';
 import type { AdminStats, BookingStatus } from '@/types/api';
-import { colors, spacing } from '@/constants/theme';
+import { colors, spacing, ui } from '@/constants/theme';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 
 const QUICK_ACTIONS = [
@@ -76,21 +78,30 @@ export default function AdminDashboard() {
   const initial = userInitial(user?.name);
   const firstName = (user?.name?.trim() || 'Admin').split(' ')[0];
 
-  if (loading && !stats) return <Spinner fullScreen />;
+  const header = (
+    <AdminScreenHeader
+      title={`Hi, ${firstName}`}
+      subtitle="Today’s command center"
+      eyebrow="DASHBOARD"
+      userInitial={initial}
+      unreadCount={unreadCount}
+    />
+  );
 
-  if (error && !stats) {
+  if (!stats) {
+    if (error && !loading) {
+      return (
+        <AdminTabScreen header={header}>
+          <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
+        </AdminTabScreen>
+      );
+    }
     return (
-      <AdminTabScreen
-        header={
-          <AdminScreenHeader title={`Hi, ${firstName}`} subtitle="Today’s command center" eyebrow="DASHBOARD" userInitial={initial} unreadCount={unreadCount} />
-        }
-      >
-        <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
+      <AdminTabScreen header={header} scroll={false}>
+        <AdminDashboardSkeleton />
       </AdminTabScreen>
     );
   }
-
-  if (!stats) return <Spinner fullScreen />;
 
   const activeJobs =
     (stats.byStatus.in_progress ?? 0) + (stats.byStatus.pending ?? 0) + (stats.byStatus.confirmed ?? 0);
@@ -101,23 +112,25 @@ export default function AdminDashboard() {
       label: `${bookingStatusLabel(item.status as BookingStatus)} ${item.count}`,
     })) ?? [];
 
+  const pending = stats.pendingBookings ?? [];
+  const recent = stats.recentBookings.slice(0, 3);
+
   return (
     <AdminTabScreen
-      header={
-        <AdminScreenHeader
-          title={`Hi, ${firstName}`}
-          subtitle="Today’s command center"
-          eyebrow="DASHBOARD"
-          userInitial={initial}
-          unreadCount={unreadCount}
-        />
-      }
+      header={header}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />}
     >
+      <FadeSlideIn delay={stagger(0)} slideFrom={14}>
         <AdminSectionTitle title="Quick actions" hint="Jump straight into daily operations" />
+      </FadeSlideIn>
+      <FadeSlideIn delay={stagger(1)} slideFrom={14}>
         <AdminQuickGrid items={QUICK_ACTIONS} onPress={quickRoute} />
+      </FadeSlideIn>
 
+      <FadeSlideIn delay={stagger(2)} slideFrom={14}>
         <AdminSectionTitle title="Overview" hint="This month at a glance" />
+      </FadeSlideIn>
+      <FadeSlideIn delay={stagger(3)} slideFrom={14}>
         <View style={styles.grid}>
           <KpiCard
             icon={AppIcons.adminKpi.pending}
@@ -144,7 +157,7 @@ export default function AdminDashboard() {
             value={String(activeJobs)}
             label="Active jobs"
             delta={stats.deltas?.activeJobs}
-            iconBg="#E8F5EC"
+            iconBg={ui.brandSoft}
             iconColor={colors.forest}
             onPress={() => appPush(adminRoutes.bookingsFiltered({ status: 'active' }))}
           />
@@ -159,8 +172,10 @@ export default function AdminDashboard() {
             onPress={() => appPush(adminRoutes.customers)}
           />
         </View>
+      </FadeSlideIn>
 
-        {statusChips.length > 0 ? (
+      {statusChips.length > 0 ? (
+        <FadeSlideIn delay={stagger(4)} slideFrom={14}>
           <View style={styles.statusWrap}>
             <AdminFilterChips
               chips={statusChips}
@@ -168,41 +183,39 @@ export default function AdminDashboard() {
               onSelect={(key) => appPush(adminRoutes.bookingsFiltered({ status: key }))}
             />
           </View>
-        ) : null}
+        </FadeSlideIn>
+      ) : null}
 
-        {(stats.pendingBookings?.length ?? 0) > 0 ? (
-          <>
-            <AdminSectionTitle
-              title="Pending queue"
-              hint="Needs your attention"
-              actionLabel="All"
-              onAction={() => appPush(adminRoutes.bookingsFiltered({ status: 'pending' }))}
-            />
-            <View style={styles.bookingWrap}>
-              {stats.pendingBookings!.slice(0, 5).map((b) => (
-                <PendingAnalyticsRow
-                  key={b.id}
-                  booking={b}
-                  onPress={() => appPush(adminRoutes.booking(b.id))}
-                />
-              ))}
-            </View>
-          </>
-        ) : null}
+      {pending.length > 0 ? (
+        <FadeSlideIn delay={stagger(5)} slideFrom={14}>
+          <AdminSectionTitle
+            title="Pending queue"
+            hint="Needs your attention"
+            actionLabel="All"
+            onAction={() => appPush(adminRoutes.bookingsFiltered({ status: 'pending' }))}
+          />
+          <View style={[styles.bookingWrap, styles.afterTitle]}>
+            {pending.slice(0, 5).map((b) => (
+              <PendingAnalyticsRow key={b.id} booking={b} onPress={() => appPush(adminRoutes.booking(b.id))} />
+            ))}
+          </View>
+        </FadeSlideIn>
+      ) : null}
 
+      <FadeSlideIn delay={stagger(6)} slideFrom={14}>
         <AdminSectionTitle title="Recent" hint="Latest bookings across all statuses" actionLabel="All" onAction={() => appPush(adminRoutes.bookings)} />
-
-        {stats.recentBookings.length === 0 ? (
-          <View style={styles.bookingWrap}>
+        {recent.length === 0 ? (
+          <View style={[styles.bookingWrap, styles.afterTitle]}>
             <EmptyState title="No bookings yet" message="New bookings appear here." />
           </View>
         ) : (
-          stats.recentBookings.slice(0, 3).map((b) => (
-            <View key={b.id} style={styles.bookingWrap}>
-              <AdminBookingRow booking={b} onPress={() => appPush(adminRoutes.booking(b.id))} />
-            </View>
-          ))
+          <View style={[styles.bookingWrap, styles.afterTitle, styles.recentList]}>
+            {recent.map((b) => (
+              <AdminBookingRow key={b.id} booking={b} onPress={() => appPush(adminRoutes.booking(b.id))} />
+            ))}
+          </View>
         )}
+      </FadeSlideIn>
     </AdminTabScreen>
   );
 }
@@ -218,4 +231,7 @@ const styles = StyleSheet.create({
   },
   statusWrap: { marginTop: spacing.sm, marginBottom: spacing.xs, paddingHorizontal: spacing.md },
   bookingWrap: { paddingHorizontal: spacing.md },
+  /** Section title + rows share one entrance wrapper; restore the screen's 8pt gap between them. */
+  afterTitle: { marginTop: spacing.sm },
+  recentList: { gap: spacing.sm },
 });

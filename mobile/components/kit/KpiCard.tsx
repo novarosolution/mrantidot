@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
+import { StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { adminShadow } from '@/components/kit/homeUi';
 import { formatDelta, isMeaningfulDelta } from '@/lib/display';
 import { ADMIN_KPI_COLS, adminGridCellWidth } from '@/lib/adminGrid';
@@ -68,9 +69,9 @@ export function KpiCard({
     );
     if (onPress) {
       return (
-        <Pressable style={({ pressed }) => [pressed && styles.pressed]} onPress={onPress}>
+        <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={`${label}, ${value}`}>
           {panel}
-        </Pressable>
+        </PressableScale>
       );
     }
     return panel;
@@ -79,9 +80,9 @@ export function KpiCard({
   const cardStyle = [styles.cardSolid, { width: cardWidth }];
   if (onPress) {
     return (
-      <Pressable style={({ pressed }) => [...cardStyle, pressed && styles.pressed]} onPress={onPress}>
+      <PressableScale style={cardStyle} onPress={onPress} accessibilityRole="button" accessibilityLabel={`${label}, ${value}`}>
         {inner}
-      </Pressable>
+      </PressableScale>
     );
   }
 
@@ -99,10 +100,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: ui.border,
+    borderColor: ui.hairline,
     ...adminShadow.card,
   },
-  pressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
   content: {
     paddingHorizontal: 15,
     paddingTop: 15,

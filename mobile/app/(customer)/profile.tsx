@@ -16,7 +16,7 @@ import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
 import { useLocation } from '@/context/LocationContext';
-import { displayUserEmail, displayUserName, isProfileIncomplete } from '@/lib/profile-display';
+import { displayUserEmail, displayUserName, formatPhoneDisplay, isProfileIncomplete } from '@/lib/profile-display';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { localDateKey } from '@/lib/dates';
 import { bookingVisitDate } from '@/lib/booking-helpers';
@@ -151,9 +151,7 @@ export default function ProfileScreen() {
 
   const name = displayUserName(user);
   const email = displayUserEmail(user?.email);
-  const rawPhone = user?.phone?.trim();
-  // 10-digit Indian mobile → "+91 98765 43210"; anything else is shown as entered.
-  const phone = rawPhone ? (/^\d{10}$/.test(rawPhone) ? `+91 ${rawPhone.slice(0, 5)} ${rawPhone.slice(5)}` : rawPhone) : undefined;
+  const phone = formatPhoneDisplay(user?.phone);
   const city = displayLabel ?? user?.city;
   const incomplete = isProfileIncomplete(user);
   const brand = content.branding.name?.trim() || 'Mr Antidot';

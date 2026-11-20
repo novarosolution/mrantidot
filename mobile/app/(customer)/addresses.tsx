@@ -1,4 +1,8 @@
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { haptic, stagger } from '@/lib/motion';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { ListRowsSkeleton } from '@/components/kit/ScreenSkeletons';
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Building2, House, MapPinned, type LucideIcon } from 'lucide-react-native';
@@ -90,7 +94,8 @@ export default function AddressesScreen() {
         pincode: form.pincode.trim() || undefined,
         isDefault: form.saveAs === 'Home' || addresses.length === 0,
       });
-      Toast.show({ type: 'success', text1: 'Address saved' });
+      haptic('success');
+      Toast.show({ type: 'success', text1: ui.addressesSavedToast });
       setModalOpen(false);
       await load();
     } catch {
@@ -103,7 +108,8 @@ export default function AddressesScreen() {
   async function deleteAddress(addr: SavedAddress) {
     try {
       await api.delete(`/addresses/${addr.id}`);
-      Toast.show({ type: 'success', text1: 'Address removed' });
+      haptic('warning');
+      Toast.show({ type: 'success', text1: ui.addressesRemovedToast });
       await load();
     } catch {
       // interceptor
@@ -113,7 +119,8 @@ export default function AddressesScreen() {
   async function setDefault(addr: SavedAddress) {
     try {
       await api.patch(`/addresses/${addr.id}`, { isDefault: true });
-      Toast.show({ type: 'success', text1: 'Default updated' });
+      haptic('success');
+      Toast.show({ type: 'success', text1: ui.addressesDefaultToast });
       await load();
     } catch {
       // interceptor
@@ -124,22 +131,22 @@ export default function AddressesScreen() {
     ? [
         ...(menuFor.isDefault
           ? []
-          : [{ key: 'default', label: 'Set as default', subtitle: 'Used first when you book', onPress: () => void setDefault(menuFor) }]),
-        { key: 'delete', label: 'Delete address', destructive: true, onPress: () => setDeleteFor(menuFor) },
+          : [{ key: 'default', label: ui.addressesSetDefault, subtitle: ui.addressesSetDefaultSub, onPress: () => void setDefault(menuFor) }]),
+        { key: 'delete', label: ui.addressesDelete, destructive: true, onPress: () => setDeleteFor(menuFor) },
       ]
     : [];
 
   return (
     <CustomerListShell
       title={ui.addressesScreenTitle}
-      subtitle={addresses.length ? `${addresses.length} saved` : undefined}
+      subtitle={addresses.length ? fillCopy(ui.addressesSavedSub, { count: addresses.length }) : undefined}
     >
       <ScreenState
         embedded
         loading={loading}
         error={error && addresses.length === 0 ? error : null}
         onRetry={() => void reload(load, 'Could not load addresses')}
-        loadingLabel="Loading addresses…"
+        skeleton={<ListRowsSkeleton rows={3} tall />}
       >
         <ScrollView
           contentContainerStyle={addresses.length === 0 ? listShellStyles.empty : styles.list}
@@ -152,13 +159,15 @@ export default function AddressesScreen() {
             />
           }
         >
-          <ListAddRow label={ui.addressesAddButton} onPress={openAdd} />
+          <FadeSlideIn delay={stagger(0)} slideFrom={12}>
+            <ListAddRow label={ui.addressesAddButton} onPress={openAdd} />
+          </FadeSlideIn>
 
           {addresses.length === 0 ? (
             <EmptyState title={ui.addressesEmptyTitle} message={ui.addressesEmptyMessage} />
           ) : (
-            <>
-              <ListSectionTitle title="Saved addresses" />
+            <FadeSlideIn delay={stagger(1)} slideFrom={14}>
+              <ListSectionTitle title={ui.addressesSectionTitle} />
               <ListGroup>
                 {addresses.map((a) => (
                   <ListGroupRow
@@ -166,14 +175,14 @@ export default function AddressesScreen() {
                     icon={labelIcon(a.label)}
                     highlighted={a.isDefault}
                     title={a.label}
-                    badge={a.isDefault ? 'Default' : undefined}
+                    badge={a.isDefault ? ui.addressesDefaultBadge : undefined}
                     lines={[a.line1, [a.city, a.pincode].filter(Boolean).join(' · ')]}
                     onMore={() => setMenuFor(a)}
                   />
                 ))}
               </ListGroup>
-              <ListFootnote>Your saved addresses show up at checkout — pick one in a tap.</ListFootnote>
-            </>
+              <ListFootnote>{ui.addressesFootnote}</ListFootnote>
+            </FadeSlideIn>
           )}
         </ScrollView>
       </ScreenState>
@@ -187,24 +196,24 @@ export default function AddressesScreen() {
       />
       <AdminActionSheet
         visible={deleteFor !== null}
-        title="Delete this address?"
+        title={ui.addressesDeleteTitle}
         message={deleteFor ? `${deleteFor.line1}, ${deleteFor.city}` : undefined}
         options={
           deleteFor
-            ? [{ key: 'confirm', label: 'Delete address', destructive: true, onPress: () => void deleteAddress(deleteFor) }]
+            ? [{ key: 'confirm', label: ui.addressesDelete, destructive: true, onPress: () => void deleteAddress(deleteFor) }]
             : []
         }
-        cancelLabel="Keep it"
+        cancelLabel={ui.addressesKeep}
         onClose={() => setDeleteFor(null)}
       />
 
       <BottomSheet
         visible={modalOpen}
         onClose={() => setModalOpen(false)}
-        title="Add address"
-        hint="House / flat number is required · landmark optional"
+        title={ui.addressesSheetTitle}
+        hint={ui.addressesSheetHint}
         footer={
-          <Button title="Save address" variant="premium" onPress={() => void saveAddress()} loading={saving} />
+          <Button title={ui.addressesSaveButton} variant="premium" onPress={() => void saveAddress()} loading={saving} />
         }
       >
         <AddressLocateButton loading={locating} onPress={() => void useCurrentLocation()} />
