@@ -550,8 +550,6 @@ export interface ICustomerUiCopy {
   otpSending: string;
   otpVerifying: string;
   otpPreferPassword: string;
-  webSeoTitle: string;
-  webSeoDescription: string;
   webNavHome: string;
   webNavServices: string;
   webNavAbout: string;
@@ -574,14 +572,6 @@ export interface ICustomerUiCopy {
   webHeroSecondaryCta: string;
   webHeroSearchPlaceholder: string;
   webHeroPopularLabel: string;
-  webStat1Value: string;
-  webStat1Label: string;
-  webStat2Value: string;
-  webStat2Label: string;
-  webStat3Value: string;
-  webStat3Label: string;
-  webStat4Value: string;
-  webStat4Label: string;
   webOffersTitle: string;
   webOfferFixed: string;
   webOfferPercent: string;
@@ -594,28 +584,11 @@ export interface ICustomerUiCopy {
   webWhyEyebrow: string;
   webWhyTitle: string;
   webWhySubtitle: string;
-  webWhy1Title: string;
-  webWhy1Text: string;
-  webWhy2Title: string;
-  webWhy2Text: string;
-  webWhy3Title: string;
-  webWhy3Text: string;
-  webWhy4Title: string;
-  webWhy4Text: string;
   webProcessEyebrow: string;
   webProcessTitle: string;
-  webStep1Title: string;
-  webStep1Text: string;
-  webStep2Title: string;
-  webStep2Text: string;
-  webStep3Title: string;
-  webStep3Text: string;
-  webStep4Title: string;
-  webStep4Text: string;
   webSectorsEyebrow: string;
   webSectorsTitle: string;
   webSectorsSubtitle: string;
-  webSectorsList: string;
   webMissionTitle: string;
   webMissionText: string;
   webVisionTitle: string;
@@ -645,17 +618,8 @@ export interface ICustomerUiCopy {
   webAboutTitle: string;
   webAboutIntro: string;
   webAboutBody: string;
-  webAboutPoints: string;
   webScienceTitle: string;
   webScienceText: string;
-  webScience1Title: string;
-  webScience1Text: string;
-  webScience2Title: string;
-  webScience2Text: string;
-  webScience3Title: string;
-  webScience3Text: string;
-  webScience4Title: string;
-  webScience4Text: string;
   webContactEyebrow: string;
   webContactTitle: string;
   webContactSubtitle: string;
@@ -684,10 +648,6 @@ export interface ICustomerUiCopy {
   webNewsletterPlaceholder: string;
   webNewsletterButton: string;
   webNewsletterSuccess: string;
-  webSocialFacebook: string;
-  webSocialInstagram: string;
-  webSocialYoutube: string;
-  webSocialLinkedin: string;
   webCopyright: string;
   webFooterCredit: string;
   webFooterCreditUrl: string;
@@ -735,6 +695,47 @@ export interface ICustomerUiCopy {
   webTeamExpertise: string;
   webEmptyListText: string;
   webBlogRelatedTitle: string;
+  webHeroCardTitle: string;
+  webHeroCardText: string;
+  webHeroRatingText: string;
+  webStickyBookText: string;
+  webAppStoreLabel: string;
+  webPlayStoreLabel: string;
+  webReviewsAppBadge: string;
+  webLoginPageTitle: string;
+  webRegisterPageTitle: string;
+  webAccountPageTitle: string;
+  webBookingsPageTitle: string;
+  webBookingPageTitle: string;
+  webSuccessPageTitle: string;
+  webVisitLabel: string;
+  webTimeLabel: string;
+  webTechnicianLabel: string;
+  webTotalLabel: string;
+  webPincodeLabel: string;
+  webAddressHome: string;
+  webAddressOffice: string;
+  webAddressOther: string;
+  webSlotMorning: string;
+  webSlotAfternoon: string;
+  webSlotEvening: string;
+  webStatusPending: string;
+  webStatusConfirmed: string;
+  webStatusInProgress: string;
+  webStatusAwaiting: string;
+  webStatusCompleted: string;
+  webStatusCancelled: string;
+  webBookingsLoadError: string;
+  webServerDownTitle: string;
+  webServerDownText: string;
+  webRetryLabel: string;
+  webNewsletterError: string;
+  webErrLoginMissing: string;
+  webErrStaffLogin: string;
+  webErrRegisterMissing: string;
+  webErrPhoneInvalid: string;
+  webErrPasswordShort: string;
+  webErrAddressMissing: string;
 }
 
 export interface IAppConfig {
@@ -1397,8 +1398,6 @@ export const DEFAULT_CUSTOMER_UI_COPY: ICustomerUiCopy = {
   otpSending: 'Sending code…',
   otpVerifying: 'Verifying…',
   otpPreferPassword: 'Prefer password?',
-  webSeoTitle: 'Mr Antidot — Pest Control & Hygiene Management',
-  webSeoDescription: 'Book safe, eco-friendly pest control, termite, bed bug, mosquito and deep cleaning services from certified Mr Antidot experts. Upfront prices, verified technicians and guaranteed results.',
   webNavHome: 'Home',
   webNavServices: 'Services',
   webNavAbout: 'About',
@@ -1421,14 +1420,6 @@ export const DEFAULT_CUSTOMER_UI_COPY: ICustomerUiCopy = {
   webHeroSecondaryCta: 'Get a free inspection',
   webHeroSearchPlaceholder: 'What’s bothering you? Cockroach, termite, bed bugs…',
   webHeroPopularLabel: 'Popular:',
-  webStat1Value: '8+',
-  webStat1Label: 'Years of industry experience',
-  webStat2Value: '95%',
-  webStat2Label: 'Pest control success rate',
-  webStat3Value: '24/7',
-  webStat3Label: 'Support & emergency visits',
-  webStat4Value: '100%',
-  webStat4Label: 'Satisfaction guarantee',
   webOffersTitle: 'Offers for you',
   webOfferFixed: '₹{amount} off',
   webOfferPercent: '{amount}% off',
@@ -1441,28 +1432,11 @@ export const DEFAULT_CUSTOMER_UI_COPY: ICustomerUiCopy = {
   webWhyEyebrow: 'Why Mr Antidot',
   webWhyTitle: 'Why customers trust Mr Antidot',
   webWhySubtitle: 'We combine expertise, eco-friendly technology and customer-focused service to deliver the highest standards of hygiene management.',
-  webWhy1Title: 'Certified & trained experts',
-  webWhy1Text: 'Background-checked technicians trained in safe chemical handling and dosage.',
-  webWhy2Title: 'Safe for families & pets',
-  webWhy2Text: 'Government-approved, eco-safe products with clear precautions for children, pets and food areas.',
-  webWhy3Title: 'Odour-free treatments',
-  webWhy3Text: 'Comfortable treatments without unpleasant chemical smells.',
-  webWhy4Title: 'Guaranteed results',
-  webWhy4Text: 'Long-lasting protection, with follow-up visits whenever you need them.',
   webProcessEyebrow: 'Our process',
   webProcessTitle: 'Our professional hygiene protection process',
-  webStep1Title: 'Inspection & assessment',
-  webStep1Text: 'We analyse pest activity and hygiene conditions.',
-  webStep2Title: 'Customised treatment plan',
-  webStep2Text: 'We design solutions based on your specific problem.',
-  webStep3Title: 'Professional treatment',
-  webStep3Text: 'Our trained technicians apply safe and effective treatments.',
-  webStep4Title: 'Prevention & maintenance',
-  webStep4Text: 'We recommend follow-up visits to stop pests coming back.',
   webSectorsEyebrow: 'Sectors we serve',
   webSectorsTitle: 'Pest control for every kind of space',
   webSectorsSubtitle: 'Specialised pest management solutions across diverse industries.',
-  webSectorsList: 'Hospitals & clinics, Hotels & hospitality, Housing societies, IT & corporate offices, Pharmaceutical, Retail & malls, Education, Warehouses & supply chains',
   webMissionTitle: 'Our mission',
   webMissionText: 'To create a cleaner, safer and pest-free environment for every home and business by delivering reliable, science-backed and customer-friendly pest control and cleaning solutions.',
   webVisionTitle: 'Our vision',
@@ -1492,17 +1466,8 @@ export const DEFAULT_CUSTOMER_UI_COPY: ICustomerUiCopy = {
   webAboutTitle: 'Experts in pest control & hygiene management',
   webAboutIntro: 'At Mr Antidot, we believe every space deserves to be clean, safe and refreshing. We protect homes and businesses from pests, dirt and harmful environmental threats through professional pest control and deep cleaning.',
   webAboutBody: 'By combining science-backed treatments, eco-friendly products and a highly trained team, we create healthier environments where people can live and work comfortably.',
-  webAboutPoints: 'Certified & trained experts, Eco-safe treatments, Guaranteed results, Odour-free solutions, 24/7 support',
   webScienceTitle: 'The science behind our treatments',
   webScienceText: 'Every treatment is based on pest behaviour analysis, research and safe chemical application methods.',
-  webScience1Title: 'Pest analysis',
-  webScience1Text: 'Identify the pest species and infestation level.',
-  webScience2Title: 'Chemical research',
-  webScience2Text: 'Select the most effective product based on research.',
-  webScience3Title: 'Dosage calculation',
-  webScience3Text: 'Determine a safe and effective dosage for your space.',
-  webScience4Title: 'Safe application',
-  webScience4Text: 'Apply the treatment following strict safety standards.',
   webContactEyebrow: 'Contact us',
   webContactTitle: 'We’re here to help',
   webContactSubtitle: 'Call, WhatsApp or send us a message — we usually reply within a few hours.',
@@ -1531,10 +1496,6 @@ export const DEFAULT_CUSTOMER_UI_COPY: ICustomerUiCopy = {
   webNewsletterPlaceholder: 'Your email address',
   webNewsletterButton: 'Subscribe',
   webNewsletterSuccess: 'You’re subscribed — thank you!',
-  webSocialFacebook: 'https://www.facebook.com/profile.php?id=61586995831762',
-  webSocialInstagram: 'https://www.instagram.com/mr_antidot_india',
-  webSocialYoutube: '',
-  webSocialLinkedin: '',
   webCopyright: '© {year} Mr Antidot. All rights reserved.',
   webFooterCredit: 'Developed by NovaRo Solution',
   webFooterCreditUrl: 'https://novarosolution.com/',
@@ -1582,6 +1543,47 @@ export const DEFAULT_CUSTOMER_UI_COPY: ICustomerUiCopy = {
   webTeamExpertise: 'Expertise',
   webEmptyListText: 'Nothing here yet — please check back soon.',
   webBlogRelatedTitle: 'More articles',
+  webHeroCardTitle: 'Visit booked in 60 seconds',
+  webHeroCardText: 'Photo proof of every step',
+  webHeroRatingText: 'Loved by {count}+ customers',
+  webStickyBookText: 'Pest problem? Book in 60 seconds',
+  webAppStoreLabel: 'App Store',
+  webPlayStoreLabel: 'Google Play',
+  webReviewsAppBadge: 'Verified app review',
+  webLoginPageTitle: 'Log in',
+  webRegisterPageTitle: 'Create account',
+  webAccountPageTitle: 'Account',
+  webBookingsPageTitle: 'My bookings',
+  webBookingPageTitle: 'Booking',
+  webSuccessPageTitle: 'Booking received',
+  webVisitLabel: 'Visit',
+  webTimeLabel: 'Time',
+  webTechnicianLabel: 'Technician',
+  webTotalLabel: 'Total',
+  webPincodeLabel: 'Pincode',
+  webAddressHome: 'Home',
+  webAddressOffice: 'Office',
+  webAddressOther: 'Other',
+  webSlotMorning: 'Morning',
+  webSlotAfternoon: 'Afternoon',
+  webSlotEvening: 'Evening',
+  webStatusPending: 'Confirming time',
+  webStatusConfirmed: 'Confirmed',
+  webStatusInProgress: 'In progress',
+  webStatusAwaiting: 'Awaiting your code',
+  webStatusCompleted: 'Completed',
+  webStatusCancelled: 'Cancelled',
+  webBookingsLoadError: 'We could not load your bookings right now. Please refresh in a moment.',
+  webServerDownTitle: 'We can’t reach Mr Antidot right now',
+  webServerDownText: 'Please try again in a moment, or call us — we’re happy to help.',
+  webRetryLabel: 'Try again',
+  webNewsletterError: 'Could not subscribe right now. Please try again.',
+  webErrLoginMissing: 'Enter your phone or email and password.',
+  webErrStaffLogin: 'This login is for customers. Staff and technicians please use the Mr Antidot app.',
+  webErrRegisterMissing: 'Name, phone and email are required.',
+  webErrPhoneInvalid: 'Enter a valid 10-digit mobile number.',
+  webErrPasswordShort: 'Password must be at least 8 characters.',
+  webErrAddressMissing: 'House / flat and city are required.',
 };
 
 export const DEFAULT_APP_CONFIG: IAppConfig = {

@@ -81,38 +81,113 @@ async function prepareImageForUpload(
   }
 }
 
-function parseUploadResponse(raw: string): string {
-  let data: { urls?: string[]; error?: string };
+/**
+ * Strict variant for endpoints that only take browser-safe formats (the website): always re-encodes
+ * to JPEG with expo-image-manipulator, only shrinks (never upscales) and fails instead of ever
+ * sending the original file — so an iPhone HEIC can never reach the server.
+ */
+async function prepareJpegForUpload(uri: string, maxWidth: number): Promise<{ uri: string; name: string; type: string }> {
+  const source = normalizeUploadUri(uri);
+  let ImageManipulator: typeof import('expo-image-manipulator');
   try {
-    data = JSON.parse(raw) as { urls?: string[]; error?: string };
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    ImageManipulator = require('expo-image-manipulator') as typeof import('expo-image-manipulator');
+  } catch {
+    throw new Error('This app version cannot convert photos. Update the app and try again.');
+  }
+  const done = (resultUri: string) => ({
+    uri: normalizeUploadUri(resultUri),
+    name: `photo-${Date.now()}.jpg`,
+    type: 'image/jpeg',
+  });
+  try {
+    const original = await ImageManipulator.ImageManipulator.manipulate(source).renderAsync();
+    const image =
+      original.width > maxWidth
+        ? await ImageManipulator.ImageManipulator.manipulate(original).resize({ width: maxWidth }).renderAsync()
+        : original;
+    const saved = await image.saveAsync({ format: ImageManipulator.SaveFormat.JPEG, compress: 0.82 });
+    return done(saved.uri);
+  } catch {
+    // Older native module: the legacy one-shot API still re-encodes to JPEG.
+    try {
+      const result = await ImageManipulator.manipulateAsync(source, [{ resize: { width: maxWidth } }], {
+        compress: 0.82,
+        format: ImageManipulator.SaveFormat.JPEG,
+      });
+      return done(result.uri);
+    } catch {
+      throw new Error('Could not read this photo. Try another one (JPG or PNG works best).');
+    }
+  }
+}
+
+function parseUploadResponse(raw: string): string {
+  let data: { urls?: string[]; url?: string; error?: string };
+  try {
+    data = JSON.parse(raw) as { urls?: string[]; url?: string; error?: string };
   } catch {
     throw new Error('Server returned an invalid upload response');
   }
   if (data.error) throw new Error(data.error);
-  const url = data.urls?.[0];
+  // `/upload` answers `{ urls: [...] }`; single-photo endpoints (website media) answer `{ url }`.
+  const url = data.url ?? data.urls?.[0];
   if (!url) throw new Error('Upload returned no URL');
   return url;
+}
+
+/** Where a photo goes: endpoint is relative to `/api` (default `/upload`), field is the multipart name. */
+export type UploadImageOptions = {
+  endpoint?: string;
+  field?: string;
+  /** Force a JPEG re-encode and never send the original file. Default: on for any non-default endpoint. */
+  jpegOnly?: boolean;
+  /** Longest width sent when `jpegOnly` (default 1600). */
+  maxWidth?: number;
+  /** 0–1 while the bytes are sent (XHR only). */
+  onProgress?: (fraction: number) => void;
+};
+
+const DEFAULT_ENDPOINT = '/upload';
+const DEFAULT_FIELD = 'photo';
+
+type UploadTarget = { url: string; field: string; onProgress?: (fraction: number) => void };
+
+function uploadTarget(options?: UploadImageOptions): UploadTarget {
+  const endpoint = options?.endpoint?.trim() || DEFAULT_ENDPOINT;
+  return {
+    url: `${config.apiUrl}/api${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`,
+    field: options?.field?.trim() || DEFAULT_FIELD,
+    onProgress: options?.onProgress,
+  };
 }
 
 /** Native XHR multipart — reliable for React Native { uri, name, type } file parts. */
 function uploadWithXhr(
   file: { uri: string; name: string; type: string },
   token: string | null,
+  target: UploadTarget,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const form = new FormData();
-    form.append('photo', {
+    form.append(target.field, {
       uri: file.uri,
       name: file.name,
       type: file.type || 'image/jpeg',
     } as unknown as Blob);
 
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', `${config.apiUrl}/api/upload`);
+    xhr.open('POST', target.url);
     xhr.timeout = UPLOAD_TIMEOUT_MS;
     xhr.responseType = 'text';
     xhr.setRequestHeader('Accept', 'application/json');
     if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    if (target.onProgress && xhr.upload) {
+      const report = target.onProgress;
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && e.total > 0) report(Math.min(1, e.loaded / e.total));
+      };
+    }
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
@@ -168,9 +243,10 @@ function uploadWithXhr(
 async function uploadWithFetch(
   file: { uri: string; name: string; type: string },
   token: string | null,
+  target: UploadTarget,
 ): Promise<string> {
   const form = new FormData();
-  form.append('photo', {
+  form.append(target.field, {
     uri: file.uri,
     name: file.name,
     type: file.type || 'image/jpeg',
@@ -191,7 +267,7 @@ async function uploadWithFetch(
     }, UPLOAD_TIMEOUT_MS);
 
   try {
-    const res = await fetch(`${config.apiUrl}/api/upload`, {
+    const res = await fetch(target.url, {
       method: 'POST',
       headers,
       body: form,
@@ -215,22 +291,33 @@ async function uploadWithFetch(
   }
 }
 
+/**
+ * Uploads one photo and returns its URL. Defaults to `POST /api/upload` (field `photo`); pass
+ * `options.endpoint` / `options.field` for other endpoints (those are always sent as JPEG).
+ */
 export async function uploadImage(
   uri: string,
   _name?: string,
   mimeType?: string | null,
+  options?: UploadImageOptions,
 ): Promise<string> {
   if (!uri?.trim()) throw new Error('No photo selected');
 
+  const target = uploadTarget(options);
+  const customEndpoint = Boolean(options?.endpoint?.trim()) && options?.endpoint?.trim() !== DEFAULT_ENDPOINT;
+  const jpegOnly = options?.jpegOnly ?? customEndpoint;
+
   try {
-    const prepared = await prepareImageForUpload(uri, mimeType);
+    const prepared = jpegOnly
+      ? await prepareJpegForUpload(uri, options?.maxWidth ?? 1600)
+      : await prepareImageForUpload(uri, mimeType);
     const token = await getToken();
     try {
-      return await uploadWithXhr(prepared, token);
+      return await uploadWithXhr(prepared, token, target);
     } catch (xhrErr) {
       const msg = xhrErr instanceof Error ? xhrErr.message : '';
       if (/Network error|Upload failed \(0\)|Could not start/i.test(msg)) {
-        return await uploadWithFetch(prepared, token);
+        return await uploadWithFetch(prepared, token, target);
       }
       throw xhrErr;
     }
@@ -261,4 +348,18 @@ export async function uploadImages(items: string[] | PickedImage[]): Promise<str
     urls.push(await uploadImage(uri, undefined, mimeType));
   }
   return urls;
+}
+
+/** Website photo (hero, gallery, blog cover…): `POST /api/website/admin/media`, JPEG only. Returns its URL. */
+export function uploadWebsiteImage(
+  uri: string,
+  options?: Pick<UploadImageOptions, 'onProgress' | 'maxWidth'>,
+): Promise<string> {
+  return uploadImage(uri, undefined, 'image/jpeg', {
+    endpoint: '/website/admin/media',
+    field: 'photo',
+    jpegOnly: true,
+    maxWidth: options?.maxWidth ?? 1600,
+    onProgress: options?.onProgress,
+  });
 }

@@ -124,6 +124,21 @@ export const adminRoutes = {
   leave: '/(admin)/leave',
   payroll: '/(admin)/payroll',
   dataExport: '/(admin)/data-export',
+  /* Website (public site) */
+  website: '/(admin)/website',
+  websitePages: '/(admin)/website/pages',
+  websitePhotos: '/(admin)/website/photos',
+  websiteLists: '/(admin)/website/lists',
+  websiteSettings: '/(admin)/website/settings',
+  websiteBlog: '/(admin)/website/blog',
+  websiteBlogEdit: '/(admin)/website/blog-edit',
+  websiteGallery: '/(admin)/website/gallery',
+  websiteTeam: '/(admin)/website/team',
+  websiteTeamEdit: '/(admin)/website/team-edit',
+  websiteTestimonials: '/(admin)/website/testimonials',
+  websiteTestimonialEdit: '/(admin)/website/testimonial-edit',
+  websiteMessages: '/(admin)/website/messages',
+  websiteSubscribers: '/(admin)/website/subscribers',
 } as const;
 
 export type AdminRoute = (typeof adminRoutes)[keyof typeof adminRoutes] | ReturnType<
@@ -148,6 +163,10 @@ export function homeRouteForRole(role: UserRole | string): string {
 export function adminBackFallback(pathname?: string): string {
   if (!pathname) return ADMIN_TEAM;
 
+  if (pathname.includes('/website/blog-edit')) return adminRoutes.websiteBlog;
+  if (pathname.includes('/website/team-edit')) return adminRoutes.websiteTeam;
+  if (pathname.includes('/website/testimonial-edit')) return adminRoutes.websiteTestimonials;
+  if (pathname.includes('/website/')) return adminRoutes.website;
   if (pathname.includes('/service-edit')) return adminRoutes.services;
   if (pathname.includes('/offer-edit')) return adminRoutes.offers;
   if (pathname.includes('/user-edit')) return adminRoutes.users;

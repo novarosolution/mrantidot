@@ -44,10 +44,20 @@ Every customer-facing label lives in **Admin → App content → Screens** (`cus
 
 ## Website (`mranti/`, Next.js)
 
-- Talks to the same API as the app (`MRANTIDOT_API_URL`, server-side only; the customer token sits in an httpOnly cookie). Services, offers, login/register, booking, my bookings and addresses all go through it, so a website booking appears in the app's admin and technician screens.
-- Blog, gallery, team, testimonials, contact messages and newsletter subscribers stay in the website's own MongoDB and admin panel (`/admin`). That admin no longer shows services, offers or users; its bookings list is the old-site archive.
-- Design kit: `components/site/*` (Container, ButtonLink, SectionHeading, ServiceCard, Reveal…), theme tokens in `app/(frontend)/site.css` (Tailwind v4, `leaf-*` greens, Inter). The old Bootstrap/jQuery template was removed.
-- Old URLs keep working: `/services/<old-slug>` redirects to `/services/<name>-<id>`, `/book-service`, `/signup`, `/user/*` and `/verify-email` redirect to their new pages.
+Everything on the website is managed from the app: **Admin → Manage → Website** (layout, photos, lists, social/SEO/announcement, blog, gallery, team, testimonials, messages, subscribers) and **Admin → App content → Website** (all text labels).
+
+- **Data:** the site has no database of its own. It reads the API server-side (`MRANTIDOT_API_URL`): services, offers, login/register, bookings, addresses, `GET /api/website` (sections, photos, lists, SEO, announcement) and `/api/website/{blog,gallery,team,testimonials,reviews}`. Contact form and newsletter post to `/api/website/{contact,subscribe}` (new messages notify admins in the app).
+- **Freshness:** public data is cached 60 s; after any admin save the API calls the site's `/api/revalidate` (shared `WEBSITE_API_KEY`), so changes show immediately.
+- **Photos:** uploaded from the app to `POST /api/website/admin/media` → Vercel Blob (`BLOB_READ_WRITE_TOKEN` on the API; local `uploads/` in development). The site serves every image through `next/image`.
+- **Sections:** home/about render `pages.home` / `pages.about` from the API in the admin's order; each key maps to one component in `mranti/components/site/sections.tsx`. Adding a section = add its key to `HOME_SECTIONS`/`ABOUT_SECTIONS` (`server/src/utils/websiteContent.ts`), a component in the registry, and a name in the app's Pages screen.
+- **Rate limits:** the site sends `X-Website-Key` + the visitor's IP, so the API limits per visitor instead of per Vercel server. Set `TRUST_PROXY=1` on the API when it runs behind a proxy (Render).
+- **SEO:** per-page title/description and share image from the admin, `sitemap.xml`, `robots.txt`, JSON-LD (business, services, FAQ, articles, breadcrumbs). Old URLs (`/services/<old-slug>`, `/book-service`, `/signup`, `/user/*`, `/verify-email`) redirect.
+
+### Going live (one time)
+1. API env: `BLOB_READ_WRITE_TOKEN` (the website's existing Vercel Blob token), `WEBSITE_API_KEY` (new random secret), `WEBSITE_URL` (the site's https origin), `TRUST_PROXY=1` if behind a proxy. Deploy the API.
+2. From this repo: `WEB_MONGODB_URI=<old website MongoDB> npm run import:website --workspace=server` (dry run), then add `-- --apply --upload-images` to copy blog, gallery, team, testimonials, messages and subscribers (and bundled photos to Blob).
+3. Build and install the app (admin Website screens).
+4. Website env on Vercel: `MRANTIDOT_API_URL`, `WEBSITE_API_KEY` (same value), `APP_BASE_URL`. Remove the old `MONGODB_URI`, NextAuth, SMTP and WhatsApp variables. Deploy.
 
 ## 4. Screen status
 

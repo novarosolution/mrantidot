@@ -42,6 +42,8 @@ export interface IService extends Document {
   excluded: string[];
   /** "Please note" */
   notes: string[];
+  /** Optional photo for website cards/detail (pest art is the fallback). */
+  coverImage?: { url: string; alt: string };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -85,6 +87,10 @@ const serviceSchema = new Schema<IService>(
     included: { type: [String], default: [] },
     excluded: { type: [String], default: [] },
     notes: { type: [String], default: [] },
+    coverImage: {
+      url: { type: String, default: '' },
+      alt: { type: String, default: '' },
+    },
   },
   {
     timestamps: true,

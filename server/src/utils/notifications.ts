@@ -29,7 +29,7 @@ export async function notifyUser(
   });
 }
 
-async function notifyAdmins(
+export async function notifyAdmins(
   title: string,
   body: string,
   type: string,

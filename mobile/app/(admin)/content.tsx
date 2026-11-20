@@ -9,6 +9,7 @@ import { ADMIN_STICKY_FOOTER_PAD, AdminListShell, AdminSectionTitle } from '@/co
 import { AdminSectionTabs, type AdminSectionTab } from '@/components/kit/AdminSectionTabs';
 import { PendingScheduleCard } from '@/components/kit/PendingScheduleCard';
 import { IconInput } from '@/components/kit/IconInput';
+import { StringListEditor } from '@/components/kit/StringListEditor';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { Button } from '@/components/ui/Button';
 import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
@@ -836,49 +837,6 @@ export default function AdminContentScreen() {
   );
 }
 
-function StringListEditor({
-  title,
-  items,
-  onChange,
-}: {
-  title: string;
-  items: string[];
-  onChange: (items: string[]) => void;
-}) {
-  return (
-    <View style={styles.listEditor}>
-      <View style={styles.blockHead}>
-        <Text style={styles.label}>{title}</Text>
-        <Pressable style={styles.addPill} onPress={() => onChange([...items, ''])}>
-          <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size="xs" color={colors.green} />
-          <Text style={styles.addPillText}>Add</Text>
-        </Pressable>
-      </View>
-      {items.map((item, i) => (
-        <View key={i} style={styles.tagRow}>
-          <IconInput
-            label={`Item ${i + 1}`}
-            value={item}
-            onChangeText={(v) => {
-              const next = [...items];
-              next[i] = v;
-              onChange(next);
-            }}
-          />
-          <Pressable
-            style={styles.tagRemove}
-            onPress={() => onChange(items.filter((_, idx) => idx !== i))}
-            accessibilityRole="button"
-            accessibilityLabel="Remove list item"
-          >
-            <PremiumIcon icon={AppIcons.ui.close} variant="plain" size="sm" color={colors.muted} />
-          </Pressable>
-        </View>
-      ))}
-    </View>
-  );
-}
-
 function ServiceChips({
   services,
   selectedId,
@@ -1028,19 +986,6 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: 11,
     backgroundColor: colors.errorBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 26,
-  },
-  listEditor: { marginTop: spacing.sm },
-  tagRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  tagRemove: {
-    width: 38,
-    height: 38,
-    borderRadius: 11,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 26,

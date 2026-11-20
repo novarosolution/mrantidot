@@ -8,6 +8,7 @@ import { AdminFormCard, AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminFormSkeleton } from '@/components/kit/AdminSkeletons';
 import { IconInput } from '@/components/kit/IconInput';
+import { ImageField, useBusyCounter } from '@/components/kit/ImageField';
 import { ServiceIconPicker } from '@/components/kit/ServiceIconPicker';
 import { ServiceTypePicker } from '@/components/kit/ServiceTypePicker';
 import { Button } from '@/components/ui/Button';
@@ -19,7 +20,7 @@ import { api, screenLoadConfig } from '@/lib/api';
 import { haptic, stagger } from '@/lib/motion';
 import { serviceRealRating } from '@/lib/ratings';
 import { useScreenLoad } from '@/lib/useScreenLoad';
-import type { ServiceCategory, ServiceOption, ServiceStats, ServiceTypeKey } from '@/types/api';
+import type { ServiceCategory, ServiceOption, ServiceStats, ServiceTypeKey, WebsiteImage } from '@/types/api';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 const CATEGORIES: { key: ServiceCategory; label: string }[] = [
@@ -54,9 +55,11 @@ export default function ServiceEditScreen() {
   const [included, setIncluded] = useState('');
   const [excluded, setExcluded] = useState('');
   const [notes, setNotes] = useState('');
+  const [coverImage, setCoverImage] = useState<WebsiteImage>({ url: '', alt: '' });
+  const [uploading, onBusyChange] = useBusyCounter();
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<
-    Partial<Record<'name' | 'shortDesc' | 'basePrice' | 'rating' | 'serviceTypes' | 'options', string>>
+    Partial<Record<'name' | 'shortDesc' | 'basePrice' | 'rating' | 'serviceTypes' | 'options' | 'coverImage', string>>
   >({});
   const { loading, error, runLoad, reload } = useScreenLoad(!!id);
 
@@ -80,6 +83,7 @@ export default function ServiceEditScreen() {
           included?: string[];
           excluded?: string[];
           notes?: string[];
+          coverImage?: WebsiteImage;
         };
       }>(`/services/${id}`, screenLoadConfig),
       api.get<{ stats: ServiceStats }>(`/services/${id}/stats`, screenLoadConfig),
@@ -100,6 +104,7 @@ export default function ServiceEditScreen() {
     setIncluded(joinLines(s.included));
     setExcluded(joinLines(s.excluded));
     setNotes(joinLines(s.notes));
+    setCoverImage({ url: s.coverImage?.url ?? '', alt: s.coverImage?.alt ?? '' });
     const stats = statsRes.data.stats;
     setRealRating(serviceRealRating(stats));
     setReviewCount(stats.reviewCount ?? 0);
@@ -110,8 +115,13 @@ export default function ServiceEditScreen() {
     void runLoad(load);
   }, [id, load, runLoad]);
 
+  const onCoverImage = useCallback((img: WebsiteImage) => {
+    setCoverImage(img);
+    setErrors((e) => (e.coverImage ? { ...e, coverImage: undefined } : e));
+  }, []);
+
   async function save() {
-    const next: Partial<Record<'name' | 'shortDesc' | 'basePrice' | 'rating' | 'serviceTypes' | 'options', string>> = {};
+    const next: Partial<Record<'name' | 'shortDesc' | 'basePrice' | 'rating' | 'serviceTypes' | 'options' | 'coverImage', string>> = {};
     if (!name.trim()) next.name = 'Required';
     if (!shortDesc.trim()) next.shortDesc = 'Required';
     if (serviceTypes.length === 0) next.serviceTypes = 'Select at least one pest type';
@@ -125,10 +135,11 @@ export default function ServiceEditScreen() {
       next.options = 'Every size needs a name and a price above ₹0';
     }
     const duration = durationMins.trim() ? parseInt(durationMins, 10) : 0;
+    if (coverImage.url && !coverImage.alt.trim()) next.coverImage = 'Add alt text for the website photo';
     setErrors(next);
     if (Object.keys(next).length > 0) {
       haptic('error');
-      Toast.show({ type: 'error', text1: next.serviceTypes || next.options || 'Fix the highlighted fields' });
+      Toast.show({ type: 'error', text1: next.serviceTypes || next.options || next.coverImage || 'Fix the highlighted fields' });
       return;
     }
     setSaving(true);
@@ -154,6 +165,7 @@ export default function ServiceEditScreen() {
         included: lines(included),
         excluded: lines(excluded),
         notes: lines(notes),
+        coverImage: { url: coverImage.url, alt: coverImage.alt.trim() },
       };
       if (id) {
         await api.patch(`/services/${id}`, body);
@@ -222,7 +234,15 @@ export default function ServiceEditScreen() {
           {id ? (
             <Button title="Deactivate" variant="dangerOutline" onPress={remove} fullWidth={false} style={styles.footerSecondary} />
           ) : null}
-          <Button title="Save" variant="premium" onPress={save} loading={saving} fullWidth={false} style={styles.footerPrimary} />
+          <Button
+            title={uploading ? 'Uploading…' : 'Save'}
+            variant="premium"
+            onPress={save}
+            loading={saving}
+            disabled={saving || uploading}
+            fullWidth={false}
+            style={styles.footerPrimary}
+          />
         </StickyActionBar>
       }
     >
@@ -360,6 +380,25 @@ export default function ServiceEditScreen() {
         </FadeSlideIn>
 
         <FadeSlideIn delay={stagger(3)} slideFrom={14}>
+          <PremiumSectionHeader
+            title="Website photo"
+            subtitle="Optional photo for this service on the website. Without one the pest artwork is used."
+            style={styles.sectionHead}
+          />
+          <AdminFormCard style={styles.form}>
+            <ImageField
+              label="Cover photo"
+              value={coverImage}
+              onChange={onCoverImage}
+              aspectRatio={4 / 3}
+              onBusyChange={onBusyChange}
+              altPlaceholder={name ? `${name} in progress` : 'e.g. Technician treating a kitchen'}
+            />
+            {errors.coverImage ? <Text style={styles.fieldError}>{errors.coverImage}</Text> : null}
+          </AdminFormCard>
+        </FadeSlideIn>
+
+        <FadeSlideIn delay={stagger(4)} slideFrom={14}>
           <PremiumSectionHeader title="Pest control types" style={styles.sectionHead} />
           <AdminFormCard style={styles.form}>
             <ServiceTypePicker
@@ -373,7 +412,7 @@ export default function ServiceEditScreen() {
           </AdminFormCard>
         </FadeSlideIn>
 
-        <FadeSlideIn delay={stagger(4)} slideFrom={14}>
+        <FadeSlideIn delay={stagger(5)} slideFrom={14}>
           <PremiumSectionHeader title="Icon" style={styles.sectionHead} />
           <AdminFormCard style={styles.form}>
             <ServiceIconPicker value={iconKey} onChange={setIconKey} />

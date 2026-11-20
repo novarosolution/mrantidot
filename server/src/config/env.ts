@@ -50,6 +50,14 @@ if (isProduction && clientUrl === '*') {
   console.warn('[env] CLIENT_URL=* allows any browser origin. Set CLIENT_URL to your web origin(s); the native app is unaffected by CORS.');
 }
 
+function parseTrustProxy(value: string | undefined): boolean | number | string {
+  const v = value?.trim();
+  if (!v || v === 'false' || v === '0') return false;
+  if (v === 'true') return true;
+  const n = Number(v);
+  return Number.isInteger(n) ? n : v;
+}
+
 export const env = {
   isProduction,
   port: parseInt(process.env.PORT ?? '4001', 10),
@@ -70,6 +78,17 @@ export const env = {
   },
   ensureAdminOnStartup: process.env.ENSURE_ADMIN_ON_STARTUP !== 'false',
   workOtpTtlMinutes: parseInt(process.env.WORK_OTP_TTL_MINUTES ?? '30', 10),
+  /**
+   * Shared secret the public website sends as X-Website-Key. Requests carrying it are rate-limited
+   * by the visitor IP the website forwards (X-Client-IP) instead of the website server's own IP.
+   */
+  websiteApiKey: process.env.WEBSITE_API_KEY?.trim() || '',
+  /** Express "trust proxy" setting — set TRUST_PROXY=1 behind Render or another reverse proxy. */
+  trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
+  /** Public website origin (e.g. https://www.mrantidot.com) — used to refresh its cache after admin edits. */
+  websiteUrl: (process.env.WEBSITE_URL?.trim() || '').replace(/\/+$/, ''),
+  /** Vercel Blob token for durable website media; without it uploads stay on local disk. */
+  blobToken: process.env.BLOB_READ_WRITE_TOKEN?.trim() || '',
   /** Cap Mongo connection pool — keeps RAM low on Render free tier (2GB). */
   mongoMaxPoolSize: parseInt(process.env.MONGO_MAX_POOL_SIZE ?? '5', 10),
 };

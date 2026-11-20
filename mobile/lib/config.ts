@@ -65,6 +65,31 @@ function resolveApiUrl(): string {
 
 const apiUrl = resolveApiUrl();
 
+/**
+ * Public website origin (e.g. https://mrantidot.com) — optional. Used only to preview photos that
+ * ship with the website itself (`/frontend/…`, `/pests/…`). Unset → admin screens show a placeholder.
+ */
+function resolveWebsiteUrl(): string | undefined {
+  const usable = (url: unknown): url is string => {
+    if (typeof url !== 'string' || !url.trim()) return false;
+    if (/REPLACE|YOUR-SERVICE|example\.com/i.test(url)) return false;
+    try {
+      const parsed = new URL(url.trim());
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+  const fromEnv = process.env.EXPO_PUBLIC_WEBSITE_URL?.trim();
+  if (usable(fromEnv)) return stripSlash(fromEnv);
+  const extra = Constants.expoConfig?.extra ?? (Constants as { manifest?: { extra?: Record<string, unknown> } }).manifest?.extra;
+  const raw = extra?.websiteUrl;
+  if (usable(raw)) return stripSlash(raw.trim());
+  return undefined;
+}
+
+const websiteUrl = resolveWebsiteUrl();
+
 if (__DEV__) {
   console.log('[config] API resolved', {
     apiUrl,
@@ -78,4 +103,6 @@ if (__DEV__) {
 
 export const config = {
   apiUrl,
+  /** Optional public website origin (EXPO_PUBLIC_WEBSITE_URL); undefined when not configured. */
+  websiteUrl,
 };

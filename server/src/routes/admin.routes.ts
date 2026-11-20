@@ -39,6 +39,7 @@ import {
   resolveTechEarning,
 } from '../utils/techPay';
 import { buildAdminExport } from '../utils/adminExport';
+import { revalidateWebsite } from '../utils/websiteRevalidate';
 
 export const adminRouter = Router();
 
@@ -692,6 +693,7 @@ adminRouter.post(
       maxUses: req.body.maxUses ?? undefined,
       minOrderAmount: req.body.minOrderAmount ?? undefined,
     });
+    revalidateWebsite(['offers']);
     res.status(201).json({ offer: offer.toJSON() });
   }),
 );
@@ -733,6 +735,7 @@ adminRouter.patch(
     if (!offer) {
       throw new AppError(404, 'Offer not found');
     }
+    revalidateWebsite(['offers']);
     res.json({ offer: offer.toJSON() });
   }),
 );
@@ -746,6 +749,7 @@ adminRouter.delete(
     if (!offer) {
       throw new AppError(404, 'Offer not found');
     }
+    revalidateWebsite(['offers']);
     res.json({ offer: offer.toJSON() });
   }),
 );

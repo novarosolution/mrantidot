@@ -99,6 +99,8 @@ export interface Service {
   included?: string[];
   excluded?: string[];
   notes?: string[];
+  /** Optional photo for website cards / detail page (pest art is the fallback). */
+  coverImage?: WebsiteImage;
 }
 
 export interface HomePromo {
@@ -653,8 +655,6 @@ export interface CustomerUiCopy {
   otpSending: string;
   otpVerifying: string;
   otpPreferPassword: string;
-  webSeoTitle: string;
-  webSeoDescription: string;
   webNavHome: string;
   webNavServices: string;
   webNavAbout: string;
@@ -677,14 +677,6 @@ export interface CustomerUiCopy {
   webHeroSecondaryCta: string;
   webHeroSearchPlaceholder: string;
   webHeroPopularLabel: string;
-  webStat1Value: string;
-  webStat1Label: string;
-  webStat2Value: string;
-  webStat2Label: string;
-  webStat3Value: string;
-  webStat3Label: string;
-  webStat4Value: string;
-  webStat4Label: string;
   webOffersTitle: string;
   webOfferFixed: string;
   webOfferPercent: string;
@@ -697,28 +689,11 @@ export interface CustomerUiCopy {
   webWhyEyebrow: string;
   webWhyTitle: string;
   webWhySubtitle: string;
-  webWhy1Title: string;
-  webWhy1Text: string;
-  webWhy2Title: string;
-  webWhy2Text: string;
-  webWhy3Title: string;
-  webWhy3Text: string;
-  webWhy4Title: string;
-  webWhy4Text: string;
   webProcessEyebrow: string;
   webProcessTitle: string;
-  webStep1Title: string;
-  webStep1Text: string;
-  webStep2Title: string;
-  webStep2Text: string;
-  webStep3Title: string;
-  webStep3Text: string;
-  webStep4Title: string;
-  webStep4Text: string;
   webSectorsEyebrow: string;
   webSectorsTitle: string;
   webSectorsSubtitle: string;
-  webSectorsList: string;
   webMissionTitle: string;
   webMissionText: string;
   webVisionTitle: string;
@@ -748,17 +723,8 @@ export interface CustomerUiCopy {
   webAboutTitle: string;
   webAboutIntro: string;
   webAboutBody: string;
-  webAboutPoints: string;
   webScienceTitle: string;
   webScienceText: string;
-  webScience1Title: string;
-  webScience1Text: string;
-  webScience2Title: string;
-  webScience2Text: string;
-  webScience3Title: string;
-  webScience3Text: string;
-  webScience4Title: string;
-  webScience4Text: string;
   webContactEyebrow: string;
   webContactTitle: string;
   webContactSubtitle: string;
@@ -787,10 +753,6 @@ export interface CustomerUiCopy {
   webNewsletterPlaceholder: string;
   webNewsletterButton: string;
   webNewsletterSuccess: string;
-  webSocialFacebook: string;
-  webSocialInstagram: string;
-  webSocialYoutube: string;
-  webSocialLinkedin: string;
   webCopyright: string;
   webFooterCredit: string;
   webFooterCreditUrl: string;
@@ -838,6 +800,47 @@ export interface CustomerUiCopy {
   webTeamExpertise: string;
   webEmptyListText: string;
   webBlogRelatedTitle: string;
+  webHeroCardTitle: string;
+  webHeroCardText: string;
+  webHeroRatingText: string;
+  webStickyBookText: string;
+  webAppStoreLabel: string;
+  webPlayStoreLabel: string;
+  webReviewsAppBadge: string;
+  webLoginPageTitle: string;
+  webRegisterPageTitle: string;
+  webAccountPageTitle: string;
+  webBookingsPageTitle: string;
+  webBookingPageTitle: string;
+  webSuccessPageTitle: string;
+  webVisitLabel: string;
+  webTimeLabel: string;
+  webTechnicianLabel: string;
+  webTotalLabel: string;
+  webPincodeLabel: string;
+  webAddressHome: string;
+  webAddressOffice: string;
+  webAddressOther: string;
+  webSlotMorning: string;
+  webSlotAfternoon: string;
+  webSlotEvening: string;
+  webStatusPending: string;
+  webStatusConfirmed: string;
+  webStatusInProgress: string;
+  webStatusAwaiting: string;
+  webStatusCompleted: string;
+  webStatusCancelled: string;
+  webBookingsLoadError: string;
+  webServerDownTitle: string;
+  webServerDownText: string;
+  webRetryLabel: string;
+  webNewsletterError: string;
+  webErrLoginMissing: string;
+  webErrStaffLogin: string;
+  webErrRegisterMissing: string;
+  webErrPhoneInvalid: string;
+  webErrPasswordShort: string;
+  webErrAddressMissing: string;
 }
 
 export interface AppConfig {
@@ -1343,4 +1346,258 @@ export interface TeamAttendanceStats {
   checkedInToday: number;
   averageAttendanceRate: number;
   lowAttendance: { id: string; name: string; rate: number }[];
+}
+
+/* ─── Website (public site managed from the admin app) ─────────────────── */
+
+/** Photo on the website: a relative site path (`/uploads/…`, `/frontend/…`) or an https URL, plus alt text. */
+export interface WebsiteImage {
+  url: string;
+  alt: string;
+}
+
+export type WebsiteHomeSectionKey =
+  | 'hero'
+  | 'offers'
+  | 'services'
+  | 'why'
+  | 'process'
+  | 'sectors'
+  | 'mission'
+  | 'reviews'
+  | 'team'
+  | 'blog'
+  | 'faq'
+  | 'app'
+  | 'cta';
+
+export type WebsiteAboutSectionKey = 'intro' | 'stats' | 'mission' | 'science' | 'why' | 'team' | 'faq' | 'cta';
+
+/** One block on a page. Array order is the page order; `limit` only exists for list sections. */
+export interface WebsiteSection {
+  key: string;
+  visible: boolean;
+  limit?: number;
+}
+
+export type WebsitePageKey = 'home' | 'about';
+
+export type WebsiteIconKey =
+  | 'badge'
+  | 'leaf'
+  | 'wind'
+  | 'shield'
+  | 'microscope'
+  | 'clipboard'
+  | 'spray'
+  | 'repeat'
+  | 'heart'
+  | 'hotel'
+  | 'users'
+  | 'building'
+  | 'pill'
+  | 'shopping'
+  | 'school'
+  | 'warehouse'
+  | 'clock'
+  | 'star'
+  | 'sparkles'
+  | 'home'
+  | 'bug'
+  | 'flask';
+
+export interface WebsiteStat {
+  value: string;
+  label: string;
+}
+
+export interface WebsiteIconCard {
+  title: string;
+  text: string;
+  icon: string;
+}
+
+export interface WebsiteSector {
+  name: string;
+  icon: string;
+}
+
+export interface WebsiteScienceStep {
+  title: string;
+  text: string;
+}
+
+export interface WebsiteImages {
+  hero: WebsiteImage;
+  about: WebsiteImage;
+  /** Up to two photos for the "Why choose us" block. */
+  why: WebsiteImage[];
+  og: WebsiteImage;
+  pageHeader: WebsiteImage;
+}
+
+export interface WebsiteLists {
+  stats: WebsiteStat[];
+  why: WebsiteIconCard[];
+  steps: WebsiteIconCard[];
+  sectors: WebsiteSector[];
+  science: WebsiteScienceStep[];
+  aboutPoints: string[];
+  /** Service ids shown as quick-pick chips under the hero (max 8). */
+  heroChips: string[];
+}
+
+export interface WebsiteSocial {
+  facebook: string;
+  instagram: string;
+  youtube: string;
+  linkedin: string;
+  x: string;
+}
+
+export type WebsiteSeoPage = 'home' | 'services' | 'about' | 'blog' | 'gallery' | 'team' | 'contact';
+
+export interface WebsiteSeoEntry {
+  title: string;
+  description: string;
+}
+
+export type WebsiteAnnouncementMode = 'offer' | 'custom' | 'off';
+
+export interface WebsiteAnnouncement {
+  mode: WebsiteAnnouncementMode;
+  text: string;
+  link: string;
+}
+
+/** `GET /website` → `{ website }`. */
+export interface WebsiteConfig {
+  pages: Record<WebsitePageKey, WebsiteSection[]>;
+  images: WebsiteImages;
+  lists: WebsiteLists;
+  social: WebsiteSocial;
+  seo: Record<WebsiteSeoPage, WebsiteSeoEntry>;
+  announcement: WebsiteAnnouncement;
+  updatedAt: string;
+}
+
+/** `PATCH /website/admin` body — each group sent replaces the saved one as a whole. */
+export type WebsitePatch = Partial<Pick<WebsiteConfig, 'pages' | 'images' | 'lists' | 'social' | 'seo' | 'announcement'>> & {
+  updatedAt?: string;
+};
+
+/** `GET /website/admin/summary` → `{ summary }`. */
+export interface WebsiteSummary {
+  newMessages: number;
+  posts: number;
+  drafts: number;
+  gallery: number;
+  team: number;
+  testimonials: number;
+  subscribers: number;
+}
+
+export type BlogPostStatus = 'draft' | 'published';
+
+/** Admin blog list row (no body). */
+export interface BlogPostSummary {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  cover: WebsiteImage;
+  tags: string[];
+  author: string;
+  status: BlogPostStatus;
+  publishedAt?: string;
+  seo: WebsiteSeoEntry;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BlogPost extends BlogPostSummary {
+  /** Markdown. */
+  body: string;
+  /** HTML backup from the old website for imported posts (never shown publicly). */
+  legacyHtml?: string;
+}
+
+export interface BlogPostInput {
+  title: string;
+  slug?: string;
+  excerpt: string;
+  cover: WebsiteImage;
+  body: string;
+  tags: string[];
+  author: string;
+  status: BlogPostStatus;
+  seo: WebsiteSeoEntry;
+}
+
+export interface GalleryItem {
+  id: string;
+  image: WebsiteImage;
+  title: string;
+  category: string;
+  sortOrder: number;
+  active: boolean;
+}
+
+export interface TeamMemberSocials {
+  facebook: string;
+  instagram: string;
+  linkedin: string;
+  x: string;
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
+  photo: WebsiteImage;
+  bio: string;
+  education: string;
+  /** Markdown. */
+  certifications: string;
+  responsibilities: string[];
+  expertise: string;
+  years?: number;
+  email: string;
+  phone: string;
+  socials: TeamMemberSocials;
+  sortOrder: number;
+  active: boolean;
+}
+
+export interface Testimonial {
+  id: string;
+  name: string;
+  role: string;
+  quote: string;
+  /** 1–5. */
+  rating: number;
+  photo: WebsiteImage;
+  sortOrder: number;
+  active: boolean;
+}
+
+export type ContactMessageStatus = 'new' | 'read' | 'replied';
+
+export interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  service: string;
+  message: string;
+  status: ContactMessageStatus;
+  createdAt: string;
+}
+
+export interface Subscriber {
+  id: string;
+  email: string;
+  active: boolean;
+  createdAt: string;
 }

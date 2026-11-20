@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { ArrowUpDown, UserPlus, UserRoundPlus } from 'lucide-react-native';
+import { ArrowUpDown, Globe, UserPlus, UserRoundPlus } from 'lucide-react-native';
 import { AdminHubGroup, AdminHubLink } from '@/components/kit/AdminHubLink';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -12,6 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import { adminRoutes, appPush, type RouteInput } from '@/lib/routes';
 import { stagger } from '@/lib/motion';
 import { useUnreadNotifications } from '@/lib/useUnreadNotifications';
+import { useWebsiteSummary } from '@/lib/useWebsiteSummary';
 import { userInitial } from '@/lib/userInitials';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 import type { LucideIcon } from 'lucide-react-native';
@@ -56,6 +57,12 @@ const OPERATIONS_LINKS: HubLink[] = [
 ];
 
 const CONTENT_LINKS: HubLink[] = [
+  {
+    icon: Globe,
+    label: 'Website',
+    desc: 'Pages, photos, blog, team & messages',
+    href: adminRoutes.website,
+  },
   {
     icon: Hub.homeContent,
     image: HubImg.homeContent,
@@ -166,6 +173,7 @@ const SECTIONS: { title: string; hint: string; links: HubLink[] }[] = [
 export default function TeamHubScreen() {
   const { user } = useAuth();
   const { unreadCount } = useUnreadNotifications();
+  const { summary: websiteSummary } = useWebsiteSummary();
   const initial = userInitial(user?.name);
 
   return (
@@ -209,7 +217,13 @@ export default function TeamHubScreen() {
                 icon={l.icon}
                 label={l.label}
                 desc={l.desc}
-                badge={l.href === adminRoutes.notifications ? unreadCount : undefined}
+                badge={
+                  l.href === adminRoutes.notifications
+                    ? unreadCount
+                    : l.href === adminRoutes.website
+                      ? websiteSummary?.newMessages
+                      : undefined
+                }
                 onPress={() => appPush(l.href)}
               />
             ))}

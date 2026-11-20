@@ -16,6 +16,7 @@ import {
 import { Service } from '../models/Service';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { LEGACY_DEFAULT_SUPPORT_PHONE } from '../utils/backfillSupportContact';
+import { revalidateWebsite } from '../utils/websiteRevalidate';
 import { asyncHandler } from '../middleware/error';
 
 export const contentRouter = Router();
@@ -245,6 +246,7 @@ contentRouter.patch(
     doc.homePromo = nextPromo;
     doc.homeConfig = nextConfig;
     await doc.save();
+    revalidateWebsite(['content']);
     res.json({
       promo: await formatHomePromoResolved(doc),
       homeConfig: await formatHomeConfigResolved(doc),
@@ -266,7 +268,7 @@ function formatBookingCopy(raw?: Partial<IBookingCopyConfig>): IBookingCopyConfi
   return out;
 }
 
-function formatCustomerUiCopy(raw?: Partial<ICustomerUiCopy>): ICustomerUiCopy {
+export function formatCustomerUiCopy(raw?: Partial<ICustomerUiCopy>): ICustomerUiCopy {
   const d = DEFAULT_CUSTOMER_UI_COPY;
   const b = raw ?? {};
   const out = { ...d };
@@ -429,6 +431,7 @@ contentRouter.patch(
     const current = formatAppConfig(doc);
     doc.appConfig = mergeAppConfig(current, req.body);
     await doc.save();
+    revalidateWebsite(['content']);
     res.json({ app: formatAppConfig(doc) });
   }),
 );

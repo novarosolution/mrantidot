@@ -13,6 +13,7 @@ import { Booking } from '../models/Booking';
 import { User } from '../models/User';
 import { getOptionalUser } from '../utils/optionalAuth';
 import { formatServiceStatsForRole } from '../utils/ratings';
+import { revalidateWebsite } from '../utils/websiteRevalidate';
 
 export const servicesRouter = Router();
 
@@ -183,6 +184,7 @@ servicesRouter.post(
       payload.serviceTypes = normalizeServiceTypes(req.body.serviceTypes);
     }
     const service = await Service.create(payload);
+    revalidateWebsite(['services']);
     res.status(201).json({ service: formatService(service) });
   }),
 );
@@ -200,6 +202,7 @@ servicesRouter.put(
     await Service.bulkWrite(
       ids.map((id, i) => ({ updateOne: { filter: { _id: id }, update: { $set: { sortOrder: (i + 1) * 10 } } } })),
     );
+    revalidateWebsite(['services']);
     res.json({ ok: true, count: ids.length });
   }),
 );
@@ -236,6 +239,7 @@ servicesRouter.patch(
     if (!service) {
       throw new AppError(404, 'Service not found');
     }
+    revalidateWebsite(['services']);
     res.json({ service: formatService(service) });
   }),
 );
@@ -255,6 +259,7 @@ servicesRouter.delete(
     if (!service) {
       throw new AppError(404, 'Service not found');
     }
+    revalidateWebsite(['services']);
     res.json({ service: formatService(service) });
   }),
 );

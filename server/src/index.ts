@@ -16,6 +16,7 @@ import { runSeedDatabase } from './seed/seed';
 import { getAdminConfig, upsertAdminUser } from './utils/adminUser';
 import { backfillServiceContent } from './utils/backfillServiceContent';
 import { backfillSupportContact } from './utils/backfillSupportContact';
+import { rateLimitKey } from './utils/rateLimitKey';
 
 function ensureUploadDir(): void {
   if (!fs.existsSync(env.uploadDir)) {
@@ -63,6 +64,16 @@ async function main(): Promise<void> {
     console.error('[content] Support contact fix failed:', err);
   }
 
+  try {
+    // Dev only — the importer uses dev-only packages (turndown), so never load it in production.
+    if (!env.isProduction) {
+      const { seedWebsiteDefaults } = await import('./scripts/importWebsiteData');
+      await seedWebsiteDefaults();
+    }
+  } catch (err) {
+    console.error('[website] Default content seed failed:', err);
+  }
+
   if (env.ensureAdminOnStartup && !seedOnStart) {
     try {
       await upsertAdminUser();
@@ -81,6 +92,7 @@ async function main(): Promise<void> {
   const app = express();
 
   app.disable('x-powered-by');
+  if (env.trustProxy !== false) app.set('trust proxy', env.trustProxy);
   app.use(
     helmet({
       // JSON API + mobile-consumed static images — CSP/COEP are for browser pages, not needed here
@@ -104,6 +116,7 @@ async function main(): Promise<void> {
     limit: env.isProduction ? 30 : 500,
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: rateLimitKey,
     message: { error: 'Too many attempts. Please try again later.' },
   });
   app.use('/api/auth', authLimiter);
@@ -115,6 +128,7 @@ async function main(): Promise<void> {
       standardHeaders: true,
       legacyHeaders: false,
       skip: (req) => req.path === '/health',
+      keyGenerator: rateLimitKey,
       message: { error: 'Too many requests. Please slow down and try again.' },
     }),
   );

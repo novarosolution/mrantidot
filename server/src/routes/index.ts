@@ -14,6 +14,7 @@ import { contentRouter } from './content.routes';
 import { techniciansRouter } from './technicians.routes';
 import { attendanceRouter } from './attendance.routes';
 import { leaveRouter } from './leave.routes';
+import { websiteRouter } from './website.routes';
 
 export const apiRouter = Router();
 
@@ -36,3 +37,4 @@ apiRouter.use('/content', contentRouter);
 apiRouter.use('/technicians', techniciansRouter);
 apiRouter.use('/attendance', attendanceRouter);
 apiRouter.use('/leave', leaveRouter);
+apiRouter.use('/website', websiteRouter);

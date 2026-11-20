@@ -1,5 +1,6 @@
 import { body } from 'express-validator';
 import type { IServiceOption } from '../models/Service';
+import { safeImageUrl } from './websiteContent';
 
 const LIST_FIELDS = ['highlights', 'included', 'excluded', 'notes'] as const;
 const MAX_LIST = 20;
@@ -67,6 +68,13 @@ export function pickServiceContent(input: Record<string, unknown>): Record<strin
   if (input.durationMins !== undefined) out.durationMins = Math.max(0, Math.round(Number(input.durationMins) || 0));
   for (const f of LIST_FIELDS) {
     if (input[f] !== undefined) out[f] = cleanList(input[f]);
+  }
+  if (input.coverImage !== undefined) {
+    const c = (input.coverImage && typeof input.coverImage === 'object' ? input.coverImage : {}) as Record<string, unknown>;
+    out.coverImage = {
+      url: safeImageUrl(c.url),
+      alt: typeof c.alt === 'string' ? c.alt.trim().slice(0, 200) : '',
+    };
   }
   return out;
 }
