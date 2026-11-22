@@ -58,6 +58,15 @@ Everything on the website is managed from the app: **Admin → Manage → Websit
   - "Trusted by" shows a moving strip of client logos (Lists → Clients), and "Our work" is a drag/scroll reel of gallery photos. Both are sections in Pages & sections.
   - Numbers count up, sections reveal and parallax as you scroll, and desktop scrolling is smoothed with Lenis.
   - Everything respects "reduce motion".
+- **Customer pages:**
+  - Service detail: photo hero, sticky section nav, shared size picker with a bottom book bar, and a pinned "How it works" story.
+  - Booking: sticky stepper, missing-step shake, animated totals and coupon minimums.
+  - Success: check, confetti, price breakdown and an add-to-calendar file.
+  - Login and register: photo panel.
+  - My bookings and account: tabs, a live status timeline, and a cancel sheet.
+  - Also upgraded: blog post with share buttons, gallery lightbox, privacy/terms contents list, and the footer CTA band.
+  - Motion helpers live in `mranti/components/site/motion.tsx`: `RevealGroup`, `TextReveal`, `ImageReveal`, `PinnedSteps`, `HorizontalPin`, `TiltCard`, `AnimatedNumber` and `BackToTop`. Pinned or scrubbed effects run on desktop only, and everything respects "reduce motion".
+  - Customer-page labels are in **App content → Website → Customer pages**. The website also reads the app's booking copy (`factLabel*`, cancel texts).
 - **Photos:** real job photos come from `mranti/public/frontend/images/gallery`. Five free stock photos from Pexels (Pexels License: free commercial use, no credit needed) are in `mranti/public/frontend/images/stock`. Every photo can be replaced from the app.
 
 ## Web admin (`mobile/`, Expo web)

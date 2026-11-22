@@ -704,6 +704,70 @@ export interface ICustomerUiCopy {
   webWorkTitle: string;
   webWorkSubtitle: string;
   webWorkCta: string;
+  webDetailNavOverview: string;
+  webDetailNavIncluded: string;
+  webDetailNavProcess: string;
+  webDetailNavReviews: string;
+  webDetailNavFaq: string;
+  webDetailBookingsCount: string;
+  webDetailRelatedTitle: string;
+  webDetailSizesTitle: string;
+  webDetailReviewsSummary: string;
+  webDetailWhatsApp: string;
+  webBookProgress: string;
+  webBookStickyCta: string;
+  webBookCouponMin: string;
+  webBookMissingStep: string;
+  webBookAddressError: string;
+  webBookFailedError: string;
+  webSuccessNextTitle: string;
+  webSuccessNext1: string;
+  webSuccessNext2: string;
+  webSuccessNext3: string;
+  webSuccessAddCalendar: string;
+  webSuccessBreakdownTitle: string;
+  webUnitMins: string;
+  webUnitHr: string;
+  webUnitHrs: string;
+  webUnitAm: string;
+  webUnitPm: string;
+  webUnitSqft: string;
+  webPestLabels: string;
+  webPropertyLabels: string;
+  webAuthIdentifierPlaceholder: string;
+  webAuthPasswordPlaceholder: string;
+  webAuthShowPassword: string;
+  webAuthHidePassword: string;
+  webAuthLoginError: string;
+  webAuthRegisterError: string;
+  webBookingTimelineTitle: string;
+  webBookingLive: string;
+  webBookingKeep: string;
+  webBookingCancelError: string;
+  webAccountTabProfile: string;
+  webAccountTabAddresses: string;
+  webAccountAddressSaved: string;
+  webAccountNameRequired: string;
+  webAccountDeleteAddress: string;
+  webAccountFallbackName: string;
+  webContactSendAnother: string;
+  webContactResponseNote: string;
+  webBlogReadingTime: string;
+  webBlogShare: string;
+  webBlogCopyLink: string;
+  webBlogLinkCopied: string;
+  webLegalContents: string;
+  webLegalEmpty: string;
+  webFooterCtaTitle: string;
+  webFooterCtaText: string;
+  webFooterAccountTitle: string;
+  webBackToTop: string;
+  webStarsOutOf: string;
+  webOpenMenu: string;
+  webCloseMenu: string;
+  webPrevious: string;
+  webNext: string;
+  webClose: string;
   webStickyBookText: string;
   webAppStoreLabel: string;
   webPlayStoreLabel: string;
@@ -1558,6 +1622,70 @@ export const DEFAULT_CUSTOMER_UI_COPY: ICustomerUiCopy = {
   webWorkTitle: 'Real jobs, real results',
   webWorkSubtitle: 'A look at treatments our technicians have carried out for homes, kitchens and offices.',
   webWorkCta: 'View full gallery',
+  webDetailNavOverview: 'Overview',
+  webDetailNavIncluded: 'What\'s included',
+  webDetailNavProcess: 'How it works',
+  webDetailNavReviews: 'Reviews',
+  webDetailNavFaq: 'FAQ',
+  webDetailBookingsCount: '{count}+ bookings',
+  webDetailRelatedTitle: 'You may also need',
+  webDetailSizesTitle: 'Prices by size',
+  webDetailReviewsSummary: 'Based on {count} reviews',
+  webDetailWhatsApp: 'WhatsApp us',
+  webBookProgress: 'Step {step} of {total}',
+  webBookStickyCta: 'Confirm booking',
+  webBookCouponMin: 'Add ₹{amount} more to use {code}',
+  webBookMissingStep: 'Please complete this step first',
+  webBookAddressError: 'Add the address where we should come.',
+  webBookFailedError: 'Could not place the booking. Please try again.',
+  webSuccessNextTitle: 'What happens next',
+  webSuccessNext1: 'We confirm your visit time and send you an update.',
+  webSuccessNext2: 'A verified technician is assigned before the visit.',
+  webSuccessNext3: 'Share the start code when they arrive, then relax.',
+  webSuccessAddCalendar: 'Add to calendar',
+  webSuccessBreakdownTitle: 'Price details',
+  webUnitMins: 'mins',
+  webUnitHr: 'hr',
+  webUnitHrs: 'hrs',
+  webUnitAm: 'AM',
+  webUnitPm: 'PM',
+  webUnitSqft: '/ sq ft',
+  webPestLabels: 'ant=Ant, cockroach=Cockroach, rodent=Rodent, mosquito=Mosquito, termite=Termite, bed_bug=Bed Bug, bird=Bird, flea=Flea, spider=Spider, lizard=Lizard, bee=Bee / Wasp, wood_borer=Wood Borer, general=General Pest, fumigation=Fumigation, deep_cleaning=Deep Cleaning, silo=Silo Treatment',
+  webPropertyLabels: '1bhk=1 BHK, 2bhk=2 BHK, 3bhk=3 BHK, 4bhk=4 BHK, bungalow=Bungalow, office=Office, cafe_restaurant=Cafe / Restaurant, hotel=Hotel, warehouse=Warehouse, factory=Factory',
+  webAuthIdentifierPlaceholder: 'you@email.com or 98765 43210',
+  webAuthPasswordPlaceholder: 'Enter your password',
+  webAuthShowPassword: 'Show password',
+  webAuthHidePassword: 'Hide password',
+  webAuthLoginError: 'Could not sign in. Please try again.',
+  webAuthRegisterError: 'Could not create your account. Please try again.',
+  webBookingTimelineTitle: 'Booking progress',
+  webBookingLive: 'Live',
+  webBookingKeep: 'Keep booking',
+  webBookingCancelError: 'Could not cancel this booking.',
+  webAccountTabProfile: 'Profile',
+  webAccountTabAddresses: 'Addresses',
+  webAccountAddressSaved: 'Address saved',
+  webAccountNameRequired: 'Name is required.',
+  webAccountDeleteAddress: 'Delete this address?',
+  webAccountFallbackName: 'Account',
+  webContactSendAnother: 'Send another message',
+  webContactResponseNote: 'We usually reply within a few hours.',
+  webBlogReadingTime: '{count} min read',
+  webBlogShare: 'Share',
+  webBlogCopyLink: 'Copy link',
+  webBlogLinkCopied: 'Link copied',
+  webLegalContents: 'On this page',
+  webLegalEmpty: 'This page is being updated. Please check back soon.',
+  webFooterCtaTitle: 'Ready for a pest-free space?',
+  webFooterCtaText: 'Book a certified expert in minutes, or talk to us first.',
+  webFooterAccountTitle: 'Your account',
+  webBackToTop: 'Back to top',
+  webStarsOutOf: '{value} out of 5',
+  webOpenMenu: 'Open menu',
+  webCloseMenu: 'Close menu',
+  webPrevious: 'Previous',
+  webNext: 'Next',
+  webClose: 'Close',
   webStickyBookText: 'Pest problem? Book in 60 seconds',
   webAppStoreLabel: 'App Store',
   webPlayStoreLabel: 'Google Play',
