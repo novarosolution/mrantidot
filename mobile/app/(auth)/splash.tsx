@@ -9,9 +9,13 @@ import { useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
 import type { StoredUser } from '@/lib/storage';
 
-const MIN_SPLASH_MS = 2800;
-const FOUND_HOLD_MS = 900;
+/** Signed-out launch: long enough to read the brand, never a wait for its own sake. */
+const MIN_SPLASH_MS = 1200;
+/** After "Serving <city>" appears, keep it up briefly so it can be read. */
+const FOUND_HOLD_MS = 500;
 const LOGGED_IN_MIN_MS = 350;
+/** Signed-out users wait at most this long for a GPS fix before moving on (the chip updates later). */
+const GPS_WAIT_MS = 2500;
 const LOCATION_DETECT_TIMEOUT_MS = 9000;
 
 function routeAfterSplash(user: StoredUser) {
@@ -27,8 +31,14 @@ export default function SplashScreen() {
   const { refreshLocation, displayLabel, location } = useLocation();
 
   const [phase, setPhase] = useState<'detecting' | 'found' | 'denied'>('detecting');
+  const [gpsWaitOver, setGpsWaitOver] = useState(false);
   const startedAt = useRef(Date.now());
   const navigated = useRef(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setGpsWaitOver(true), GPS_WAIT_MS);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +46,7 @@ export default function SplashScreen() {
       if (!cancelled) setPhase((current) => (current === 'detecting' ? 'denied' : current));
     }, LOCATION_DETECT_TIMEOUT_MS);
 
+    // Shares the provider's in-flight fix (LocationContext de-duplicates), so launch asks GPS once.
     void refreshLocation({ silent: true })
       .then((loc) => {
         if (cancelled) return;
@@ -60,11 +71,8 @@ export default function SplashScreen() {
     : displayLabel ?? undefined;
   const areaLabel = location?.area?.trim() || undefined;
 
-  const ready =
-    !authLoading &&
-    contentLoaded &&
-    phase !== 'detecting' &&
-    (Boolean(user) || phase === 'found' || phase === 'denied');
+  // Signed-in users never wait for GPS; signed-out users wait for the fix or GPS_WAIT_MS, whichever is first.
+  const ready = !authLoading && contentLoaded && (Boolean(user) || phase !== 'detecting' || gpsWaitOver);
 
   useEffect(() => {
     if (!ready || navigated.current) return;
@@ -90,10 +98,8 @@ export default function SplashScreen() {
   }, [phase, ready, user]);
 
   const brandName = useMemo(() => content.branding.name, [content.branding.name]);
-  const tagline = useMemo(
-    () => content.branding.tagline || 'Trusted pest control & home services',
-    [content.branding.tagline],
-  );
+  // Empty → LocationLaunchScreen shows the admin-editable fallback line.
+  const tagline = content.branding.tagline?.trim() || undefined;
   const trustChips = useMemo(
     () => content.onboarding.trustChips,
     [content.onboarding.trustChips],

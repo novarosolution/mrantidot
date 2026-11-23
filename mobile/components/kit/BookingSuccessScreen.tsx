@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowRight, Check } from 'lucide-react-native';
+import { ArrowRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path } from 'react-native-svg';
+import { formatRupeeFull } from '@/components/kit/format';
+import { getReducedMotion, useAmbientLoop } from '@/lib/a11yPrefs';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { useAuth } from '@/context/AuthContext';
 import { getCustomerTrackingSteps, useBookingCopy } from '@/lib/schedule-copy';
 import { bookingDetailPath, customerRoutes, appReplace } from '@/lib/routes';
-import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
+import { colors, fonts, premium, radii, spacing, typeScale, ui } from '@/constants/theme';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { haptic } from '@/lib/motion';
 
@@ -24,15 +27,15 @@ const CONFETTI: ConfettiSpec[] = [
   { left: '8%', delay: 0, color: colors.green, w: 7, h: 10 },
   { left: '18%', delay: 80, color: colors.amber, w: 6, h: 9 },
   { left: '28%', delay: 40, color: colors.green, w: 8, h: 11 },
-  { left: '38%', delay: 120, color: '#9AD3AE', w: 5, h: 8 },
+  { left: '38%', delay: 120, color: colors.limeOnDark, w: 5, h: 8 },
   { left: '48%', delay: 20, color: colors.green, w: 7, h: 10 },
-  { left: '58%', delay: 100, color: '#F2C26B', w: 6, h: 9 },
+  { left: '58%', delay: 100, color: colors.amber, w: 6, h: 9 },
   { left: '68%', delay: 60, color: colors.green, w: 8, h: 12 },
   { left: '78%', delay: 140, color: colors.amber, w: 5, h: 8 },
   { left: '88%', delay: 30, color: colors.green, w: 7, h: 10 },
-  { left: '14%', delay: 160, color: '#9AD3AE', w: 6, h: 9 },
+  { left: '14%', delay: 160, color: colors.limeOnDark, w: 6, h: 9 },
   { left: '44%', delay: 180, color: colors.green, w: 7, h: 10 },
-  { left: '74%', delay: 200, color: '#F2C26B', w: 6, h: 9 },
+  { left: '74%', delay: 200, color: colors.amber, w: 6, h: 9 },
 ] as const;
 
 function ConfettiPiece({
@@ -48,7 +51,8 @@ function ConfettiPiece({
   const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.sequence([
+    if (getReducedMotion()) return;
+    const anim = Animated.sequence([
       Animated.delay(delay),
       Animated.parallel([
         Animated.timing(opacity, { toValue: 1, duration: 120, useNativeDriver: true }),
@@ -72,7 +76,9 @@ function ConfettiPiece({
           useNativeDriver: true,
         }),
       ]),
-    ]).start();
+    ]);
+    anim.start();
+    return () => anim.stop();
   }, [delay, drift, fall, opacity, spin]);
 
   return (
@@ -107,52 +113,64 @@ function ConfettiPiece({
   );
 }
 
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+/** Check stroke inside the 96 pt disc; its length drives the draw (dasharray = length). */
+const CHECK_PATH = 'M29 50 L42 63 L68 35';
+const CHECK_LEN = 58;
+
+/**
+ * Success mark: the disc springs in, then the check is drawn stroke by stroke (react-native-svg
+ * dash offset), then two soft rings pulse while the screen is visible. Reduce Motion shows it drawn.
+ */
 function SuccessCheckHero() {
+  const reduced = getReducedMotion();
   const ring1 = useRef(new Animated.Value(0)).current;
   const ring2 = useRef(new Animated.Value(0)).current;
-  const circle = useRef(new Animated.Value(0)).current;
-  const check = useRef(new Animated.Value(0)).current;
+  const circle = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+  const draw = useRef(new Animated.Value(reduced ? 0 : CHECK_LEN)).current;
   const glow = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.sequence([
+    if (getReducedMotion()) return;
+    const anim = Animated.sequence([
       Animated.spring(circle, { toValue: 1, friction: 6, tension: 70, useNativeDriver: true }),
-      Animated.timing(check, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-    ]).start();
+      // Dash offset is an SVG prop — not on the native driver, but it is a one-off 380 ms draw.
+      Animated.timing(draw, { toValue: 0, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+    ]);
+    anim.start();
+    return () => anim.stop();
+  }, [circle, draw]);
 
-    function pulse(v: Animated.Value, delay: number) {
-      return Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(v, { toValue: 1, duration: 1400, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-          Animated.timing(v, { toValue: 0, duration: 0, useNativeDriver: true }),
-        ]),
-      );
-    }
-    pulse(ring1, 200).start();
-    pulse(ring2, 500).start();
-
+  const pulse = (v: Animated.Value, delay: number) =>
     Animated.loop(
       Animated.sequence([
-        Animated.timing(glow, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(glow, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.delay(delay),
+        Animated.timing(v, { toValue: 1, duration: 1400, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 0, duration: 0, useNativeDriver: true }),
       ]),
-    ).start();
-  }, [check, circle, glow, ring1, ring2]);
+    );
+  useAmbientLoop(() => pulse(ring1, 600), [ring1]);
+  useAmbientLoop(() => pulse(ring2, 900), [ring2]);
+  useAmbientLoop(
+    () =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(glow, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(glow, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ]),
+      ),
+    [glow],
+  );
 
   function ringStyle(v: Animated.Value) {
     return {
       opacity: v.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.45, 0] }),
-      transform: [
-        {
-          scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1.35] }),
-        },
-      ],
+      transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1.35] }) }],
     };
   }
 
   return (
-    <View style={styles.heroWrap}>
+    <View style={styles.heroWrap} accessible accessibilityRole="image">
       <Animated.View style={[styles.ring, ringStyle(ring1)]} />
       <Animated.View style={[styles.ring, styles.ring2, ringStyle(ring2)]} />
       <Animated.View
@@ -160,30 +178,26 @@ function SuccessCheckHero() {
           styles.glow,
           {
             opacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.75] }),
-            transform: [
-              {
-                scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.08] }),
-              },
-            ],
+            transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.08] }) }],
           },
         ]}
       />
       <Animated.View
-        style={[
-          styles.checkCircle,
-          {
-            transform: [
-              {
-                scale: circle.interpolate({ inputRange: [0, 1], outputRange: [0.2, 1] }),
-              },
-            ],
-          },
-        ]}
+        style={[styles.checkCircle, { transform: [{ scale: circle.interpolate({ inputRange: [0, 1], outputRange: [0.2, 1] }) }] }]}
       >
         <View style={styles.checkGradient}>
-          <Animated.View style={{ opacity: check, transform: [{ scale: check }] }}>
-            <Check size={46} color={colors.white} strokeWidth={3.2} />
-          </Animated.View>
+          <Svg width={96} height={96} viewBox="0 0 96 96">
+            <AnimatedPath
+              d={CHECK_PATH}
+              stroke={colors.white}
+              strokeWidth={7}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+              strokeDasharray={`${CHECK_LEN} ${CHECK_LEN}`}
+              strokeDashoffset={draw}
+            />
+          </Svg>
         </View>
       </Animated.View>
     </View>
@@ -247,15 +261,17 @@ export function BookingSuccessScreen({
     <View style={styles.root}>
       <FocusStatusBar style="dark" />
       <LinearGradient
-        colors={['#EAF4EC', 'rgba(234,244,236,0)']}
+        colors={[ui.brandSoft, 'rgba(234,244,236,0)']}
         style={styles.wash}
         pointerEvents="none"
       />
-      <View style={styles.confettiLayer} pointerEvents="none">
-        {CONFETTI.map((piece, index) => (
-          <ConfettiPiece key={index} {...piece} />
-        ))}
-      </View>
+      {getReducedMotion() ? null : (
+        <View style={styles.confettiLayer} pointerEvents="none">
+          {CONFETTI.map((piece, index) => (
+            <ConfettiPiece key={index} {...piece} />
+          ))}
+        </View>
+      )}
 
       <SafeAreaView style={styles.safe} edges={['left', 'right', 'top']}>
         <ScrollView
@@ -266,7 +282,9 @@ export function BookingSuccessScreen({
 
           <FadeSlideIn delay={180} slideFrom={16}>
             <View style={styles.titleBlock}>
-              <Text style={styles.title}>{bookingCopy.requestSubmittedToast}</Text>
+              <Text style={styles.title} accessibilityRole="header">
+                {bookingCopy.requestSubmittedToast}
+              </Text>
               <Text style={styles.subtitle}>{bookingCopy.pendingCustomerHint}</Text>
             </View>
           </FadeSlideIn>
@@ -280,7 +298,7 @@ export function BookingSuccessScreen({
               {paymentLabel ? <SummaryRow label={bookingCopy.successLabelPayment} value={paymentLabel} /> : null}
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>{bookingCopy.successLabelTotal}</Text>
-                <Text style={styles.totalValue}>₹{Math.round(total).toLocaleString('en-IN')}</Text>
+                <Text style={styles.totalValue}>{formatRupeeFull(total)}</Text>
               </View>
             </View>
           </FadeSlideIn>
@@ -304,15 +322,15 @@ export function BookingSuccessScreen({
         </ScrollView>
 
         <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-          <PressableScale style={styles.primary} onPress={viewBooking} accessibilityRole="button">
+          <PressableScale style={styles.primary} onPress={viewBooking} haptic="tap" accessibilityRole="button">
             <Text style={styles.primaryText}>{bookingCopy.successViewBookingButton}</Text>
             <View style={styles.primaryArrow}>
               <ArrowRight size={15} color={ui.brand} strokeWidth={2.6} />
             </View>
           </PressableScale>
-          <Pressable style={({ pressed }) => [styles.homeBtn, pressed && styles.pressed]} onPress={goHome}>
+          <PressableScale style={styles.homeBtn} onPress={goHome} haptic="tap" accessibilityRole="button">
             <Text style={styles.homeText}>{bookingCopy.successHomeButton}</Text>
-          </Pressable>
+          </PressableScale>
         </View>
       </SafeAreaView>
     </View>
@@ -345,7 +363,7 @@ const styles = StyleSheet.create({
     height: 54,
     paddingLeft: 22,
     paddingRight: 8,
-    borderRadius: 27,
+    borderRadius: radii.pill,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -353,7 +371,7 @@ const styles = StyleSheet.create({
     backgroundColor: ui.brand,
     ...ui.shadowFloat,
   },
-  primaryText: { fontFamily: fonts.bodyBold, fontSize: 15.5, color: colors.white },
+  primaryText: { ...typeScale.button, color: colors.white },
   primaryArrow: {
     width: 38,
     height: 38,
@@ -381,7 +399,7 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 2,
-    borderColor: 'rgba(10,100,35,0.22)',
+    borderColor: ui.brand,
   },
   ring2: { width: 148, height: 148, borderRadius: 74 },
   glow: {
@@ -405,17 +423,9 @@ const styles = StyleSheet.create({
     backgroundColor: ui.brand,
   },
   titleBlock: { alignItems: 'center', marginBottom: spacing.lg },
-  title: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 26,
-    color: ui.text,
-    textAlign: 'center',
-    letterSpacing: -0.4,
-    lineHeight: 34,
-  },
+  title: { ...typeScale.title, color: ui.text, textAlign: 'center' },
   subtitle: {
-    fontFamily: fonts.body,
-    fontSize: 14,
+    ...typeScale.body,
     color: ui.textSecondary,
     textAlign: 'center',
     marginTop: 10,
@@ -424,20 +434,13 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.white,
-    borderRadius: 20,
+    borderRadius: radii.card,
     padding: spacing.md + 4,
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: ui.border,
   },
-  cardTitle: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 11.5,
-    color: ui.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: spacing.md,
-  },
+  cardTitle: { ...typeScale.label, color: ui.textTertiary, marginBottom: spacing.md },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -463,7 +466,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   totalLabel: { fontFamily: fonts.bodyBold, fontSize: 15, color: ui.text },
-  totalValue: { fontFamily: fonts.displayExtra, fontSize: 22, color: ui.text },
+  totalValue: { ...typeScale.priceLg, color: ui.text },
   footer: {
     position: 'absolute',
     left: 0,
@@ -481,8 +484,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 12,
+    minHeight: 44,
   },
-  homeText: { fontFamily: fonts.bodyBold, fontSize: 14.5, color: ui.brand },
-  pressed: { opacity: 0.88 },
+  homeText: { ...typeScale.button, fontSize: 14.5, color: ui.brand },
 });

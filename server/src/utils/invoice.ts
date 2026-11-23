@@ -2,7 +2,7 @@ import { AppContent, DEFAULT_APP_CONFIG } from '../models/AppContent';
 import type { IBooking } from '../models/Booking';
 import type { IService } from '../models/Service';
 import type { IUser } from '../models/User';
-import { PROPERTY_TYPE_LABELS } from '../constants/propertyTypes';
+import { getBusinessSettings, listLabel } from './businessSettings';
 import { formatScheduleSummary } from './schedule';
 
 function asUser(value: unknown): IUser | undefined {
@@ -40,6 +40,12 @@ export type BookingInvoice = {
   issuedAt: string;
   brand: { name: string; tagline: string };
   support: { phone: string; email: string; hours?: string };
+  /** Business details printed on the invoice (Business settings → Tax & invoice); empty fields are left out. */
+  seller: { legalName?: string; gstin?: string; address?: string };
+  /** GST rate the booking was charged at, and its line label ("GST (18%)"). */
+  tax: { gstPercent: number; label: string };
+  /** Closing line (admin footer, or the built-in thank-you). */
+  footer: string;
   booking: {
     id: string;
     status: string;
@@ -72,9 +78,11 @@ export type BookingInvoice = {
     id: string;
     name: string;
     category?: string;
+    categoryLabel?: string;
     shortDesc?: string;
     iconKey?: string;
     serviceTypes: string[];
+    serviceTypeLabels: string[];
     basePrice?: number;
   };
   steps: Array<{
@@ -92,16 +100,17 @@ export type BookingInvoice = {
   text: string;
 };
 
-function paymentLabel(method: string): string {
-  if (method === 'pay_after') return 'Pay after service';
-  if (method === 'upi_card') return 'UPI / Card';
-  return method.replace(/_/g, ' ');
-}
+const DEFAULT_FOOTER = 'Thank you for choosing trusted pest control & home care.';
 
 function buildInvoiceText(invoice: Omit<BookingInvoice, 'text'>): string {
   const lines: string[] = [
     invoice.brand.name.toUpperCase(),
     invoice.brand.tagline,
+  ];
+  if (invoice.seller.legalName) lines.push(invoice.seller.legalName);
+  if (invoice.seller.address) lines.push(invoice.seller.address);
+  if (invoice.seller.gstin) lines.push(`GSTIN ${invoice.seller.gstin}`);
+  lines.push(
     '',
     'TAX INVOICE / SERVICE RECEIPT',
     `Invoice  ${invoice.invoiceNumber}`,
@@ -110,17 +119,17 @@ function buildInvoiceText(invoice: Omit<BookingInvoice, 'text'>): string {
     '',
     '— Bill to —',
     invoice.customer.name,
-  ];
+  );
 
   if (invoice.customer.phone) lines.push(`Phone  ${invoice.customer.phone}`);
   if (invoice.customer.email) lines.push(`Email  ${invoice.customer.email}`);
   if (invoice.customer.city) lines.push(`City   ${invoice.customer.city}`);
 
   lines.push('', '— Service details —', invoice.service.name);
-  if (invoice.service.category) lines.push(`Category   ${invoice.service.category}`);
+  if (invoice.service.category) lines.push(`Category   ${invoice.service.categoryLabel || invoice.service.category}`);
   if (invoice.service.shortDesc) lines.push(invoice.service.shortDesc);
-  if (invoice.service.serviceTypes.length) {
-    lines.push(`Coverage   ${invoice.service.serviceTypes.join(', ')}`);
+  if (invoice.service.serviceTypeLabels.length) {
+    lines.push(`Coverage   ${invoice.service.serviceTypeLabels.join(', ')}`);
   }
   if (invoice.booking.propertyTypeLabel) {
     lines.push(`Property   ${invoice.booking.propertyTypeLabel}`);
@@ -153,7 +162,7 @@ function buildInvoiceText(invoice: Omit<BookingInvoice, 'text'>): string {
     lines.push(`Coupon discount -${rupee(invoice.amount.coupon)}`);
   }
   lines.push(
-    `GST (18%)       ${rupee(invoice.amount.gst)}`,
+    `${invoice.tax.label.padEnd(15)} ${rupee(invoice.amount.gst)}`,
     `TOTAL           ${rupee(invoice.amount.total)}`,
     '',
   );
@@ -166,13 +175,13 @@ function buildInvoiceText(invoice: Omit<BookingInvoice, 'text'>): string {
     lines.push('');
   }
 
-  lines.push('Thank you for choosing trusted pest control & home care.', `Booking ID ${invoice.booking.id}`);
+  lines.push(invoice.footer, `Booking ID ${invoice.booking.id}`);
   return lines.join('\n');
 }
 
 /** Build a premium client invoice from a populated booking. */
 export async function buildBookingInvoice(booking: IBooking): Promise<BookingInvoice> {
-  const appDoc = await AppContent.findOne({ key: 'app' });
+  const [appDoc, settings] = await Promise.all([AppContent.findOne({ key: 'app' }), getBusinessSettings()]);
   const branding = appDoc?.appConfig?.branding ?? DEFAULT_APP_CONFIG.branding;
   const support = appDoc?.appConfig?.support ?? DEFAULT_APP_CONFIG.support;
 
@@ -180,11 +189,13 @@ export async function buildBookingInvoice(booking: IBooking): Promise<BookingInv
   const technician = asUser(booking.technicianId);
   const service = asService(booking.serviceId);
   const bookingId = oid(booking._id);
-  const invoiceNumber = `INV-${bookingId.slice(-8).toUpperCase()}`;
+  const invoiceNumber = `${settings.invoice.prefix}${bookingId.slice(-8).toUpperCase()}`;
   const propertyType = booking.propertyType;
-  const propertyTypeLabel = propertyType
-    ? PROPERTY_TYPE_LABELS[propertyType] ?? propertyType
-    : undefined;
+  const propertyTypeLabel = propertyType ? listLabel(settings.lists.propertyTypes, propertyType) : undefined;
+  // The rate is stored with the amount; bookings made before it was stored were all charged 18%.
+  const storedPct = (booking.amount as { gstPercent?: unknown } | undefined)?.gstPercent;
+  const gstPercent = typeof storedPct === 'number' && Number.isFinite(storedPct) ? storedPct : 18;
+  const serviceTypes: string[] = Array.isArray(service?.serviceTypes) ? [...service.serviceTypes] : [];
 
   const steps = (booking.steps ?? []).map((s) => {
     const photoUrls = Array.isArray(s.photoUrls)
@@ -218,6 +229,13 @@ export async function buildBookingInvoice(booking: IBooking): Promise<BookingInv
       email: support.email,
       hours: support.hours,
     },
+    seller: {
+      ...(settings.invoice.legalName ? { legalName: settings.invoice.legalName } : {}),
+      ...(settings.invoice.gstin ? { gstin: settings.invoice.gstin } : {}),
+      ...(settings.invoice.address ? { address: settings.invoice.address } : {}),
+    },
+    tax: { gstPercent, label: `GST (${gstPercent}%)` },
+    footer: settings.invoice.footer || DEFAULT_FOOTER,
     booking: {
       id: bookingId,
       status: booking.status,
@@ -231,7 +249,7 @@ export async function buildBookingInvoice(booking: IBooking): Promise<BookingInv
       propertyType,
       propertyTypeLabel,
       paymentMethod: booking.paymentMethod,
-      paymentMethodLabel: paymentLabel(booking.paymentMethod),
+      paymentMethodLabel: listLabel(settings.payments.methods, booking.paymentMethod),
       couponCode: booking.couponCode,
     },
     customer: {
@@ -252,9 +270,11 @@ export async function buildBookingInvoice(booking: IBooking): Promise<BookingInv
       id: service ? oid(service._id) : oid(booking.serviceId),
       name: service?.name ?? 'Service',
       category: service?.category,
+      categoryLabel: service?.category ? listLabel(settings.lists.categories, service.category) : undefined,
       shortDesc: service?.shortDesc,
       iconKey: service?.iconKey,
-      serviceTypes: Array.isArray(service?.serviceTypes) ? [...service.serviceTypes] : [],
+      serviceTypes,
+      serviceTypeLabels: serviceTypes.map((t) => listLabel(settings.lists.pestTypes, t)),
       basePrice: service?.basePrice,
     },
     steps,

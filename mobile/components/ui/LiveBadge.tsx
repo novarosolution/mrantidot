@@ -1,6 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts } from '@/constants/theme';
+import { colors, fonts, radii } from '@/constants/theme';
+import { useAmbientLoop } from '@/lib/a11yPrefs';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 type LiveBadgeProps = {
   /** Dark surfaces (booking hero) use lime; light headers use forest. */
@@ -8,36 +10,31 @@ type LiveBadgeProps = {
   label?: string;
 };
 
-/** Pulsing colored-dot “Live” pill — shared by customer booking + tech job. */
-export function LiveBadge({ tone = 'light', label = 'Live' }: LiveBadgeProps) {
+/**
+ * Pulsing coloured-dot "Live" pill — shared by customer booking + tech job.
+ * The pulse pauses off-screen, in the background and with Reduce Motion (the dot stays lit).
+ */
+export function LiveBadge({ tone = 'light', label }: LiveBadgeProps) {
+  const copy = useCustomerUiCopy();
+  const text = label ?? copy.liveBadgeLabel;
   const pulse = useRef(new Animated.Value(1)).current;
   const dark = tone === 'dark';
 
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1.35,
-          duration: 700,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 700,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [pulse]);
+  useAmbientLoop(
+    () =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulse, { toValue: 1.35, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ]),
+      ),
+    [pulse],
+  );
 
   return (
     <View
       accessibilityRole="text"
-      accessibilityLabel={`${label} status`}
+      accessibilityLabel={text}
       style={[styles.badge, dark ? styles.badgeDark : styles.badgeLight]}
     >
       <Animated.View
@@ -46,7 +43,7 @@ export function LiveBadge({ tone = 'light', label = 'Live' }: LiveBadgeProps) {
           { backgroundColor: dark ? colors.lime : colors.forest, transform: [{ scale: pulse }] },
         ]}
       />
-      <Text style={[styles.text, dark ? styles.textDark : styles.textLight]}>{label}</Text>
+      <Text style={[styles.text, dark ? styles.textDark : styles.textLight]}>{text}</Text>
     </View>
   );
 }
@@ -58,7 +55,7 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 999,
+    borderRadius: radii.pill,
     borderWidth: 1,
   },
   badgeLight: {

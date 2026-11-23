@@ -10,6 +10,7 @@ import { isProfileIncomplete } from '@/lib/profile-display';
 import { appHref, authRoutes, customerRoutes, homeRouteForRole } from '@/lib/routes';
 import { Platform } from 'react-native';
 import { WebAdminRedirect } from '@/components/admin/WebAdminRedirect';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 const Tab = AppIcons.customerTab;
 
@@ -34,6 +35,7 @@ function CustomerLayout() {
   const { user, isLoading } = useAuth();
   const segments = useSegments();
   const tabBarStyle = useDockTabBarStyle();
+  const copy = useCustomerUiCopy();
 
   if (isLoading) return <Spinner fullScreen />;
   if (!user) return <Redirect href={authRoutes.login} />;
@@ -67,18 +69,22 @@ function CustomerLayout() {
         },
         tabBarButton: (props) => <KitTabBarButton {...props} />,
         tabBarHideOnKeyboard: true,
+        // Hidden tabs stop re-rendering (their decorative loops also pause via useAmbientLoop).
+        freezeOnBlur: true,
+        sceneStyle: { backgroundColor: ui.canvas },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color, focused }) => <KitTabBarIcon icon={Tab.home} color={color} focused={focused} /> }} />
-      <Tabs.Screen name="bookings" options={{ title: 'Bookings', tabBarIcon: ({ color, focused }) => <KitTabBarIcon icon={Tab.bookings} color={color} focused={focused} /> }} />
-      <Tabs.Screen name="offers" options={{ title: 'Offers', tabBarIcon: ({ color, focused }) => <KitTabBarIcon icon={Tab.offers} color={color} focused={focused} /> }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color, focused }) => <KitTabBarIcon icon={Tab.profile} color={color} focused={focused} /> }} />
+      <Tabs.Screen name="index" options={{ title: copy.customerTabHome, tabBarIcon: ({ color, focused }) => <KitTabBarIcon icon={Tab.home} color={color} focused={focused} /> }} />
+      <Tabs.Screen name="bookings" options={{ title: copy.customerTabBookings, tabBarIcon: ({ color, focused }) => <KitTabBarIcon icon={Tab.bookings} color={color} focused={focused} /> }} />
+      <Tabs.Screen name="offers" options={{ title: copy.customerTabOffers, tabBarIcon: ({ color, focused }) => <KitTabBarIcon icon={Tab.offers} color={color} focused={focused} /> }} />
+      <Tabs.Screen name="profile" options={{ title: copy.customerTabProfile, tabBarIcon: ({ color, focused }) => <KitTabBarIcon icon={Tab.profile} color={color} focused={focused} /> }} />
       <Tabs.Screen name="services" options={{ href: null }} />
       <Tabs.Screen name="notifications" options={{ href: null }} />
       <Tabs.Screen name="addresses" options={{ href: null }} />
       <Tabs.Screen name="payment-methods" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />
-      <Tabs.Screen name="booking" options={{ href: null }} />
+      {/* Booking detail has its own sticky actions — no tab bar there (set once, so it never flashes). */}
+      <Tabs.Screen name="booking" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="help" options={{ href: null }} />
       <Tabs.Screen name="book-guide" options={{ href: null }} />
       <Tabs.Screen name="faq" options={{ href: null }} />

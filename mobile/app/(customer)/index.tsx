@@ -21,25 +21,40 @@ import { ServiceListRow } from '@/components/kit/ServiceListRow';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { ServiceRowsSkeleton } from '@/components/kit/ScreenSkeletons';
 import { useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
-import axios from 'axios';
-import { api, checkHealth, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
+import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
-import { config } from '@/lib/config';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { stagger } from '@/lib/motion';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { serviceDisplayRating } from '@/lib/ratings';
 import { afterInteractions } from '@/lib/useScreenLoad';
 import type { Booking, Offer, Service } from '@/types/api';
 import { nextActiveBooking } from '@/lib/booking-helpers';
 import type { ServiceTypeKey } from '@/constants/serviceTypes';
-import { colors, fonts, ui } from '@/constants/theme';
+import { colors, typeScale, ui } from '@/constants/theme';
 import { bookingDetailPath, customerRoutes, sharedRoutes, appPush } from '@/lib/routes';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { serviceStartPrice } from '@/lib/serviceDisplay';
 
 const RAIL_LIMIT = 8;
+/** Search results render inline in the feed; past this, "See all" opens the full Services list. */
+const RESULTS_LIMIT = 20;
+
+/**
+ * Status-bar glyphs follow the sticky search bar (light on the green header, dark once pinned).
+ * Lives in its own component and listens imperatively, so pinning never re-renders the whole feed.
+ */
+function StuckStatusBar({ subscribe }: { subscribe: (cb: (stuck: boolean) => void) => () => void }) {
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => subscribe(setStuck), [subscribe]);
+  return <FocusStatusBar style={stuck ? 'dark' : 'light'} />;
+}
 
 /** CMS titles still on the legacy defaults get the newer Urban-style wording. */
 function preferTitle(cms: string | undefined, legacy: string[], next: string): string {
@@ -70,8 +85,15 @@ export default function CustomerHome() {
   const topBarHeightRef = useRef(0);
   const insets = useSafeAreaInsets();
   /** True once the search bar is pinned to the top — the status strip turns light grey and its icons dark. */
-  const [stuck, setStuck] = useState(false);
   const stuckRef = useRef(false);
+  const stuckListeners = useRef(new Set<(stuck: boolean) => void>());
+  const subscribeStuck = useCallback((cb: (stuck: boolean) => void) => {
+    stuckListeners.current.add(cb);
+    cb(stuckRef.current);
+    return () => {
+      stuckListeners.current.delete(cb);
+    };
+  }, []);
   const [searchBarHeight, setSearchBarHeight] = useState(0);
 
   const brandName = content.branding.name?.trim() || 'Mr Antidot';
@@ -149,15 +171,8 @@ export default function CustomerHome() {
       try {
         await loadServices();
       } catch (err) {
-        let msg = getApiErrorMessage(err, 'Could not load services');
-        if (axios.isAxiosError(err) && !err.response) {
-          try {
-            await checkHealth();
-          } catch (healthErr) {
-            msg = getApiErrorMessage(healthErr, `Network error — ${config.apiUrl}`);
-          }
-        }
-        setLoadError(msg);
+        // The error card turns transport failures into friendly copy — no API address on screen.
+        setLoadError(getApiErrorMessage(err, copy.homeLoadFailed));
         setServices([]);
       } finally {
         setLoading(false);
@@ -255,7 +270,7 @@ export default function CustomerHome() {
       out.push({
         key: 'offer',
         kicker: copy.homeHeroKicker,
-        title: `Get ${amount} off with code ${offer.code}`,
+        title: fillCopy(copy.homeSlideOffer, { amount, code: offer.code }),
         cta,
         art: SERVICE_TYPE_IMAGES.general,
         onPress: () => appPush(customerRoutes.services),
@@ -267,7 +282,7 @@ export default function CustomerHome() {
         key: s.id,
         // The pest type is the kicker unless the service name already says it ("Bird Management").
         kicker: s.name.toLowerCase().includes(meta.label.toLowerCase()) ? copy.homeHeroKicker : meta.label,
-        title: `${s.name} from ${formatRupeeFull(serviceStartPrice(s))}`,
+        title: fillCopy(copy.homeSlideService, { service: s.name, price: formatRupeeFull(serviceStartPrice(s)) }),
         cta,
         art: meta.image,
         onPress: () => openService(s),
@@ -292,7 +307,7 @@ export default function CustomerHome() {
       await Promise.all([refreshHome(), loadUnread(true), loadExtras(true), loadServices(true)]);
       setLoadError(null);
     } catch (err) {
-      setLoadError(getApiErrorMessage(err, 'Could not refresh'));
+      setLoadError(getApiErrorMessage(err, copy.homeRefreshFailed));
     } finally {
       setRefreshing(false);
     }
@@ -304,7 +319,7 @@ export default function CustomerHome() {
       await Promise.all([refreshHome(), loadUnread(true), loadServices(true)]);
       setLoadError(null);
     } catch (err) {
-      setLoadError(getApiErrorMessage(err, 'Could not load services'));
+      setLoadError(getApiErrorMessage(err, copy.homeLoadFailed));
     } finally {
       setLoading(false);
     }
@@ -322,15 +337,29 @@ export default function CustomerHome() {
     const next = topBarHeightRef.current > 0 && e.nativeEvent.contentOffset.y >= topBarHeightRef.current - 1;
     if (next !== stuckRef.current) {
       stuckRef.current = next;
-      setStuck(next);
+      stuckListeners.current.forEach((cb) => cb(next));
     }
   }, []);
+
+  /** Hairline + status strip fade in as the search bar pins — built once per header height, not per render. */
+  const pinFade = useMemo(
+    () =>
+      topBarHeight > 0
+        ? scrollY.interpolate({ inputRange: [topBarHeight - 1, topBarHeight + 6], outputRange: [0, 1], extrapolate: 'clamp' })
+        : 0,
+    [scrollY, topBarHeight],
+  );
+  const onScroll = useMemo(
+    () => Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true, listener: onScrollJs }),
+    [onScrollJs, scrollY],
+  );
 
   if (!user) return <Spinner fullScreen />;
 
   if (loadError && services.length === 0 && !loading) {
+    // Light canvas behind the error card → dark status-bar glyphs (never dark-on-green).
     return (
-      <View style={styles.root}>
+      <View style={[styles.root, styles.rootError]}>
         <FocusStatusBar style="dark" />
         <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
           <ListEmptyRetry message={loadError} onRetry={() => safeAsync(retryLoad)} />
@@ -341,20 +370,12 @@ export default function CustomerHome() {
 
   /** One aurora spans top bar + search + promo so the header reads as a single animated surface. */
   const headerHeight = topBarHeight + searchBarHeight + (searching ? 0 : HERO_SLIDE_H) || 420;
-
-  const dividerOpacity =
-    topBarHeight > 0
-      ? scrollY.interpolate({
-          inputRange: [topBarHeight - 1, topBarHeight + 6],
-          outputRange: [0, 1],
-          extrapolate: 'clamp',
-        })
-      : 0;
+  const shownResults = services.slice(0, RESULTS_LIMIT);
 
 
   return (
     <View style={styles.root}>
-      <FocusStatusBar style={stuck ? 'dark' : 'light'} />
+      <StuckStatusBar subscribe={subscribeStuck} />
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <Animated.ScrollView
           ref={scrollRef}
@@ -367,10 +388,7 @@ export default function CustomerHome() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ui.textTertiary} />
           }
           showsVerticalScrollIndicator={false}
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-            useNativeDriver: true,
-            listener: onScrollJs,
-          })}
+          onScroll={onScroll}
           scrollEventThrottle={16}
           {...customerScrollProps}
         >
@@ -390,7 +408,7 @@ export default function CustomerHome() {
             onSubmit={() => safeAsync(() => loadServices())}
             hints={searchHints}
             fallbackPlaceholder={homeConfig.searchPlaceholder}
-            dividerOpacity={dividerOpacity}
+            dividerOpacity={pinFade}
             background="transparent"
             onLayout={(e) => setSearchBarHeight(e.nativeEvent.layout.height)}
           />
@@ -399,27 +417,39 @@ export default function CustomerHome() {
 
           {searching ? (
             <View style={[styles.block, styles.results]}>
-              <Text style={styles.resultsTitle} numberOfLines={1}>
+              <Text style={styles.resultsTitle} numberOfLines={1} accessibilityLiveRegion="polite">
                 {searchPending
-                  ? 'Searching…'
-                  : `${services.length} ${services.length === 1 ? 'result' : 'results'} for “${debouncedQ.trim()}”`}
+                  ? copy.homeSearching
+                  : services.length === 1
+                    ? fillCopy(copy.homeResultsOne, { query: debouncedQ.trim() })
+                    : fillCopy(copy.homeResultsMany, { count: services.length, query: debouncedQ.trim() })}
               </Text>
               {searchPending && services.length === 0 ? (
-                <View style={styles.loadingBox}>
-                  <Spinner />
-                </View>
+                <ServiceRowsSkeleton rows={3} />
               ) : !searchPending && services.length === 0 ? (
                 <HomeServicesEmpty filtered />
               ) : (
-                services.map((s, i) => (
-                  <ServiceListRow
-                    key={s.id}
-                    service={s}
-                    onPress={() => openService(s)}
-                    onBook={() => bookService(s)}
-                    showDivider={i < services.length - 1}
-                  />
-                ))
+                <>
+                  {shownResults.map((s, i) => (
+                    <ServiceListRow
+                      key={s.id}
+                      service={s}
+                      onPress={() => openService(s)}
+                      onBook={() => bookService(s)}
+                      showDivider={i < shownResults.length - 1}
+                    />
+                  ))}
+                  {services.length > RESULTS_LIMIT ? (
+                    <PressableScale
+                      style={styles.moreResults}
+                      onPress={() => appPush(customerRoutes.services)}
+                      haptic="tap"
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.moreResultsText}>{fillCopy(copy.homeSeeAllResults, { count: services.length })}</Text>
+                    </PressableScale>
+                  ) : null}
+                </>
               )}
             </View>
           ) : (
@@ -432,7 +462,7 @@ export default function CustomerHome() {
                       offers[0]
                         ? {
                             value: offers[0].discountType === 'percent' ? `${offers[0].discount}%` : `₹${offers[0].discount}`,
-                            label: 'Offers',
+                            label: copy.homeOffersTile,
                             onPress: () => appPush(customerRoutes.offers),
                           }
                         : null
@@ -448,17 +478,17 @@ export default function CustomerHome() {
               </View>
 
               {nextVisit ? (
-                <View style={[styles.block, styles.blockTight]}>
+                <FadeSlideIn delay={stagger(1)} style={[styles.block, styles.blockTight]}>
                   <HomeNextVisitCard
                     booking={nextVisit}
                     onPress={() => appPush(bookingDetailPath(user.role, nextVisit.id))}
                   />
-                </View>
+                </FadeSlideIn>
               ) : null}
 
 
               {spotlight.length > 0 ? (
-                <View style={styles.block}>
+                <FadeSlideIn delay={stagger(2)} style={styles.block}>
                   <SpotlightCarousel
                     title={copy.homeSpotlightTitle}
                     services={spotlight}
@@ -466,45 +496,48 @@ export default function CustomerHome() {
                     onOpen={openService}
                     onBook={bookService}
                   />
-                </View>
+                </FadeSlideIn>
               ) : null}
 
               {newest.length >= 3 ? (
-                <View style={styles.block}>
-                  <NewArrivalsRail title="Newly added" services={newest} onOpen={openService} />
-                </View>
+                <FadeSlideIn delay={stagger(3)} style={styles.block}>
+                  <NewArrivalsRail title={copy.homeNewlyAdded} services={newest} onOpen={openService} />
+                </FadeSlideIn>
               ) : null}
 
-              <View style={styles.block}>
-                {mostBooked.length > 0 ? (
+              {/* Only a band when there is something in it (rail or its loading shimmer). */}
+              {mostBooked.length > 0 ? (
+                <FadeSlideIn delay={stagger(4)} style={styles.block}>
                   <HomeServiceRail
-                    title={preferTitle(homeConfig.sectionTitles.popular, ['Popular now'], 'Most booked services')}
+                    title={preferTitle(homeConfig.sectionTitles.popular, ['Popular now'], copy.homeMostBookedTitle)}
                     services={mostBooked}
                     firstBadge={copy.homePopularBadge}
                     onSeeAll={() => appPush(customerRoutes.services)}
                     onOpen={openService}
                     onAdd={bookService}
                   />
-                ) : catalogLoading ? (
-                  <MostBookedRailSkeleton />
-                ) : null}
-              </View>
-
-              {offers.length > 0 ? (
+                </FadeSlideIn>
+              ) : catalogLoading ? (
                 <View style={styles.block}>
-                  <HomeOffersRail offers={offers} onSeeAll={() => appPush(customerRoutes.offers)} />
+                  <MostBookedRailSkeleton />
                 </View>
               ) : null}
 
+              {offers.length > 0 ? (
+                <FadeSlideIn delay={stagger(5)} style={styles.block}>
+                  <HomeOffersRail offers={offers} onSeeAll={() => appPush(customerRoutes.offers)} />
+                </FadeSlideIn>
+              ) : null}
+
               {homeTypes.length > 0 ? (
-                <View style={styles.block}>
+                <FadeSlideIn delay={stagger(6)} style={styles.block}>
                   <CurationsRail
                     title={copy.homeCurationsTitle}
                     subtitle={copy.homeCurationsSub}
                     types={homeTypes.slice(0, 8)}
                     onOpen={(t) => appPush(sharedRoutes.browse(t))}
                   />
-                </View>
+                </FadeSlideIn>
               ) : null}
 
               {categoryRails.map((rail, i) => (
@@ -520,7 +553,7 @@ export default function CustomerHome() {
                       />
                     </View>
                   ) : null}
-                <View style={styles.block}>
+                <FadeSlideIn delay={stagger(6)} style={styles.block}>
                   <HomeServiceRail
                     title={rail.title}
                     subtitle={rail.subtitle}
@@ -529,7 +562,7 @@ export default function CustomerHome() {
                     onOpen={openService}
                     onAdd={bookService}
                   />
-                </View>
+                </FadeSlideIn>
                 </View>
               ))}
 
@@ -549,10 +582,7 @@ export default function CustomerHome() {
           styles.strip,
           {
             height: insets.top,
-            opacity:
-              topBarHeight > 0
-                ? scrollY.interpolate({ inputRange: [topBarHeight - 1, topBarHeight + 6], outputRange: [0, 1], extrapolate: 'clamp' })
-                : 0,
+            opacity: pinFade,
           },
         ]}
       />
@@ -564,23 +594,19 @@ const styles = StyleSheet.create({
   strip: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: SEARCH_BAND },
   /** Status-bar strip matches the top of the header gradient. */
   root: { flex: 1, backgroundColor: HOME_HERO_TOP },
+  rootError: { backgroundColor: ui.canvas },
   safe: { flex: 1 },
   flex: { flex: 1 },
-  content: { paddingBottom: TAB_BAR_SCROLL_PAD + 8, flexGrow: 1, backgroundColor: ui.surfaceMuted },
+  content: { paddingBottom: TAB_BAR_SCROLL_PAD + 8, flexGrow: 1, backgroundColor: ui.canvas },
   /** Each feed section is a white block on the grey canvas (Urban-style). */
   block: { backgroundColor: colors.white, paddingVertical: 24, marginTop: 8 },
-  featureBlock: { backgroundColor: '#FFFFFF', paddingTop: 24, paddingBottom: 8, marginTop: 8 },
+  featureBlock: { backgroundColor: colors.white, paddingTop: 24, paddingBottom: 8, marginTop: 8 },
   gridBlock: { marginTop: 0, paddingTop: 20 },
   blockTight: { paddingVertical: 16, marginTop: 0 },
-  loadingBox: { paddingVertical: 32, alignItems: 'center' },
   results: { marginTop: 0, paddingTop: 12 },
-  resultsTitle: {
-    paddingHorizontal: 16,
-    paddingBottom: 4,
-    fontFamily: fonts.bodySemi,
-    fontSize: 13.5,
-    color: ui.textSecondary,
-  },
+  resultsTitle: { ...typeScale.captionStrong, paddingHorizontal: 16, paddingBottom: 4, color: ui.textSecondary },
+  moreResults: { marginHorizontal: 16, marginTop: 8, minHeight: 48, borderRadius: 16, borderWidth: 1, borderColor: ui.border, alignItems: 'center', justifyContent: 'center' },
+  moreResultsText: { ...typeScale.button, color: ui.brand },
   /** Header backdrop — hangs below the top-bar wrapper to cover the search + promo too. */
   aurora: { bottom: undefined, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
 });

@@ -1,11 +1,12 @@
-import { type ReactNode } from 'react';
+import { Children, isValidElement, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
 import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
-import { colors, spacing, ui } from '@/constants/theme';
+import { colors, radii, spacing, ui } from '@/constants/theme';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { stagger } from '@/lib/motion';
 
 /**
  * Shared shell for help / FAQ / legal-style customer pages: header, then a padded column of content.
@@ -37,9 +38,16 @@ export function CustomerContentPage({
               compact
             />
           ) : null}
-          <FadeSlideIn slideFrom={14}>
-            <View style={[styles.body, !sectionTitle && styles.bodyTop]}>{children}</View>
-          </FadeSlideIn>
+          {/* Each block of the page enters on its own beat (titles, groups, cards) instead of one slab. */}
+          <View style={[styles.body, !sectionTitle && styles.bodyTop]}>
+            {Children.toArray(children)
+              .filter(Boolean)
+              .map((child, i) => (
+                <FadeSlideIn key={isValidElement(child) && child.key != null ? child.key : i} delay={stagger(i)} slideFrom={14}>
+                  {child}
+                </FadeSlideIn>
+              ))}
+          </View>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -52,7 +60,7 @@ export function ContentCard({ children }: { children: ReactNode }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: ui.surfaceMuted },
+  root: { flex: 1, backgroundColor: ui.canvas },
   safe: { flex: 1, backgroundColor: 'transparent' },
   scroll: { paddingBottom: TAB_BAR_SCROLL_PAD, flexGrow: 1 },
   section: { marginTop: spacing.md, paddingHorizontal: spacing.md },
@@ -63,7 +71,7 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingHorizontal: 18,
     paddingBottom: 12,
-    borderRadius: 20,
+    borderRadius: radii.card,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.hairline,

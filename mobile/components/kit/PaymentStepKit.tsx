@@ -5,13 +5,20 @@ import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { textInputDefaults } from '@/components/ui/textInputDefaults';
 import type { BookingAmount, Offer } from '@/types/api';
-import { colors, fonts, gradients, premium, spacing, surfaces, ui } from '@/constants/theme';
+import { colors, fonts, gradients, premium, radii, spacing, surfaces, ui } from '@/constants/theme';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { useBusinessSettings } from '@/lib/businessSettings';
+import { gstLabel } from '@/lib/settingsLabels';
+import { offerValue, rupee } from '@/components/kit/BookFlowKit';
 
 export function PaymentPriceHero({
   amount,
 }: {
-  amount: Pick<BookingAmount, 'base' | 'gst' | 'coupon' | 'total'>;
+  amount: Pick<BookingAmount, 'base' | 'gst' | 'coupon' | 'total' | 'gstPercent'>;
 }) {
+  const copy = useCustomerUiCopy();
+  const settings = useBusinessSettings();
   return (
     <LinearGradient
       colors={[...gradients.header]}
@@ -27,27 +34,27 @@ export function PaymentPriceHero({
           end={{ x: 1, y: 1 }}
         />
       </View>
-      <Text style={styles.heroKicker}>Total payable</Text>
-      <Text style={styles.heroTotal}>₹{amount.total}</Text>
+      <Text style={styles.heroKicker}>{copy.payTotalPayable}</Text>
+      <Text style={styles.heroTotal}>{rupee(amount.total)}</Text>
       {amount.coupon > 0 ? (
         <View style={styles.savePill}>
           <PremiumIcon icon={AppIcons.ui.brand} variant="plain" size={12} color={colors.lime} />
-          <Text style={styles.saveText}>You save ₹{amount.coupon}</Text>
+          <Text style={styles.saveText}>{fillCopy(copy.paySavePill, { amount: rupee(amount.coupon) })}</Text>
         </View>
       ) : null}
       <View style={styles.heroRows}>
         <View style={styles.heroRow}>
-          <Text style={styles.heroRowLabel}>Service</Text>
-          <Text style={styles.heroRowVal}>₹{amount.base}</Text>
+          <Text style={styles.heroRowLabel}>{copy.payServiceRow}</Text>
+          <Text style={styles.heroRowVal}>{rupee(amount.base)}</Text>
         </View>
         <View style={styles.heroRow}>
-          <Text style={styles.heroRowLabel}>GST (18%)</Text>
-          <Text style={styles.heroRowVal}>₹{amount.gst}</Text>
+          <Text style={styles.heroRowLabel}>{gstLabel(copy.billGst, settings, amount.gstPercent)}</Text>
+          <Text style={styles.heroRowVal}>{rupee(amount.gst)}</Text>
         </View>
         {amount.coupon > 0 ? (
           <View style={styles.heroRow}>
-            <Text style={styles.heroRowLabel}>Discount</Text>
-            <Text style={[styles.heroRowVal, styles.heroDiscount]}>-₹{amount.coupon}</Text>
+            <Text style={styles.heroRowLabel}>{copy.payDiscountRow}</Text>
+            <Text style={[styles.heroRowVal, styles.heroDiscount]}>-{rupee(amount.coupon)}</Text>
           </View>
         ) : null}
       </View>
@@ -64,6 +71,7 @@ export function PaymentOfferList({
   selectedCode: string;
   onSelect: (code: string) => void;
 }) {
+  const copy = useCustomerUiCopy();
   if (offers.length === 0) return null;
 
   return (
@@ -88,7 +96,7 @@ export function PaymentOfferList({
             </View>
             <Text style={[styles.offerCode, on && styles.offerCodeOn]}>{o.code}</Text>
             <Text style={[styles.offerOff, on && styles.offerOffOn]}>
-              {o.discountType === 'percent' ? `${o.discount}% off` : `₹${o.discount} off`}
+              {offerValue(o, copy)}
             </Text>
             {o.description ? (
               <Text style={[styles.offerDesc, on && styles.offerDescOn]} numberOfLines={2}>
@@ -113,6 +121,7 @@ export function PaymentCouponField({
   invalid?: boolean;
   applied?: boolean;
 }) {
+  const copy = useCustomerUiCopy();
   const [focused, setFocused] = useState(false);
 
   return (
@@ -136,7 +145,7 @@ export function PaymentCouponField({
           style={styles.couponInput}
           value={value}
           onChangeText={(t) => onChangeText(t.toUpperCase())}
-          placeholder="Enter coupon code"
+          placeholder={copy.couponPlaceholder}
           placeholderTextColor={colors.muted}
           autoCapitalize="characters"
           onFocus={() => setFocused(true)}
@@ -148,17 +157,21 @@ export function PaymentCouponField({
             hitSlop={8}
             style={styles.clearBtn}
             accessibilityRole="button"
-            accessibilityLabel="Clear coupon"
+            accessibilityLabel={copy.couponClear}
           >
             <PremiumIcon icon={AppIcons.ui.close} variant="plain" size={16} color={colors.muted} />
           </Pressable>
         ) : null}
       </View>
-      {invalid ? <Text style={styles.couponError}>This coupon is not valid</Text> : null}
+      {invalid ? (
+        <Text style={styles.couponError} accessibilityLiveRegion="polite">
+          {copy.couponInvalid}
+        </Text>
+      ) : null}
       {applied ? (
         <View style={styles.couponOk}>
           <PremiumIcon icon={AppIcons.toast.success} variant="plain" size={15} color={ui.brand} />
-          <Text style={styles.couponOkText}>Applied</Text>
+          <Text style={styles.couponOkText}>{copy.couponApplied}</Text>
         </View>
       ) : null}
     </View>
@@ -166,10 +179,11 @@ export function PaymentCouponField({
 }
 
 export function PaymentSecureNote() {
+  const copy = useCustomerUiCopy();
   return (
     <View style={styles.secure}>
       <PremiumIcon icon={AppIcons.ui.lock} variant="plain" size={14} color={colors.forest} />
-      <Text style={styles.secureText}>Secure checkout · Your payment details stay protected</Text>
+      <Text style={styles.secureText}>{copy.paySecureNote}</Text>
     </View>
   );
 }
@@ -181,17 +195,18 @@ export function PaymentReadyBanner({
   methodLabel: string;
   total: number;
 }) {
+  const copy = useCustomerUiCopy();
   return (
     <LinearGradient
-      colors={['#E8F5EC', colors.white]}
+      colors={[ui.brandSoft, colors.white]}
       style={styles.readyBanner}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
     >
       <View style={styles.readyTextCol}>
-        <Text style={styles.readyKicker}>Ready to continue</Text>
+        <Text style={styles.readyKicker}>{copy.payReadyKicker}</Text>
         <Text style={styles.readyMethod}>{methodLabel}</Text>
-        <Text style={styles.readyTotal}>₹{total} estimated</Text>
+        <Text style={styles.readyTotal}>{fillCopy(copy.payEstimated, { amount: rupee(total) })}</Text>
       </View>
       <LinearGradient colors={[gradients.primary[0], gradients.primary[1]]} style={styles.readyPill}>
         <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={14} color={colors.white} strokeWidth={3} />
@@ -306,7 +321,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 4,
     minHeight: 52,
-    borderRadius: 16,
+    borderRadius: radii.control,
     backgroundColor: surfaces.glass,
     borderWidth: 1.5,
     borderColor: surfaces.glassBorderStrong,

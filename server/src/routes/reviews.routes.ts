@@ -8,8 +8,27 @@ import { requireAuth, requireRole } from '../middleware/auth';
 import { AppError } from '../utils/AppError';
 import { asyncHandler } from '../middleware/error';
 import { formatReview } from '../utils/format';
+import { getBusinessSettings } from '../utils/businessSettings';
 
 export const reviewsRouter = Router();
+
+/**
+ * Review tags must be ones the admin offers (Business settings → Lists → Review tags). Matching ignores
+ * case and spacing and stores the admin's wording; unknown tags (e.g. from an app with an older list) are
+ * dropped instead of failing the review.
+ */
+async function allowedReviewTags(raw: unknown): Promise<string[]> {
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+  const { lists } = await getBusinessSettings();
+  const byKey = new Map(lists.reviewTags.map((t) => [t.trim().toLowerCase(), t]));
+  const out: string[] = [];
+  for (const tag of raw) {
+    if (typeof tag !== 'string') continue;
+    const match = byKey.get(tag.trim().toLowerCase());
+    if (match && !out.includes(match)) out.push(match);
+  }
+  return out.slice(0, 20);
+}
 
 function runValidation(
   req: Parameters<typeof validationResult>[0],
@@ -69,6 +88,8 @@ reviewsRouter.post(
       throw new AppError(400, 'Review already exists for this booking');
     }
 
+    const tags = await allowedReviewTags(req.body.tags);
+
     let review;
     try {
       review = await Review.create({
@@ -76,7 +97,7 @@ reviewsRouter.post(
         technicianId: booking.technicianId,
         customerId: booking.customerId,
         stars: req.body.stars,
-        tags: req.body.tags ?? [],
+        tags,
         comment: req.body.comment,
         photos: req.body.photos ?? [],
       });

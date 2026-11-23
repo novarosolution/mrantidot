@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import { useEffect, useRef } from 'react';
 import {
   Animated,
+  Easing,
   Platform,
   Pressable,
   StyleSheet,
@@ -15,7 +16,8 @@ import Toast from 'react-native-toast-message';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { colors, fonts, premium, shadows, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, premium, shadows, spacing, surfaces, toastTones } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 type ToastVariant = 'success' | 'error' | 'info' | 'warning' | 'offline';
 
@@ -23,105 +25,46 @@ type ToastExtraProps = {
   duration?: number;
 };
 
+type CopyKey = 'toastLabelSuccess' | 'toastLabelError' | 'toastLabelInfo' | 'toastLabelWarning' | 'toastLabelOffline';
+
 const VARIANT_META: Record<
   ToastVariant,
   {
-    label: string;
+    labelKey: CopyKey;
     icon: LucideIcon;
-    accent: string;
     accentSoft: string;
-    iconColor: string;
     badgeColor: string;
     gradient: readonly [string, string];
     progress: string;
     border: string;
   }
 > = {
-  success: {
-    label: 'Success',
-    icon: AppIcons.toast.success,
-    accent: colors.forest,
-    accentSoft: 'rgba(31,154,62,0.14)',
-    iconColor: colors.forest,
-    badgeColor: colors.green,
-    gradient: [colors.forest, colors.green],
-    progress: colors.green,
-    border: 'rgba(180,220,165,0.95)',
-  },
-  error: {
-    label: 'Error',
-    icon: AppIcons.toast.error,
-    accent: colors.error,
-    accentSoft: colors.errorBg,
-    iconColor: colors.error,
-    badgeColor: colors.error,
-    gradient: ['#9B3412', '#C0492E'],
-    progress: '#C0492E',
-    border: 'rgba(245,180,160,0.9)',
-  },
-  info: {
-    label: 'Info',
-    icon: AppIcons.toast.info,
-    accent: colors.secondaryDark,
-    accentSoft: colors.secondarySoft,
-    iconColor: colors.secondaryInk,
-    badgeColor: colors.secondary,
-    gradient: ['#22685E', '#3A9688'],
-    progress: '#3A9688',
-    border: 'rgba(160,210,200,0.95)',
-  },
-  warning: {
-    label: 'Notice',
-    icon: AppIcons.toast.warn,
-    accent: premium.accentGold,
-    accentSoft: premium.accentGoldBg,
-    iconColor: colors.amberInk,
-    badgeColor: colors.amberInk,
-    gradient: ['#B6841C', '#D4A017'],
-    progress: '#D4A017',
-    border: 'rgba(245,184,46,0.55)',
-  },
-  offline: {
-    label: 'Offline',
-    icon: AppIcons.toast.offline,
-    accent: colors.muted,
-    accentSoft: colors.greyBg,
-    iconColor: colors.ink,
-    badgeColor: '#4B5563',
-    gradient: ['#374151', '#6E8075'],
-    progress: '#6E8075',
-    border: 'rgba(160,175,165,0.85)',
-  },
+  success: { labelKey: 'toastLabelSuccess', icon: AppIcons.toast.success, badgeColor: colors.green, ...toastTones.success },
+  error: { labelKey: 'toastLabelError', icon: AppIcons.toast.error, badgeColor: colors.error, ...toastTones.error },
+  info: { labelKey: 'toastLabelInfo', icon: AppIcons.toast.info, badgeColor: colors.secondary, ...toastTones.info },
+  warning: { labelKey: 'toastLabelWarning', icon: AppIcons.toast.warn, badgeColor: colors.amberInk, ...toastTones.warning },
+  offline: { labelKey: 'toastLabelOffline', icon: AppIcons.toast.offline, badgeColor: toastTones.offline.badge, ...toastTones.offline },
 };
 
+/** Time-left rail: a native-driven scaleX from the left edge (no per-frame layout on the JS thread). */
 function ProgressRail({ color, duration }: { color: string; duration: number }) {
-  const width = useRef(new Animated.Value(1)).current;
+  const progress = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    width.setValue(1);
-    const anim = Animated.timing(width, {
+    progress.setValue(1);
+    const anim = Animated.timing(progress, {
       toValue: 0,
       duration: Math.max(800, duration),
-      useNativeDriver: false,
+      easing: Easing.linear,
+      useNativeDriver: true,
     });
     anim.start();
     return () => anim.stop();
-  }, [duration, width]);
+  }, [duration, progress]);
 
   return (
     <View style={styles.progressTrack}>
-      <Animated.View
-        style={[
-          styles.progressFill,
-          {
-            backgroundColor: color,
-            width: width.interpolate({
-              inputRange: [0, 1],
-              outputRange: ['0%', '100%'],
-            }),
-          },
-        ]}
-      />
+      <Animated.View style={[styles.progressFill, { backgroundColor: color, transform: [{ scaleX: progress }] }]} />
     </View>
   );
 }
@@ -142,6 +85,8 @@ function PremiumToastCard({
   onHide?: () => void;
 }) {
   const meta = VARIANT_META[variant];
+  const copy = useCustomerUiCopy();
+  const label = copy[meta.labelKey];
   const enter = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -183,7 +128,7 @@ function PremiumToastCard({
         }}
         style={({ pressed }) => [styles.press, pressed && styles.pressActive]}
         accessibilityRole="alert"
-        accessibilityLabel={[meta.label, title, message].filter(Boolean).join('. ')}
+        accessibilityLabel={[label, title, message].filter(Boolean).join('. ')}
       >
         <View style={[styles.card, { borderColor: meta.border }]}>
           {Platform.OS !== 'web' ? (
@@ -212,7 +157,7 @@ function PremiumToastCard({
               <PremiumIcon icon={meta.icon} variant="plain" size={18} color={colors.white} strokeWidth={2.35} />
             </LinearGradient>
             <View style={styles.body}>
-              <Text style={[styles.badge, { color: meta.badgeColor }]}>{meta.label}</Text>
+              <Text style={[styles.badge, { color: meta.badgeColor }]}>{label}</Text>
               {title ? (
                 <Text style={styles.title} numberOfLines={2}>
                   {title}
@@ -232,7 +177,7 @@ function PremiumToastCard({
               }}
               style={styles.dismiss}
               accessibilityRole="button"
-              accessibilityLabel="Dismiss notification"
+              accessibilityLabel={copy.toastDismiss}
             >
               <PremiumIcon icon={AppIcons.ui.close} variant="plain" size={15} color={colors.muted} strokeWidth={2.2} />
             </Pressable>
@@ -418,7 +363,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    borderTopRightRadius: 2,
-    borderBottomRightRadius: 2,
+    width: '100%',
+    transformOrigin: 'left',
   },
 });

@@ -1,13 +1,14 @@
-import { useEffect, useId, useRef } from 'react';
+import { useId, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
-import { useReducedMotion } from '@/lib/a11yPrefs';
+import { auroraPalette as P } from '@/constants/theme';
+import { useAmbientLoop } from '@/lib/a11yPrefs';
 
 /** Deep emerald the dark aurora starts from — also fills the status-bar strip above the home header. */
-export const AURORA_DEEP_TOP = '#06361B';
+export const AURORA_DEEP_TOP = P.deepTop;
 /** Top of the calm brand-green header (home) — also the status-bar strip colour above it. */
-export const AURORA_BRAND_TOP = '#0F8C40';
+export const AURORA_BRAND_TOP = P.brandTop;
 
 type Tone = 'dark' | 'light' | 'brand';
 
@@ -28,41 +29,41 @@ type BlobSpec = {
 
 const DARK_BLOBS: BlobSpec[] = [
   // Champagne gold — warm highlight, top right.
-  { x: 88, y: 16, size: 300, color: '#F4D98C', alpha: 0.34, dx: -46, dy: 30, scaleTo: 1.18, duration: 15000 },
+  { x: 88, y: 16, size: 300, color: P.gold, alpha: 0.34, dx: -46, dy: 30, scaleTo: 1.18, duration: 15000 },
   // Fresh mint — lower left.
-  { x: 6, y: 78, size: 320, color: '#4FE08A', alpha: 0.3, dx: 52, dy: -26, scaleTo: 1.12, duration: 19000 },
+  { x: 6, y: 78, size: 320, color: P.mint, alpha: 0.3, dx: 52, dy: -26, scaleTo: 1.12, duration: 19000 },
   // Deep teal — slow undertow through the middle.
-  { x: 56, y: 52, size: 280, color: '#13B7A0', alpha: 0.22, dx: -60, dy: -20, scaleTo: 1.22, duration: 23000 },
+  { x: 56, y: 52, size: 280, color: P.teal, alpha: 0.22, dx: -60, dy: -20, scaleTo: 1.22, duration: 23000 },
 ];
 
 /** Barely-there motion for the home header: reads as a flat brand colour with a little depth. */
 const BRAND_BLOBS: BlobSpec[] = [
-  { x: 90, y: 20, size: 300, color: '#F4D98C', alpha: 0.1, dx: -40, dy: 26, scaleTo: 1.14, duration: 18000 },
-  { x: 8, y: 80, size: 320, color: '#6BE6A0', alpha: 0.16, dx: 46, dy: -22, scaleTo: 1.1, duration: 22000 },
-  { x: 55, y: 45, size: 280, color: '#19C2A6', alpha: 0.1, dx: -50, dy: -18, scaleTo: 1.18, duration: 26000 },
+  { x: 90, y: 20, size: 300, color: P.gold, alpha: 0.1, dx: -40, dy: 26, scaleTo: 1.14, duration: 18000 },
+  { x: 8, y: 80, size: 320, color: P.mintSoft, alpha: 0.16, dx: 46, dy: -22, scaleTo: 1.1, duration: 22000 },
+  { x: 55, y: 45, size: 280, color: P.tealSoft, alpha: 0.1, dx: -50, dy: -18, scaleTo: 1.18, duration: 26000 },
 ];
 
 const LIGHT_BLOBS: BlobSpec[] = [
-  { x: 92, y: 10, size: 240, color: '#F6E2A8', alpha: 0.5, dx: -34, dy: 18, scaleTo: 1.15, duration: 17000 },
-  { x: 4, y: 40, size: 260, color: '#B7E6C4', alpha: 0.62, dx: 40, dy: 14, scaleTo: 1.12, duration: 21000 },
-  { x: 60, y: 90, size: 230, color: '#BDEBE0', alpha: 0.45, dx: -44, dy: -14, scaleTo: 1.18, duration: 25000 },
+  { x: 92, y: 10, size: 240, color: P.goldPale, alpha: 0.5, dx: -34, dy: 18, scaleTo: 1.15, duration: 17000 },
+  { x: 4, y: 40, size: 260, color: P.mintPale, alpha: 0.62, dx: 40, dy: 14, scaleTo: 1.12, duration: 21000 },
+  { x: 60, y: 90, size: 230, color: P.tealPale, alpha: 0.45, dx: -44, dy: -14, scaleTo: 1.18, duration: 25000 },
 ];
 
 function Blob({ spec, animated }: { spec: BlobSpec; animated: boolean }) {
   const id = useId().replace(/:/g, '');
   const t = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    if (!animated) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(t, { toValue: 1, duration: spec.duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(t, { toValue: 0, duration: spec.duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [animated, spec.duration, t]);
+  useAmbientLoop(
+    () =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(t, { toValue: 1, duration: spec.duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(t, { toValue: 0, duration: spec.duration / 2, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+      ),
+    [spec.duration, t],
+    animated,
+  );
 
   const r = spec.size / 2;
   return (
@@ -102,18 +103,18 @@ function Sheen({ animated }: { animated: boolean }) {
   const { width } = useWindowDimensions();
   const x = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    if (!animated) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.delay(5200),
-        Animated.timing(x, { toValue: 1, duration: 2600, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(x, { toValue: 0, duration: 0, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [animated, x]);
+  useAmbientLoop(
+    () =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(5200),
+          Animated.timing(x, { toValue: 1, duration: 2600, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
+          Animated.timing(x, { toValue: 0, duration: 0, useNativeDriver: true }),
+        ]),
+      ),
+    [x],
+    animated,
+  );
 
   const band = Math.max(120, width * 0.34);
   return (
@@ -149,8 +150,9 @@ function Sheen({ animated }: { animated: boolean }) {
  * `light` — the same drifting light in pale mint / champagne over a white wash, for white headers
  *           with dark type.
  *
- * Fills its parent (override with `style`). Motion is native-driven and switches off entirely when the
- * OS asks to reduce motion, leaving the static composition.
+ * Fills its parent (override with `style`). Motion is native-driven and only runs while the screen is
+ * focused and the app is in the foreground; Reduce Motion leaves the static composition. Pass
+ * `animated={false}` for a still backdrop (e.g. a second header on the same screen).
  */
 export function PremiumAurora({
   tone = 'dark',
@@ -158,8 +160,11 @@ export function PremiumAurora({
   rings = true,
   base = true,
   topFade,
+  animated = true,
 }: {
   tone?: Tone;
+  /** Drift the light (default). False keeps the composition still. */
+  animated?: boolean;
   style?: StyleProp<ViewStyle>;
   /** Paint the tone's own base gradient. Pass false to lay just the drifting light over a parent's background. */
   base?: boolean;
@@ -171,7 +176,6 @@ export function PremiumAurora({
    */
   topFade?: boolean;
 }) {
-  const reduced = useReducedMotion();
   const dark = tone === 'dark';
   const brand = tone === 'brand';
   const blobs = brand ? BRAND_BLOBS : dark ? DARK_BLOBS : LIGHT_BLOBS;
@@ -180,7 +184,7 @@ export function PremiumAurora({
     <View style={[styles.fill, style]} pointerEvents="none">
       {!base ? null : brand ? (
         <LinearGradient
-          colors={[AURORA_BRAND_TOP, '#0B7C38', '#086A2F']}
+          colors={[P.brandTop, P.brandMid, P.brandBottom]}
           locations={[0, 0.5, 1]}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
@@ -188,7 +192,7 @@ export function PremiumAurora({
         />
       ) : dark ? (
         <LinearGradient
-          colors={[AURORA_DEEP_TOP, '#0A5A2B', '#0C7A39']}
+          colors={[P.deepTop, P.darkMid, P.darkBottom]}
           locations={[0, 0.5, 1]}
           start={{ x: 0.1, y: 0 }}
           end={{ x: 0.9, y: 1 }}
@@ -196,7 +200,7 @@ export function PremiumAurora({
         />
       ) : (
         <LinearGradient
-          colors={['#FFFFFF', '#F3FAF5', '#EAF4EC']}
+          colors={['#FFFFFF', P.lightMid, P.lightBottom]}
           locations={[0, 0.55, 1]}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
@@ -205,7 +209,7 @@ export function PremiumAurora({
       )}
 
       {blobs.map((b, i) => (
-        <Blob key={i} spec={b} animated={!reduced} />
+        <Blob key={i} spec={b} animated={animated} />
       ))}
 
       {dark && rings ? (
@@ -215,7 +219,7 @@ export function PremiumAurora({
         </>
       ) : null}
 
-      {dark ? <Sheen animated={!reduced} /> : null}
+      {dark ? <Sheen animated={animated} /> : null}
 
       {/* Top edge melts into the status-bar strip so the header has no seam under the clock. */}
       {(topFade ?? dark) ? (

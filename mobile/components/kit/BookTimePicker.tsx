@@ -3,6 +3,7 @@ import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { BOOKING_HOURS, BOOKING_MINUTES, formatTime12h, isTimeStarted } from '@/lib/dates';
 import { colors, fonts, spacing, surfaces } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 const hhmm = (h: number, m: number) => `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 
@@ -18,6 +19,7 @@ export function BookTimePicker({
   /** When set, times that have already passed on this day are disabled. */
   date?: string;
 }) {
+  const copy = useCustomerUiCopy();
   const timeValue = hhmm(hour, minute);
   const started = (h: number, m: number) => (date ? isTimeStarted(date, hhmm(h, m)) : false);
   // An hour is gone once its last half-hour has started.
@@ -29,12 +31,12 @@ export function BookTimePicker({
       <View style={styles.selectedBar}>
         <View style={styles.selectedLeft}>
           <PremiumIcon icon={AppIcons.ui.clock} variant="plain" size={16} color={colors.forest} strokeWidth={2.2} />
-          <Text style={styles.selectedLabel}>Selected</Text>
+          <Text style={styles.selectedLabel}>{copy.timeSelected}</Text>
         </View>
         <Text style={styles.selectedValue}>{formatTime12h(timeValue)}</Text>
       </View>
 
-      <Text style={styles.fieldLabel}>Hour</Text>
+      <Text style={styles.fieldLabel}>{copy.timeHour}</Text>
       <View style={styles.grid}>
         {BOOKING_HOURS.map((h) => {
           const on = h === hour;
@@ -62,7 +64,7 @@ export function BookTimePicker({
         })}
       </View>
 
-      <Text style={[styles.fieldLabel, styles.fieldLabelGap]}>Minutes</Text>
+      <Text style={[styles.fieldLabel, styles.fieldLabelGap]}>{copy.timeMinutes}</Text>
       <View style={styles.minuteRow}>
         {BOOKING_MINUTES.map((m) => {
           const on = m === minute;
@@ -90,7 +92,7 @@ export function BookTimePicker({
       </View>
 
       <Text style={styles.rangeHint}>
-        {anyGone ? 'Times that have already passed today are greyed out' : 'Available 24/7 — any time'}
+        {anyGone ? copy.timePassedNote : copy.timeAnyNote}
       </Text>
     </View>
   );

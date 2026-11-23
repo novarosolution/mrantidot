@@ -1,22 +1,26 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { CalendarClock, Clock3 } from 'lucide-react-native';
 import { colors, fonts, ui } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { useBookingCopy } from '@/lib/schedule-copy';
 
 /** Two side-by-side option cards — 2-hour window vs a specific time. */
 export function ScheduleModeToggle({
   mode,
   onChange,
-  standardLabel = 'Standard window',
-  customLabel = 'Custom time',
+  standardLabel,
+  customLabel,
 }: {
   mode: 'standard' | 'custom';
   onChange: (mode: 'standard' | 'custom') => void;
   standardLabel?: string;
   customLabel?: string;
 }) {
+  const copy = useCustomerUiCopy();
+  const bookingCopy = useBookingCopy();
   const options = [
-    { key: 'standard' as const, label: standardLabel, desc: '2-hour arrival window', Icon: CalendarClock },
-    { key: 'custom' as const, label: customLabel, desc: 'Pick an exact time', Icon: Clock3 },
+    { key: 'standard' as const, label: standardLabel ?? bookingCopy.standardModeLabel, desc: copy.modeStandardDesc, Icon: CalendarClock },
+    { key: 'custom' as const, label: customLabel ?? bookingCopy.customModeLabel, desc: copy.modeCustomDesc, Icon: Clock3 },
   ];
   return (
     <View style={styles.row}>

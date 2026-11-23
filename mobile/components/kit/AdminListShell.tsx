@@ -8,6 +8,7 @@ import { stagger } from '@/lib/motion';
 import { AdminLightHeader } from './AdminLightHeader';
 import { GlassBackdrop, TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
 import { adminType, colors, spacing, surfaces, ui } from '@/constants/theme';
+import { useWideWebLayout } from '@/lib/webAdmin';
 
 /**
  * Bottom padding when a sticky save bar is docked at the bottom: the bar is ~102pt tall on a
@@ -16,6 +17,10 @@ import { adminType, colors, spacing, surfaces, ui } from '@/constants/theme';
 export const ADMIN_STICKY_FOOTER_PAD = 124;
 /** When sticky bar has two buttons (save + deactivate). */
 export const ADMIN_STICKY_FOOTER_PAD_TALL = 152;
+
+/** Desktop web: the action dock's height and the width its buttons share (right-aligned). */
+const DESK_DOCK_HEIGHT = 84;
+const DESK_DOCK_ACTIONS_WIDTH = 460;
 
 /** Leading rows of an admin list that get the staggered entrance; later rows appear instantly. */
 export const ADMIN_ENTRANCE_ROWS = 7;
@@ -71,11 +76,22 @@ export function AdminListShell({
   onBack?: () => void;
   children: ReactNode;
 }) {
+  const wideWeb = useWideWebLayout();
+  // Desktop browser: a slim full-width action dock with the buttons at desktop size on the right,
+  // instead of a phone bar whose buttons stretch across the whole column.
+  const footer =
+    stickyFooter && wideWeb ? (
+      <View style={styles.deskDock}>
+        <View style={styles.deskDockSlot}>{stickyFooter}</View>
+      </View>
+    ) : (
+      stickyFooter
+    );
   const body = (
     <>
       {headerExtra ? <View style={styles.headerExtra}>{headerExtra}</View> : null}
       <View style={styles.body}>{children}</View>
-      {stickyFooter}
+      {footer}
     </>
   );
 
@@ -236,4 +252,24 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xs,
   },
   body: { flex: 1, overflow: 'hidden' },
+  /** Desktop web dock — same height as the StickyActionBar it holds (16 + 52 button + 16), so the
+   * screens' ADMIN_STICKY_FOOTER_PAD still clears it. */
+  deskDock: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: DESK_DOCK_HEIGHT,
+    alignItems: 'flex-end',
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.white,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: ui.border,
+    shadowColor: '#143C23',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+  },
+  /** StickyActionBar is absolutely positioned — this slot gives it a desktop-sized width. */
+  deskDockSlot: { width: DESK_DOCK_ACTIONS_WIDTH, maxWidth: '100%', height: DESK_DOCK_HEIGHT },
 });

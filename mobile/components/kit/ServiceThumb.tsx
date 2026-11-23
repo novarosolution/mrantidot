@@ -1,16 +1,24 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, View, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type ImageSourcePropType, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { PestImage, resolveServiceIcon } from '@/components/ServiceIcon';
+import { AppImage } from '@/components/ui/AppImage';
 import { resolveServiceImage } from '@/constants/serviceImages';
 import { serviceTone } from '@/constants/serviceTypeMeta';
+import { websitePreview } from '@/lib/images';
 import type { Service } from '@/types/api';
+
+/** Remote URL of the admin's service photo, or null when the service has none. */
+export function serviceCoverUri(service: Pick<Service, 'coverImage'>): string | null {
+  const preview = websitePreview(service.coverImage?.url);
+  return preview.kind === 'remote' ? preview.uri : null;
+}
 
 export { PestImage };
 
 /**
- * Pastel tile with a duotone pest icon — stands in for a service photo (Urban-style thumbnail).
- * Colour comes from the service's primary pest type so every service reads distinctly.
+ * Service thumbnail: the admin's cover photo when there is one (cached, fades in), otherwise a pastel
+ * tile with the pest art. Colour comes from the service's primary pest type so every service reads distinctly.
  */
 export function ServiceThumb({
   service,
@@ -20,7 +28,7 @@ export function ServiceThumb({
   iconSize,
   style,
 }: {
-  service: Pick<Service, 'iconKey' | 'serviceTypes'>;
+  service: Pick<Service, 'iconKey' | 'serviceTypes'> & Partial<Pick<Service, 'coverImage'>>;
   width: number;
   height?: number;
   radius?: number;
@@ -28,6 +36,18 @@ export function ServiceThumb({
   style?: StyleProp<ViewStyle>;
 }) {
   const tone = serviceTone(service);
+  const cover = serviceCoverUri(service);
+  if (cover) {
+    return (
+      <AppImage
+        uri={cover}
+        recyclingKey={cover}
+        accessibilityLabel={service.coverImage?.alt || undefined}
+        placeholderColor={tone.bg}
+        style={[{ width, height: height ?? width, borderRadius: radius }, style as StyleProp<ImageStyle>]}
+      />
+    );
+  }
   return (
     <ToneTile
       icon={resolveServiceIcon(service.iconKey)}

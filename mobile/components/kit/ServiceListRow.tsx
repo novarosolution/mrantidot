@@ -1,20 +1,23 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { memo } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { Star } from 'lucide-react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { DEFAULT_CUSTOMER_UI_COPY, fillCopy } from '@/constants/customerUiCopy';
 import { ServiceThumb } from '@/components/kit/ServiceThumb';
 import { serviceDurationLabel } from '@/components/kit/HomeServiceRail';
 import { serviceDisplayRating } from '@/lib/ratings';
 import { formatRupeeFull } from '@/components/kit/format';
 import type { Service } from '@/types/api';
-import { colors, fonts, ui } from '@/constants/theme';
+import { colors, fonts, radii, typeScale, ui } from '@/constants/theme';
 import { serviceStartPrice } from '@/lib/serviceDisplay';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 const THUMB = 100;
 
-/** "₹699", or "₹30 / sq ft" for the per-area services (bird, silo). */
-export function servicePriceLabel(service: Service): string {
+/** "₹699", or "₹30 / sq ft" for the per-area services (bird, silo). Pass the copy on customer screens. */
+export function servicePriceLabel(service: Service, copy: { servicePerSqFt: string } = DEFAULT_CUSTOMER_UI_COPY): string {
   if (service.basePrice <= 50 && (service.serviceTypes?.includes('bird') || service.serviceTypes?.includes('silo'))) {
-    return `₹${service.basePrice} / sq ft`;
+    return fillCopy(copy.servicePerSqFt, { price: formatRupeeFull(service.basePrice) });
   }
   return formatRupeeFull(serviceStartPrice(service));
 }
@@ -23,7 +26,7 @@ export function servicePriceLabel(service: Service): string {
  * Urban-style service row — details on the left, thumbnail on the right with the
  * "Book" button overlapping its bottom edge.
  */
-export function ServiceListRow({
+export const ServiceListRow = memo(function ServiceListRow({
   service,
   onPress,
   onBook,
@@ -33,8 +36,9 @@ export function ServiceListRow({
   detailed = false,
 }: {
   service: Service;
-  onPress: () => void;
-  onBook?: () => void;
+  /** Receives the service, so lists can pass one stable callback and keep the row memoised. */
+  onPress: (service: Service) => void;
+  onBook?: (service: Service) => void;
   showDivider?: boolean;
   /** Overrides the default price text (see servicePriceLabel). */
   priceLabel?: string;
@@ -48,13 +52,16 @@ export function ServiceListRow({
   const reviews = service.stats?.reviewCount ?? 0;
   const desc = service.shortDesc?.trim();
   const bullets = detailed ? (service.highlights ?? []).filter(Boolean).slice(0, 3) : [];
+  const price = priceLabel ?? servicePriceLabel(service, copy);
 
   return (
-    <Pressable
-      style={({ pressed }) => [styles.row, showDivider && styles.divider, pressed && styles.pressed]}
-      onPress={onPress}
+    <PressableScale
+      containerStyle={[styles.rowWrap, showDivider && styles.divider]}
+      style={styles.row}
+      scaleTo={0.985}
+      onPress={() => onPress(service)}
       accessibilityRole="button"
-      accessibilityLabel={`${service.name}, starts at ₹${serviceStartPrice(service)}`}
+      accessibilityLabel={fillCopy(copy.serviceRowA11y, { service: service.name, price })}
     >
       <View style={styles.info}>
         {badge ? <Text style={styles.badge}>{badge}</Text> : null}
@@ -73,7 +80,7 @@ export function ServiceListRow({
           <Text style={styles.reviews}>{serviceDurationLabel(service)}</Text>
         </View>
         <Text style={styles.price}>
-          {copy.serviceStartsAtLabel} {priceLabel ?? servicePriceLabel(service)}
+          {copy.serviceStartsAtLabel} {price}
         </Text>
         {bullets.length > 0 ? (
           <View style={styles.bullets}>
@@ -95,33 +102,33 @@ export function ServiceListRow({
       </View>
 
       <View style={styles.media}>
-        <ServiceThumb service={service} width={THUMB} radius={20} iconSize={48} />
-        <Pressable
-          style={({ pressed }) => [styles.book, pressed && styles.bookPressed]}
-          onPress={onBook ?? onPress}
-          hitSlop={6}
+        <ServiceThumb service={service} width={THUMB} radius={radii.card} iconSize={48} />
+        <PressableScale
+          style={styles.book}
+          onPress={() => (onBook ?? onPress)(service)}
+          haptic="tap"
+          hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel={`Book ${service.name}`}
+          accessibilityLabel={fillCopy(copy.serviceRowBookA11y, { service: service.name })}
         >
           <Text style={styles.bookText}>{copy.serviceRowBook}</Text>
-        </Pressable>
+        </PressableScale>
       </View>
-    </Pressable>
+    </PressableScale>
   );
-}
+});
 
 const styles = StyleSheet.create({
+  rowWrap: { marginHorizontal: 16 },
   row: {
     flexDirection: 'row',
     gap: 16,
     paddingVertical: 18,
-    marginHorizontal: 16,
   },
   divider: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: ui.border,
   },
-  pressed: { opacity: 0.85 },
   info: { flex: 1, minWidth: 0 },
   bullets: {
     marginTop: 10,
@@ -142,17 +149,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: ui.brand,
   },
-  name: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 16,
-    lineHeight: 21,
-    letterSpacing: -0.2,
-    color: ui.text,
-  },
+  name: { ...typeScale.rowTitleLg, color: ui.text },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
   rating: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: ui.text },
   reviews: { fontFamily: fonts.body, fontSize: 12.5, color: ui.textSecondary },
-  price: { marginTop: 6, fontFamily: fonts.bodyBold, fontSize: 14.5, color: ui.text },
+  price: { ...typeScale.bodyStrong, fontFamily: fonts.bodyBold, marginTop: 6, color: ui.text },
   desc: {
     marginTop: 8,
     fontFamily: fonts.body,
@@ -164,9 +165,9 @@ const styles = StyleSheet.create({
   book: {
     marginTop: -16,
     minWidth: 84,
-    height: 36,
+    height: 38,
     paddingHorizontal: 16,
-    borderRadius: 18,
+    borderRadius: radii.pill,
     borderWidth: 2,
     borderColor: colors.white,
     alignItems: 'center',
@@ -174,6 +175,5 @@ const styles = StyleSheet.create({
     backgroundColor: ui.brand,
     ...ui.shadowFloat,
   },
-  bookPressed: { opacity: 0.88 },
   bookText: { fontFamily: fonts.bodyBold, fontSize: 13.5, color: colors.white },
 });

@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PremiumAppHeader } from '@/components/kit/PremiumAppHeader';
 import { colors, fonts, ui } from '@/constants/theme';
 import { adminRoutes, appPush } from '@/lib/routes';
+import { useWideWebLayout } from '@/lib/webAdmin';
 
 const ACTION = 44;
 
@@ -26,49 +27,46 @@ export function AdminScreenHeader({
 }) {
   const letter = userInitial.slice(0, 1).toUpperCase();
   const badge = unreadCount > 99 ? '99+' : String(unreadCount);
+  // Desktop browser: the sidebar (notifications + badge) and the top bar (account menu) already have these.
+  const wideWeb = useWideWebLayout();
 
-  return (
-    <PremiumAppHeader
-      eyebrow={eyebrow}
-      title={title}
-      subtitle={subtitle}
-      right={
-        <View style={styles.actions}>
-          <Pressable
-            style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
-            onPress={onBellPress}
-            accessibilityRole="button"
-            accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
-            hitSlop={8}
-          >
-            <Bell size={20} color={ui.text} strokeWidth={2} />
-            {unreadCount > 0 ? (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{badge}</Text>
-              </View>
-            ) : null}
-          </Pressable>
+  const actions = wideWeb ? undefined : (
+    <View style={styles.actions}>
+      <Pressable
+        style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
+        onPress={onBellPress}
+        accessibilityRole="button"
+        accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+        hitSlop={8}
+      >
+        <Bell size={20} color={ui.text} strokeWidth={2} />
+        {unreadCount > 0 ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badge}</Text>
+          </View>
+        ) : null}
+      </Pressable>
 
-          <Pressable
-            style={({ pressed }) => [styles.avatarShell, pressed && styles.pressed]}
-            onPress={onProfilePress}
-            accessibilityRole="button"
-            accessibilityLabel="Open settings"
-            hitSlop={8}
-          >
-            <LinearGradient
-              colors={[colors.forestMid, colors.forest]}
-              style={styles.avatarBtn}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Text style={styles.avatarText}>{letter}</Text>
-            </LinearGradient>
-          </Pressable>
-        </View>
-      }
-    />
+      <Pressable
+        style={({ pressed }) => [styles.avatarShell, pressed && styles.pressed]}
+        onPress={onProfilePress}
+        accessibilityRole="button"
+        accessibilityLabel="Open settings"
+        hitSlop={8}
+      >
+        <LinearGradient
+          colors={[colors.forestMid, colors.forest]}
+          style={styles.avatarBtn}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Text style={styles.avatarText}>{letter}</Text>
+        </LinearGradient>
+      </Pressable>
+    </View>
   );
+
+  return <PremiumAppHeader eyebrow={eyebrow} title={title} subtitle={subtitle} right={actions} />;
 }
 
 const styles = StyleSheet.create({

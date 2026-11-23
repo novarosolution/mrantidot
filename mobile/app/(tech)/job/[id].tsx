@@ -1,268 +1,239 @@
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
-import * as Location from 'expo-location';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Linking,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
-import Toast from 'react-native-toast-message';
-import { paramString } from '@/lib/routeParams';
+import { useLocalSearchParams } from 'expo-router';
+import { Camera, Check } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AddressPhotoGrid } from '@/components/kit/AddressPhotoGrid';
 import { BookingFactsCard } from '@/components/kit/BookingFactsCard';
-import { SafePhoto } from '@/components/kit/BookingDetailKit';
-import { BookingStatusBanner } from '@/components/kit/BookingStatusBanner';
 import { BookingTrackingTimeline } from '@/components/kit/BookingTrackingTimeline';
+import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
+import { formatRupeeFull } from '@/components/kit/format';
 import { JobProgressCard } from '@/components/kit/JobProgressCard';
 import { OtpEntrySheet } from '@/components/kit/OtpEntrySheet';
-import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
-import { GlassPanel } from '@/components/kit/GlassScreenKit';
-import { homeShadow } from '@/components/kit/homeUi';
+import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { TechScreen, TechScreenScroll } from '@/components/kit/TechScreenKit';
+import { TechInlineNotice } from '@/components/tech/TechInlineNotice';
+import { TechLocationSheet, type LocationChoice, type LocationPhase } from '@/components/tech/TechLocationSheet';
+import { TechJobDetailSkeleton } from '@/components/tech/TechSkeletons';
+import { TechStatusBanner } from '@/components/tech/TechStatusBanner';
+import { AppImage } from '@/components/ui/AppImage';
 import { Button } from '@/components/ui/Button';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { Input } from '@/components/ui/Input';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
-import { Spinner } from '@/components/ui/Spinner';
 import { LiveBadge } from '@/components/ui/LiveBadge';
+import { PhotoViewer } from '@/components/ui/PhotoViewer';
+import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
-import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
-import { CACHE_TTL } from '@/lib/apiCache';
-import { useScreenLoad } from '@/lib/useScreenLoad';
-import {
-  formatBookingDuration,
-  formatVisitTime,
-  jobVisitStatus,
-  visitBadgeTone,
-  visitStatusLabel,
-} from '@/lib/job-visit-helpers';
+import { AppIcons } from '@/constants/appIcons';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/lib/api';
 import {
   bookingScheduleDisplay,
   bookingServiceName,
   bookingStepsDone,
   isTerminalBookingStatus,
-  paymentMethodLabel,
 } from '@/lib/booking-helpers';
-import { useTechCopy } from '@/lib/tech-copy';
+import { useBusinessSettings } from '@/lib/businessSettings';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { localDateKey } from '@/lib/dates';
 import { mediaUrl } from '@/lib/images';
+import { formatBookingDuration, formatVisitTime, jobVisitStatus, visitBadgeTone } from '@/lib/job-visit-helpers';
+import { haptic, stagger } from '@/lib/motion';
+import { paramString } from '@/lib/routeParams';
+import { techGoBack, techRoutes } from '@/lib/routes';
+import { paymentLabel } from '@/lib/settingsLabels';
 import { MAX_STEP_PHOTOS, stepPhotoUrls } from '@/lib/stepPhotos';
+import { useTechCopy } from '@/lib/tech-copy';
+import { invalidateTechStats, storeTechJob, useTechJob } from '@/lib/techData';
+import { photoCount, techErrorText, visitStateLabel } from '@/lib/techLabels';
+import { currentFix, ensureLocationAccess, lastKnownFix, placeName, type GeoFix } from '@/lib/techLocation';
+import { useLiveInterval } from '@/lib/techPolling';
+import { appToast } from '@/lib/toast';
 import { uploadImages, type PickedImage } from '@/lib/upload';
 import type { Booking, BookingStep } from '@/types/api';
-import { colors, fonts, spacing } from '@/constants/theme';
-import { techGoBack, techRoutes } from '@/lib/routes';
+import { colors, fonts, radii, spacing, ui } from '@/constants/theme';
+
+/** How long to wait for a fresh GPS fix before falling back to the last known position. */
+const GPS_TIMEOUT_MS = 15_000;
+/** The "Getting your location…" sheet appears only if the fix takes longer than this. */
+const GPS_SHEET_DELAY_MS = 700;
+/** Live jobs refresh this often while the screen is open and the app is in front. */
+const POLL_MS = 45_000;
 
 export default function TechJobScreen() {
-  const copy = useTechCopy();
+  const tc = useTechCopy();
+  const copy = useCustomerUiCopy();
+  const settings = useBusinessSettings();
+  const { user } = useAuth();
   const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
-  const [booking, setBooking] = useState<Booking | null>(null);
+  const job = useTechJob(id ?? '');
+  const booking = job.data;
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [otpSheet, setOtpSheet] = useState<'start' | 'end' | null>(null);
   const [otpErrorTrigger, setOtpErrorTrigger] = useState(0);
   const [stepDrafts, setStepDrafts] = useState<Record<number, PickedImage[]>>({});
-  const focusedRef = useRef(true);
-  const lastPoll = useRef(0);
-  const { loading, error, runLoad } = useScreenLoad();
-
-  const load = useCallback(async (opts?: { skipCache?: boolean }) => {
-    if (!id) {
-      throw new Error('Job not found');
-    }
-    const cacheOpts = opts?.skipCache
-      ? { skipCache: true as const }
-      : { cacheTtlMs: CACHE_TTL.bookingDetail };
-    const { data } = await api.get<{ booking: Booking }>(`/bookings/${id}`, {
-      ...screenLoadConfig,
-      ...cacheOpts,
-    });
-    setBooking(data.booking);
-  }, [id]);
-
-  useEffect(() => {
-    void runLoad(load);
-  }, [load, runLoad]);
+  const [gps, setGps] = useState<LocationPhase | null>(null);
+  const gpsChoice = useRef<((choice: LocationChoice) => void) | null>(null);
+  const [viewer, setViewer] = useState<{ photos: string[]; index: number } | null>(null);
 
   useEffect(() => {
     setStepDrafts({});
     setNote('');
     setOtpSheet(null);
+    setViewer(null);
   }, [id]);
 
-  useFocusEffect(
-    useCallback(() => {
-      focusedRef.current = true;
-      return () => {
-        focusedRef.current = false;
-      };
-    }, []),
-  );
+  // Live jobs stay current, but never poll from the background or another tab.
+  useLiveInterval(() => void job.reload(false), POLL_MS, Boolean(booking && !isTerminalBookingStatus(booking.status)));
 
-  useEffect(() => {
-    if (!booking || isTerminalBookingStatus(booking.status)) return;
-    const timer = setInterval(() => {
-      if (!focusedRef.current) return;
-      const now = Date.now();
-      if (now - lastPoll.current < CACHE_TTL.bookingDetail) return;
-      lastPoll.current = now;
-      void load().catch(() => undefined);
-    }, 45000);
-    return () => clearInterval(timer);
-  }, [booking?.status, booking?.id, load]);
-
-  async function onPullRefresh() {
-    setRefreshing(true);
-    try {
-      await load({ skipCache: true });
-    } finally {
-      setRefreshing(false);
-    }
+  function applyBooking(next: Booking) {
+    if (user) storeTechJob(user.id, next);
   }
 
   async function submitOtp(otp: string) {
-    if (!otpSheet) return;
-    setBusy(otpSheet);
+    if (!otpSheet || busy) return;
+    const phase = otpSheet;
+    setBusy(phase);
     try {
-      const path = otpSheet === 'start' ? 'start-work' : 'complete-work';
-      const { data } = await api.post<{ booking: Booking }>(
-        `/bookings/${id}/${path}`,
-        { otp },
-        { skipErrorToast: true },
-      );
-      const nextStatus = data.booking.status;
-      if (otpSheet === 'start') {
-        Toast.show({
-          type: 'success',
-          text1: nextStatus === 'awaiting_verification' ? 'Start verified' : 'Work started',
-          text2:
-            nextStatus === 'awaiting_verification'
-              ? 'Ask the customer for their completion code'
-              : undefined,
-        });
-      } else {
-        Toast.show({ type: 'success', text1: 'Job completed' });
-      }
+      const path = phase === 'start' ? 'start-work' : 'complete-work';
+      const { data } = await api.post<{ booking: Booking }>(`/bookings/${id}/${path}`, { otp }, { skipErrorToast: true });
+      haptic('success');
+      applyBooking(data.booking);
+      if (user) invalidateTechStats(user.id);
       setOtpSheet(null);
-      await load({ skipCache: true });
+      if (phase === 'end') {
+        appToast.success(copy.techToastJobCompleted);
+      } else if (data.booking.status === 'awaiting_verification') {
+        appToast.success(copy.techToastStartVerified, copy.techToastAskCompletionCode);
+      } else {
+        appToast.success(copy.techToastWorkStarted);
+      }
     } catch (err) {
+      // The sheet shakes and plays the error haptic.
       setOtpErrorTrigger((n) => n + 1);
-      Toast.show({
-        type: 'error',
-        text1: 'Could not verify code',
-        text2: getApiErrorMessage(err, 'Check the code with the customer and try again'),
-      });
+      appToast.error(copy.techOtpErrorTitle, techErrorText(copy, err, copy.techOtpErrorText));
     } finally {
       setBusy(null);
     }
   }
 
-  async function readJobGeo(): Promise<{ lat: number; lng: number; address: string } | null> {
-    if (!booking) return null;
-    const { status: loc } = await Location.requestForegroundPermissionsAsync();
-    if (loc !== 'granted') {
-      Toast.show({
-        type: 'error',
-        text1: 'Location permission required',
-        text2: 'Enable GPS to capture geotagged step photos',
-      });
+  /* ─── Step photos need a GPS point: permission → fresh fix (cancel / use last known) → retry ─── */
+
+  function waitForChoice(): Promise<LocationChoice> {
+    return new Promise((resolve) => {
+      gpsChoice.current = resolve;
+    });
+  }
+
+  function choose(choice: LocationChoice) {
+    const resolve = gpsChoice.current;
+    gpsChoice.current = null;
+    resolve?.(choice);
+  }
+
+  async function resolveStepGeo(): Promise<GeoFix | null> {
+    const access = await ensureLocationAccess();
+    if (access !== 'ok') {
+      haptic('warning');
+      setGps(access);
+      const choice = await waitForChoice();
+      setGps(null);
+      if (choice === 'settings') void Linking.openSettings();
       return null;
     }
-
-    if (!(await Location.hasServicesEnabledAsync())) {
-      Toast.show({ type: 'error', text1: 'Location is turned off', text2: 'Turn on GPS to save this step' });
-      return null;
+    for (let attempt = 0; ; attempt++) {
+      // A quick fix never flashes the sheet; it only slides up when GPS takes a moment (retries show at once).
+      const reveal = attempt === 0 ? setTimeout(() => setGps('locating'), GPS_SHEET_DELAY_MS) : undefined;
+      if (attempt > 0) setGps('locating');
+      const outcome = await Promise.race([
+        currentFix(GPS_TIMEOUT_MS).then((fix) => ({ kind: 'fix' as const, fix })),
+        waitForChoice().then((choice) => ({ kind: 'choice' as const, choice })),
+      ]);
+      if (reveal) clearTimeout(reveal);
+      if (outcome.kind === 'choice' && outcome.choice === 'cancel') {
+        setGps(null);
+        return null;
+      }
+      // Timed out, or the technician chose not to wait: the phone's last known position will do.
+      const fix = (outcome.kind === 'fix' ? outcome.fix : null) ?? (await lastKnownFix());
+      if (fix) {
+        gpsChoice.current = null;
+        setGps(null);
+        return fix;
+      }
+      haptic('warning');
+      setGps('failed');
+      if ((await waitForChoice()) !== 'retry') {
+        setGps(null);
+        return null;
+      }
     }
-
-    const pos = await Promise.race([
-      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 15000)),
-    ]) ?? (await Location.getLastKnownPositionAsync());
-    if (!pos) {
-      Toast.show({ type: 'error', text1: 'Could not get your location', text2: 'Move near a window or outdoors and try again' });
-      return null;
-    }
-
-    let geocoded = '';
-    try {
-      const [place] = await Location.reverseGeocodeAsync({
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-      });
-      if (place) geocoded = [place.street, place.city, place.region].filter(Boolean).join(', ');
-    } catch {
-      /* use fallback address */
-    }
-    const address = note.trim() || geocoded || booking.address?.trim() || 'On-site location';
-    return { lat: pos.coords.latitude, lng: pos.coords.longitude, address };
   }
 
   async function completeStep(index: number, step: BookingStep) {
-    if (!booking) return;
+    if (!booking || busy) return;
     const drafts = stepDrafts[index] ?? [];
     if (drafts.length === 0) {
-      Toast.show({ type: 'error', text1: 'Add at least one photo' });
+      haptic('warning');
+      appToast.error(copy.techStepNeedPhoto);
       return;
     }
     setBusy(`step-${index}`);
     try {
-      const geo = await readJobGeo();
-      if (!geo) {
-        setBusy(null);
-        return;
-      }
-
+      const fix = await resolveStepGeo();
+      if (!fix) return;
+      const geocoded = await placeName(fix);
+      const address = note.trim() || geocoded || booking.address?.trim() || copy.techGpsFallbackAddress;
       const photoUrls = await uploadImages(drafts);
-      await api.patch(`/bookings/${id}/steps/${index}`, {
-        status: 'done',
-        photoUrls,
-        photoUrl: photoUrls[0],
-        geo,
-      });
+      const { data } = await api.patch<{ booking: Booking }>(
+        `/bookings/${id}/steps/${index}`,
+        { status: 'done', photoUrls, photoUrl: photoUrls[0], geo: { lat: fix.lat, lng: fix.lng, address } },
+        { skipErrorToast: true },
+      );
       setStepDrafts((prev) => {
         const next = { ...prev };
         delete next[index];
         return next;
       });
-      await load({ skipCache: true });
-      Toast.show({
-        type: 'success',
-        text1: `${step.title} completed`,
-        text2: `${photoUrls.length} photo${photoUrls.length === 1 ? '' : 's'} saved`,
-      });
+      applyBooking(data.booking);
+      haptic('success');
+      appToast.success(
+        fillCopy(copy.techToastStepDone, { step: step.title }),
+        fillCopy(copy.techToastPhotosSaved, { photos: photoCount(copy, photoUrls.length) }),
+      );
     } catch (err) {
-      Toast.show({
-        type: 'error',
-        text1: 'Could not save step',
-        text2: getApiErrorMessage(err, 'Check connection and try again'),
-      });
+      haptic('error');
+      appToast.error(copy.techStepSaveError, techErrorText(copy, err));
     } finally {
       setBusy(null);
     }
   }
 
-  if (loading) return <Spinner fullScreen />;
+  const backHeader = (
+    <CustomerPageHeader variant="premium" title={copy.techJobTitle} showBack onBack={() => techGoBack(techRoutes.home)} />
+  );
 
-  if (error || !booking) {
+  if (!id || (!booking && !job.loading)) {
     return (
-      <TechScreen
-        header={
-          <CustomerPageHeader
-            variant="premium"
-            title="Job"
-            showBack
-            onBack={() => techGoBack(techRoutes.home)}
-          />
-        }
-      >
-        <ListEmptyRetry message={error ?? 'Job not found'} onRetry={() => void runLoad(load)} />
+      <TechScreen header={backHeader}>
+        <ListEmptyRetry
+          title={id ? copy.techJobLoadError : copy.techJobNotFound}
+          message={id ? (job.error ?? undefined) : undefined}
+          retryLabel={copy.techRetry}
+          onRetry={id ? () => void job.refresh() : undefined}
+        />
+      </TechScreen>
+    );
+  }
+
+  if (!booking) {
+    return (
+      <TechScreen header={backHeader}>
+        <TechJobDetailSkeleton />
       </TechScreen>
     );
   }
@@ -273,8 +244,7 @@ export default function TechJobScreen() {
   const allDone = steps.length > 0 && steps.every((s) => s.status === 'done');
   const readOnly = isTerminalBookingStatus(booking.status);
   const canWork = !readOnly && ['confirmed', 'in_progress', 'awaiting_verification'].includes(booking.status);
-  const today = localDateKey();
-  const visitStatus = jobVisitStatus(booking, today);
+  const visitStatus = jobVisitStatus(booking, localDateKey());
   const visitTone = visitBadgeTone(visitStatus) as BadgeTone;
   const visitDuration = formatBookingDuration(booking);
   const showProgress =
@@ -282,7 +252,11 @@ export default function TechJobScreen() {
   const needsStartCode = booking.status === 'confirmed' && canWork;
   const needsEndCode = booking.status === 'awaiting_verification' && canWork;
   const canEnterEndCode = needsEndCode && (allDone || steps.length === 0);
-  const headerLive = booking.status === 'in_progress';
+  const capturing = booking.status === 'in_progress' && canWork;
+  const hasDock = needsStartCode || needsEndCode;
+
+  let section = 0;
+  const enter = () => stagger(section++);
 
   return (
     <TechScreen
@@ -290,384 +264,356 @@ export default function TechJobScreen() {
         <CustomerPageHeader
           variant="premium"
           title={bookingServiceName(booking)}
-          subtitle={`Field job · ${bookingScheduleDisplay(booking)}`}
+          subtitle={fillCopy(copy.techJobSubtitle, { schedule: bookingScheduleDisplay(booking) })}
           showBack
           onBack={() => techGoBack(techRoutes.home)}
-          rightAction={headerLive ? <LiveBadge /> : null}
+          rightAction={booking.status === 'in_progress' ? <LiveBadge label={copy.techLiveBadge} /> : null}
         />
       }
     >
       <TechScreenScroll
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[styles.container, hasDock && styles.containerDock]}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => void onPullRefresh()} tintColor={colors.green} />
+          <RefreshControl refreshing={job.refreshing} onRefresh={() => void job.refresh()} tintColor={ui.brand} />
         }
       >
-        <FadeSlideIn>
-          <BookingStatusBanner status={booking.status} audience="technician" />
-
-          {needsStartCode ? (
-            <View style={styles.calloutOuter}>
-              <View style={styles.surfaceShell}>
-                <GlassPanel style={styles.startCallout} padded={false} tone="mint" intensity={42} goldEdge>
-                  <View style={styles.calloutInner}>
-                    <Text style={styles.startCalloutTitle}>Ready to start</Text>
-                    <Text style={styles.startCalloutBody}>
-                      Ask the customer for their start code, then enter it below to begin the visit.
-                    </Text>
-                  </View>
-                </GlassPanel>
-              </View>
-            </View>
-          ) : null}
-
-          {booking.techEarning != null || booking.jobValue != null ? (
-            <View style={styles.calloutOuter}>
-              <View style={styles.surfaceShell}>
-                <GlassPanel style={styles.jobValueCard} padded={false} tone="light" intensity={42} goldEdge>
-                  <View style={styles.jobValueInner}>
-                    {booking.techEarning != null ? (
-                      <>
-                        <Text style={styles.jobValueLabel}>{copy.techEarningLabel}</Text>
-                        <Text style={styles.jobValueAmount}>₹{booking.techEarning}</Text>
-                      </>
-                    ) : null}
-                    {booking.jobValue != null ? (
-                      <Text style={styles.jobValueHint}>
-                        {copy.techJobValueLabel}: ₹{booking.jobValue}
-                        {booking.status !== 'completed' ? ' · estimate until complete' : ''}
-                      </Text>
-                    ) : null}
-                  </View>
-                </GlassPanel>
-              </View>
-            </View>
-          ) : null}
-
-          {showProgress ? (
-            <View style={styles.inset}>
-              <JobProgressCard
-                done={doneCount}
-                total={steps.length}
-                live={booking.status === 'in_progress'}
-                label={booking.status === 'awaiting_verification' ? 'Steps complete' : 'Job progress'}
-              />
-            </View>
-          ) : null}
-
-          {steps.length > 0 ? (
-            <>
-              <PremiumSectionHeader title={copy.techTreatmentStepsTitle} style={styles.sectionHeader} />
-              {steps.map((step, index) => {
-                const isActive = index === activeIndex && step.status !== 'done';
-                const isDone = step.status === 'done';
-                const photos = stepPhotoUrls(step);
-                const drafts = stepDrafts[index] ?? [];
-                return (
-                  <View key={`${step.title}-${index}`} style={styles.stepOuter}>
-                    <View style={[styles.surfaceShell, isActive && styles.stepActiveShell]}>
-                      <GlassPanel
-                        style={isActive ? styles.stepActive : styles.step}
-                        padded={false}
-                        tone={isActive ? 'mint' : 'light'}
-                        intensity={42}
-                        goldEdge={isActive}
-                      >
-                        <View style={styles.stepInner}>
-                          <View style={styles.stepRow}>
-                            {isDone ? (
-                              <View style={styles.doneThumb}>
-                                <PremiumIcon icon={AppIcons.ui.check} variant="plain" size="lg" color="#fff" strokeWidth={3} />
-                              </View>
-                            ) : isActive ? (
-                              <View style={styles.camThumb}>
-                                <PremiumIcon icon={AppIcons.ui.camera} variant="plain" size="xl" color="#fff" />
-                              </View>
-                            ) : (
-                              <View style={styles.numThumb}>
-                                <Text style={styles.num}>{index + 1}</Text>
-                              </View>
-                            )}
-                            <View style={styles.stepBody}>
-                              <Text style={[styles.stepTitle, !isDone && !isActive && styles.muted]}>{step.title}</Text>
-                              {isDone ? (
-                                <Text style={styles.doneTag}>
-                                  Done · {photos.length} photo{photos.length === 1 ? '' : 's'}
-                                </Text>
-                              ) : null}
-                              {isActive ? (
-                                <Text style={styles.activeTag}>
-                                  Add up to {MAX_STEP_PHOTOS} photos
-                                </Text>
-                              ) : null}
-                              {step.geo?.address ? <Text style={styles.geo}>{step.geo.address}</Text> : null}
-                            </View>
-                          </View>
-
-                          {isDone && photos.length > 0 ? (
-                            <ScrollView
-                              horizontal
-                              showsHorizontalScrollIndicator={false}
-                              contentContainerStyle={styles.donePhotoRow}
-                            >
-                              {photos.map((url, i) => (
-                                <SafePhoto key={`${url}-${i}`} uri={mediaUrl(url)} style={styles.donePhoto} compact />
-                              ))}
-                            </ScrollView>
-                          ) : null}
-
-                          {isActive && booking.status === 'in_progress' && canWork ? (
-                            <View style={styles.captureBlock}>
-                              <AddressPhotoGrid
-                                photos={drafts}
-                                onChange={(next) =>
-                                  setStepDrafts((prev) => ({ ...prev, [index]: next }))
-                                }
-                                max={MAX_STEP_PHOTOS}
-                              />
-                              <Button
-                                title={
-                                  drafts.length === 0
-                                    ? 'Add photos to complete'
-                                    : `Complete with ${drafts.length} photo${drafts.length === 1 ? '' : 's'}`
-                                }
-                                variant="premium"
-                                onPress={() => void completeStep(index, step)}
-                                loading={busy === `step-${index}`}
-                                disabled={drafts.length === 0 || busy === `step-${index}`}
-                                style={styles.captureBtnFull}
-                              />
-                            </View>
-                          ) : null}
-                        </View>
-                      </GlassPanel>
-                    </View>
-                  </View>
-                );
-              })}
-            </>
-          ) : canWork && booking.status === 'in_progress' ? (
-            <View style={styles.calloutOuter}>
-              <View style={styles.surfaceShell}>
-                <GlassPanel style={styles.emptySteps} padded={false} tone="light" intensity={42}>
-                  <View style={styles.emptyStepsInner}>
-                    <PremiumIcon icon={AppIcons.ui.image} variant="mint" size="md" color={colors.forest} boxSize={44} />
-                    <Text style={styles.emptyStepsText}>{copy.techNoStepsHint}</Text>
-                  </View>
-                </GlassPanel>
-              </View>
-            </View>
-          ) : null}
-
-          <PremiumSectionHeader title={copy.techVisitTimesTitle} style={styles.sectionHeader} />
-          <View style={styles.calloutOuter}>
-            <View style={styles.surfaceShell}>
-              <GlassPanel style={styles.visitCard} padded={false} tone="light" intensity={42} goldEdge>
-                <View style={styles.visitInner}>
-                  <View style={styles.visitHead}>
-                    <Text style={styles.visitHeadLabel}>Visit status</Text>
-                    <StatusBadge label={visitStatusLabel(visitStatus)} tone={visitTone} />
-                  </View>
-                  <View style={styles.visitRow}>
-                    <Text style={styles.visitLabel}>Started</Text>
-                    <Text style={styles.visitVal}>
-                      {booking.workStartedAt ? formatVisitTime(booking.workStartedAt) : 'Not started'}
-                    </Text>
-                  </View>
-                  <View style={styles.visitRow}>
-                    <Text style={styles.visitLabel}>Completed</Text>
-                    <Text style={styles.visitVal}>
-                      {booking.workCompletedAt
-                        ? formatVisitTime(booking.workCompletedAt)
-                        : visitStatus === 'in_progress'
-                          ? 'In progress'
-                          : '—'}
-                    </Text>
-                  </View>
-                  {visitDuration ? (
-                    <View style={styles.visitRow}>
-                      <Text style={styles.visitLabel}>Duration</Text>
-                      <Text style={styles.visitVal}>{visitDuration}</Text>
-                    </View>
-                  ) : null}
-                </View>
-              </GlassPanel>
-            </View>
+        {job.error ? (
+          <View style={styles.noticeInset}>
+            <TechInlineNotice
+              message={copy.techRefreshError}
+              actionLabel={copy.techRetry}
+              onAction={() => void job.refresh()}
+              busy={job.refreshing}
+            />
           </View>
+        ) : null}
 
-          <PremiumSectionHeader title={copy.techJobDetailsTitle} style={styles.sectionHeader} />
+        <FadeSlideIn delay={enter()} slideFrom={14} style={styles.inset}>
+          <TechStatusBanner status={booking.status} />
+        </FadeSlideIn>
+
+        {needsStartCode ? (
+          <FadeSlideIn delay={enter()} slideFrom={14} style={styles.inset}>
+            <View style={[styles.card, styles.readyCard]}>
+              <Text style={styles.cardTitle}>{copy.techReadyTitle}</Text>
+              <Text style={styles.cardBody}>{copy.techReadyText}</Text>
+            </View>
+          </FadeSlideIn>
+        ) : null}
+
+        {booking.techEarning != null || booking.jobValue != null ? (
+          <FadeSlideIn delay={enter()} slideFrom={14} style={styles.inset}>
+            <View style={styles.card}>
+              {booking.techEarning != null ? (
+                <>
+                  <Text style={styles.kicker}>{tc.techEarningLabel}</Text>
+                  <Text style={styles.amount}>{formatRupeeFull(booking.techEarning)}</Text>
+                </>
+              ) : null}
+              {booking.jobValue != null ? (
+                <Text style={styles.amountHint}>
+                  {`${tc.techJobValueLabel}: ${formatRupeeFull(booking.jobValue)}`}
+                  {booking.status !== 'completed' ? ` · ${copy.techEstimateNote}` : ''}
+                </Text>
+              ) : null}
+            </View>
+          </FadeSlideIn>
+        ) : null}
+
+        {showProgress ? (
+          <FadeSlideIn delay={enter()} slideFrom={14} style={styles.inset}>
+            <JobProgressCard
+              done={doneCount}
+              total={steps.length}
+              live={booking.status === 'in_progress'}
+              label={booking.status === 'awaiting_verification' ? copy.techProgressStepsComplete : copy.techProgressJob}
+            />
+          </FadeSlideIn>
+        ) : null}
+
+        {steps.length > 0 ? (
+          <FadeSlideIn delay={enter()} slideFrom={14}>
+            <PremiumSectionHeader title={tc.techTreatmentStepsTitle} style={styles.sectionHeader} />
+            {steps.map((step, index) => (
+              <StepCard
+                key={`${step.title}-${index}`}
+                step={step}
+                index={index}
+                active={index === activeIndex && step.status !== 'done'}
+                capturing={capturing}
+                drafts={stepDrafts[index] ?? []}
+                saving={busy === `step-${index}`}
+                locked={busy !== null && busy !== `step-${index}`}
+                onDraftsChange={(next) => setStepDrafts((prev) => ({ ...prev, [index]: next }))}
+                onComplete={() => void completeStep(index, step)}
+                onOpenPhoto={(photos, i) => setViewer({ photos, index: i })}
+              />
+            ))}
+          </FadeSlideIn>
+        ) : capturing ? (
+          <FadeSlideIn delay={enter()} slideFrom={14} style={styles.inset}>
+            <View style={[styles.card, styles.row]}>
+              <PremiumIcon icon={AppIcons.ui.image} variant="mint" size="md" color={colors.forest} boxSize={44} />
+              <Text style={[styles.cardBody, styles.flex]}>{tc.techNoStepsHint}</Text>
+            </View>
+          </FadeSlideIn>
+        ) : null}
+
+        <FadeSlideIn delay={enter()} slideFrom={14}>
+          <PremiumSectionHeader title={tc.techVisitTimesTitle} style={styles.sectionHeader} />
+          <View style={[styles.card, styles.inset]}>
+            <View style={styles.visitHead}>
+              <Text style={styles.visitHeadLabel}>{copy.techVisitStatus}</Text>
+              <StatusBadge label={visitStateLabel(copy, visitStatus)} tone={visitTone} />
+            </View>
+            <VisitRow
+              label={copy.techVisitStarted}
+              value={booking.workStartedAt ? formatVisitTime(booking.workStartedAt) : copy.techVisitNotStarted}
+            />
+            <VisitRow
+              label={copy.techVisitCompleted}
+              value={
+                booking.workCompletedAt
+                  ? formatVisitTime(booking.workCompletedAt)
+                  : visitStatus === 'in_progress'
+                    ? copy.techVisitInProgress
+                    : '—'
+              }
+            />
+            {visitDuration ? <VisitRow label={copy.techVisitDuration} value={visitDuration} /> : null}
+          </View>
+        </FadeSlideIn>
+
+        <FadeSlideIn delay={enter()} slideFrom={14}>
+          <PremiumSectionHeader title={tc.techJobDetailsTitle} style={styles.sectionHeader} />
           <View style={styles.inset}>
             <BookingFactsCard booking={booking} audience="technician" showCustomer showPayment hideHead />
           </View>
+        </FadeSlideIn>
 
-          {booking.paymentMethod || booking.address ? (
-            <View style={styles.calloutOuter}>
-              <View style={styles.surfaceShell}>
-                <GlassPanel style={styles.jobValueCard} padded={false} tone="light" intensity={42} goldEdge>
-                  <View style={styles.jobValueInner}>
-                    {booking.paymentMethod ? (
-                      <>
-                        <Text style={styles.jobValueLabel}>Collect payment</Text>
-                        <Text style={styles.collectValue}>{paymentMethodLabel(booking.paymentMethod)}</Text>
-                      </>
-                    ) : null}
-                    {booking.address ? (
-                      <Button
-                        title="Open directions"
-                        variant="secondary"
-                        onPress={() => {
-                          const q = encodeURIComponent(booking.address);
-                          void Linking.openURL(`https://maps.google.com/?q=${q}`);
-                        }}
-                        style={{ marginTop: booking.paymentMethod ? spacing.sm : 0 }}
-                      />
-                    ) : null}
-                  </View>
-                </GlassPanel>
-              </View>
+        {booking.paymentMethod || booking.address ? (
+          <FadeSlideIn delay={enter()} slideFrom={14} style={styles.inset}>
+            <View style={styles.card}>
+              {booking.paymentMethod ? (
+                <>
+                  <Text style={styles.kicker}>{copy.techCollectPayment}</Text>
+                  <Text style={styles.collect}>{paymentLabel(booking.paymentMethod, settings)}</Text>
+                </>
+              ) : null}
+              {booking.address ? (
+                <Button
+                  title={copy.techOpenDirections}
+                  variant="secondary"
+                  onPress={() => {
+                    haptic('tap');
+                    void Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(booking.address)}`);
+                  }}
+                  style={booking.paymentMethod ? styles.directions : undefined}
+                />
+              ) : null}
             </View>
-          ) : null}
+          </FadeSlideIn>
+        ) : null}
 
-          {canWork && booking.status === 'in_progress' ? (
+        {capturing ? (
+          <FadeSlideIn delay={enter()} slideFrom={14} style={styles.inset}>
             <Input
-              label={copy.techLocationNoteLabel}
+              label={tc.techLocationNoteLabel}
               value={note}
               onChangeText={setNote}
-              placeholder={copy.techLocationNotePlaceholder}
-              containerStyle={styles.inset}
+              placeholder={tc.techLocationNotePlaceholder}
             />
-          ) : null}
+          </FadeSlideIn>
+        ) : null}
 
-          {(booking.tracking?.length ?? 0) > 0 ? (
-            <>
-              <PremiumSectionHeader title={copy.techActivityTitle} style={styles.sectionHeader} />
-              <View style={styles.inset}>
-                <BookingTrackingTimeline events={booking.tracking ?? []} />
-              </View>
-            </>
-          ) : null}
-        </FadeSlideIn>
+        {(booking.tracking?.length ?? 0) > 0 ? (
+          <FadeSlideIn delay={enter()} slideFrom={14}>
+            <PremiumSectionHeader title={tc.techActivityTitle} style={styles.sectionHeader} />
+            <View style={styles.inset}>
+              <BookingTrackingTimeline events={booking.tracking ?? []} />
+            </View>
+          </FadeSlideIn>
+        ) : null}
       </TechScreenScroll>
 
-      {(needsStartCode || needsEndCode) && (
+      {hasDock ? (
         <StickyActionBar>
           {needsStartCode ? (
-            <Button
-              title={copy.techEnterStartCode}
-              variant="premium"
-              onPress={() => setOtpSheet('start')}
-              loading={busy === 'start'}
-            />
+            <Button title={tc.techEnterStartCode} onPress={() => setOtpSheet('start')} loading={busy === 'start'} />
           ) : null}
           {needsEndCode && canEnterEndCode ? (
-            <Button
-              title={copy.techEnterCompletionCode}
-              variant="premium"
-              onPress={() => setOtpSheet('end')}
-              loading={busy === 'end'}
-            />
+            <Button title={tc.techEnterCompletionCode} onPress={() => setOtpSheet('end')} loading={busy === 'end'} />
           ) : null}
           {needsEndCode && !canEnterEndCode && steps.length > 0 ? (
-            <Button title={copy.techCompleteStepsFirst} variant="secondary" disabled />
+            <Button title={tc.techCompleteStepsFirst} variant="secondary" disabled />
           ) : null}
         </StickyActionBar>
-      )}
+      ) : null}
 
       <OtpEntrySheet
         visible={otpSheet !== null}
-        title={otpSheet === 'start' ? copy.techStartOtpTitle : copy.techEndOtpTitle}
+        title={otpSheet === 'end' ? tc.techEndOtpTitle : tc.techStartOtpTitle}
+        subtitle={otpSheet === 'end' ? copy.techOtpEndHint : copy.techOtpStartHint}
         loading={busy === 'start' || busy === 'end'}
         errorTrigger={otpErrorTrigger}
         onClose={() => setOtpSheet(null)}
         onSubmit={(otp) => void submitOtp(otp)}
       />
+
+      <TechLocationSheet phase={gps} onChoose={choose} />
+
+      <PhotoViewer photos={viewer?.photos ?? []} index={viewer ? viewer.index : null} onClose={() => setViewer(null)} />
     </TechScreen>
   );
 }
 
+function VisitRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.visitRow}>
+      <Text style={styles.visitLabel}>{label}</Text>
+      <Text style={styles.visitValue}>{value}</Text>
+    </View>
+  );
+}
+
+/** One treatment step: done (photos open in the viewer), active (capture + complete) or upcoming. */
+function StepCard({
+  step,
+  index,
+  active,
+  capturing,
+  drafts,
+  saving,
+  locked,
+  onDraftsChange,
+  onComplete,
+  onOpenPhoto,
+}: {
+  step: BookingStep;
+  index: number;
+  active: boolean;
+  capturing: boolean;
+  drafts: PickedImage[];
+  saving: boolean;
+  /** Another step or code is being saved. */
+  locked: boolean;
+  onDraftsChange: (next: PickedImage[]) => void;
+  onComplete: () => void;
+  onOpenPhoto: (photos: string[], index: number) => void;
+}) {
+  const copy = useCustomerUiCopy();
+  const done = step.status === 'done';
+  const photos = stepPhotoUrls(step).map(mediaUrl);
+
+  return (
+    <View style={[styles.card, styles.inset, styles.step, active && styles.stepActive]}>
+      <View style={styles.row}>
+        {done ? (
+          <View style={[styles.stepThumb, styles.stepThumbDone]}>
+            <Check size={22} color={colors.white} strokeWidth={3} />
+          </View>
+        ) : active ? (
+          <View style={[styles.stepThumb, styles.stepThumbActive]}>
+            <Camera size={22} color={colors.white} strokeWidth={2.2} />
+          </View>
+        ) : (
+          <View style={styles.stepThumb}>
+            <Text style={styles.stepNum}>{index + 1}</Text>
+          </View>
+        )}
+        <View style={styles.flex}>
+          <Text style={[styles.stepTitle, !done && !active && styles.stepTitleMuted]}>{step.title}</Text>
+          {done ? (
+            <Text style={styles.stepDone}>{fillCopy(copy.techStepDoneTag, { photos: photoCount(copy, photos.length) })}</Text>
+          ) : active ? (
+            <Text style={styles.stepHint}>{fillCopy(copy.techStepAddPhotos, { max: MAX_STEP_PHOTOS })}</Text>
+          ) : null}
+          {step.geo?.address ? <Text style={styles.stepGeo}>{step.geo.address}</Text> : null}
+        </View>
+      </View>
+
+      {done && photos.length > 0 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
+          {photos.map((uri, i) => (
+            <PressableScale
+              key={`${uri}-${i}`}
+              onPress={() => onOpenPhoto(photos, i)}
+              accessibilityRole="imagebutton"
+              accessibilityLabel={fillCopy(copy.techStepPhotoA11y, { index: i + 1, total: photos.length })}
+            >
+              <AppImage uri={uri} style={styles.photo} recyclingKey={uri} />
+            </PressableScale>
+          ))}
+        </ScrollView>
+      ) : null}
+
+      {active && capturing ? (
+        <View style={styles.capture}>
+          <AddressPhotoGrid photos={drafts} onChange={onDraftsChange} max={MAX_STEP_PHOTOS} />
+          <Button
+            title={
+              drafts.length === 0
+                ? copy.techStepAddToComplete
+                : fillCopy(copy.techStepCompleteWith, { photos: photoCount(copy, drafts.length) })
+            }
+            onPress={onComplete}
+            loading={saving}
+            disabled={drafts.length === 0 || saving || locked}
+          />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { paddingBottom: 120 },
-  inset: { marginHorizontal: spacing.md },
-  sectionHeader: { marginTop: spacing.sm },
-  calloutOuter: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
-  surfaceShell: {
-    borderRadius: 20,
-    ...homeShadow.card,
-  },
-  startCallout: { borderRadius: 20 },
-  calloutInner: { padding: spacing.md },
-  startCalloutTitle: { fontFamily: fonts.displayExtra, fontSize: 16, color: colors.ink, letterSpacing: -0.3 },
-  collectValue: {
-    marginTop: 4,
-    fontFamily: fonts.displayExtra,
-    fontSize: 18,
-    color: colors.forest,
-    letterSpacing: -0.3,
-  },
-  startCalloutBody: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, marginTop: 6, lineHeight: 19 },
-  jobValueCard: { borderRadius: 20 },
-  jobValueInner: { padding: spacing.md },
-  jobValueLabel: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.muted },
-  jobValueAmount: { fontFamily: fonts.displayExtra, fontSize: 22, color: colors.forest },
-  jobValueHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 4 },
-  visitCard: { borderRadius: 20 },
-  visitInner: { padding: spacing.md },
-  visitHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  visitHeadLabel: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted },
-  visitRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginTop: 6 },
-  visitLabel: { fontFamily: fonts.body, fontSize: 13, color: colors.muted },
-  visitVal: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink, flex: 1, textAlign: 'right' },
-  stepOuter: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
-  step: { borderRadius: 20 },
-  stepActive: { borderRadius: 20 },
-  stepActiveShell: {
-    borderRadius: 20,
-    borderWidth: 1.6,
-    borderColor: colors.green,
-  },
-  stepInner: { padding: spacing.md },
-  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  doneThumb: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: colors.green,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  camThumb: {
-    width: 46,
-    height: 46,
-    borderRadius: 13,
-    backgroundColor: colors.forest,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  numThumb: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  num: { fontFamily: fonts.displayExtra, fontSize: 16, color: colors.muted },
-  stepBody: { flex: 1 },
-  stepTitle: { fontFamily: fonts.display, fontSize: 14, color: colors.ink },
-  muted: { color: colors.muted },
-  doneTag: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.green, marginTop: 4 },
-  activeTag: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.forest, marginTop: 4 },
-  geo: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
-  donePhotoRow: { gap: 8, marginTop: spacing.md, paddingRight: 4 },
-  donePhoto: { width: 88, height: 88, borderRadius: 12, backgroundColor: colors.card },
-  captureBlock: { marginTop: spacing.md, gap: spacing.sm },
-  captureBtnFull: { minHeight: 46 },
-  emptySteps: { borderRadius: 20 },
-  emptyStepsInner: {
+  container: { paddingTop: spacing.xs, paddingBottom: spacing.xl },
+  containerDock: { paddingBottom: 128 },
+  inset: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
+  noticeInset: { marginHorizontal: spacing.md },
+  sectionHeader: { marginTop: spacing.md },
+  flex: { flex: 1 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  card: {
     padding: spacing.md,
-    gap: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderRadius: radii.card,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
+    ...ui.shadow,
   },
-  emptyStepsText: { flex: 1, fontFamily: fonts.body, fontSize: 13, color: colors.muted, lineHeight: 18 },
+  readyCard: { backgroundColor: ui.brandSoft, borderColor: ui.brandSoft },
+  cardTitle: { fontFamily: fonts.displayExtra, fontSize: 16, letterSpacing: -0.3, color: ui.text },
+  cardBody: { marginTop: 4, fontFamily: fonts.body, fontSize: 13, lineHeight: 19, color: ui.textSecondary },
+  kicker: { fontFamily: fonts.bodySemi, fontSize: 13, color: ui.textSecondary },
+  amount: { marginTop: 2, fontFamily: fonts.displayExtra, fontSize: 24, letterSpacing: -0.4, color: ui.brand },
+  amountHint: { marginTop: 4, fontFamily: fonts.body, fontSize: 12.5, color: ui.textSecondary },
+  collect: { marginTop: 4, fontFamily: fonts.displayExtra, fontSize: 18, letterSpacing: -0.3, color: ui.brand },
+  directions: { marginTop: spacing.sm },
+  visitHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  visitHeadLabel: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: ui.textSecondary },
+  visitRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginTop: 8 },
+  visitLabel: { fontFamily: fonts.body, fontSize: 13.5, color: ui.textSecondary },
+  visitValue: { flex: 1, textAlign: 'right', fontFamily: fonts.bodySemi, fontSize: 13.5, color: ui.text },
+  step: { padding: 14 },
+  stepActive: { borderColor: colors.green, borderWidth: 1.5 },
+  stepThumb: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: ui.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepThumbDone: { backgroundColor: colors.green },
+  stepThumbActive: { backgroundColor: ui.brand },
+  stepNum: { fontFamily: fonts.displayExtra, fontSize: 16, color: ui.textSecondary },
+  stepTitle: { fontFamily: fonts.bodyBold, fontSize: 14.5, color: ui.text },
+  stepTitleMuted: { color: ui.textSecondary },
+  stepDone: { marginTop: 3, fontFamily: fonts.bodySemi, fontSize: 11.5, color: colors.green },
+  stepHint: { marginTop: 3, fontFamily: fonts.bodySemi, fontSize: 11.5, color: ui.brand },
+  stepGeo: { marginTop: 2, fontFamily: fonts.body, fontSize: 11.5, color: ui.textSecondary },
+  photoRow: { gap: 8, marginTop: spacing.md, paddingRight: 4 },
+  photo: { width: 76, height: 76, borderRadius: radii.thumb },
+  capture: { marginTop: spacing.md, gap: spacing.sm },
 });

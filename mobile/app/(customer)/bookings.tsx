@@ -30,7 +30,7 @@ import { useBookingCopy } from '@/lib/schedule-copy';
 import { useAuth } from '@/context/AuthContext';
 import type { Booking, BookingCopyConfig, CustomerUiCopy } from '@/types/api';
 import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
-import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { colors, fonts, radii, spacing, typeScale, ui } from '@/constants/theme';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 
 type FilterKey = 'active' | 'completed' | 'cancelled';
@@ -66,6 +66,9 @@ export default function MyBookingsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const role = user?.role;
+  /** One stable handler for every card, so memoised rows don't re-render on each list update. */
+  const openBooking = useCallback((b: Booking) => appPush(bookingDetailPath(role, b.id)), [role]);
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -81,7 +84,7 @@ export default function MyBookingsScreen() {
       try {
         await load();
       } catch (err) {
-        setLoadError(getApiErrorMessage(err, 'Could not load bookings'));
+        setLoadError(getApiErrorMessage(err, labels.bookingsLoadFailed));
       }
     }, () => setLoading(false));
   }, [load]);
@@ -128,7 +131,7 @@ export default function MyBookingsScreen() {
     try {
       await load();
     } catch (err) {
-      setLoadError(getApiErrorMessage(err, 'Could not refresh bookings'));
+      setLoadError(getApiErrorMessage(err, labels.homeRefreshFailed));
     } finally {
       setRefreshing(false);
     }
@@ -139,7 +142,9 @@ export default function MyBookingsScreen() {
       <PremiumAurora tone="light" base={false} topFade />
       <View style={styles.heroLeft}>
         <Text style={styles.kicker}>{labels.bookingsKicker}</Text>
-        <Text style={styles.heroTitle}>{bookingCopy.listScreenTitle}</Text>
+        <Text style={styles.heroTitle} accessibilityRole="header">
+          {bookingCopy.listScreenTitle}
+        </Text>
         <Text style={styles.heroSub}>{subtitle}</Text>
       </View>
       <View style={styles.heroActions}>
@@ -244,7 +249,7 @@ export default function MyBookingsScreen() {
                   booking={item}
                   hint={customerActionHint(item, bookingCopy, labels)}
                   hintTone={isRequestedTimePast(item) ? 'warning' : 'status'}
-                  onPress={() => appPush(bookingDetailPath(user?.role, item.id))}
+                  onPress={openBooking}
                 />
               </FadeSlideIn>
             )}
@@ -259,7 +264,7 @@ const styles = StyleSheet.create({
   // White root so the status-bar strip matches the white header; the feed below sits on the muted canvas.
   root: { flex: 1, backgroundColor: colors.white },
   safe: { flex: 1, backgroundColor: 'transparent' },
-  flex: { flex: 1, backgroundColor: ui.surfaceMuted },
+  flex: { flex: 1, backgroundColor: ui.canvas },
   listContent: { paddingBottom: TAB_BAR_SCROLL_PAD + 12, flexGrow: 1 },
   listEmptyGrow: { flexGrow: 1 },
   loadingBody: { flex: 1, justifyContent: 'center', paddingTop: 24 },
@@ -286,20 +291,8 @@ const styles = StyleSheet.create({
     color: ui.brand,
     marginBottom: 4,
   },
-  heroTitle: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 28,
-    lineHeight: 34,
-    letterSpacing: -0.6,
-    color: ui.text,
-  },
-  heroSub: {
-    marginTop: 4,
-    fontFamily: fonts.body,
-    fontSize: 13.5,
-    lineHeight: 19,
-    color: ui.textSecondary,
-  },
+  heroTitle: { ...typeScale.display, color: ui.text },
+  heroSub: { ...typeScale.caption, marginTop: 4, lineHeight: 19, color: ui.textSecondary },
   heroActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -307,9 +300,9 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   guideBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: ui.brandSoft,
@@ -320,10 +313,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    height: 42,
+    height: 44,
     paddingLeft: 14,
     paddingRight: 16,
-    borderRadius: 14,
+    borderRadius: radii.pill,
     backgroundColor: ui.brand,
     shadowColor: colors.forest,
     shadowOffset: { width: 0, height: 6 },
@@ -341,12 +334,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 10,
   },
-  sectionTitle: {
-    fontFamily: fonts.display,
-    fontSize: 17,
-    letterSpacing: -0.3,
-    color: ui.text,
-  },
+  sectionTitle: { ...typeScale.section, color: ui.text },
   sectionCount: {
     fontFamily: fonts.bodySemi,
     fontSize: 12.5,

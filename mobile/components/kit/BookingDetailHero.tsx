@@ -18,7 +18,10 @@ import {
 } from '@/lib/booking-helpers';
 import type { Booking, BookingStatus } from '@/types/api';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
-import { colors, fonts, spacing, surfaces, ui } from '@/constants/theme';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { getReducedMotion, useAmbientLoop } from '@/lib/a11yPrefs';
+import { motion } from '@/lib/motion';
+import { colors, fonts, radii, spacing, surfaces, ui } from '@/constants/theme';
 
 /** Status visual — icon + tint per stage (same palette as StatusPill). */
 const STATUS_VISUAL: Record<BookingStatus, { icon: LucideIcon; bg: string; ink: string }> = {
@@ -29,10 +32,6 @@ const STATUS_VISUAL: Record<BookingStatus, { icon: LucideIcon; bg: string; ink: 
   completed: { icon: BadgeCheck, bg: colors.soft, ink: colors.forest },
   cancelled: { icon: CircleX, bg: colors.errorBg, ink: colors.error },
 };
-
-function formatAmount(n: number): string {
-  return `₹${n.toLocaleString('en-IN')}`;
-}
 
 /**
  * Booking status card — what is happening now and what comes next,
@@ -64,25 +63,29 @@ export function BookingDetailHero({
       : { iconKey: bookingServiceIconKey(booking), serviceTypes: undefined };
 
   useEffect(() => {
+    if (getReducedMotion()) {
+      enter.setValue(1);
+      return;
+    }
     Animated.timing(enter, {
       toValue: 1,
-      duration: 420,
-      easing: Easing.out(Easing.cubic),
+      duration: motion.duration.slow,
+      easing: motion.easing.out,
       useNativeDriver: true,
     }).start();
   }, [enter]);
 
-  useEffect(() => {
-    if (!live) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.7, duration: 750, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 750, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [live, pulse]);
+  useAmbientLoop(
+    () =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulse, { toValue: 1.7, duration: 750, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 1, duration: 750, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+        ]),
+      ),
+    [pulse],
+    live,
+  );
 
   return (
     <Animated.View
@@ -116,7 +119,9 @@ export function BookingDetailHero({
             ) : null}
             <Text style={[styles.eyebrow, live && styles.eyebrowLive]}>{live ? labels.bookingDetailLiveEyebrow : labels.bookingDetailStatusEyebrow}</Text>
           </View>
-          <Text style={styles.statusTitle}>{bookingStatusLabel(booking.status)}</Text>
+          <Text style={styles.statusTitle} accessibilityRole="header">
+            {bookingStatusLabel(booking.status, labels)}
+          </Text>
         </View>
       </View>
 
@@ -129,7 +134,7 @@ export function BookingDetailHero({
           </View>
           <View style={styles.progressMeta}>
             <Text style={styles.progressText}>
-              {progress.done} of {progress.total} treatment steps
+              {fillCopy(labels.bookingStepsProgress, { done: progress.done, total: progress.total })}
             </Text>
             <Text style={styles.progressPct}>{pct}%</Text>
           </View>
@@ -140,18 +145,13 @@ export function BookingDetailHero({
         <ServiceThumb service={service} width={52} radius={16} iconSize={26} />
         <View style={styles.serviceText}>
           <Text style={styles.serviceName} numberOfLines={2}>
-            {bookingServiceName(booking)}
+            {bookingServiceName(booking, labels)}
           </Text>
           <Text style={styles.serviceMeta} numberOfLines={1}>
-            {bookingScheduleDisplay(booking)}
+            {bookingScheduleDisplay(booking, labels)}
           </Text>
         </View>
-        {booking.amount?.total ? (
-          <View style={styles.amountCol}>
-            <Text style={styles.amountLabel}>Total</Text>
-            <Text style={styles.amount}>{formatAmount(booking.amount.total)}</Text>
-          </View>
-        ) : null}
+        {/* The total is shown once — in the charges under "Booking details". */}
       </View>
     </Animated.View>
   );
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     marginBottom: spacing.md,
     padding: spacing.md + 2,
-    borderRadius: 22,
+    borderRadius: radii.card,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.hairline,

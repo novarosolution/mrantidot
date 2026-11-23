@@ -685,7 +685,11 @@ export const surfaces = {
 export const ui = {
   /** MR ANTIDOT premium palette — sage canvas, white cards, one confident green. */
   bg: '#FFFFFF',
+  /** The one light-grey page canvas behind white cards (stacks, tabs, loading and error states). */
+  canvas: '#F7F9F7',
   surfaceMuted: '#F7F9F7',
+  /** 8 px band between page sections, and the sticky search strip on Home. */
+  band: '#F2F3F2',
   hairline: '#EEF2EF',
   border: '#E7ECE8',
   text: '#111A15',
@@ -716,6 +720,52 @@ export const ui = {
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 };
 export const radius = { sm: 10, md: 14, lg: 20, xl: 28, full: 999 };
+
+/**
+ * Corner radii (docs/ui-roadmap.md §1): white cards 20, tappable controls 16, everything round is a pill.
+ * Use these instead of literal numbers on customer screens.
+ */
+export const radii = {
+  /** White content cards, list groups, banners, sheets (top corners). */
+  card: 20,
+  sheet: 20,
+  /** Buttons, inputs, option tiles, segmented controls. */
+  control: 16,
+  /** Small square art / photo thumbs inside a row. */
+  thumb: 12,
+  /** Chips, status pills, badges, round buttons. */
+  pill: 999,
+} as const;
+
+const t = (style: TextStyle): TextStyle => style;
+
+/**
+ * The one type scale for customer screens (Inter): display 22–26 for titles, 18 section titles,
+ * 15–16 bold row titles, 13–14 body, 12 uppercase labels. Colour is left to the caller.
+ */
+export const typeScale = {
+  /** Big page title on a hero / tab screen. */
+  display: t({ fontFamily: fonts.display, fontSize: 26, lineHeight: 32, letterSpacing: -0.6 }),
+  /** Pushed-screen title, sheet hero titles, success headline. */
+  title: t({ fontFamily: fonts.display, fontSize: 22, lineHeight: 28, letterSpacing: -0.45 }),
+  /** Section heading inside a page or sheet. */
+  section: t({ fontFamily: fonts.display, fontSize: 18, lineHeight: 24, letterSpacing: -0.35 }),
+  /** Card / list-row title. */
+  rowTitle: t({ fontFamily: fonts.bodySemi, fontSize: 15, lineHeight: 21, letterSpacing: -0.2 }),
+  /** Prominent row title (service name, booking card). */
+  rowTitleLg: t({ fontFamily: fonts.bodyBold, fontSize: 16, lineHeight: 22, letterSpacing: -0.25 }),
+  body: t({ fontFamily: fonts.body, fontSize: 14, lineHeight: 20, letterSpacing: -0.05 }),
+  bodyStrong: t({ fontFamily: fonts.bodySemi, fontSize: 14, lineHeight: 20, letterSpacing: -0.05 }),
+  caption: t({ fontFamily: fonts.body, fontSize: 13, lineHeight: 18 }),
+  captionStrong: t({ fontFamily: fonts.bodySemi, fontSize: 13, lineHeight: 18 }),
+  /** Small uppercase kicker / field label. */
+  label: t({ fontFamily: fonts.bodySemi, fontSize: 12, lineHeight: 16, letterSpacing: 0.6, textTransform: 'uppercase' }),
+  /** Pills, badges, tab labels. */
+  micro: t({ fontFamily: fonts.bodySemi, fontSize: 11, lineHeight: 14, letterSpacing: 0.2 }),
+  price: t({ fontFamily: fonts.bodyBold, fontSize: 16, lineHeight: 22, letterSpacing: -0.2 }),
+  priceLg: t({ fontFamily: fonts.display, fontSize: 22, lineHeight: 28, letterSpacing: -0.4 }),
+  button: t({ fontFamily: fonts.bodyBold, fontSize: 15, lineHeight: 20 }),
+} as const;
 
 /** Consistent top padding for gradient hero headers so they bleed under the status bar with uniform breathing room. */
 export const headerTopPad = (insetTop: number) => Math.max(insetTop, 12) + 8;
@@ -784,9 +834,9 @@ export const premium = {
   surfaceElevated: '#FFFFFF',
   accentGold: '#159447',
   accentGoldBg: '#F2FAEE',
-  radiusCard: 22,
-  radiusButton: 18,
-  radiusInput: 18,
+  radiusCard: radii.card,
+  radiusButton: radii.control,
+  radiusInput: radii.control,
   shadowSoft: {
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 10 },
@@ -807,7 +857,7 @@ export const premium = {
 export const formField = {
   height: 54,
   minHeight: 54,
-  radius: 14,
+  radius: radii.control,
   borderWidth: 1.5,
   /** Idle fields are a soft grey fill with no visible outline (same as the auth fields). */
   borderColor: ui.surfaceMuted,
@@ -821,8 +871,8 @@ export const formField = {
 
 /** Button sizing & shape — used by Button component app-wide. */
 export const buttonTokens = {
-  radius: 14,
-  radiusSm: 12,
+  radius: radii.control,
+  radiusSm: 14,
   heightLg: 52,
   heightMd: 48,
   heightSm: 42,
@@ -841,10 +891,11 @@ export const classic = {
 
 /** App-wide premium design system */
 export const design = {
-  screenBg: classic.screenBg,
+  /** Same canvas as the screens paint, so stack transitions never flash mint behind grey. */
+  screenBg: ui.canvas,
   surface: premium.surfaceElevated,
   radiusLg: premium.radiusCard,
-  radiusXl: 24,
+  radiusXl: radii.sheet,
   screenPaddingHorizontal: spacing.md,
   screenPadding: spacing.md,
   cardGap: spacing.sm,
@@ -914,3 +965,63 @@ export const headerStyle = {
   headerTitleStyle: { fontFamily: fonts.displaySemi, fontSize: 17, letterSpacing: -0.25 },
 };
 
+
+/** Decorative header light (PremiumAurora): base washes + the drifting colour blobs. */
+export const auroraPalette = {
+  /** Deep emerald the dark aurora starts from — also the status-bar strip above dark headers. */
+  deepTop: '#06361B',
+  darkMid: '#0A5A2B',
+  darkBottom: '#0C7A39',
+  /** Calm brand-green header (Home) — also the status-bar strip above it. */
+  brandTop: '#0F8C40',
+  brandMid: '#0B7C38',
+  brandBottom: '#086A2F',
+  lightMid: '#F3FAF5',
+  lightBottom: '#EAF4EC',
+  gold: '#F4D98C',
+  goldPale: '#F6E2A8',
+  mint: '#4FE08A',
+  mintSoft: '#6BE6A0',
+  mintPale: '#B7E6C4',
+  teal: '#13B7A0',
+  tealSoft: '#19C2A6',
+  tealPale: '#BDEBE0',
+} as const;
+
+/** Toast skins (PremiumToast): accent bar / icon gradient, soft halo, progress rail and border. */
+export const toastTones = {
+  success: {
+    accentSoft: 'rgba(31,154,62,0.14)',
+    gradient: [colors.forest, colors.green] as const,
+    progress: colors.green,
+    border: 'rgba(180,220,165,0.95)',
+  },
+  error: {
+    accentSoft: colors.errorBg,
+    gradient: ['#9B3412', '#C0492E'] as const,
+    progress: '#C0492E',
+    border: 'rgba(245,180,160,0.9)',
+  },
+  info: {
+    accentSoft: colors.secondarySoft,
+    gradient: [colors.secondaryDark, '#3A9688'] as const,
+    progress: '#3A9688',
+    border: 'rgba(160,210,200,0.95)',
+  },
+  warning: {
+    accentSoft: premium.accentGoldBg,
+    gradient: ['#B6841C', '#D4A017'] as const,
+    progress: '#D4A017',
+    border: 'rgba(245,184,46,0.55)',
+  },
+  offline: {
+    accentSoft: colors.greyBg,
+    gradient: ['#374151', '#6E8075'] as const,
+    progress: '#6E8075',
+    border: 'rgba(160,175,165,0.85)',
+    badge: '#4B5563',
+  },
+} as const;
+
+/** Dimmed backdrop behind sheets and dialogs. */
+export const scrim = 'rgba(8,14,10,0.45)';

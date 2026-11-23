@@ -6,6 +6,7 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import { AURORA_BRAND_TOP } from '@/components/kit/PremiumAurora';
 import { colors, fonts, ui } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
+import { fillCopy } from '@/constants/customerUiCopy';
 
 /** Light wash still used by the profile header. */
 export const HOME_HEADER_TOP = '#FFFFFF';
@@ -55,7 +56,7 @@ export function HomeTopBar({ unread, scrollY }: { unread: number; scrollY?: Anim
           onPress={() => void refreshLocation()}
           hitSlop={6}
           accessibilityRole="button"
-          accessibilityLabel={`${copy.homeHeroTitle}. Service location: ${where}. Tap to refresh`}
+          accessibilityLabel={fillCopy(copy.homeTopLocationA11y, { title: copy.homeHeroTitle, place: where })}
         >
           <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
             {copy.homeHeroTitle}
@@ -79,7 +80,7 @@ export function HomeTopBar({ unread, scrollY }: { unread: number; scrollY?: Anim
           onPress={() => appPush(customerRoutes.notifications)}
           hitSlop={4}
           accessibilityRole="button"
-          accessibilityLabel={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
+          accessibilityLabel={unread > 0 ? fillCopy(copy.profileNotificationsA11y, { count: unread }) : copy.profileMenuNotifications}
         >
           <Bell size={20} color={ui.text} strokeWidth={1.9} />
           {unread > 0 ? (
@@ -95,7 +96,7 @@ export function HomeTopBar({ unread, scrollY }: { unread: number; scrollY?: Anim
           onPress={() => appPush(customerRoutes.profile)}
           hitSlop={4}
           accessibilityRole="button"
-          accessibilityLabel="Open profile"
+          accessibilityLabel={copy.homeOpenProfileA11y}
         >
           <CircleUserRound size={25} color={ui.text} strokeWidth={1.8} />
         </PressableScale>

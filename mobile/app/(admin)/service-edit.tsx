@@ -10,7 +10,7 @@ import { AdminFormSkeleton } from '@/components/kit/AdminSkeletons';
 import { IconInput } from '@/components/kit/IconInput';
 import { ImageField, useBusyCounter } from '@/components/kit/ImageField';
 import { ServiceIconPicker } from '@/components/kit/ServiceIconPicker';
-import { ServiceTypePicker } from '@/components/kit/ServiceTypePicker';
+import { PestTypePicker } from '@/components/settings/PestTypePicker';
 import { Button } from '@/components/ui/Button';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
@@ -23,13 +23,8 @@ import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { ServiceCategory, ServiceOption, ServiceStats, ServiceTypeKey, WebsiteImage } from '@/types/api';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 import { confirmAsync } from '@/lib/confirm';
-
-const CATEGORIES: { key: ServiceCategory; label: string }[] = [
-  { key: 'residential', label: 'Residential' },
-  { key: 'commercial', label: 'Commercial' },
-  { key: 'cleaning', label: 'Cleaning' },
-  { key: 'general', label: 'General' },
-];
+import { useBusinessSettings } from '@/lib/businessSettings';
+import { categoryLabel } from '@/lib/settingsLabels';
 
 /** Option row while editing — price stays a string until save. */
 type OptionDraft = { key?: string; label: string; price: string; note: string };
@@ -41,7 +36,16 @@ export default function ServiceEditScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const [name, setName] = useState('');
   const [iconKey, setIconKey] = useState('spray');
-  const [category, setCategory] = useState<ServiceCategory>('general');
+  // Any key from Business settings → Lists → Categories (admin-added ones too).
+  const [category, setCategory] = useState<string>('general');
+  const settings = useBusinessSettings();
+  // Categories that are on, plus this service's own one if it was switched off or removed since.
+  const categoryChips = [
+    ...settings.lists.categories.filter((c) => c.active),
+    ...(settings.lists.categories.some((c) => c.active && c.key === category)
+      ? []
+      : [{ key: category, label: `${categoryLabel(category, settings)} (off)`, active: false }]),
+  ];
   const [serviceTypes, setServiceTypes] = useState<ServiceTypeKey[]>([]);
   const [basePrice, setBasePrice] = useState('499');
   const [shortDesc, setShortDesc] = useState('');
@@ -263,9 +267,9 @@ export default function ServiceEditScreen() {
             />
             <Text style={styles.label}>Category</Text>
             <AdminFilterChips
-              chips={CATEGORIES.map((c) => ({ key: c.key, label: c.label }))}
+              chips={categoryChips.map((c) => ({ key: c.key, label: c.label }))}
               selected={category}
-              onSelect={(key) => setCategory(key as ServiceCategory)}
+              onSelect={(key) => setCategory(key)}
             />
             <IconInput
               label="Base price"
@@ -399,7 +403,7 @@ export default function ServiceEditScreen() {
         <FadeSlideIn delay={stagger(4)} slideFrom={14}>
           <PremiumSectionHeader title="Pest control types" style={styles.sectionHead} />
           <AdminFormCard style={styles.form}>
-            <ServiceTypePicker
+            <PestTypePicker
               value={serviceTypes}
               onChange={(v) => {
                 setServiceTypes(v);

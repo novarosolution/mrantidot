@@ -2,6 +2,19 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { BookingAmount } from '@/types/api';
 import { useBookingCopy } from '@/lib/schedule-copy';
 import { colors, fonts, premium, shadows, spacing, surfaces, ui } from '@/constants/theme';
+import { useBusinessSettings } from '@/lib/businessSettings';
+import { gstLabel } from '@/lib/settingsLabels';
+
+/**
+ * GST rate this booking was priced with (saved on the booking, else derived from its own amounts), so a
+ * later admin change of the rate never relabels an old booking; falls back to the current rate.
+ */
+function bookingGstPercent(amount: Pick<BookingAmount, 'base' | 'gst' | 'coupon' | 'gstPercent'>, fallback: number): number {
+  if (typeof amount.gstPercent === 'number') return amount.gstPercent;
+  const taxable = amount.base - amount.coupon;
+  if (taxable <= 0 || amount.gst <= 0) return fallback;
+  return Math.round((amount.gst / taxable) * 1000) / 10;
+}
 
 function rupee(n: number): string {
   return `₹${Math.round(n).toLocaleString('en-IN')}`;
@@ -13,13 +26,16 @@ export function BookingPriceBreakdown({
   serviceName,
   serviceDesc,
 }: {
-  amount: Pick<BookingAmount, 'base' | 'gst' | 'coupon' | 'total'>;
+  amount: Pick<BookingAmount, 'base' | 'gst' | 'coupon' | 'total' | 'gstPercent'>;
   compact?: boolean;
   /** Optional service title shown above the charge rows. */
   serviceName?: string;
   serviceDesc?: string;
 }) {
   const copy = useBookingCopy();
+  const settings = useBusinessSettings();
+  // The admin's GST label with this booking's own rate ("GST (18%)" → "GST (12%)" when priced at 12%).
+  const gstText = gstLabel(copy.priceLabelGst, settings, bookingGstPercent(amount, settings.tax.gstPercent));
   return (
     <View style={[styles.wrap, compact && styles.compact, compact && styles.embedded]}>
       <Text style={styles.heading}>{copy.priceBreakdownTitle}</Text>
@@ -37,7 +53,7 @@ export function BookingPriceBreakdown({
       {amount.coupon > 0 ? (
         <Row label={copy.priceLabelCoupon} value={`−${rupee(amount.coupon)}`} valueStyle={styles.discount} />
       ) : null}
-      <Row label={copy.priceLabelGst} value={rupee(amount.gst)} />
+      <Row label={gstText} value={rupee(amount.gst)} />
       <View style={styles.divider} />
       <View style={styles.totalRow}>
         <Text style={styles.totalLabel}>{copy.priceLabelTotal}</Text>

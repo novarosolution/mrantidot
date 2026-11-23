@@ -1,6 +1,8 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
+import { Platform } from 'react-native';
 import { appToast } from '@/lib/toast';
 import { clearApiCache, invalidateAfterMutation } from '@/lib/apiCache';
+import { noteSessionExpired } from '@/lib/webAdmin';
 import { config } from './config';
 import { clearSession, getToken } from './storage';
 import type { ApiErrorBody } from '@/types/axios';
@@ -235,7 +237,10 @@ api.interceptors.response.use(
       }
 
       await clearSession();
-      if (showToast) {
+      if (Platform.OS === 'web') {
+        // Web admin: the sign-in screen shows a "Session expired" banner (even for silent screen loads).
+        noteSessionExpired();
+      } else if (showToast) {
         appToast.error('Session expired', 'Please sign in again');
       }
       if (onUnauthorized && !handlingUnauthorized) {

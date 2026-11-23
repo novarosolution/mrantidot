@@ -8,6 +8,8 @@ import type { ServiceTypeKey } from '@/constants/serviceTypes';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import { colors, fonts, ui } from '@/constants/theme';
 import { sharedRoutes, appPush } from '@/lib/routes';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { stagger } from '@/lib/motion';
 
 const COLS = 4;
 const GAP = 8;
@@ -86,9 +88,10 @@ function Tile({
 }
 
 function CategoryTile({ typeKey, size, popular }: { typeKey: ServiceTypeKey; size: number; popular: boolean }) {
+  const copy = useCustomerUiCopy();
   const meta = SERVICE_TYPE_META[typeKey];
   return (
-    <Tile size={size} label={meta.label} pill={popular ? 'Popular' : undefined} onPress={() => appPush(sharedRoutes.browse(typeKey))}>
+    <Tile size={size} label={meta.label} pill={popular ? copy.servicesPopularBadge : undefined} onPress={() => appPush(sharedRoutes.browse(typeKey))}>
       <PestImage source={meta.image} size={Math.round(size * 0.74)} />
     </Tile>
   );
@@ -122,7 +125,7 @@ export function HomeCategoryGrid({
   allLabel,
   onAll,
   offerTile,
-  moreTitle = 'Specialist treatments',
+  moreTitle,
 }: {
   types: ServiceTypeKey[];
   /** Most-booked type — gets a small "Popular" pill. */
@@ -134,6 +137,7 @@ export function HomeCategoryGrid({
   offerTile?: { value: string; label: string; onPress: () => void } | null;
   moreTitle?: string;
 }) {
+  const copy = useCustomerUiCopy();
   const size = useTileSize();
   if (types.length === 0) return null;
 
@@ -146,23 +150,23 @@ export function HomeCategoryGrid({
     <View>
       <View style={styles.grid}>
         {offerTile ? (
-          <FadeSlideIn delay={n++ * 45} slideFrom={12}>
+          <FadeSlideIn delay={stagger(n++)} slideFrom={12}>
             <Tile size={size} label={offerTile.label} onPress={offerTile.onPress}>
               <Text style={styles.offerValue} numberOfLines={1} adjustsFontSizeToFit>
                 {offerTile.value}
               </Text>
-              <Text style={styles.offerUnit}>OFF</Text>
+              <Text style={styles.offerUnit}>{copy.offerOff}</Text>
             </Tile>
           </FadeSlideIn>
         ) : null}
         {gridTypes.map((key) => (
-          <FadeSlideIn key={key} delay={Math.min(n++, 7) * 45} slideFrom={12}>
+          <FadeSlideIn key={key} delay={stagger(n++)} slideFrom={12}>
             <CategoryTile typeKey={key} size={size} popular={key === popularType} />
           </FadeSlideIn>
         ))}
         {onAll ? (
-          <FadeSlideIn delay={Math.min(n++, 7) * 45} slideFrom={12}>
-            <Tile size={size} label={allLabel ?? 'All services'} onPress={onAll}>
+          <FadeSlideIn delay={stagger(n++)} slideFrom={12}>
+            <Tile size={size} label={allLabel ?? copy.homeAllServices} onPress={onAll}>
               <DotsGlyph size={size} />
             </Tile>
           </FadeSlideIn>

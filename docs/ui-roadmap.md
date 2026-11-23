@@ -71,23 +71,33 @@ Everything on the website is managed from the app: **Admin → Manage → Websit
 
 ## Web admin (`mobile/`, Expo web)
 
-The app's admin also runs in a browser, for example at `admin.mrantidot.com`:
+The app's admin also runs in a browser, at **`https://mrantidot.com/admin`** (the website's own domain):
 - It is the same code as the app.
-- On a wide screen it shows a left sidebar instead of the bottom tabs.
 - On the web, only admins can sign in. Customers are pointed to the website.
 
-Local run: `npx expo start --web` in `mobile/`.
+Local run: `npx expo start --web` in `mobile/` (served at `/`, talks to the local API on port 4001).
 
-Deploy: a separate Vercel project rooted at `mobile/`. `mobile/vercel.json` builds it with `npx expo export -p web`. It also rewrites `/api` and `/uploads` to the API, so the HTTPS page never calls the plain-HTTP API directly.
+### Served at `/admin` on the website
+- **Export:** `npm run export:web-admin` in `mobile/` sets `EXPO_WEB_BASE_URL=/admin`, which turns on `experiments.baseUrl` in `app.config.js` (only then — native builds never get a base path). Every script, asset and the favicon load from `/admin/…`, expo-router adds/strips `/admin` in page URLs, and the files land in `dist/admin/` (plus `dist/robots.txt`).
+- **Admin deployment:** a Vercel project rooted at `mobile/`. `mobile/vercel.json` runs that export and serves `dist/` as-is: `/admin/*` real files first, then the SPA fallback to `/admin/index.html`; `/admin/api/*` and `/admin/uploads/*` go to the API; `/` redirects to `/admin`; `noindex` everywhere, long cache for the hashed `/admin/_expo/static` and `/admin/assets` files.
+- **API from the browser:** `origin + /admin` (`mobile/lib/config.ts`), so calls go to `/admin/api/…` and photos to `/admin/uploads/…` on the same HTTPS origin — the page never calls the plain-HTTP API directly. `EXPO_PUBLIC_API_URL` still wins when it is set to something other than the live HTTP API (e.g. a future `https://api.mrantidot.com`).
+- **Website:** with `ADMIN_ORIGIN` (the admin deployment's origin) set on the website, `mranti/proxy.ts` rewrites `/admin` + `/admin/*` to it and `/admin/api|uploads/*` to `MRANTIDOT_API_URL` — no redirect, the address bar stays on `mrantidot.com/admin`. Without `ADMIN_ORIGIN`, `/admin` shows a branded page (with an "Open admin" button when `ADMIN_URL` is set, e.g. `http://localhost:8081` in development).
+- **Local check of the real build:** `npm run export:web-admin`, serve `mobile/dist` on port 8090 with `/admin/api` and `/admin/uploads` proxied to the API, open `http://localhost:8090/admin`. To test through the website: `ADMIN_ORIGIN=http://localhost:8090` in `mranti/.env.local`, then `http://localhost:3000/admin`.
 
-On the website, `/admin` redirects to `ADMIN_URL` when that is set. Long term, the API should get its own HTTPS domain (e.g. `api.mrantidot.com`).
+### Desktop admin (browser windows ≥ 1024 px)
+- **Sign-in:** split screen — brand panel with a real job photo from the website (`EXPO_PUBLIC_WEBSITE_URL`, or the page's own origin when served under the site) and the form: email/phone, password with show/hide, inline errors, Enter to submit, "Forgot password? Ask your primary admin to reset it." Narrow windows get a centred card. After a 401 the session is dropped and the sign-in screen shows "Session expired — sign in again".
+- **Shell (`components/admin/WebAdminShell.tsx`):** grouped sidebar (Overview · Operations · Catalog · People · Website & content · Settings) with a sliding active indicator, an unread badge on Notifications and a collapse-to-icons toggle (remembered per browser). Top bar: page title, Refresh (remounts the current screens with fresh data) and the account menu (account/business settings, sign out).
+- **Phone leftovers removed on wide windows:** no tab-bar padding under tab screens, the sticky save bars become a slim dock with desktop-sized buttons on the right, and the screen headers drop the bell/avatar the sidebar and top bar already show. KPI, stat and report grids show 4 tiles per row; `useAdminGridCellWidth` / `useAdminContentWidth` re-measure on resize and when the sidebar collapses.
+- **Dialogs:** `confirmAsync`, `chooseAsync` and `notify` (`lib/confirm.ts`) show an in-app dialog in the browser (`components/admin/WebDialogHost.tsx`): real button labels, red destructive actions, several choices, Escape or a click outside to cancel, keyboard focus on the primary action. Native keeps `Alert.alert`.
+
+Long term, the API should get its own HTTPS domain (e.g. `api.mrantidot.com`).
 
 ### Going live (one time)
 1. API env: `BLOB_READ_WRITE_TOKEN` (the website's existing Vercel Blob token), `WEBSITE_API_KEY` (new random secret), `WEBSITE_URL` (the site's https origin), `TRUST_PROXY=1` if behind a proxy. Deploy the API.
 2. From this repo: `WEB_MONGODB_URI=<old website MongoDB> npm run import:website --workspace=server` (dry run), then add `-- --apply --upload-images` to copy blog, gallery, team, testimonials, messages and subscribers (and bundled photos to Blob).
 3. Build and install the app (admin Website screens).
-4. Website env on Vercel: `MRANTIDOT_API_URL`, `WEBSITE_API_KEY` (same value), `APP_BASE_URL`, and `ADMIN_URL` once the web admin is live. Remove the old `MONGODB_URI`, NextAuth, SMTP and WhatsApp variables. Deploy.
-5. Web admin: create a Vercel project from `mobile/`, add the domain (e.g. `admin.mrantidot.com`) and deploy.
+4. Website env on Vercel: `MRANTIDOT_API_URL`, `WEBSITE_API_KEY` (same value), `APP_BASE_URL`, and `ADMIN_ORIGIN` once the web admin is deployed (step 5). Remove the old `MONGODB_URI`, NextAuth, SMTP and WhatsApp variables. Deploy.
+5. Web admin: create a Vercel project from `mobile/` (it builds with `npm run export:web-admin`; optional env `EXPO_PUBLIC_WEBSITE_URL=https://mrantidot.com`). No custom domain is needed — copy its URL (e.g. `https://mrantidot-admin.vercel.app`) into the website's `ADMIN_ORIGIN`, redeploy the website and open `https://mrantidot.com/admin`.
 
 ## 4. Screen status
 

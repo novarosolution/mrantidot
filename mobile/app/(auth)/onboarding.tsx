@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  LayoutAnimation,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,31 +17,17 @@ import { ArrowRight, BadgeCheck, Camera, CircleCheckBig, Clock3, Leaf, MapPin, S
 import { BrandLogo } from '@/components/BrandLogo';
 import { FloatingPest } from '@/components/kit/auth/AuthBrandArt';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { useAppContent } from '@/context/AppContentContext';
-import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { useBrandFill, useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { fillCopy } from '@/constants/customerUiCopy';
 import { SERVICE_TYPE_IMAGES } from '@/constants/serviceImages';
 import { setOnboardingDone } from '@/lib/onboarding';
-import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { colors, fonts, radii, spacing, typeScale, ui } from '@/constants/theme';
 import { authRoutes, appReplace } from '@/lib/routes';
+import { getReducedMotion, useAmbientLoop } from '@/lib/a11yPrefs';
+import { haptic, motion } from '@/lib/motion';
 import type { LucideIcon } from 'lucide-react-native';
-
-const FALLBACK_SLIDES = [
-  {
-    title: 'Pest control made simple',
-    subtitle: 'Book trusted professionals for your home or business in seconds.',
-    icon: 'spray',
-  },
-  {
-    title: 'Track every step',
-    subtitle: 'Follow your technician live from visit start to photo proof.',
-    icon: 'map',
-  },
-  {
-    title: 'Guaranteed results',
-    subtitle: 'Eco-safe treatments backed by our satisfaction promise.',
-    icon: 'shield',
-  },
-];
 
 const ART_KEYS = ['spray', 'map', 'shield'] as const;
 type ArtKey = (typeof ART_KEYS)[number];
@@ -67,13 +54,10 @@ function FloatChip({ icon: Icon, label, style }: { icon: LucideIcon; label: stri
 /** Pulsing brand disc with an icon — centre of the tracking / guarantee art. */
 function CenterBadge({ icon: Icon }: { icon: LucideIcon }) {
   const pulse = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(pulse, { toValue: 1, duration: 1800, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [pulse]);
+  useAmbientLoop(
+    () => Animated.loop(Animated.timing(pulse, { toValue: 1, duration: 1800, easing: Easing.out(Easing.quad), useNativeDriver: true })),
+    [pulse],
+  );
   return (
     <View style={styles.badgeWrap}>
       <Animated.View
@@ -134,11 +118,27 @@ export default function OnboardingScreen() {
   const { width, height } = useWindowDimensions();
   const { content } = useAppContent();
   const copy = useCustomerUiCopy();
-  const slides = content.onboarding.slides.length > 0 ? content.onboarding.slides : FALLBACK_SLIDES;
-  const brandName = content.branding?.name || 'Mr Antidot';
+  const { brand: brandName } = useBrandFill();
+  const fallbackSlides = useMemo(
+    () => [
+      { title: copy.onboardSlide1Title, subtitle: copy.onboardSlide1Sub, icon: 'spray' },
+      { title: copy.onboardSlide2Title, subtitle: copy.onboardSlide2Sub, icon: 'map' },
+      { title: copy.onboardSlide3Title, subtitle: copy.onboardSlide3Sub, icon: 'shield' },
+    ],
+    [copy],
+  );
+  const slides = content.onboarding.slides.length > 0 ? content.onboarding.slides : fallbackSlides;
   const scrollRef = useRef<ScrollView>(null);
-  const scrollX = useRef(new Animated.Value(0)).current;
-  const [idx, setIdx] = useState(0);
+  const [idx, setIdxState] = useState(0);
+  /** Pager dots resize on the UI thread (LayoutAnimation) instead of a per-frame JS scroll binding. */
+  const setIdx = (next: number) => {
+    if (next === idx) return;
+    if (!getReducedMotion()) {
+      LayoutAnimation.configureNext(LayoutAnimation.create(motion.duration.base, 'easeInEaseOut', 'scaleX'));
+    }
+    haptic('select');
+    setIdxState(next);
+  };
   const last = idx >= slides.length - 1;
   const artSize = Math.min(width - 96, height * 0.36, 300);
 
@@ -176,14 +176,12 @@ export default function OnboardingScreen() {
         ) : null}
       </View>
 
-      <Animated.ScrollView
+      <ScrollView
         ref={scrollRef}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={onMomentumEnd}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: false })}
-        scrollEventThrottle={16}
         style={styles.pager}
       >
         {slides.map((slide, i) => (
@@ -195,39 +193,24 @@ export default function OnboardingScreen() {
             <Text style={styles.subtitle}>{slide.subtitle}</Text>
           </View>
         ))}
-      </Animated.ScrollView>
+      </ScrollView>
 
-      <View style={styles.dots}>
-        {slides.map((_, i) => {
-          const inputRange = [(i - 1) * width, i * width, (i + 1) * width];
-          return (
-            <Animated.View
-              key={i}
-              style={[
-                styles.dot,
-                {
-                  width: scrollX.interpolate({ inputRange, outputRange: [8, 26, 8], extrapolate: 'clamp' }),
-                  backgroundColor: scrollX.interpolate({
-                    inputRange,
-                    outputRange: [ui.border, ui.brand, ui.border],
-                    extrapolate: 'clamp',
-                  }),
-                },
-              ]}
-            />
-          );
-        })}
+      <View
+        style={styles.dots}
+        accessible
+        accessibilityRole="adjustable"
+        accessibilityLabel={fillCopy(copy.onboardPageLabel, { current: idx + 1, total: slides.length })}
+      >
+        {slides.map((_, i) => (
+          <View key={i} style={[styles.dot, i === idx && styles.dotOn]} />
+        ))}
       </View>
 
       <View style={styles.actions}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={next}
-          style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
-        >
+        <PressableScale accessibilityRole="button" haptic="tap" onPress={next} style={styles.primary}>
           <Text style={styles.primaryText}>{last ? copy.onboardGetStarted : copy.onboardNext}</Text>
           <ArrowRight size={18} color={colors.white} strokeWidth={2.4} />
-        </Pressable>
+        </PressableScale>
         <Pressable onPress={() => void finish()} hitSlop={8} accessibilityRole="button" style={styles.signInRow}>
           <Text style={styles.signInText}>
             {copy.authHaveAccount} <Text style={styles.signInLink}>{copy.authSignInLink}</Text>
@@ -249,7 +232,7 @@ const styles = StyleSheet.create({
   },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   brandName: { fontFamily: fonts.brand, fontSize: 18, letterSpacing: -0.4, color: ui.text },
-  skip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: ui.surfaceMuted },
+  skip: { paddingHorizontal: 16, minHeight: 36, justifyContent: 'center', borderRadius: radii.pill, backgroundColor: ui.surfaceMuted },
   skipText: { fontFamily: fonts.bodyBold, fontSize: 13.5, color: ui.text },
   pressedLight: { opacity: 0.7 },
   pager: { flex: 1 },
@@ -298,23 +281,21 @@ const styles = StyleSheet.create({
   },
   chipText: { fontFamily: fonts.bodyBold, fontSize: 12.5, color: ui.text },
   title: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 28,
-    lineHeight: 34,
-    letterSpacing: -0.6,
+    ...typeScale.display,
     color: ui.text,
     textAlign: 'center',
   },
   subtitle: {
+    ...typeScale.body,
     marginTop: 10,
-    fontFamily: fonts.body,
-    fontSize: 15.5,
-    lineHeight: 23,
+    fontSize: 15,
+    lineHeight: 22,
     color: ui.textSecondary,
     textAlign: 'center',
   },
   dots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginVertical: 20 },
-  dot: { height: 8, borderRadius: 4 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: ui.border },
+  dotOn: { width: 26, backgroundColor: ui.brand },
   actions: { paddingHorizontal: spacing.lg, gap: 14 },
   primary: {
     flexDirection: 'row',
@@ -322,7 +303,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     height: 56,
-    borderRadius: 16,
+    borderRadius: radii.control,
     backgroundColor: ui.brand,
     shadowColor: ui.brand,
     shadowOffset: { width: 0, height: 8 },
@@ -330,7 +311,6 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 6,
   },
-  primaryPressed: { opacity: 0.9 },
   primaryText: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.white },
   signInRow: { alignSelf: 'center', paddingVertical: 4 },
   signInText: { fontFamily: fonts.bodyMedium, fontSize: 14, color: ui.textSecondary },

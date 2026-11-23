@@ -1,13 +1,15 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": "npx expo export -p web",
+  "buildCommand": "npm run export:web-admin",
   "outputDirectory": "dist",
   "devCommand": "npx expo start --web",
+  "redirects": [{ "source": "/", "destination": "/admin", "permanent": false }],
   "rewrites": [
-    { "source": "/api/:path*", "destination": "http://13.60.23.65:4001/api/:path*" },
-    { "source": "/uploads/:path*", "destination": "http://13.60.23.65:4001/uploads/:path*" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/admin/api/:path*", "destination": "http://13.60.23.65:4001/api/:path*" },
+    { "source": "/admin/uploads/:path*", "destination": "http://13.60.23.65:4001/uploads/:path*" },
+    { "source": "/admin", "destination": "/admin/index.html" },
+    { "source": "/admin/(.*)", "destination": "/admin/index.html" }
   ],
   "headers": [
     {
@@ -15,7 +17,11 @@
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {
-      "source": "/_expo/static/(.*)",
+      "source": "/admin/_expo/static/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/admin/assets/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
     }
   ]

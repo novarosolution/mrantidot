@@ -1,7 +1,32 @@
 import { Types } from 'mongoose';
-import { Notification } from '../models/Notification';
+import { Notification, type INotificationLink } from '../models/Notification';
 import { IBooking } from '../models/Booking';
+import { Service } from '../models/Service';
 import { User } from '../models/User';
+import { fillTemplate, messageFor } from './businessSettings';
+import { scheduleWords } from './schedule';
+
+/**
+ * In-app notifications. Booking texts come from Business settings → Messages (`messageFor`), keyed
+ * "<event>.<audience>", with {service} {ref} {date} {time} filled in; the built-in texts are the fallback.
+ * An event only reaches the audiences that have a text for it.
+ */
+
+export type NotifyAudience = 'customer' | 'tech' | 'admin';
+
+export type BookingNotifyEvent =
+  | 'confirmed'
+  | 'assigned'
+  | 'in_progress'
+  | 'awaiting_verification'
+  | 'completed'
+  | 'cancelled'
+  | 'schedule_requested'
+  | 'schedule_confirmed'
+  | 'reschedule_requested'
+  | 'rescheduled';
+
+export type WorkOtpNotifyEvent = 'start_otp_ready' | 'end_otp_ready' | 'work_started' | 'work_completed';
 
 function refId(value: unknown): string | undefined {
   if (!value) return undefined;
@@ -29,6 +54,32 @@ export async function notifyUser(
   });
 }
 
+/**
+ * The same in-app notification for many people (admin broadcasts), written in batches of 1,000.
+ * Returns how many were created.
+ */
+export async function notifyUsersBulk(
+  userIds: (string | Types.ObjectId)[],
+  message: { title: string; body: string; type: string; link?: INotificationLink; broadcastId?: Types.ObjectId },
+): Promise<number> {
+  const BATCH = 1000;
+  let created = 0;
+  for (let i = 0; i < userIds.length; i += BATCH) {
+    const docs = userIds.slice(i, i + BATCH).map((userId) => ({
+      userId,
+      title: message.title,
+      body: message.body,
+      type: message.type,
+      read: false,
+      ...(message.link ? { link: message.link } : {}),
+      ...(message.broadcastId ? { broadcastId: message.broadcastId } : {}),
+    }));
+    const inserted = await Notification.insertMany(docs, { ordered: false });
+    created += inserted.length;
+  }
+  return created;
+}
+
 export async function notifyAdmins(
   title: string,
   body: string,
@@ -48,144 +99,83 @@ export async function notifyAdminsForBooking(
   await notifyAdmins(title, body, type, bookingId);
 }
 
-export async function notifyWorkOtpEvent(
+/** Placeholder values for a booking: {service} {ref} {date} {time}. */
+export async function bookingTemplateVars(booking: IBooking): Promise<Record<string, string>> {
+  const svc = booking.serviceId as unknown;
+  let service = '';
+  if (svc && typeof svc === 'object' && 'name' in svc) {
+    service = String((svc as { name?: unknown }).name ?? '');
+  } else if (svc) {
+    const doc = await Service.findById(svc).select('name').lean<{ name?: string }>();
+    service = doc?.name ?? '';
+  }
+  const id = String(booking._id ?? '');
+  const { date, time } = scheduleWords(booking.schedule ?? booking.scheduleRequest);
+  return { service, ref: id ? `#${id.slice(-6).toUpperCase()}` : '', date, time };
+}
+
+/** Title + body for an event and audience with placeholders filled; undefined when there is no text. */
+export async function bookingMessage(
   booking: IBooking,
-  event: 'start_otp_ready' | 'end_otp_ready' | 'work_started' | 'work_completed',
+  event: string,
+  audience: NotifyAudience,
+  vars?: Record<string, string>,
+): Promise<{ title: string; body: string } | undefined> {
+  const tpl = await messageFor(event, audience);
+  if (!tpl) return undefined;
+  const v = vars ?? (await bookingTemplateVars(booking));
+  return { title: fillTemplate(tpl.title, v) || tpl.title, body: fillTemplate(tpl.body, v) };
+}
+
+/** One templated message to one person (e.g. the technician who just lost a rescheduled job). */
+export async function notifyUserFromTemplate(
+  userId: string | Types.ObjectId,
+  booking: IBooking,
+  event: string,
+  audience: NotifyAudience,
+  type = event,
+): Promise<void> {
+  const msg = await bookingMessage(booking, event, audience);
+  if (msg) await notifyUser(userId, msg.title, msg.body, type, booking._id as Types.ObjectId);
+}
+
+async function sendEvent(
+  booking: IBooking,
+  event: string,
+  options: { notifyAdmin?: boolean; audiences?: NotifyAudience[] } = {},
 ): Promise<void> {
   const customerId = refId(booking.customerId);
   const techId = refId(booking.technicianId);
-  const bid = booking._id;
+  const bid = booking._id as Types.ObjectId;
+  const wants = (a: NotifyAudience) => !options.audiences || options.audiences.includes(a);
+  const vars = await bookingTemplateVars(booking);
 
-  const messages: Record<
-    string,
-    {
-      customer?: { title: string; body: string };
-      tech?: { title: string; body: string };
-      admin?: { title: string; body: string };
-    }
-  > = {
-    start_otp_ready: {
-      customer: {
-        title: 'Start code ready',
-        body: 'Share your start code with the technician when they arrive.',
-      },
-      tech: {
-        title: 'Ask for start code',
-        body: 'Ask the customer for their start code to begin the job.',
-      },
-      admin: { title: 'Start OTP issued', body: 'Customer received a start code for this booking.' },
-    },
-    end_otp_ready: {
-      customer: {
-        title: 'Completion code ready',
-        body: 'Share your end code with the technician to finish the job.',
-      },
-      tech: {
-        title: 'Ask for end code',
-        body: 'Ask the customer for their completion code to finish the job.',
-      },
-      admin: { title: 'End OTP issued', body: 'Customer received a completion code for this booking.' },
-    },
-    work_started: {
-      customer: { title: 'Work started', body: 'Your technician has started the treatment.' },
-      tech: { title: 'Job started', body: 'You have started this job on site.' },
-      admin: { title: 'Work started', body: 'Technician verified the start code and began work.' },
-    },
-    work_completed: {
-      customer: { title: 'Service completed', body: 'Thank you! You can leave a review for your technician.' },
-      tech: { title: 'Job completed', body: 'Completion code verified. Great work!' },
-      admin: { title: 'Job completed', body: 'End code verified and booking marked complete.' },
-    },
-  };
-
-  const msg = messages[event];
-  if (customerId && msg?.customer) {
-    await notifyUser(customerId, msg.customer.title, msg.customer.body, event, bid);
+  if (customerId && wants('customer')) {
+    const msg = await bookingMessage(booking, event, 'customer', vars);
+    if (msg) await notifyUser(customerId, msg.title, msg.body, event, bid);
   }
-  if (techId && msg?.tech) {
-    await notifyUser(techId, msg.tech.title, msg.tech.body, event, bid);
+  if (techId && wants('tech')) {
+    const msg = await bookingMessage(booking, event, 'tech', vars);
+    if (msg) await notifyUser(techId, msg.title, msg.body, event, bid);
   }
-  if (msg?.admin) {
-    await notifyAdmins(msg.admin.title, msg.admin.body, `admin_${event}`, bid);
+  if (options.notifyAdmin !== false && wants('admin')) {
+    const msg = await bookingMessage(booking, event, 'admin', vars);
+    if (msg) await notifyAdmins(msg.title, msg.body, `admin_${event}`, bid);
   }
 }
 
+export async function notifyWorkOtpEvent(booking: IBooking, event: WorkOtpNotifyEvent): Promise<void> {
+  await sendEvent(booking, event);
+}
+
+/**
+ * Booking status messages. `notifyAdmin: false` skips the admins; `audiences` limits who hears about it
+ * (default: everyone the event has a text for — customer / assigned technician / admins).
+ */
 export async function notifyBookingEvent(
   booking: IBooking,
-  event:
-    | 'confirmed'
-    | 'assigned'
-    | 'in_progress'
-    | 'awaiting_verification'
-    | 'completed'
-    | 'cancelled'
-    | 'schedule_requested'
-    | 'schedule_confirmed',
-  options?: { notifyAdmin?: boolean },
+  event: BookingNotifyEvent,
+  options?: { notifyAdmin?: boolean; audiences?: NotifyAudience[] },
 ): Promise<void> {
-  const customerId = refId(booking.customerId);
-  const techId = refId(booking.technicianId);
-  const bid = booking._id;
-
-  const messages: Record<
-    string,
-    {
-      customer?: { title: string; body: string };
-      tech?: { title: string; body: string };
-      admin?: { title: string; body: string };
-    }
-  > = {
-    confirmed: {
-      customer: { title: 'Booking confirmed', body: 'Your service has been confirmed. We will assign a service expert shortly.' },
-      admin: { title: 'New booking', body: 'A customer placed a new booking. Review and assign if needed.' },
-    },
-    assigned: {
-      customer: { title: 'Visit scheduled', body: 'A service expert has been assigned. Your start code is ready when they arrive.' },
-      tech: { title: 'New job assigned', body: 'You have been assigned a new service job.' },
-    },
-    in_progress: {
-      customer: { title: 'Service in progress', body: 'Treatment has started at your location.' },
-    },
-    awaiting_verification: {
-      customer: { title: 'Treatment finished', body: 'Review the photos, then share your completion code with the technician.' },
-      admin: { title: 'Job awaiting verification', body: 'A booking is ready for admin review and verification.' },
-    },
-    completed: {
-      customer: { title: 'Service completed', body: 'Thank you! You can leave a review for your visit.' },
-      tech: { title: 'Job completed', body: 'The job is marked complete. Great work!' },
-    },
-    cancelled: {
-      customer: { title: 'Booking cancelled', body: 'Your booking has been cancelled.' },
-      tech: { title: 'Job cancelled', body: 'An assigned job was cancelled.' },
-      admin: { title: 'Booking cancelled', body: 'A booking was cancelled and may need follow-up.' },
-    },
-    schedule_requested: {
-      customer: {
-        title: 'Booking request received',
-        body: 'We received your booking. Our team will confirm your visit time shortly.',
-      },
-      admin: {
-        title: 'Schedule to confirm',
-        body: 'A customer requested a visit. Review and confirm the schedule.',
-      },
-    },
-    schedule_confirmed: {
-      customer: {
-        title: 'Visit scheduled',
-        body: 'Your visit time has been confirmed. We will assign a service expert shortly.',
-      },
-    },
-  };
-
-  const msg = messages[event];
-  if (customerId && msg?.customer) {
-    await notifyUser(customerId, msg.customer.title, msg.customer.body, event, bid);
-  }
-  if (techId && msg?.tech) {
-    await notifyUser(techId, msg.tech.title, msg.tech.body, event, bid);
-  }
-  const notifyAdmin = options?.notifyAdmin !== false;
-  if (notifyAdmin && msg?.admin) {
-    await notifyAdmins(msg.admin.title, msg.admin.body, `admin_${event}`, bid);
-  }
+  await sendEvent(booking, event, options);
 }

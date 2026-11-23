@@ -1,10 +1,13 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { AppIcons } from '@/constants/appIcons';
-import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { colors, radii, spacing, typeScale, ui } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
 import { callPhone, openWhatsApp } from '@/lib/contact';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
+/** "Need help?" — one-tap call / WhatsApp / FAQ; channels the admin hasn't set are left out. */
 export function ProfileSupportCard({
   phone,
   whatsapp,
@@ -14,36 +17,37 @@ export function ProfileSupportCard({
   whatsapp?: string;
   hours?: string;
 }) {
+  const copy = useCustomerUiCopy();
   const wa = whatsapp || phone;
 
   return (
     <View style={styles.wrap}>
       <View style={styles.header}>
-        <Text style={styles.title}>Need help?</Text>
-        <Text style={styles.subtitle}>Our team is here for you{hours ? ` · ${hours}` : ''}</Text>
+        <Text style={styles.title} accessibilityRole="header">
+          {copy.profileSupportTitle}
+        </Text>
+        <Text style={styles.subtitle}>
+          {copy.profileSupportSub}
+          {hours ? ` · ${hours}` : ''}
+        </Text>
       </View>
-      <View style={styles.body}>
-        <View style={styles.row}>
-          {phone ? (
-            <Pressable style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]} onPress={() => callPhone(phone)}>
-              <PremiumIcon icon={AppIcons.ui.phone} variant="mint" size={17} color={colors.forest} strokeWidth={2} boxSize={40} bg={colors.soft} />
-              <Text style={styles.btnLabel}>Call</Text>
-            </Pressable>
-          ) : null}
-          {wa ? (
-            <Pressable
-              style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
-              onPress={() => openWhatsApp(wa)}
-            >
-              <PremiumIcon icon={AppIcons.ui.message} variant="mint" size={17} color={colors.secondaryDark} strokeWidth={2} boxSize={40} bg={colors.secondarySoft} />
-              <Text style={styles.btnLabel}>WhatsApp</Text>
-            </Pressable>
-          ) : null}
-          <Pressable style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]} onPress={() => appPush(customerRoutes.faq)}>
-            <PremiumIcon icon={AppIcons.ui.help} variant="mint" size={17} color={colors.blue} strokeWidth={2} boxSize={40} bg={colors.blueBg} />
-            <Text style={styles.btnLabel}>FAQ</Text>
-          </Pressable>
-        </View>
+      <View style={styles.row}>
+        {phone ? (
+          <PressableScale containerStyle={styles.btnWrap} style={styles.btn} haptic="tap" onPress={() => callPhone(phone)} accessibilityRole="button">
+            <PremiumIcon icon={AppIcons.ui.phone} variant="mint" size={17} color={colors.forest} strokeWidth={2} boxSize={40} bg={colors.soft} />
+            <Text style={styles.btnLabel}>{copy.profileSupportCall}</Text>
+          </PressableScale>
+        ) : null}
+        {wa ? (
+          <PressableScale containerStyle={styles.btnWrap} style={styles.btn} haptic="tap" onPress={() => openWhatsApp(wa)} accessibilityRole="button">
+            <PremiumIcon icon={AppIcons.ui.message} variant="mint" size={17} color={colors.secondaryDark} strokeWidth={2} boxSize={40} bg={colors.secondarySoft} />
+            <Text style={styles.btnLabel}>{copy.profileSupportWhatsapp}</Text>
+          </PressableScale>
+        ) : null}
+        <PressableScale containerStyle={styles.btnWrap} style={styles.btn} onPress={() => appPush(customerRoutes.faq)} accessibilityRole="button">
+          <PremiumIcon icon={AppIcons.ui.help} variant="mint" size={17} color={colors.blue} strokeWidth={2} boxSize={40} bg={colors.blueBg} />
+          <Text style={styles.btnLabel}>{copy.profileSupportFaq}</Text>
+        </PressableScale>
       </View>
     </View>
   );
@@ -53,35 +57,28 @@ const styles = StyleSheet.create({
   wrap: {
     marginHorizontal: spacing.md,
     marginBottom: spacing.md,
-    borderRadius: 18,
-    overflow: 'hidden',
+    padding: spacing.md,
+    borderRadius: radii.card,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.hairline,
+    ...ui.shadow,
   },
-  header: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm + 4,
-  },
-  title: { fontFamily: fonts.displayExtra, fontSize: 17, letterSpacing: -0.3, color: ui.text },
-  subtitle: { fontFamily: fonts.body, fontSize: 12.5, color: ui.textSecondary, marginTop: 2 },
-  body: {
-    padding: spacing.md,
-    paddingTop: spacing.sm,
-  },
+  header: { marginBottom: spacing.sm + 4 },
+  title: { ...typeScale.section, fontSize: 17, lineHeight: 23, color: ui.text },
+  subtitle: { ...typeScale.caption, fontSize: 12.5, color: ui.textSecondary, marginTop: 2 },
   row: { flexDirection: 'row', gap: 10 },
+  btnWrap: { flex: 1 },
   btn: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    minHeight: 84,
     paddingVertical: spacing.sm + 2,
-    borderRadius: 14,
+    borderRadius: radii.control,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.border,
   },
-  btnPressed: { backgroundColor: ui.surfaceMuted },
-  btnLabel: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: ui.text },
+  btnLabel: { ...typeScale.captionStrong, fontSize: 12.5, color: ui.text },
 });

@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1E5BB8"
+      "backgroundColor": "#087B35"
     },
     "android": {
       "package": "com.mrantidot.app",
@@ -24,7 +24,7 @@
         "android.permission.INTERNET"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#1E5BB8",
+        "backgroundColor": "#087B35",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -75,7 +75,14 @@
           "cameraPermission": "Mr Antidot uses your camera to capture photos for bookings and job verification."
         }
       ],
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#087B35",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200
+        }
+      ],
       "./plugins/withCleartextTraffic"
     ],
     "experiments": {

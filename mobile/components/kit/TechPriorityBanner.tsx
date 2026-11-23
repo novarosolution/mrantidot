@@ -1,13 +1,17 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { homeShadow } from '@/components/kit/homeUi';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { fillCopy } from '@/constants/customerUiCopy';
 import { AppIcons, IconGradients } from '@/constants/appIcons';
 import type { Booking } from '@/types/api';
 import { bookingServiceName, bookingScheduleDisplay } from '@/lib/booking-helpers';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { adminType, colors, spacing } from '@/constants/theme';
 import { techRoutes, appPush } from '@/lib/routes';
 
+/** The one thing to do first on the jobs tab: a job waiting for its completion code, else the oldest overdue job. */
 export function TechPriorityBanner({
   overdueJobs,
   verifyJob,
@@ -17,78 +21,57 @@ export function TechPriorityBanner({
   verifyJob?: Booking;
   flush?: boolean;
 }) {
-  if (verifyJob) {
-    return (
-      <Pressable
-        style={({ pressed }) => [styles.wrap, flush && styles.wrapFlush, pressed && styles.pressed]}
-        onPress={() => appPush(techRoutes.job(verifyJob.id))}
-      >
-        <View style={styles.shell}>
-          <LinearGradient colors={[...IconGradients.verify]} style={styles.card} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-            <View style={styles.rim} pointerEvents="none" />
-            <View style={styles.iconWrap}>
-              <PremiumIcon
-                icon={AppIcons.techAlert.verify}
-                variant="plain"
-                size="md"
-                color={colors.white}
-                strokeWidth={2.3}
-                fill="rgba(255,255,255,0.28)"
-              />
-            </View>
-            <View style={styles.body}>
-              <Text style={styles.kicker}>Action needed</Text>
-              <Text style={styles.title}>Enter customer completion code</Text>
-              <Text style={styles.sub} numberOfLines={1}>
-                {bookingServiceName(verifyJob)} · {bookingScheduleDisplay(verifyJob)}
-              </Text>
-            </View>
-            <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size="sm" color={colors.white} strokeWidth={2.5} />
-          </LinearGradient>
-        </View>
-      </Pressable>
-    );
-  }
+  const copy = useCustomerUiCopy();
+  const job = verifyJob ?? overdueJobs[0];
+  if (!job) return null;
 
-  if (overdueJobs.length === 0) return null;
+  const verify = Boolean(verifyJob);
+  const kicker = verify ? copy.techBannerActionNeeded : fillCopy(copy.techBannerOverdue, { count: overdueJobs.length });
+  const title = verify ? copy.techBannerVerifyTitle : copy.techOverdueHint;
+  const sub = `${bookingServiceName(job)} · ${bookingScheduleDisplay(job)}`;
 
-  const job = overdueJobs[0];
   return (
-    <Pressable
-      style={({ pressed }) => [styles.wrap, flush && styles.wrapFlush, pressed && styles.pressed]}
+    <PressableScale
+      haptic="tap"
       onPress={() => appPush(techRoutes.job(job.id))}
+      containerStyle={[styles.wrap, flush && styles.wrapFlush]}
+      style={styles.shell}
+      accessibilityRole="button"
+      accessibilityLabel={`${kicker}. ${title}. ${sub}`}
     >
-      <View style={styles.shell}>
-        <LinearGradient colors={[...IconGradients.danger]} style={styles.card} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-          <View style={styles.rim} pointerEvents="none" />
-          <View style={[styles.iconWrap, styles.iconWarn]}>
-            <PremiumIcon
-              icon={AppIcons.techAlert.overdue}
-              variant="plain"
-              size="md"
-              color={colors.white}
-              strokeWidth={2.3}
-              fill="rgba(255,255,255,0.28)"
-            />
-          </View>
-          <View style={styles.body}>
-            <Text style={styles.kicker}>Overdue · {overdueJobs.length}</Text>
-            <Text style={styles.title}>Past visit date — action needed</Text>
-            <Text style={styles.sub} numberOfLines={1}>
-              {bookingServiceName(job)} · {bookingScheduleDisplay(job)}
-            </Text>
-          </View>
-          <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size="sm" color={colors.white} strokeWidth={2.5} />
-        </LinearGradient>
-      </View>
-    </Pressable>
+      <LinearGradient
+        colors={[...(verify ? IconGradients.verify : IconGradients.danger)]}
+        style={styles.card}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.rim} pointerEvents="none" />
+        <View style={[styles.iconWrap, !verify && styles.iconWarn]}>
+          <PremiumIcon
+            icon={verify ? AppIcons.techAlert.verify : AppIcons.techAlert.overdue}
+            variant="plain"
+            size="md"
+            color={colors.white}
+            strokeWidth={2.3}
+            fill="rgba(255,255,255,0.28)"
+          />
+        </View>
+        <View style={styles.body}>
+          <Text style={styles.kicker}>{kicker}</Text>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.sub} numberOfLines={1}>
+            {sub}
+          </Text>
+        </View>
+        <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size="sm" color={colors.white} strokeWidth={2.5} />
+      </LinearGradient>
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
   wrapFlush: { marginHorizontal: 0 },
-  pressed: { opacity: 0.96, transform: [{ scale: 0.99 }] },
   shell: {
     borderRadius: 20,
     ...homeShadow.promo,

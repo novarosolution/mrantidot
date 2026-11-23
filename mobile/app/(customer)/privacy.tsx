@@ -2,17 +2,20 @@ import { ContentCard, CustomerContentPage } from '@/components/kit/CustomerConte
 import { SimpleMarkdown } from '@/components/ui/SimpleMarkdown';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useAppContent } from '@/context/AppContentContext';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { ShieldCheck } from 'lucide-react-native';
 
 export default function PrivacyScreen() {
   const { content } = useAppContent();
+  const copy = useCustomerUiCopy();
   return (
-    <CustomerContentPage title="Privacy Policy" subtitle="How we protect your data">
+    <CustomerContentPage title={copy.privacyTitle} subtitle={copy.privacySubtitle}>
       {content.legal.privacyMarkdown ? (
         <ContentCard>
           <SimpleMarkdown text={content.legal.privacyMarkdown} />
         </ContentCard>
       ) : (
-        <EmptyState title="Privacy policy unavailable" message="Please contact support." />
+        <EmptyState icon={ShieldCheck} title={copy.privacyEmptyTitle} message={copy.legalEmptyMessage} />
       )}
     </CustomerContentPage>
   );

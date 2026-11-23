@@ -2,6 +2,8 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { colors, fonts, ui } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { fillCopy } from '@/constants/customerUiCopy';
 
 /** Compact location pill for dark heroes (home) and light surfaces. */
 export function LocationChip({
@@ -15,6 +17,7 @@ export function LocationChip({
   onPress?: () => void;
   variant?: 'dark' | 'light';
 }) {
+  const copy = useCustomerUiCopy();
   const dark = variant === 'dark';
   return (
     <Pressable
@@ -26,7 +29,7 @@ export function LocationChip({
       onPress={onPress}
       disabled={!onPress || loading}
       accessibilityRole="button"
-      accessibilityLabel={loading ? 'Updating location' : `Location ${label}. Tap to refresh`}
+      accessibilityLabel={loading ? copy.homeLocationUpdatingA11y : fillCopy(copy.homeLocationA11y, { label })}
     >
       <View style={[styles.iconShell, dark ? styles.iconShellDark : styles.iconShellLight]}>
         {loading ? (
@@ -71,6 +74,7 @@ export function LocationBanner({
   /** Transparent row for use inside GlassPanel (no opaque white chrome). */
   embedded?: boolean;
 }) {
+  const copy = useCustomerUiCopy();
   return (
     <View style={[styles.bannerShell, embedded && styles.bannerShellEmbedded]}>
       <View style={[styles.banner, embedded && styles.bannerEmbedded]}>
@@ -95,7 +99,7 @@ export function LocationBanner({
             onPress={onRefresh}
             disabled={loading}
             accessibilityRole="button"
-            accessibilityLabel="Refresh location"
+            accessibilityLabel={copy.homeLocationRefreshA11y}
           >
             {loading ? (
               <ActivityIndicator size="small" color={ui.brand} />

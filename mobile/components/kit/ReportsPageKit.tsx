@@ -8,6 +8,7 @@ import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { adminShadow } from '@/components/kit/homeUi';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { colors, fonts, premium, spacing, surfaces, ui } from '@/constants/theme';
+import { useWideWebLayout } from '@/lib/webAdmin';
 
 /** Premium section card with gold accent for reports. */
 export function ReportsSectionCard({
@@ -212,10 +213,11 @@ export type ReportsInsightItem = {
 
 /** Compact insight tiles for reviews, payment, catalog stats. */
 export function ReportsInsightGrid({ items, glass = false }: { items: ReportsInsightItem[]; glass?: boolean }) {
+  const wideWeb = useWideWebLayout();
   return (
     <View style={styles.insightGrid}>
       {items.map((item) => (
-        <View key={item.key} style={[styles.insightTile, glass && styles.insightTileGlass]}>
+        <View key={item.key} style={[styles.insightTile, wideWeb && styles.tileWide, glass && styles.insightTileGlass]}>
           <Text style={[styles.insightValue, item.accent ? { color: item.accent } : null]} numberOfLines={1}>
             {item.value}
           </Text>
@@ -293,10 +295,15 @@ export function ReportsManageGrid({
   items: { key: string; icon: LucideIcon; label: string; desc: string }[];
   onPress: (key: string) => void;
 }) {
+  const wideWeb = useWideWebLayout();
   return (
     <View style={styles.manageGrid}>
       {items.map(({ key, icon: Icon, label, desc }) => (
-        <Pressable key={key} style={({ pressed }) => [styles.manageTile, pressed && styles.pressed]} onPress={() => onPress(key)}>
+        <Pressable
+          key={key}
+          style={({ pressed }) => [styles.manageTile, wideWeb && styles.tileWide, pressed && styles.pressed]}
+          onPress={() => onPress(key)}
+        >
           <PremiumIcon icon={Icon} variant="mint" size={18} color={colors.forest} boxSize={36} />
           <Text style={styles.manageLabel}>{label}</Text>
           <Text style={styles.manageDesc} numberOfLines={2}>
@@ -371,6 +378,8 @@ const styles = StyleSheet.create({
   bar: { width: '70%', borderTopLeftRadius: 6, borderTopRightRadius: 6, minHeight: 8 },
   barLabel: { fontFamily: fonts.bodySemi, fontSize: 9, color: colors.muted, marginTop: 6 },
   insightGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  /** Desktop browser: 4 tiles per row instead of 2 (insight + manage grids). */
+  tileWide: { width: '22%' },
   insightTile: {
     width: '47%',
     flexGrow: 1,

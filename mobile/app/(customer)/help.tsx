@@ -1,12 +1,14 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { fillCopy } from '@/constants/customerUiCopy';
 import { callPhone, openWhatsApp, sendEmail } from '@/lib/contact';
 import { CustomerContentPage } from '@/components/kit/CustomerContentPage';
 import { ListFootnote, ListGroup, ListNavRow, ListSectionTitle } from '@/components/kit/ListGroup';
 import { AppIcons } from '@/constants/appIcons';
 import { useAppContent } from '@/context/AppContentContext';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
-import { colors, fonts, ui as themeUi } from '@/constants/theme';
+import { colors, radii, typeScale, ui as themeUi } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
 
 type Channel = { key: string; icon: LucideIcon; label: string; value: string; onPress: () => void };
@@ -34,12 +36,18 @@ export default function HelpScreen() {
       {channels.length > 0 ? (
         <View style={styles.tiles}>
           {channels.map((c) => (
-            <ContactTile key={c.key} icon={c.icon} label={c.label} value={c.value} onPress={c.onPress} />
+            <ContactTile
+              key={c.key}
+              icon={c.icon}
+              label={c.label}
+              a11y={fillCopy(ui.helpContactA11y, { label: c.label, value: c.value })}
+              onPress={c.onPress}
+            />
           ))}
         </View>
       ) : (
         <View style={styles.empty}>
-          <Text style={styles.emptyText}>Support details will appear here once configured in Content.</Text>
+          <Text style={styles.emptyText}>{ui.helpNoChannels}</Text>
         </View>
       )}
       {hours ? (
@@ -57,7 +65,7 @@ export default function HelpScreen() {
         <ListNavRow
           icon={AppIcons.ui.listChecks}
           title={ui.helpGuideTitle}
-          subtitle="5 easy steps · Book with confidence"
+          subtitle={ui.helpGuideSub}
           onPress={() => appPush(customerRoutes.bookGuide)}
         />
         <ListNavRow
@@ -94,57 +102,51 @@ export default function HelpScreen() {
 function ContactTile({
   icon: Icon,
   label,
-  value,
+  a11y,
   onPress,
 }: {
   icon: LucideIcon;
   label: string;
-  value: string;
+  a11y: string;
   onPress: () => void;
 }) {
   return (
-    <Pressable
-      style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${label}: ${value}`}
-    >
+    <PressableScale containerStyle={styles.tileWrap} style={styles.tile} onPress={onPress} haptic="tap" accessibilityRole="button" accessibilityLabel={a11y}>
       <View style={styles.tileIcon}>
         <Icon size={22} color={themeUi.brand} strokeWidth={2.1} />
       </View>
       <Text style={styles.tileLabel} numberOfLines={1}>
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
   tiles: { flexDirection: 'row', gap: 10 },
+  tileWrap: { flex: 1 },
   tile: {
-    flex: 1,
     alignItems: 'center',
     gap: 10,
     paddingVertical: 16,
-    borderRadius: 20,
+    borderRadius: radii.card,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: themeUi.hairline,
     ...themeUi.shadow,
   },
-  tilePressed: { transform: [{ scale: 0.97 }] },
   tileIcon: {
     width: 48,
     height: 48,
-    borderRadius: 16,
+    borderRadius: radii.control,
     backgroundColor: themeUi.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tileLabel: { fontFamily: fonts.bodyBold, fontSize: 13.5, color: themeUi.text },
+  tileLabel: { ...typeScale.captionStrong, fontFamily: typeScale.button.fontFamily, color: themeUi.text },
   hours: { marginTop: 12, marginHorizontal: 4, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  hoursText: { flex: 1, fontFamily: fonts.bodyMedium, fontSize: 13.5, lineHeight: 19, color: themeUi.text },
-  hoursLabel: { fontFamily: fonts.bodySemi, color: themeUi.textSecondary },
-  empty: { padding: 16, borderRadius: 18, backgroundColor: themeUi.brandSoft },
-  emptyText: { fontFamily: fonts.body, fontSize: 13.5, lineHeight: 19, color: themeUi.textSecondary },
+  hoursText: { ...typeScale.caption, flex: 1, lineHeight: 19, color: themeUi.text },
+  hoursLabel: { fontFamily: typeScale.captionStrong.fontFamily, color: themeUi.textSecondary },
+  empty: { padding: 16, borderRadius: radii.card, backgroundColor: themeUi.brandSoft },
+  emptyText: { ...typeScale.caption, lineHeight: 19, color: themeUi.textSecondary },
 });

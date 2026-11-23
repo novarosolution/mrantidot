@@ -23,6 +23,7 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { registerGlobalErrorHandlers } from '@/lib/registerGlobalErrorHandlers';
 import { setupDefaultFonts } from '@/lib/setupFonts';
 import { colors, design, fonts } from '@/constants/theme';
+import { DEFAULT_CUSTOMER_UI_COPY, fillBrand } from '@/constants/customerUiCopy';
 
 function AppToastHost() {
   const topOffset = useToastTopOffset();
@@ -53,7 +54,10 @@ function BootSplash() {
           <View style={bootStyles.progressTrack}>
             <View style={bootStyles.progressFill} />
           </View>
-          <Text style={bootStyles.text}>Preparing Mr Antidot…</Text>
+          {/* Fonts are still loading, so the content store isn't up yet — use the bundled line. */}
+          <Text style={bootStyles.text}>
+            {fillBrand(DEFAULT_CUSTOMER_UI_COPY.systemBootPreparing, DEFAULT_APP_CONFIG.branding.name)}
+          </Text>
         </View>
       }
     />

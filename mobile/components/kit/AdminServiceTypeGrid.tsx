@@ -1,4 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { useState } from 'react';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { PestImage } from '@/components/kit/ServiceThumb';
 import { AppIcons } from '@/constants/appIcons';
@@ -11,6 +12,7 @@ import { SERVICE_TYPE_KEYS, type ServiceTypeKey } from '@/constants/serviceTypes
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import type { Service } from '@/types/api';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { useAdminContentWidth, useWideWebLayout } from '@/lib/webAdmin';
 
 function countForType(services: Service[], type: ServiceTypeKey): number {
   return services.filter((s) => s.serviceTypes?.includes(type)).length;
@@ -26,9 +28,23 @@ export function AdminServiceTypeGrid({
   onAddService: () => void;
 }) {
   const activeCount = services.filter((s) => s.active !== false).length;
+  // Desktop browser: 6–8 pest tiles per row, sized to the measured grid width (re-measured on resize and
+  // sidebar collapse); phones keep 3 per row.
+  const wideWeb = useWideWebLayout();
+  const contentWidth = useAdminContentWidth();
+  const [gridWidth, setGridWidth] = useState<number | null>(null);
+  const available = gridWidth ?? contentWidth - spacing.md * 2;
+  const wideCols = available >= 860 ? 8 : 6;
+  const typeCellStyle = wideWeb
+    ? { width: Math.floor((available - GRID_GAP * (wideCols - 1)) / wideCols) }
+    : styles.typeCell;
 
   return (
-    <ScrollView style={styles.flex} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.flex}
+      contentContainerStyle={[styles.scroll, wideWeb && styles.scrollWideWeb]}
+      showsVerticalScrollIndicator={false}
+    >
       <FadeSlideIn delay={stagger(0)} slideFrom={14}>
         <LinearGradient
           colors={[colors.headerGreen, colors.forest, colors.forestDeep]}
@@ -79,14 +95,14 @@ export function AdminServiceTypeGrid({
 
       <FadeSlideIn delay={stagger(2)} slideFrom={14}>
         <Text style={styles.sectionTitle}>Pest control types</Text>
-        <View style={styles.grid}>
+        <View style={styles.grid} onLayout={wideWeb ? (e) => setGridWidth(e.nativeEvent.layout.width) : undefined}>
           {SERVICE_TYPE_KEYS.map((key) => {
             const meta = SERVICE_TYPE_META[key];
             const count = countForType(services, key);
             return (
               <PressableScale
                 key={key}
-                containerStyle={styles.typeCell}
+                containerStyle={typeCellStyle}
                 style={styles.typeTile}
                 onPress={() => onSelectType(key)}
                 accessibilityRole="button"
@@ -110,9 +126,13 @@ export function AdminServiceTypeGrid({
   );
 }
 
+const GRID_GAP = 10;
+
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { padding: spacing.md, paddingBottom: TAB_BAR_SCROLL_PAD, gap: spacing.md },
+  /** Desktop browser: no tab bar below. */
+  scrollWideWeb: { paddingBottom: spacing.xl },
   hero: {
     borderRadius: 20,
     padding: spacing.lg,
@@ -181,7 +201,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
     marginBottom: spacing.sm,
   },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP },
   typeCell: { width: '31%' },
   typeTile: {
     flexGrow: 1,

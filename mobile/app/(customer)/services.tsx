@@ -9,6 +9,7 @@ import {
   Text,
   TextInput,
   View,
+  type ListRenderItem,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Check, ChevronDown, LayoutGrid, Search, X } from 'lucide-react-native';
@@ -20,11 +21,13 @@ import { PestImage } from '@/components/kit/ServiceThumb';
 import { ServiceListRow } from '@/components/kit/ServiceListRow';
 import { TrustNote } from '@/components/kit/TrustNote';
 import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
-import { plural } from '@/components/kit/format';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { ServiceRowsSkeleton } from '@/components/kit/ScreenSkeletons';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { fillCopy } from '@/constants/customerUiCopy';
 import { textInputDefaults } from '@/components/ui/textInputDefaults';
 import { useAppContent } from '@/context/AppContentContext';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
@@ -36,7 +39,7 @@ import { serviceDisplayRating } from '@/lib/ratings';
 import { SERVICE_TYPE_KEYS, SERVICE_TYPE_LABELS, type ServiceTypeKey } from '@/constants/serviceTypes';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import type { Service, ServiceStats } from '@/types/api';
-import { colors, fonts, ui } from '@/constants/theme';
+import { colors, fonts, radii, typeScale, ui } from '@/constants/theme';
 import { sharedRoutes, appPush } from '@/lib/routes';
 import { serviceStartPrice } from '@/lib/serviceDisplay';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
@@ -49,12 +52,23 @@ const SORT_KEYS: SortKey[] = ['popular', 'rating', 'price'];
 const H_PAD = 16;
 const PEST_TILE = 72;
 
+/** List rows: the filter bar (sticky) first, then services — or one empty-state row. */
+type Row = { kind: 'filters' } | { kind: 'service'; service: Service; index: number } | { kind: 'empty' };
+const FILTERS_ROW: Row = { kind: 'filters' };
+const EMPTY_ROW: Row = { kind: 'empty' };
+
+const rowKey = (r: Row) => (r.kind === 'service' ? r.service.id : r.kind);
+const openService = (s: Service) => appPush(sharedRoutes.service(s.id));
+const bookService = (s: Service) => appPush(sharedRoutes.bookPath(s.id));
+
 /** Small dropdown-style button that opens a picker sheet. */
 function FilterPill({ label, active = false, onPress }: { label: string; active?: boolean; onPress: () => void }) {
   return (
-    <Pressable
-      style={({ pressed }) => [styles.pill, active && styles.pillOn, pressed && styles.pillPressed]}
+    <PressableScale
+      style={[styles.pill, active && styles.pillOn]}
       onPress={onPress}
+      haptic="tap"
+      hitSlop={4}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
@@ -62,7 +76,24 @@ function FilterPill({ label, active = false, onPress }: { label: string; active?
         {label}
       </Text>
       <ChevronDown size={14} color={active ? ui.brand : ui.textSecondary} strokeWidth={2.4} />
-    </Pressable>
+    </PressableScale>
+  );
+}
+
+/** First paint: pest tiles + a few service rows as shimmer shapes (no spinner). */
+function CatalogSkeleton() {
+  return (
+    <View>
+      <View style={[styles.pestRow, styles.skelPests]}>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <View key={i} style={styles.pestItem}>
+            <Skeleton width={PEST_TILE} height={PEST_TILE} radius={radii.card} />
+            <Skeleton width={48} height={10} radius={5} style={styles.skelLabel} />
+          </View>
+        ))}
+      </View>
+      <ServiceRowsSkeleton rows={4} />
+    </View>
   );
 }
 
@@ -113,7 +144,7 @@ export default function ServicesListScreen() {
       try {
         await load();
       } catch (err) {
-        setLoadError(getApiErrorMessage(err, 'Could not load services'));
+        setLoadError(getApiErrorMessage(err, copy.servicesLoadFailed));
         setServices([]);
       } finally {
         setLoading(false);
@@ -170,7 +201,7 @@ export default function ServicesListScreen() {
     try {
       await load();
     } catch (err) {
-      setLoadError(getApiErrorMessage(err, 'Could not refresh services'));
+      setLoadError(getApiErrorMessage(err, copy.servicesRefreshFailed));
     } finally {
       setRefreshing(false);
     }
@@ -184,15 +215,17 @@ export default function ServicesListScreen() {
   }
 
   const pageSubtitle =
-    homeConfig.servicesSubtitle?.trim() || content.branding.tagline || 'Trusted pest control & home services';
+    homeConfig.servicesSubtitle?.trim() || content.branding.tagline?.trim() || copy.launchTaglineFallback;
   const title = copy.servicesScreenTitle?.trim() || homeConfig.sectionTitles.services;
 
   const hero = (
     <View style={styles.hero}>
       <PremiumAurora tone="light" base={false} topFade />
       {/* The list below is white, so melt the aurora into it instead of ending on a hard edge. */}
-      <LinearGradient colors={['rgba(255,255,255,0)', '#FFFFFF']} style={styles.heroFade} pointerEvents="none" />
-      <Text style={styles.heroTitle}>{title}</Text>
+      <LinearGradient colors={['rgba(255,255,255,0)', colors.white]} style={styles.heroFade} pointerEvents="none" />
+      <Text style={styles.heroTitle} accessibilityRole="header">
+        {title}
+      </Text>
       <Text style={styles.heroSub} numberOfLines={2}>
         {pageSubtitle}
       </Text>
@@ -207,7 +240,7 @@ export default function ServicesListScreen() {
           {...textInputDefaults}
           value={q}
           onChangeText={setQ}
-          placeholder={homeConfig.searchPlaceholder || 'Search services…'}
+          placeholder={homeConfig.searchPlaceholder || copy.servicesSearchPlaceholder}
           placeholderTextColor={ui.textTertiary}
           style={styles.searchInput}
           returnKeyType="search"
@@ -219,7 +252,7 @@ export default function ServicesListScreen() {
             onPress={() => setQ('')}
             hitSlop={10}
             accessibilityRole="button"
-            accessibilityLabel="Clear search"
+            accessibilityLabel={copy.homeSearchClear}
           >
             <X size={13} color={colors.white} strokeWidth={3} />
           </Pressable>
@@ -241,16 +274,18 @@ export default function ServicesListScreen() {
           const on = serviceType === k;
           const label = k === 'all' ? copy.servicesAllLabel : SERVICE_TYPE_LABELS[k];
           return (
-            <Pressable
+            <PressableScale
               key={k}
-              style={styles.pestItem}
+              containerStyle={styles.pestItem}
+              style={styles.pestItemInner}
+              scaleTo={0.94}
               onPress={() => {
                 if (k !== serviceType) haptic('select');
                 setServiceType(k);
               }}
               accessibilityRole="button"
               accessibilityState={{ selected: on }}
-              accessibilityLabel={k === 'all' ? 'All types' : label}
+              accessibilityLabel={k === 'all' ? copy.servicesAllTypesA11y : label}
             >
               <View style={[styles.pestTile, on && styles.pestTileOn]}>
                 {k === 'all' ? (
@@ -262,7 +297,7 @@ export default function ServicesListScreen() {
               <Text style={[styles.pestLabel, on && styles.pestLabelOn]} numberOfLines={1}>
                 {label}
               </Text>
-            </Pressable>
+            </PressableScale>
           );
         })}
       </ScrollView>
@@ -276,7 +311,9 @@ export default function ServicesListScreen() {
   const sortLabel = sortLabels[sort];
   const filterRow = (
     <View style={styles.filterRow}>
-      <Text style={styles.count}>{plural(visibleServices.length, 'service')}</Text>
+      <Text style={styles.count}>
+        {visibleServices.length === 1 ? copy.servicesCountOne : fillCopy(copy.servicesCountMany, { count: visibleServices.length })}
+      </Text>
       <View style={styles.pills}>
         {homeConfig.categoryChips.length > 1 ? (
           <FilterPill
@@ -289,6 +326,31 @@ export default function ServicesListScreen() {
       </View>
     </View>
   );
+
+  const rows = useMemo<Row[]>(
+    () =>
+      visibleServices.length > 0
+        ? [FILTERS_ROW, ...visibleServices.map((service, index) => ({ kind: 'service' as const, service, index }))]
+        : [FILTERS_ROW, EMPTY_ROW],
+    [visibleServices],
+  );
+  const total = visibleServices.length;
+  const renderRow: ListRenderItem<Row> = ({ item }) => {
+    if (item.kind === 'filters') return <View style={styles.stickyBar}>{filterRow}</View>;
+    if (item.kind === 'empty') return emptyBlock;
+    return (
+      // First screenful slides in one after another; rows further down render as-is.
+      <FadeSlideIn delay={stagger(item.index)} slideFrom={12} disabled={item.index > 6}>
+        <ServiceListRow
+          service={item.service}
+          badge={popularIds.has(item.service.id) ? copy.servicesPopularBadge : undefined}
+          showDivider={item.index < total - 1}
+          onPress={openService}
+          onBook={bookService}
+        />
+      </FadeSlideIn>
+    );
+  };
 
   const tick = <Check size={18} color={ui.brand} strokeWidth={2.6} />;
   const sortOptions: ActionSheetOption[] = SORT_KEYS.map((k) => ({
@@ -311,9 +373,9 @@ export default function ServicesListScreen() {
         message={hasFilters ? copy.servicesEmptyMessage : copy.homeEmptyNoServicesMessage}
       />
       {hasFilters ? (
-        <Pressable style={({ pressed }) => [styles.clearBtn, pressed && styles.pillPressed]} onPress={resetFilters}>
+        <PressableScale style={styles.clearBtn} onPress={resetFilters} haptic="tap" accessibilityRole="button">
           <Text style={styles.clearBtnText}>{copy.servicesClearFilters}</Text>
-        </Pressable>
+        </PressableScale>
       ) : null}
     </View>
   );
@@ -326,7 +388,7 @@ export default function ServicesListScreen() {
           <ScrollView style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
             {hero}
             {searchBar}
-            <Spinner />
+            <CatalogSkeleton />
           </ScrollView>
         ) : loadError && services.length === 0 ? (
           <ScrollView style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
@@ -335,11 +397,13 @@ export default function ServicesListScreen() {
             <ListEmptyRetry message={loadError} onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))} />
           </ScrollView>
         ) : (
-          <FlatList
+          <FlatList<Row>
             style={styles.list}
-            data={visibleServices}
-            keyExtractor={(item) => item.id}
+            data={rows}
+            keyExtractor={rowKey}
             {...CUSTOMER_LIST_PERF}
+            // Clipping detaches rows that are mid-entrance (translated) and can leave blank cells on iOS.
+            removeClippedSubviews={false}
             keyboardShouldPersistTaps="handled"
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ui.brand} />}
             ListHeaderComponent={
@@ -347,24 +411,13 @@ export default function ServicesListScreen() {
                 {hero}
                 {searchBar}
                 {pestRow}
-                {filterRow}
               </View>
             }
+            // The count + category/sort bar (first row) pins to the top while the list scrolls under it.
+            stickyHeaderIndices={[1]}
             ListFooterComponent={visibleServices.length > 0 ? <TrustNote style={styles.trust} /> : null}
-            ListEmptyComponent={emptyBlock}
             contentContainerStyle={styles.listContent}
-            renderItem={({ item, index }) => (
-              // First screenful slides in one after another; rows further down render as-is.
-              <FadeSlideIn delay={stagger(index)} slideFrom={12} disabled={index > 6}>
-                <ServiceListRow
-                  service={item}
-                  badge={popularIds.has(item.id) ? 'Popular' : undefined}
-                  showDivider={index < visibleServices.length - 1}
-                  onPress={() => appPush(sharedRoutes.service(item.id))}
-                  onBook={() => appPush(sharedRoutes.bookPath(item.id))}
-                />
-              </FadeSlideIn>
-            )}
+            renderItem={renderRow}
           />
         )}
       </SafeAreaView>
@@ -389,14 +442,8 @@ const styles = StyleSheet.create({
 
   hero: { paddingHorizontal: H_PAD, paddingTop: 12, paddingBottom: 18, overflow: 'hidden' },
   heroFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 34 },
-  heroTitle: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 28,
-    lineHeight: 34,
-    letterSpacing: -0.7,
-    color: ui.text,
-  },
-  heroSub: { marginTop: 4, fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: ui.textSecondary },
+  heroTitle: { ...typeScale.display, color: ui.text },
+  heroSub: { ...typeScale.body, marginTop: 4, color: ui.textSecondary },
 
   searchWrap: { paddingHorizontal: H_PAD },
   /** Grey field — same as the home search band. */
@@ -406,7 +453,7 @@ const styles = StyleSheet.create({
     gap: 10,
     height: 50,
     paddingHorizontal: 14,
-    borderRadius: 14,
+    borderRadius: radii.control,
     backgroundColor: SEARCH_BAND,
   },
   searchInput: {
@@ -428,12 +475,15 @@ const styles = StyleSheet.create({
 
   pestScroll: { marginTop: 20, flexGrow: 0 },
   pestRow: { paddingHorizontal: H_PAD, gap: 12 },
-  pestItem: { width: PEST_TILE, alignItems: 'center' },
+  pestItem: { width: PEST_TILE },
+  pestItemInner: { alignItems: 'center' },
+  skelPests: { marginTop: 20 },
+  skelLabel: { marginTop: 8, alignSelf: 'center' },
   pestTile: {
     width: PEST_TILE,
     height: PEST_TILE,
-    borderRadius: 20,
-    backgroundColor: '#F4F5F4',
+    borderRadius: radii.card,
+    backgroundColor: ui.band,
     borderWidth: 2,
     borderColor: 'transparent',
     alignItems: 'center',
@@ -443,36 +493,40 @@ const styles = StyleSheet.create({
   pestLabel: { marginTop: 7, fontFamily: fonts.bodyMedium, fontSize: 12.5, color: ui.text },
   pestLabelOn: { fontFamily: fonts.bodyBold, color: ui.brand },
 
+  stickyBar: {
+    backgroundColor: colors.white,
+    paddingTop: 16,
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: ui.border,
+  },
   filterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
     paddingHorizontal: H_PAD,
-    marginTop: 24,
-    marginBottom: 2,
   },
-  count: { fontFamily: fonts.displaySemi, fontSize: 21, letterSpacing: -0.4, color: ui.text },
+  count: { ...typeScale.section, color: ui.text },
   pills: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    height: 34,
-    paddingHorizontal: 12,
-    borderRadius: 17,
+    height: 40,
+    paddingHorizontal: 14,
+    borderRadius: radii.pill,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.border,
   },
-  pillOn: { backgroundColor: ui.brandSoft, borderColor: 'rgba(8,123,53,0.35)' },
-  pillPressed: { opacity: 0.8 },
-  pillText: { flexShrink: 1, fontFamily: fonts.bodySemi, fontSize: 13, color: ui.text },
+  pillOn: { backgroundColor: ui.brandSoft, borderColor: ui.brand },
+  pillText: { ...typeScale.captionStrong, flexShrink: 1, color: ui.text },
   pillTextOn: { color: ui.brand },
 
   trust: { marginHorizontal: H_PAD, marginTop: 8 },
 
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, paddingVertical: 36 },
-  clearBtn: { borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11, backgroundColor: ui.brand },
-  clearBtnText: { fontFamily: fonts.bodyBold, fontSize: 12.5, color: colors.white },
+  clearBtn: { borderRadius: radii.pill, paddingHorizontal: 22, minHeight: 44, justifyContent: 'center', backgroundColor: ui.brand },
+  clearBtnText: { ...typeScale.captionStrong, fontFamily: fonts.bodyBold, color: colors.white },
 });

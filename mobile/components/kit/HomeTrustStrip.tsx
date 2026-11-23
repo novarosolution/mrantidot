@@ -2,10 +2,10 @@ import { StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BadgeCheck, Clock3, Leaf, type LucideIcon } from 'lucide-react-native';
 import { HomeShieldArt } from '@/components/illustrations/HomeArt';
-import { fonts, ui } from '@/constants/theme';
+import { auroraPalette, fonts, ui } from '@/constants/theme';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
-const DEFAULT_HEADLINE = '100% Satisfaction Guarantee';
-const DEFAULT_BADGES = ['Verified Pros', 'On-time Service', 'Safe Chemicals'];
 /** Icons follow the badge order the admin sets (pros → timing → chemicals); extra badges reuse the tick. */
 const BADGE_ICONS: LucideIcon[] = [BadgeCheck, Clock3, Leaf];
 
@@ -19,14 +19,16 @@ export function HomeTrustStrip({
   guaranteeText?: string;
   badges?: string[];
 }) {
+  const copy = useCustomerUiCopy();
   const chipList = (badges ?? []).map((b) => b.trim()).filter(Boolean).slice(0, 3);
-  const items = chipList.length > 0 ? chipList : DEFAULT_BADGES;
-  const headline = guaranteeText?.split('·')[0]?.trim() || DEFAULT_HEADLINE;
+  const fallbackBadges = copy.homeTrustBadges.split(',').map((b) => b.trim()).filter(Boolean);
+  const items = chipList.length > 0 ? chipList : fallbackBadges;
+  const headline = guaranteeText?.split('·')[0]?.trim() || copy.homeTrustHeadline;
 
   return (
     <View style={styles.card}>
       <LinearGradient
-        colors={['#F3FAF4', '#EAF4EC']}
+        colors={[auroraPalette.lightMid, auroraPalette.lightBottom]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -35,7 +37,7 @@ export function HomeTrustStrip({
       <View style={styles.ring} pointerEvents="none" />
       <View style={styles.top}>
         <View style={styles.text}>
-          <Text style={styles.eyebrow}>{(brandName?.trim() || 'Mr Antidot') + ' promise'}</Text>
+          <Text style={styles.eyebrow}>{fillCopy(copy.profilePromiseEyebrow, { brand: brandName?.trim() || 'Mr Antidot' })}</Text>
           <Text style={styles.headline}>{headline}</Text>
         </View>
         <View style={styles.seal}>

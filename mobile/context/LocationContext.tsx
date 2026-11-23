@@ -43,6 +43,8 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState(false);
   const [locating, setLocating] = useState(false);
   const autoRefreshDone = useRef(false);
+  /** One GPS fix at a time: launch (splash) and the provider's own refresh share the same request. */
+  const inflight = useRef<Promise<AppLocation> | null>(null);
 
   const setLocation = useCallback(async (loc: AppLocation) => {
     setLocationState(loc);
@@ -51,16 +53,24 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshLocation = useCallback(
-    async (opts?: { silent?: boolean }) => {
-      setLocating(true);
-      try {
-        const loc = await fetchLaunchLocation();
-        await setLocation(loc);
-        return loc;
-      } finally {
-        setLocating(false);
+    (opts?: { silent?: boolean }): Promise<AppLocation> => {
+      const done = () => {
         if (!opts?.silent) setLoaded(true);
-      }
+      };
+      if (inflight.current) return inflight.current.finally(done);
+      setLocating(true);
+      const run = (async () => {
+        try {
+          const loc = await fetchLaunchLocation();
+          await setLocation(loc);
+          return loc;
+        } finally {
+          inflight.current = null;
+          setLocating(false);
+        }
+      })();
+      inflight.current = run;
+      return run.finally(done);
     },
     [setLocation],
   );

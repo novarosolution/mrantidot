@@ -7,6 +7,9 @@ import { HomeSectionTitle } from '@/components/kit/HomeSectionTitle';
 import { appToast } from '@/lib/toast';
 import type { Offer } from '@/types/api';
 import { colors, fonts, ui } from '@/constants/theme';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { haptic } from '@/lib/motion';
 
 const CARD_W = 268;
 const STUB_W = 88;
@@ -14,19 +17,21 @@ const NOTCH = 16;
 
 /** Ticket palettes cycle so neighbouring coupons read as distinct offers. */
 const PALETTES = [
-  { bg: '#E9F6EA', ink: '#087B35' },
-  { bg: '#EEEFFE', ink: '#4338CA' },
-  { bg: '#FFF3E2', ink: '#A15C07' },
+  { bg: colors.soft, ink: colors.forest },
+  { bg: colors.blueBg, ink: colors.blue },
+  { bg: colors.amberBg, ink: colors.amberInk },
 ] as const;
 
-function discountParts(offer: Offer): { value: string; unit: string } {
-  if (offer.discountType === 'percent') return { value: `${offer.discount}%`, unit: 'OFF' };
-  return { value: `₹${offer.discount}`, unit: 'OFF' };
+function discountParts(offer: Offer): { value: string } {
+  if (offer.discountType === 'percent') return { value: `${offer.discount}%` };
+  return { value: `₹${offer.discount}` };
 }
 
 function CouponTicket({ offer, index }: { offer: Offer; index: number }) {
+  const text = useCustomerUiCopy();
   const palette = PALETTES[index % PALETTES.length];
-  const { value, unit } = discountParts(offer);
+  const { value } = discountParts(offer);
+  const unit = text.offerOff;
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => {
@@ -35,10 +40,11 @@ function CouponTicket({ offer, index }: { offer: Offer; index: number }) {
 
   async function copy() {
     await Clipboard.setStringAsync(offer.code);
+    haptic('success');
     setCopied(true);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setCopied(false), 1800);
-    appToast.success('Code copied', `${offer.code} — apply it at checkout`);
+    appToast.success(text.otpCodeCopied, fillCopy(text.offerCodeCopiedSub, { code: offer.code }));
   }
 
   return (
@@ -47,7 +53,7 @@ function CouponTicket({ offer, index }: { offer: Offer; index: number }) {
       containerStyle={styles.ticketShadow}
       style={styles.ticket}
       accessibilityRole="button"
-      accessibilityLabel={`${value} off with code ${offer.code}. Tap to copy`}
+      accessibilityLabel={fillCopy(text.offerRailTicketA11y, { value, code: offer.code })}
     >
       <View style={[styles.stub, { backgroundColor: palette.bg }]}>
         <Text style={[styles.value, { color: palette.ink }]} numberOfLines={1} adjustsFontSizeToFit>
@@ -62,7 +68,7 @@ function CouponTicket({ offer, index }: { offer: Offer; index: number }) {
         </Text>
         <Text style={styles.desc} numberOfLines={2}>
           {offer.description}
-          {offer.minOrderAmount ? ` · Min ₹${offer.minOrderAmount}` : ''}
+          {offer.minOrderAmount ? ` · ${fillCopy(text.offerMinOrder, { amount: `₹${offer.minOrderAmount}` })}` : ''}
         </Text>
         <View style={[styles.copyPill, copied && { backgroundColor: palette.ink, borderColor: palette.ink }]}>
           {copied ? (
@@ -71,7 +77,7 @@ function CouponTicket({ offer, index }: { offer: Offer; index: number }) {
             <Copy size={12} color={palette.ink} strokeWidth={2.4} />
           )}
           <Text style={[styles.copyText, { color: copied ? colors.white : palette.ink }]}>
-            {copied ? 'Copied' : 'Copy code'}
+            {copied ? text.offerCopied : text.offerCopyCode}
           </Text>
         </View>
       </View>
@@ -84,7 +90,7 @@ function CouponTicket({ offer, index }: { offer: Offer; index: number }) {
 
 /** "Offers for you" — live coupon codes as tear-off tickets; tap copies the code. */
 export function HomeOffersRail({
-  title = 'Offers for you',
+  title,
   offers,
   onSeeAll,
 }: {
@@ -92,10 +98,11 @@ export function HomeOffersRail({
   offers: Offer[];
   onSeeAll?: () => void;
 }) {
+  const copy = useCustomerUiCopy();
   if (offers.length === 0) return null;
   return (
     <View>
-      <HomeSectionTitle title={title} actionLabel="See all" onAction={onSeeAll} />
+      <HomeSectionTitle title={title ?? copy.offersRailTitle} actionLabel={copy.homeSeeAll} onAction={onSeeAll} />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}

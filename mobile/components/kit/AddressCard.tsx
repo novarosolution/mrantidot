@@ -5,6 +5,7 @@ import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import type { SavedAddress } from '@/types/api';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 function labelIcon(label: string): LucideIcon {
   const l = label.toLowerCase();
@@ -24,6 +25,7 @@ function AddressCardComponent({
   /** Rendered inside the card under a divider (e.g. manage actions). */
   footer?: ReactNode;
 }) {
+  const copy = useCustomerUiCopy();
   const icon = labelIcon(address.label);
 
   const inner = (
@@ -44,7 +46,7 @@ function AddressCardComponent({
           </Text>
           {address.isDefault ? (
             <View style={styles.defaultPill}>
-              <Text style={styles.defaultText}>Default</Text>
+              <Text style={styles.defaultText}>{copy.addressesDefaultBadge}</Text>
             </View>
           ) : null}
         </View>

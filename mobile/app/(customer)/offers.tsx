@@ -1,6 +1,6 @@
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { useEffect, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { AppIcons } from '@/constants/appIcons';
 import { CustomerListShell } from '@/components/kit/CustomerListShell';
 import { HeaderActionButton } from '@/components/kit/HeaderActionButton';
@@ -22,7 +22,7 @@ import { customerRoutes, sharedRoutes, appPush } from '@/lib/routes';
 import { serviceStartPrice } from '@/lib/serviceDisplay';
 import { formatRupeeFull } from '@/components/kit/format';
 import { fillCopy } from '@/constants/customerUiCopy';
-import { stagger } from '@/lib/motion';
+import { haptic, stagger } from '@/lib/motion';
 import { ListRowsSkeleton } from '@/components/kit/ScreenSkeletons';
 
 export default function OffersScreen() {
@@ -34,6 +34,8 @@ export default function OffersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pickFor, setPickFor] = useState<Offer | null>(null);
+  /** "No services to book right now" — a sheet instead of a native alert. */
+  const [noServices, setNoServices] = useState(false);
 
   const brandName = content.branding.name?.trim() || 'Mr Antidot';
   const promoHint =
@@ -60,7 +62,7 @@ export default function OffersScreen() {
       try {
         await load();
       } catch (err) {
-        setLoadError(getApiErrorMessage(err, 'Could not load offers'));
+        setLoadError(getApiErrorMessage(err, ui.offersLoadFailed));
       } finally {
         setLoading(false);
       }
@@ -72,7 +74,7 @@ export default function OffersScreen() {
     try {
       await load();
     } catch (err) {
-      setLoadError(getApiErrorMessage(err, 'Could not refresh offers'));
+      setLoadError(getApiErrorMessage(err, ui.offersRefreshFailed));
     } finally {
       setRefreshing(false);
     }
@@ -80,9 +82,11 @@ export default function OffersScreen() {
 
   function applyOffer(offer: Offer) {
     if (services.length === 0) {
-      Alert.alert(ui.offersNoServicesAlertTitle, ui.offersNoServicesAlertBody);
+      haptic('warning');
+      setNoServices(true);
       return;
     }
+    haptic('tap');
     if (services.length === 1) {
       appPush(sharedRoutes.book(services[0]!.id, { coupon: offer.code }));
       return;
@@ -159,6 +163,14 @@ export default function OffersScreen() {
         message={pickFor ? fillCopy(ui.offersApplyQuestion, { code: pickFor.code }) : undefined}
         options={pickOptions}
         onClose={() => setPickFor(null)}
+      />
+      <AdminActionSheet
+        visible={noServices}
+        title={ui.offersNoServicesAlertTitle}
+        message={ui.offersNoServicesAlertBody}
+        options={[]}
+        cancelLabel={ui.offersNoServicesOk}
+        onClose={() => setNoServices(false)}
       />
     </CustomerListShell>
   );

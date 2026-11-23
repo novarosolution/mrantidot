@@ -10,15 +10,26 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { Button } from '@/components/ui/Button';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
 import { textInputDefaults } from '@/components/ui/textInputDefaults';
+import { useReducedMotion } from '@/lib/a11yPrefs';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { haptic } from '@/lib/motion';
+import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
 
+const CODE_LENGTH = 6;
+
+/**
+ * Six-digit customer code entry (start / completion). A wrong or short code shakes the field with a
+ * warning / error haptic; the parent plays the success haptic once the server accepts the code.
+ */
 export function OtpEntrySheet({
   visible,
   title,
+  subtitle,
   loading,
   errorTrigger,
   onClose,
@@ -33,24 +44,17 @@ export function OtpEntrySheet({
   onClose: () => void;
   onSubmit: (otp: string) => void;
 }) {
+  const copy = useCustomerUiCopy();
+  const insets = useSafeAreaInsets();
+  const reduced = useReducedMotion();
   const [code, setCode] = useState('');
   const shake = useRef(new Animated.Value(0)).current;
   const inputRef = useRef<TextInput>(null);
+  const reducedRef = useRef(reduced);
+  reducedRef.current = reduced;
 
-  useEffect(() => {
-    if (visible) {
-      setCode('');
-      setTimeout(() => inputRef.current?.focus(), 300);
-    }
-  }, [visible]);
-
-  useEffect(() => {
-    if (!visible || !errorTrigger) return;
-    setCode('');
-    triggerShake();
-  }, [errorTrigger, visible]);
-
-  function triggerShake() {
+  const shakeField = () => {
+    if (reducedRef.current) return;
     shake.setValue(0);
     Animated.sequence([
       Animated.timing(shake, { toValue: 8, duration: 50, useNativeDriver: true }),
@@ -58,28 +62,48 @@ export function OtpEntrySheet({
       Animated.timing(shake, { toValue: 6, duration: 50, useNativeDriver: true }),
       Animated.timing(shake, { toValue: 0, duration: 50, useNativeDriver: true }),
     ]).start();
-  }
+  };
+  const shakeRef = useRef(shakeField);
+  shakeRef.current = shakeField;
+
+  useEffect(() => {
+    if (!visible) return;
+    setCode('');
+    const t = setTimeout(() => inputRef.current?.focus(), 300);
+    return () => clearTimeout(t);
+  }, [visible]);
+
+  useEffect(() => {
+    if (!visible || !errorTrigger) return;
+    setCode('');
+    haptic('error');
+    shakeRef.current();
+    inputRef.current?.focus();
+  }, [errorTrigger, visible]);
 
   function submit() {
-    if (code.length !== 6) {
-      triggerShake();
+    if (loading) return;
+    if (code.length !== CODE_LENGTH) {
+      haptic('warning');
+      shakeField();
       return;
     }
     onSubmit(code);
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Pressable style={styles.backdrop} onPress={onClose}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={styles.backdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel={copy.techClose} />
+          <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.md }]}>
             <View style={styles.handle} />
             <Pressable
-              style={styles.close}
+              style={({ pressed }) => [styles.close, pressed && styles.closePressed]}
               onPress={onClose}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Close"
+              accessibilityLabel={copy.techClose}
             >
               <PremiumIcon icon={AppIcons.ui.close} variant="plain" size="lg" color={colors.muted} />
             </Pressable>
@@ -87,7 +111,10 @@ export function OtpEntrySheet({
             <View style={styles.iconWrap}>
               <PremiumIcon icon={AppIcons.ui.key} variant="plain" size="xl" color={colors.white} />
             </View>
-            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.title} accessibilityRole="header">
+              {title}
+            </Text>
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : <View style={styles.subtitleGap} />}
 
             <Animated.View style={{ transform: [{ translateX: shake }] }}>
               <TextInput
@@ -95,32 +122,40 @@ export function OtpEntrySheet({
                 style={styles.input}
                 {...textInputDefaults}
                 value={code}
-                onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
+                onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, CODE_LENGTH))}
                 keyboardType="number-pad"
-                maxLength={6}
+                textContentType="oneTimeCode"
+                autoComplete="one-time-code"
+                maxLength={CODE_LENGTH}
                 placeholder="000000"
                 placeholderTextColor={colors.muted}
                 textAlign="center"
+                returnKeyType="done"
+                onSubmitEditing={submit}
+                editable={!loading}
+                accessibilityLabel={copy.techOtpInputA11y}
               />
             </Animated.View>
 
             <Button
-              title={loading ? 'Verifying…' : 'Verify code'}
+              title={loading ? copy.techOtpVerifying : copy.techOtpVerify}
               onPress={submit}
-              disabled={loading || code.length !== 6}
+              disabled={loading || code.length !== CODE_LENGTH}
+              accessibilityState={{ busy: Boolean(loading), disabled: Boolean(loading) || code.length !== CODE_LENGTH }}
               style={styles.submit}
             />
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(8,14,10,0.45)',
     justifyContent: 'flex-end',
   },
   sheet: {
@@ -128,7 +163,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl + 12,
     paddingTop: spacing.sm,
     ...premium.shadowSoft,
   },
@@ -137,10 +171,21 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.border,
+    backgroundColor: ui.border,
     marginBottom: spacing.md,
   },
-  close: { position: 'absolute', top: spacing.md, right: spacing.md, zIndex: 1 },
+  close: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    zIndex: 1,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closePressed: { backgroundColor: ui.surfaceMuted },
   iconWrap: {
     alignSelf: 'center',
     width: 56,
@@ -159,13 +204,14 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.muted,
+    fontSize: 13.5,
+    color: ui.textSecondary,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 6,
     marginBottom: spacing.lg,
-    lineHeight: 20,
+    lineHeight: 19,
   },
+  subtitleGap: { height: spacing.lg },
   input: {
     fontFamily: fonts.displaySemi,
     fontSize: 32,
@@ -177,13 +223,6 @@ const styles = StyleSheet.create({
     borderColor: colors.green,
     paddingVertical: 16,
     marginBottom: spacing.sm,
-  },
-  hint: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.muted,
-    textAlign: 'center',
-    marginBottom: spacing.lg,
   },
   submit: { marginTop: spacing.xs },
 });

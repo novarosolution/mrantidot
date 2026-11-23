@@ -1,11 +1,45 @@
-import type { Booking, BookingStatus, Service, User } from '@/types/api';
+import type { Booking, BookingStatus, CustomerUiCopy, Service, User } from '@/types/api';
 import { formatScheduleLabel, isSlotStarted, isTimeStarted } from '@/lib/dates';
+import { paymentLabel } from '@/lib/settingsLabels';
+import { fillBrand } from '@/constants/customerUiCopy';
 
-export function bookingServiceName(booking: Booking): string {
+/**
+ * Customer-facing labels take the admin-editable copy (`useCustomerUiCopy()`) as an optional last
+ * argument. Staff / technician screens omit it and keep the built-in operations wording.
+ */
+type Copy = Pick<
+  CustomerUiCopy,
+  | 'statusLabelPending'
+  | 'statusLabelConfirmed'
+  | 'statusLabelInProgress'
+  | 'statusLabelAwaiting'
+  | 'statusLabelCompleted'
+  | 'statusLabelCancelled'
+  | 'statusGuidePending'
+  | 'statusGuideConfirmed'
+  | 'statusGuideInProgress'
+  | 'statusGuideAwaiting'
+  | 'statusGuideCompleted'
+  | 'statusGuideCancelled'
+  | 'bookingServiceFallback'
+  | 'bookingScheduleTbd'
+  | 'trackAssigned'
+  | 'trackStartCode'
+  | 'trackWorkStarted'
+  | 'trackStepDone'
+  | 'trackEndCode'
+  | 'trackCompleted'
+  | 'trackCancelled'
+  | 'trackAdminOverride'
+  | 'trackScheduleConfirmed'
+  | 'trackRescheduled'
+>;
+
+export function bookingServiceName(booking: Booking, copy?: Pick<Copy, 'bookingServiceFallback'>): string {
   if (booking.service && typeof booking.service === 'object') {
     return (booking.service as Service).name;
   }
-  return 'Service';
+  return copy?.bookingServiceFallback ?? 'Service';
 }
 
 export function bookingServiceIconKey(booking: Booking): string {
@@ -38,11 +72,9 @@ export function bookingRef(id: string): string {
   return `#${id.slice(-6).toUpperCase()}`;
 }
 
+/** Payment method name from the admin's business settings ("UPI / Card", "Pay after service"…). */
 export function paymentMethodLabel(method?: string | null): string {
-  if (!method?.trim()) return '—';
-  if (method === 'pay_after') return 'Pay after service';
-  if (method === 'upi_card') return 'UPI / Card';
-  return method.replace(/_/g, ' ');
+  return paymentLabel(method);
 }
 
 const STATUS_LABELS: Record<BookingStatus, string> = {
@@ -81,19 +113,45 @@ const STAFF_STATUS_GUIDANCE: Record<BookingStatus, string> = {
   cancelled: 'This booking was cancelled. No further action needed.',
 };
 
-export function bookingStatusLabel(status: BookingStatus): string {
+function customerStatusLabels(copy: Copy): Record<BookingStatus, string> {
+  return {
+    pending: copy.statusLabelPending,
+    confirmed: copy.statusLabelConfirmed,
+    in_progress: copy.statusLabelInProgress,
+    awaiting_verification: copy.statusLabelAwaiting,
+    completed: copy.statusLabelCompleted,
+    cancelled: copy.statusLabelCancelled,
+  };
+}
+
+/** Status name. Pass the customer copy on customer screens. */
+export function bookingStatusLabel(status: BookingStatus, copy?: Copy): string {
+  if (copy) return customerStatusLabels(copy)[status] ?? status.replace(/_/g, ' ');
   return STATUS_LABELS[status] ?? status;
 }
 
 export function bookingStatusMessage(
   status: BookingStatus,
   audience: 'customer' | 'technician' | 'staff' = 'customer',
+  copy?: Copy,
+  brand?: string,
 ): string {
   if (audience === 'technician') {
     return TECHNICIAN_STATUS_GUIDANCE[status] ?? '';
   }
   if (audience === 'staff') {
     return STAFF_STATUS_GUIDANCE[status] ?? '';
+  }
+  if (copy) {
+    const map: Record<BookingStatus, string> = {
+      pending: copy.statusGuidePending,
+      confirmed: copy.statusGuideConfirmed,
+      in_progress: copy.statusGuideInProgress,
+      awaiting_verification: copy.statusGuideAwaiting,
+      completed: copy.statusGuideCompleted,
+      cancelled: copy.statusGuideCancelled,
+    };
+    return fillBrand(map[status] ?? '', brand ?? 'Mr Antidot');
   }
   return STATUS_GUIDANCE[status] ?? '';
 }
@@ -115,7 +173,22 @@ const TRACKING_LABELS: Record<string, string> = {
   rescheduled: 'Visit rescheduled',
 };
 
-export function trackingEventLabel(event: string): string {
+export function trackingEventLabel(event: string, copy?: Copy): string {
+  if (copy) {
+    const map: Record<string, string> = {
+      assigned: copy.trackAssigned,
+      start_otp_sent: copy.trackStartCode,
+      work_started: copy.trackWorkStarted,
+      step_done: copy.trackStepDone,
+      end_otp_sent: copy.trackEndCode,
+      work_completed: copy.trackCompleted,
+      cancelled: copy.trackCancelled,
+      admin_override: copy.trackAdminOverride,
+      schedule_confirmed: copy.trackScheduleConfirmed,
+      rescheduled: copy.trackRescheduled,
+    };
+    if (map[event]) return map[event];
+  }
   return TRACKING_LABELS[event] ?? event.replace(/_/g, ' ');
 }
 
@@ -132,7 +205,7 @@ export function isRequestedTimePast(booking: Booking): boolean {
   return isSlotStarted(req.date, req.slot ?? '00:00-02:00');
 }
 
-export function bookingScheduleDisplay(booking: Booking): string {
+export function bookingScheduleDisplay(booking: Booking, copy?: Pick<Copy, 'bookingScheduleTbd'>): string {
   const source = booking.status === 'pending' && booking.scheduleRequest
     ? {
         date: booking.scheduleRequest.date,
@@ -140,7 +213,7 @@ export function bookingScheduleDisplay(booking: Booking): string {
         time: booking.scheduleRequest.time,
       }
     : booking.schedule;
-  if (!source?.date) return 'Schedule TBD';
+  if (!source?.date) return copy?.bookingScheduleTbd ?? 'Schedule TBD';
   return formatScheduleLabel(source, booking.scheduleMode);
 }
 

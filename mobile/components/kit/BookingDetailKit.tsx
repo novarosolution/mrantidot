@@ -1,6 +1,10 @@
-import { ImageOff, type LucideIcon } from 'lucide-react-native';
+import { type LucideIcon } from 'lucide-react-native';
 import { type ReactNode, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View, type ImageStyle, type StyleProp } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, type ImageStyle, type StyleProp } from 'react-native';
+import { AppImage } from '@/components/ui/AppImage';
+import { PhotoViewer } from '@/components/ui/PhotoViewer';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { fillCopy } from '@/constants/customerUiCopy';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
@@ -84,27 +88,36 @@ export function BookingStageTracker({ steps }: { steps: { title: string; done: b
   );
 }
 
-/** Booking photo that degrades to a quiet "unavailable" tile instead of an empty box when it fails to load. */
+/**
+ * Booking photo (cached through AppImage). With `onOpen` it becomes a button that opens the viewer.
+ * Empty URLs show a quiet "no image" tile instead of an empty box.
+ */
 export function SafePhoto({
   uri,
   style,
-  compact,
+  onOpen,
+  label,
 }: {
   uri: string;
   style: StyleProp<ImageStyle>;
-  /** Icon only — for small thumbnails where the caption won't fit. */
+  /** @deprecated kept for older call sites — the tile is icon-only now. */
   compact?: boolean;
+  onOpen?: () => void;
+  label?: string;
 }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) {
-    return (
-      <View style={[styles.photoFallback, style as object, styles.photoFallbackSurface]} accessibilityLabel="Photo unavailable">
-        <ImageOff size={compact ? 16 : 20} color={colors.muted} strokeWidth={1.8} />
-        {compact ? null : <Text style={styles.photoFallbackText}>Photo unavailable</Text>}
-      </View>
-    );
-  }
-  return <Image source={{ uri }} style={style} onError={() => setFailed(true)} />;
+  const copy = useCustomerUiCopy();
+  const img = <AppImage uri={uri || null} style={style} recyclingKey={uri} accessibilityLabel={onOpen ? undefined : label} />;
+  if (!onOpen) return img;
+  return (
+    <PressableScale
+      onPress={onOpen}
+      accessibilityRole="imagebutton"
+      accessibilityLabel={label ?? copy.photoUnavailable}
+      accessibilityHint={copy.photoOpenHint}
+    >
+      {img}
+    </PressableScale>
+  );
 }
 
 export function BookingTreatmentStepCard({
@@ -126,12 +139,10 @@ export function BookingTreatmentStepCard({
   geoAddress?: string;
   active?: boolean;
 }) {
-  const photos =
-    photoUrls && photoUrls.length > 0
-      ? photoUrls
-      : photoUrl
-        ? [photoUrl]
-        : [];
+  const copy = useCustomerUiCopy();
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const photos = (photoUrls && photoUrls.length > 0 ? photoUrls : photoUrl ? [photoUrl] : []).map((p) => mediaUrl(p));
+  const photoLabel = (i: number) => fillCopy(copy.photoViewerLabel, { current: i + 1, total: photos.length });
 
   return (
     <View style={[styles.treatmentCard, active && styles.treatmentActive]}>
@@ -144,16 +155,16 @@ export function BookingTreatmentStepCard({
           {/* The badge already says Completed / In progress — the subtitle adds detail instead. */}
           {status === 'done' && photos.length > 0 ? (
             <Text style={styles.treatmentStatus}>
-              {photos.length} {photos.length === 1 ? 'photo' : 'photos'} captured
+              {photos.length === 1 ? copy.stepPhotosOne : fillCopy(copy.stepPhotosMany, { count: photos.length })}
             </Text>
           ) : active ? (
-            <Text style={styles.treatmentStatus}>Technician is working on this now</Text>
+            <Text style={styles.treatmentStatus}>{copy.stepWorkingNow}</Text>
           ) : null}
         </View>
         <StatusBadge label={badge.label} tone={badge.tone} />
       </View>
       {photos.length === 1 ? (
-        <SafePhoto uri={mediaUrl(photos[0])} style={styles.treatmentPhoto} />
+        <SafePhoto uri={photos[0]} style={styles.treatmentPhoto} onOpen={() => setViewerIndex(0)} label={photoLabel(0)} />
       ) : photos.length > 1 ? (
         <ScrollView
           horizontal
@@ -162,7 +173,7 @@ export function BookingTreatmentStepCard({
         >
           {photos.map((url, i) => (
             <View key={`${url}-${i}`} style={styles.treatmentPhotoFrame}>
-              <SafePhoto uri={mediaUrl(url)} style={styles.treatmentPhotoMulti} />
+              <SafePhoto uri={url} style={styles.treatmentPhotoMulti} onOpen={() => setViewerIndex(i)} label={photoLabel(i)} />
               <View style={styles.photoIndex}>
                 <Text style={styles.photoIndexText}>{i + 1}</Text>
               </View>
@@ -171,20 +182,33 @@ export function BookingTreatmentStepCard({
         </ScrollView>
       ) : null}
       {geoAddress ? <Text style={styles.treatmentGeo}>{geoAddress}</Text> : null}
+      <PhotoViewer photos={photos} index={viewerIndex} onClose={() => setViewerIndex(null)} />
     </View>
   );
 }
 
-export function BookingPhotoGallery({ photos }: { photos: string[] }) {
-  if (photos.length === 0) return null;
+export function BookingPhotoGallery({ photos: raw }: { photos: string[] }) {
+  const copy = useCustomerUiCopy();
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  if (raw.length === 0) return null;
+  const photos = raw.map((p) => mediaUrl(p));
   return (
     <View style={styles.section}>
-      <PremiumSectionHeader title="Problem photos" subtitle={`${photos.length} attached`} compact />
+      <PremiumSectionHeader
+        title={copy.problemPhotosTitle}
+        subtitle={fillCopy(copy.problemPhotosSub, { count: photos.length })}
+        compact
+      />
       <View style={[styles.card, styles.cardInset]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
           {photos.map((url, i) => (
-            <View key={url} style={styles.photoFrame}>
-              <SafePhoto uri={mediaUrl(url)} style={styles.photo} />
+            <View key={`${url}-${i}`} style={styles.photoFrame}>
+              <SafePhoto
+                uri={url}
+                style={styles.photo}
+                onOpen={() => setViewerIndex(i)}
+                label={fillCopy(copy.photoViewerLabel, { current: i + 1, total: photos.length })}
+              />
               <View style={styles.photoIndex}>
                 <Text style={styles.photoIndexText}>{i + 1}</Text>
               </View>
@@ -192,6 +216,7 @@ export function BookingPhotoGallery({ photos }: { photos: string[] }) {
           ))}
         </ScrollView>
       </View>
+      <PhotoViewer photos={photos} index={viewerIndex} onClose={() => setViewerIndex(null)} />
     </View>
   );
 }

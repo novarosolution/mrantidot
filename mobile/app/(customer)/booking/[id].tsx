@@ -1,7 +1,7 @@
-import { useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { paramString } from '@/lib/routeParams';
 import { BookingDetailHero } from '@/components/kit/BookingDetailHero';
@@ -19,8 +19,9 @@ import { BookingTrackingTimeline } from '@/components/kit/BookingTrackingTimelin
 import { RescheduleSheet } from '@/components/kit/RescheduleSheet';
 import { getActiveCustomerOtp, WorkOtpCard } from '@/components/kit/WorkOtpCard';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
-import { useDockTabBarStyle } from '@/components/kit/GlassScreenKit';
+import { AdminActionSheet } from '@/components/kit/AdminActionSheet';
 import { Button } from '@/components/ui/Button';
+import { LiveBadge } from '@/components/ui/LiveBadge';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
@@ -45,7 +46,12 @@ import {
 } from '@/lib/booking-helpers';
 import { getCustomerTrackingSteps, getStatusGuidance, useBookingCopy } from '@/lib/schedule-copy';
 import type { Booking, Review, WorkOtpView } from '@/types/api';
-import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { colors, radii, spacing, typeScale, ui } from '@/constants/theme';
+import { useBusinessSettings } from '@/lib/businessSettings';
+import { canCancelVisit, canRescheduleVisit } from '@/lib/dates';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { formatDuration } from '@/lib/serviceDisplay';
+import { Info } from 'lucide-react-native';
 import { sharedRoutes, appPush } from '@/lib/routes';
 
 function customerTrackingSteps(
@@ -57,8 +63,9 @@ function customerTrackingSteps(
 }
 
 export default function CustomerBookingDetailScreen() {
-  const navigation = useNavigation();
   const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
+  const insets = useSafeAreaInsets();
+  const settings = useBusinessSettings();
   const bookingCopy = useBookingCopy();
   const labels = useCustomerUiCopy();
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -66,6 +73,7 @@ export default function CustomerBookingDetailScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [cancelAsk, setCancelAsk] = useState(false);
   const [rescheduling, setRescheduling] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [regenerating, setRegenerating] = useState<'start' | 'end' | null>(null);
@@ -74,7 +82,7 @@ export default function CustomerBookingDetailScreen() {
 
   const load = useCallback(async (opts?: { skipCache?: boolean }) => {
     if (!id) {
-      setLoadError('Booking not found');
+      setLoadError(labels.bookingNotFound);
       return;
     }
     setLoadError(null);
@@ -95,7 +103,7 @@ export default function CustomerBookingDetailScreen() {
       try {
         await load();
       } catch (err) {
-        setLoadError(getApiErrorMessage(err, 'Could not load booking'));
+        setLoadError(getApiErrorMessage(err, labels.bookingLoadFailed));
       }
     });
   }, [load]);
@@ -128,20 +136,15 @@ export default function CustomerBookingDetailScreen() {
     }
   }, [load]);
 
-  const dockStyle = useDockTabBarStyle();
+  // The tab bar is hidden for this route in the customer tab layout (no show/hide flash on focus changes).
   useFocusEffect(
     useCallback(() => {
       focusedRef.current = true;
-      // Hide the tab bar so sticky CTAs stay tappable (same as tech job).
-      // Parent = the customer Tabs route that owns this booking stack; its parent is the root stack.
-      const tabsNav = navigation.getParent();
-      tabsNav?.setOptions({ tabBarStyle: { display: 'none' } });
       refresh();
       return () => {
         focusedRef.current = false;
-        tabsNav?.setOptions({ tabBarStyle: dockStyle });
       };
-    }, [navigation, refresh, dockStyle]),
+    }, [refresh]),
   );
 
   const liveStatus = booking ? isBookingLive(booking.status) : false;
@@ -167,14 +170,8 @@ export default function CustomerBookingDetailScreen() {
   }
 
   function confirmCancel() {
-    Alert.alert(bookingCopy.cancelConfirmTitle, bookingCopy.cancelConfirmMessage, [
-      { text: bookingCopy.cancelConfirmKeep, style: 'cancel' },
-      {
-        text: bookingCopy.cancelConfirmAction,
-        style: 'destructive',
-        onPress: () => void doCancel(),
-      },
-    ]);
+    haptic('warning');
+    setCancelAsk(true);
   }
 
   async function doCancel() {
@@ -276,12 +273,7 @@ export default function CustomerBookingDetailScreen() {
   };
 
   const headerSubtitle = bookingRef(booking.id);
-  const headerRight = isLive ? (
-    <View style={styles.livePill}>
-      <View style={styles.liveDot} />
-      <Text style={styles.livePillText}>{bookingCopy.detailLiveBadge}</Text>
-    </View>
-  ) : null;
+  const headerRight = isLive ? <LiveBadge tone="light" label={bookingCopy.detailLiveBadge} /> : null;
 
   const svcId =
     booking.service && typeof booking.service === 'object' ? booking.service.id : undefined;
@@ -289,14 +281,28 @@ export default function CustomerBookingDetailScreen() {
   const canBookAgain =
     (booking.status === 'cancelled' || booking.status === 'completed') && Boolean(svcId);
   const canReview = booking.status === 'completed' && !hasReview;
-
-  const stickyActionCount = [
-    canReview,
-    canCancelBooking(booking.status),
-    canCancelBooking(booking.status),
-    canBookAgain,
-  ].filter(Boolean).length;
-  const hasStickyActions = stickyActionCount > 0;
+  // Admin cut-offs (Business settings → Booking rules) decide whether the visit can still change.
+  const canCancel = canCancelBooking(booking.status) && canCancelVisit(booking, settings);
+  const canReschedule = canCancelBooking(booking.status) && canRescheduleVisit(booking, settings);
+  const hasStickyActions = canReview || canCancel || canReschedule || canBookAgain;
+  // Why a change isn't offered any more (admin cut-off / reschedule limit) — said once, under the status.
+  const rules = settings.booking;
+  const changeNotes: string[] = [];
+  if (canCancelBooking(booking.status)) {
+    if (!canReschedule) {
+      const limitHit = rules.maxReschedules > 0 && (booking.rescheduleCount ?? 0) >= rules.maxReschedules;
+      changeNotes.push(
+        limitHit
+          ? fillCopy(labels.bookingDetailRescheduleLimit, { count: rules.maxReschedules })
+          : fillCopy(labels.bookingDetailRescheduleCutoff, { window: formatDuration(rules.rescheduleCutoffHours * 60) }),
+      );
+    }
+    if (!canCancel) {
+      changeNotes.push(fillCopy(labels.bookingDetailCancelCutoff, { window: formatDuration(rules.cancelCutoffHours * 60) }));
+    }
+  }
+  // One row of buttons: 52 pt button + bar padding + home indicator, plus breathing room.
+  const stickyPad = 52 + spacing.md + Math.max(insets.bottom, spacing.md) + spacing.lg;
 
   return (
     <View style={styles.rootShell}><SafeAreaView style={styles.safe} edges={['left', 'right']}>
@@ -308,10 +314,7 @@ export default function CustomerBookingDetailScreen() {
         rightAction={headerRight}
       />
       <ScrollView
-        contentContainerStyle={[
-          styles.container,
-          hasStickyActions && { paddingBottom: 56 + stickyActionCount * 52 + spacing.xl },
-        ]}
+        contentContainerStyle={[styles.container, { paddingBottom: hasStickyActions ? stickyPad : insets.bottom + spacing.xl }]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={ui.brand} />
         }
@@ -322,6 +325,21 @@ export default function CustomerBookingDetailScreen() {
           guidance={isSchedulePending(booking) ? undefined : statusGuidance}
           progress={showLiveProgress && steps.length > 0 ? { done: doneCount, total: steps.length } : null}
         />
+
+        {changeNotes.length > 0 ? (
+          <FadeSlideIn delay={stagger(1)} style={styles.sectionWrap}>
+            <View style={styles.ruleNote} accessibilityRole="text">
+              <Info size={16} color={colors.amberInk} strokeWidth={2.2} />
+              <View style={styles.ruleNoteBody}>
+                {changeNotes.map((n) => (
+                  <Text key={n} style={styles.ruleNoteText}>
+                    {n}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          </FadeSlideIn>
+        ) : null}
 
         {isSchedulePending(booking) ? (
           <FadeSlideIn delay={stagger(1)} style={styles.sectionWrap}>
@@ -401,7 +419,7 @@ export default function CustomerBookingDetailScreen() {
               <BookingPriceBreakdown
                 amount={booking.amount}
                 compact
-                serviceName={bookingServiceName(booking)}
+                serviceName={bookingServiceName(booking, labels)}
                 serviceDesc={
                   booking.service && typeof booking.service === 'object'
                     ? booking.service.shortDesc
@@ -450,7 +468,7 @@ export default function CustomerBookingDetailScreen() {
       {hasStickyActions && (
         <StickyActionBar>
           <View style={styles.ctaRow}>
-            {canCancelBooking(booking.status) && (
+            {canCancel && (
               <Button
                 title={labels.bookingDetailCancel}
                 variant="secondary"
@@ -475,17 +493,36 @@ export default function CustomerBookingDetailScreen() {
                 style={styles.ctaHalf}
               />
             )}
-            {canCancelBooking(booking.status) && (
+            {canReschedule && (
               <Button
                 title={labels.bookingDetailReschedule}
                 variant="premium"
-                onPress={() => setRescheduleOpen(true)}
+                onPress={() => {
+                  haptic('tap');
+                  setRescheduleOpen(true);
+                }}
                 style={styles.ctaHalf}
               />
             )}
           </View>
         </StickyActionBar>
       )}
+
+      <AdminActionSheet
+        visible={cancelAsk}
+        title={bookingCopy.cancelConfirmTitle}
+        message={bookingCopy.cancelConfirmMessage}
+        cancelLabel={bookingCopy.cancelConfirmKeep || labels.cancelSheetKeep}
+        onClose={() => setCancelAsk(false)}
+        options={[
+          {
+            key: 'cancel',
+            label: bookingCopy.cancelConfirmAction,
+            destructive: true,
+            onPress: () => void doCancel(),
+          },
+        ]}
+      />
 
       <RescheduleSheet
         visible={rescheduleOpen}
@@ -498,9 +535,9 @@ export default function CustomerBookingDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  rootShell: { flex: 1, backgroundColor: ui.surfaceMuted },
+  rootShell: { flex: 1, backgroundColor: ui.canvas },
   safe: { flex: 1, backgroundColor: 'transparent' },
-  container: { paddingBottom: 120 },
+  container: {},
   sectionWrap: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
   priceInset: {
     marginHorizontal: spacing.md,
@@ -510,28 +547,16 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
-  livePill: {
+  ruleNote: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: ui.brandSoft,
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 14,
+    borderRadius: radii.card,
+    backgroundColor: colors.amberBg,
   },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: ui.brand,
-  },
-  livePillText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 10,
-    color: colors.forest,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
+  ruleNoteBody: { flex: 1, gap: 4 },
+  ruleNoteText: { ...typeScale.caption, color: colors.amberInk },
   ctaRow: { flexDirection: 'row', gap: spacing.sm },
   ctaHalf: { flex: 1 },
 });

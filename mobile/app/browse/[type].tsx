@@ -1,11 +1,10 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Star } from 'lucide-react-native';
 import { safeGoBack, customerRoutes, sharedRoutes, appPush } from '@/lib/routes';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
-import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
 import { ListGroup, ListNavRow } from '@/components/kit/ListGroup';
 import { PestImage } from '@/components/kit/ServiceThumb';
 import { ServiceListRow } from '@/components/kit/ServiceListRow';
@@ -24,7 +23,7 @@ import { earliestSlotLabel } from '@/lib/earliestSlot';
 import { serviceDisplayRating } from '@/lib/ratings';
 import { serviceStartPrice } from '@/lib/serviceDisplay';
 import type { Service, ServiceCategory, ServiceTypeKey } from '@/types/api';
-import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { colors, fonts, radii, spacing, typeScale, ui } from '@/constants/theme';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { stagger } from '@/lib/motion';
@@ -35,6 +34,7 @@ export default function ServicesByTypeScreen() {
   const typeKey = rawType && isServiceTypeKey(rawType) ? rawType : null;
   const meta = typeKey ? SERVICE_TYPE_META[typeKey] : null;
   const copy = useCustomerUiCopy();
+  const insets = useSafeAreaInsets();
   const earliest = useMemo(() => earliestSlotLabel(), []);
 
   const [services, setServices] = useState<Service[]>([]);
@@ -55,11 +55,12 @@ export default function ServicesByTypeScreen() {
         });
         setServices(data.services);
       } catch (err) {
-        setError(getApiErrorMessage(err, 'Could not load services'));
+        setError(getApiErrorMessage(err, copy.servicesLoadFailed));
       } finally {
         setLoading(false);
       }
     },
+    // Copy changes must not refetch the list.
     [typeKey],
   );
 
@@ -83,8 +84,8 @@ export default function ServicesByTypeScreen() {
     return (
       <View style={styles.root}>
         <SafeAreaView style={styles.flex} edges={['left', 'right']}>
-          <CustomerPageHeader title="Browse" variant="premium" showBack onBack={() => safeGoBack(customerRoutes.services)} />
-          <ListEmptyRetry message="Unknown service type" onRetry={() => safeGoBack(customerRoutes.services)} />
+          <CustomerPageHeader title={copy.browseFallbackTitle} variant="premium" showBack onBack={() => safeGoBack(customerRoutes.services)} />
+          <ListEmptyRetry message={copy.browseUnknownType} onRetry={() => safeGoBack(customerRoutes.services)} />
         </SafeAreaView>
       </View>
     );
@@ -114,7 +115,8 @@ export default function ServicesByTypeScreen() {
         ) : error && services.length === 0 ? (
           <ListEmptyRetry message={error} onRetry={() => safeAsync(() => load(true))} />
         ) : (
-          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          // A pushed screen — no tab bar to clear, only the home indicator.
+          <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }} showsVerticalScrollIndicator={false}>
             {/* Summary: who we are for this pest, how well rated, and how soon we can come. */}
             <FadeSlideIn delay={stagger(0)} slideFrom={14}>
               <View style={styles.white}>
@@ -185,14 +187,16 @@ export default function ServicesByTypeScreen() {
                 <FadeSlideIn key={g.key} delay={stagger(gi + 1)} slideFrom={14}>
                   <View style={styles.band} />
                   <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>{groups.length > 1 ? g.title : copy.browseAvailableTitle}</Text>
+                    <Text style={styles.sectionTitle} accessibilityRole="header">
+                      {groups.length > 1 ? g.title : copy.browseAvailableTitle}
+                    </Text>
                     {g.services.map((s, i) => (
                       <ServiceListRow
                         key={s.id}
                         service={s}
                         detailed
-                        onPress={() => open(s)}
-                        onBook={() => open(s)}
+                        onPress={open}
+                        onBook={open}
                         showDivider={i < g.services.length - 1}
                       />
                     ))}
@@ -221,14 +225,12 @@ export default function ServicesByTypeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: ui.surfaceMuted },
+  root: { flex: 1, backgroundColor: ui.canvas },
   flex: { flex: 1, minWidth: 0 },
-  pressed: { opacity: 0.8 },
-  scroll: { paddingBottom: TAB_BAR_SCROLL_PAD },
   white: { backgroundColor: colors.white, paddingHorizontal: spacing.md, paddingVertical: 18 },
-  band: { height: 8, backgroundColor: ui.surfaceMuted },
+  band: { height: 8, backgroundColor: ui.canvas },
   summary: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  art: { width: 72, height: 72, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  art: { width: 72, height: 72, borderRadius: radii.control, alignItems: 'center', justifyContent: 'center' },
   proofRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   proof: {
     fontFamily: fonts.bodySemi,
@@ -240,7 +242,7 @@ const styles = StyleSheet.create({
   earliest: {
     paddingHorizontal: 10,
     paddingVertical: 8,
-    borderRadius: 12,
+    borderRadius: radii.thumb,
     borderWidth: 1,
     borderColor: ui.border,
   },
@@ -252,15 +254,9 @@ const styles = StyleSheet.create({
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 18 },
   tile: { width: '30.5%' },
   tileInner: { alignItems: 'center', gap: 8 },
-  tileArt: { width: '100%', aspectRatio: 1.15, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  tileArt: { width: '100%', aspectRatio: 1.15, borderRadius: radii.control, alignItems: 'center', justifyContent: 'center' },
   tileText: { textAlign: 'center', fontFamily: fonts.bodyMedium, fontSize: 12.5, lineHeight: 16, color: ui.text },
   section: { backgroundColor: colors.white, paddingTop: 20 },
-  sectionTitle: {
-    marginHorizontal: spacing.md,
-    fontFamily: fonts.displaySemi,
-    fontSize: 20,
-    letterSpacing: -0.4,
-    color: ui.text,
-  },
+  sectionTitle: { ...typeScale.section, marginHorizontal: spacing.md, color: ui.text },
   footer: { padding: spacing.md, gap: spacing.md },
 });

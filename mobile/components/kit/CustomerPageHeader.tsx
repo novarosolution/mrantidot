@@ -13,12 +13,14 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import {
   colors,
   customerType,
-  fonts,
   headerTopPad,
+  radii,
   spacing,
   surfaces,
+  typeScale,
   ui,
 } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 type Variant = 'gradient' | 'light' | 'premium';
 
@@ -46,6 +48,7 @@ export function CustomerPageHeader({
   children?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  const copy = useCustomerUiCopy();
   const padTop = headerTopPad(insets.top);
   const onDark = variant === 'gradient' || variant === 'premium';
 
@@ -67,7 +70,7 @@ export function CustomerPageHeader({
         <Pressable
           onPress={handleBack}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={copy.navBack}
           style={({ pressed }) => [
             styles.backBtn,
             onDark ? styles.backBtnOnDark : styles.backBtnLight,
@@ -90,6 +93,7 @@ export function CustomerPageHeader({
         <Text
           style={[styles.title, onDark ? styles.titleOnDark : styles.titleLight]}
           numberOfLines={1}
+          accessibilityRole="header"
         >
           {title}
         </Text>
@@ -123,7 +127,7 @@ export function CustomerPageHeader({
               scaleTo={0.92}
               onPress={handleBack}
               accessibilityRole="button"
-              accessibilityLabel="Go back"
+              accessibilityLabel={copy.navBack}
               hitSlop={8}
             >
               <GlassSurface style={styles.whiteBack} intensity={30} tintOpacity={0.8}>
@@ -132,7 +136,7 @@ export function CustomerPageHeader({
             </PressableScale>
           ) : null}
           <View style={styles.textCol}>
-            <Text style={showBack ? styles.whiteTitle : styles.whiteTitleLarge} numberOfLines={1}>
+            <Text style={showBack ? styles.whiteTitle : styles.whiteTitleLarge} numberOfLines={1} accessibilityRole="header">
               {title}
             </Text>
             {subtitle ? (
@@ -183,35 +187,18 @@ const styles = StyleSheet.create({
   },
   whiteRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48 },
   whiteBack: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: ui.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  whiteTitle: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 19,
-    lineHeight: 25,
-    letterSpacing: -0.35,
-    color: ui.text,
-  },
-  whiteTitleLarge: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 26,
-    lineHeight: 32,
-    letterSpacing: -0.7,
-    color: ui.text,
-  },
-  whiteSub: {
-    marginTop: 2,
-    fontFamily: fonts.body,
-    fontSize: 13,
-    lineHeight: 18,
-    color: ui.textSecondary,
-  },
+  /** Pushed screens: the title step; tab-level pages (no back button): the display step. */
+  whiteTitle: { ...typeScale.title, color: ui.text },
+  whiteTitleLarge: { ...typeScale.display, color: ui.text },
+  whiteSub: { ...typeScale.caption, marginTop: 2, color: ui.textSecondary },
   lightWrap: {
     paddingHorizontal: spacing.md,
     borderBottomWidth: 0,

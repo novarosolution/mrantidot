@@ -1,17 +1,21 @@
 import type { LucideIcon } from 'lucide-react-native';
 import { Bell, ChevronRight, Mail, MapPin, Phone, Settings } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { HOME_HEADER_BOTTOM, HOME_HEADER_TOP } from '@/components/kit/HomeTopBar';
 import { PremiumAurora } from '@/components/kit/PremiumAurora';
-import { colors, fonts, ui } from '@/constants/theme';
+import { colors, fonts, radii, typeScale, ui } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 export type ProfileStat = {
-  value: string;
+  /** null while loading — shows a shimmer instead of a wrong number. */
+  value: string | null;
   label: string;
   icon: LucideIcon;
   hot?: boolean;
@@ -39,6 +43,8 @@ export function CustomerProfileHero({
   unread = 0,
   stats,
   onEdit,
+  title,
+  badge,
 }: {
   eyebrow?: string;
   title?: string;
@@ -53,7 +59,10 @@ export function CustomerProfileHero({
   stats?: ProfileStat[];
   onEdit: () => void;
   onCopy?: (label: string, value: string) => void;
+  /** Small pill under the top row (e.g. "Incomplete profile" + Complete). */
+  badge?: React.ReactNode;
 }) {
+  const copy = useCustomerUiCopy();
   const hasDetails = Boolean(phone || email || city);
 
   return (
@@ -69,13 +78,15 @@ export function CustomerProfileHero({
       <PremiumAurora tone="light" base={false} topFade />
 
       <View style={styles.topRow}>
-        <Text style={styles.title}>Profile</Text>
+        <Text style={styles.title} accessibilityRole="header">
+          {title ?? copy.profileScreenTitle}
+        </Text>
         <PressableScale
           scaleTo={0.92}
           onPress={() => appPush(customerRoutes.notifications)}
           hitSlop={6}
           accessibilityRole="button"
-          accessibilityLabel={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
+          accessibilityLabel={unread > 0 ? fillCopy(copy.profileNotificationsA11y, { count: unread }) : copy.profileMenuNotifications}
         >
           <GlassSurface style={styles.iconBtn} intensity={30} tintOpacity={0.78}>
             <Bell size={20} color={ui.text} strokeWidth={2} />
@@ -91,7 +102,7 @@ export function CustomerProfileHero({
           onPress={() => appPush(customerRoutes.settings)}
           hitSlop={6}
           accessibilityRole="button"
-          accessibilityLabel="Settings"
+          accessibilityLabel={copy.profileMenuSettings}
         >
           <GlassSurface style={styles.iconBtn} intensity={30} tintOpacity={0.78}>
             <Settings size={20} color={ui.text} strokeWidth={2} />
@@ -99,12 +110,15 @@ export function CustomerProfileHero({
         </PressableScale>
       </View>
 
+      {badge}
+
       <View style={styles.card}>
-        <Pressable
-          style={({ pressed }) => [styles.identity, pressed && styles.identityPressed]}
+        <PressableScale
+          style={styles.identity}
+          scaleTo={0.985}
           onPress={onEdit}
           accessibilityRole="button"
-          accessibilityLabel={`${name}. Edit profile`}
+          accessibilityLabel={fillCopy(copy.profileEditA11y, { name })}
         >
           <View style={styles.avatarRing}>
             <LinearGradient
@@ -127,32 +141,38 @@ export function CustomerProfileHero({
                 {city ? <DetailLine icon={MapPin} text={city} /> : null}
               </View>
             ) : (
-              <Text style={styles.addDetails}>Add your phone and email</Text>
+              <Text style={styles.addDetails}>{copy.profileAddDetails}</Text>
             )}
           </View>
           <ChevronRight size={20} color={ui.textTertiary} strokeWidth={2.2} />
-        </Pressable>
+        </PressableScale>
 
         {stats && stats.length > 0 ? (
           <View style={styles.statsRow}>
             {stats.map((s, i) => {
               const Icon = s.icon;
               return (
-                <Pressable
+                <PressableScale
                   key={s.label}
-                  style={({ pressed }) => [styles.stat, i > 0 && styles.statBorder, pressed && styles.statPressed]}
+                  containerStyle={[styles.statWrap, i > 0 && styles.statBorder]}
+                  style={styles.stat}
+                  scaleTo={0.96}
                   onPress={s.onPress}
                   accessibilityRole="button"
-                  accessibilityLabel={`${s.value} ${s.label}`}
+                  accessibilityLabel={s.value == null ? s.label : `${s.value} ${s.label}`}
                 >
                   <View style={styles.statTop}>
                     <Icon size={15} color={ui.brand} strokeWidth={2.2} />
-                    <Text style={styles.statVal}>{s.value}</Text>
+                    {s.value == null ? (
+                      <Skeleton width={22} height={18} radius={6} />
+                    ) : (
+                      <Text style={styles.statVal}>{s.value}</Text>
+                    )}
                   </View>
                   <Text style={styles.statLb} numberOfLines={1}>
                     {s.label}
                   </Text>
-                </Pressable>
+                </PressableScale>
               );
             })}
           </View>
@@ -165,18 +185,11 @@ export function CustomerProfileHero({
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 18, overflow: 'hidden' },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
-  title: {
-    flex: 1,
-    fontFamily: fonts.displayExtra,
-    fontSize: 26,
-    lineHeight: 32,
-    letterSpacing: -0.7,
-    color: ui.text,
-  },
+  title: { ...typeScale.display, flex: 1, color: ui.text },
   iconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: ui.border,
     alignItems: 'center',
@@ -200,14 +213,13 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.75 },
 
   card: {
-    borderRadius: 22,
+    borderRadius: radii.card,
     backgroundColor: colors.white,
     ...ui.shadow,
     shadowOpacity: 0.08,
     shadowRadius: 18,
   },
   identity: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },
-  identityPressed: { opacity: 0.85 },
   avatarRing: {
     padding: 3,
     borderRadius: 36,
@@ -216,13 +228,7 @@ const styles = StyleSheet.create({
   avatar: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: fonts.displayExtra, fontSize: 24, color: colors.white },
   identityBody: { flex: 1, minWidth: 0 },
-  name: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 19,
-    lineHeight: 24,
-    letterSpacing: -0.4,
-    color: ui.text,
-  },
+  name: { ...typeScale.section, fontSize: 19, lineHeight: 24, color: ui.text },
   details: { marginTop: 5, gap: 3 },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   detailText: { flexShrink: 1, fontFamily: fonts.bodyMedium, fontSize: 13, color: ui.textSecondary },
@@ -233,9 +239,9 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: ui.border,
   },
-  stat: { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 3 },
+  statWrap: { flex: 1 },
+  stat: { alignItems: 'center', paddingVertical: 14, gap: 3 },
   statBorder: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: ui.border },
-  statPressed: { backgroundColor: ui.surfaceMuted },
   statTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   statVal: { fontFamily: fonts.displayExtra, fontSize: 19, letterSpacing: -0.4, color: ui.text },
   statLb: { fontFamily: fonts.bodyMedium, fontSize: 12, color: ui.textSecondary },

@@ -1,7 +1,7 @@
 import { type ReactNode, useRef } from 'react';
 import { Animated, Platform, Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import { useReducedMotion } from '@/lib/a11yPrefs';
-import { haptic as playHaptic } from '@/lib/motion';
+import { haptic as playHaptic, motion } from '@/lib/motion';
 
 const IS_WEB = Platform.OS === 'web';
 /** Web only: a soft dip while the mouse is over the card (react-native-web already sets cursor: pointer). */
@@ -15,7 +15,7 @@ export function PressableScale({
   children,
   style,
   containerStyle,
-  scaleTo = 0.97,
+  scaleTo = motion.press.scale,
   haptic,
   ...rest
 }: Omit<PressableProps, 'style' | 'children'> & {
@@ -35,8 +35,8 @@ export function PressableScale({
 
   const to = (s: number, o: number, fast: boolean) =>
     Animated.parallel([
-      Animated.spring(scale, { toValue: s, speed: fast ? 40 : 22, bounciness: fast ? 0 : 6, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: o, duration: fast ? 90 : 160, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: s, ...(fast ? motion.press.in : motion.press.out), useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: o, duration: fast ? motion.duration.fast : motion.duration.base, useNativeDriver: true }),
     ]).start();
 
   return (
@@ -44,7 +44,7 @@ export function PressableScale({
       {...rest}
       style={containerStyle}
       onPressIn={(e) => {
-        to(reduced ? 1 : scaleTo, reduced ? 0.7 : 0.94, true);
+        to(reduced ? 1 : scaleTo, reduced ? motion.press.reducedOpacity : motion.press.opacity, true);
         rest.onPressIn?.(e);
       }}
       onPressOut={(e) => {

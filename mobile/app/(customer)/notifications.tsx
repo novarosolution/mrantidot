@@ -15,7 +15,12 @@ import { CACHE_TTL } from '@/lib/apiCache';
 import { bookingDetailPath, appPush } from '@/lib/routes';
 import { useAuth } from '@/context/AuthContext';
 import type { AppNotification } from '@/types/api';
-import { fonts, spacing, ui as themeUi } from '@/constants/theme';
+import { radii, spacing, typeScale, ui as themeUi } from '@/constants/theme';
+
+/** Gap between day groups — a stable component (an inline arrow would remount every render). */
+function SectionGap() {
+  return <View style={styles.sectionGap} />;
+}
 import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { fillCopy } from '@/constants/customerUiCopy';
@@ -48,7 +53,7 @@ export default function NotificationsScreen() {
       try {
         await load();
       } catch (err) {
-        setLoadError(getApiErrorMessage(err, 'Could not load notifications'));
+        setLoadError(getApiErrorMessage(err, ui.notifLoadFailed));
       } finally {
         setLoading(false);
       }
@@ -62,7 +67,7 @@ export default function NotificationsScreen() {
     try {
       await load();
     } catch (err) {
-      setLoadError(getApiErrorMessage(err, 'Could not refresh'));
+      setLoadError(getApiErrorMessage(err, ui.homeRefreshFailed));
     } finally {
       setRefreshing(false);
     }
@@ -86,7 +91,7 @@ export default function NotificationsScreen() {
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
       void api.patch(`/notifications/${n.id}/read`).catch(() => {
         setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: false } : x)));
-        Toast.show({ type: 'error', text1: 'Could not mark as read' });
+        Toast.show({ type: 'error', text1: ui.notifMarkFailed });
       });
     }
     if (n.bookingId) {
@@ -97,8 +102,8 @@ export default function NotificationsScreen() {
   const unreadCount = items.filter((n) => !n.read).length;
   const hasUnread = unreadCount > 0;
   const sections = useMemo(
-    () => groupNotificationsByDay(filter === 'unread' ? items.filter((n) => !n.read) : items),
-    [filter, items],
+    () => groupNotificationsByDay(filter === 'unread' ? items.filter((n) => !n.read) : items, new Date(), ui),
+    [filter, items, ui],
   );
 
   return (
@@ -116,6 +121,7 @@ export default function NotificationsScreen() {
           <PressableScale
             onPress={markAllRead}
             disabled={markingAll}
+            hitSlop={4}
             style={styles.markAll}
             accessibilityRole="button"
             accessibilityLabel={ui.notificationsMarkAll}
@@ -164,7 +170,11 @@ export default function NotificationsScreen() {
               <EmptyState title={ui.notificationsEmptyTitle} message={ui.notificationsEmptyMessage} />
             )
           }
-          renderSectionHeader={({ section }) => <Text style={styles.sectionTitle}>{section.title}</Text>}
+          renderSectionHeader={({ section }) => (
+            <Text style={styles.sectionTitle} accessibilityRole="header">
+              {section.title}
+            </Text>
+          )}
           renderItem={({ item, index, section }) => {
             const last = section.data.length - 1;
             const pos: NotificationGroupPos =
@@ -177,7 +187,7 @@ export default function NotificationsScreen() {
               </FadeSlideIn>
             );
           }}
-          SectionSeparatorComponent={() => <View style={styles.sectionGap} />}
+          SectionSeparatorComponent={SectionGap}
         />
       </ScreenState>
     </CustomerListShell>
@@ -187,15 +197,7 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   list: { paddingTop: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: TAB_BAR_SCROLL_PAD },
   filterWrap: { marginHorizontal: -spacing.md },
-  sectionTitle: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 12,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: themeUi.textTertiary,
-    marginTop: spacing.sm,
-    marginLeft: 4,
-  },
+  sectionTitle: { ...typeScale.label, color: themeUi.textTertiary, marginTop: spacing.sm, marginLeft: 4 },
   sectionGap: { height: 10 },
   markAll: {
     flexDirection: 'row',
@@ -204,9 +206,9 @@ const styles = StyleSheet.create({
     backgroundColor: themeUi.brandSoft,
     borderWidth: 1,
     borderColor: themeUi.hairline,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 14,
+    paddingHorizontal: 14,
+    minHeight: 40,
+    borderRadius: radii.pill,
   },
-  markAllText: { fontFamily: fonts.bodyBold, fontSize: 12, color: themeUi.brand },
+  markAllText: { ...typeScale.captionStrong, fontFamily: typeScale.button.fontFamily, color: themeUi.brand },
 });

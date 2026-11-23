@@ -60,12 +60,19 @@ function httpUrlOrUndefined(url: string | undefined | null): string | undefined 
 }
 
 /**
+ * Sub-path the web export is served from (`experiments.baseUrl`, e.g. `/admin` — see
+ * `npm run export:web-admin`); '' for a root export. Inlined at build time.
+ */
+const WEB_BASE_PATH = stripSlash(process.env.EXPO_BASE_URL ?? '');
+
+/**
  * Web admin panel (Expo web export):
  * - dev (`expo start --web`): the local server on EXPO_PUBLIC_API_PORT (4001), or EXPO_PUBLIC_API_URL
  *   when EXPO_PUBLIC_API_URL_FORCE=true — same rule as native dev builds;
  * - production: EXPO_PUBLIC_API_URL when it was set to something other than the plain-HTTP live API
  *   (app.config.js always injects that one for native builds, and an HTTPS page cannot call it), else
- *   the page's own origin, so `/api/…` and `/uploads/…` go through the hosting rewrite (vercel.json).
+ *   the page's own origin plus the base path, so `/admin/api/…` and `/admin/uploads/…` go through the
+ *   hosting rewrite (mobile/vercel.json, or the website's proxy when served at mrantidot.com/admin).
  */
 function resolveWebApiUrl(): string {
   const fromEnv = httpUrlOrUndefined(process.env.EXPO_PUBLIC_API_URL);
@@ -75,7 +82,7 @@ function resolveWebApiUrl(): string {
   }
   if (fromEnv && fromEnv !== LIVE_API_URL) return fromEnv;
   if (typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null') {
-    return stripSlash(window.location.origin);
+    return stripSlash(`${window.location.origin}${WEB_BASE_PATH}`);
   }
   return LIVE_API_URL;
 }

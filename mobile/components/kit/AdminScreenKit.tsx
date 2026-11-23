@@ -17,6 +17,7 @@ import {
 } from '@/components/kit/GlassScreenKit';
 import { adminShadow } from '@/components/kit/homeUi';
 import { colors, surfaces, spacing } from '@/constants/theme';
+import { useWideWebLayout } from '@/lib/webAdmin';
 
 /** Thin brand divider. */
 export function AdminGoldBar({ height = 3, style }: { height?: number; style?: StyleProp<ViewStyle> }) {
@@ -47,6 +48,9 @@ export function AdminTabScreen({
   /** Set false for FlatList / custom body layouts (e.g. bookings tab). */
   scroll?: boolean;
 }) {
+  // Desktop browser: no tab bar under the content (the sidebar navigates), so no room is kept for one.
+  // The scrollbar stays hidden: screens size pixel grids to the full column width (adminGrid.ts).
+  const wideWeb = useWideWebLayout();
   return (
     <View style={styles.root}>
       <GlassBackdrop />
@@ -55,7 +59,7 @@ export function AdminTabScreen({
         {scroll ? (
           <ScrollView
             style={styles.flex}
-            contentContainerStyle={[styles.content, contentContainerStyle]}
+            contentContainerStyle={[styles.content, wideWeb && styles.contentWideWeb, contentContainerStyle]}
             showsVerticalScrollIndicator={false}
             refreshControl={refreshControl}
             {...customerScrollProps}
@@ -98,6 +102,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     gap: spacing.sm,
   },
+  contentWideWeb: { paddingBottom: spacing.xl },
   cardShell: {
     borderRadius: 22,
     ...adminShadow.card,

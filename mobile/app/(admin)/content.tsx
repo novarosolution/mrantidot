@@ -34,6 +34,8 @@ import { DEFAULT_HOME_CONFIG, DEFAULT_HOME_PROMO } from '@/constants/homeContent
 import { DEFAULT_APP_CONFIG, mergeAppConfig, mergeHomeConfig } from '@/lib/mergeHomeConfig';
 import { colors, fonts, spacing, surfaces, ui } from '@/constants/theme';
 import { adminContentWidth } from '@/lib/webAdmin';
+import { useBusinessSettings } from '@/lib/businessSettings';
+import { categoryLabel } from '@/lib/settingsLabels';
 
 const CONTENT_TABS: AdminSectionTab[] = [
   { key: 'promo', label: 'Promo', icon: AppIcons.contentTab.promo },
@@ -114,6 +116,8 @@ const SCREENS_GROUP_META: Record<
   auth: { title: 'Auth', subtitle: 'Login, register & OTP copy' },
   onboarding: { title: 'Onboarding buttons', subtitle: 'Skip / Next / Get started and slide art chips' },
   review: { title: 'Review screen', subtitle: 'Rate & review copy after a visit' },
+  tech: { title: 'Technician app', subtitle: 'Jobs, job screen, check-in, leave & profile copy' },
+  system: { title: 'App status & system', subtitle: 'Maintenance, update, offline and general error messages' },
 };
 
 
@@ -535,12 +539,7 @@ export default function AdminContentScreen() {
                 <View key={i} style={styles.chipRow}>
                   <View style={styles.flex}>
                     <IconInput label="Label" value={chip.label} onChangeText={(label) => setChip(i, { label })} />
-                    <IconInput
-                      label="Category slug"
-                      value={chip.category ?? ''}
-                      autoCapitalize="none"
-                      onChangeText={(category) => setChip(i, { category })}
-                    />
+                    <CategoryChipPicker value={chip.category} onChange={(category) => setChip(i, { category })} />
                   </View>
                   <Pressable
                     style={styles.removeBtn}
@@ -865,6 +864,39 @@ function ServiceChips({
   );
 }
 
+/** Category a home filter chip shows — Business settings → Lists → Categories; "All services" = no filter. */
+function CategoryChipPicker({ value, onChange }: { value?: string; onChange: (category: string) => void }) {
+  const settings = useBusinessSettings();
+  const current = value?.trim() ?? '';
+  const active = settings.lists.categories.filter((c) => c.active);
+  const options = [
+    { key: '', label: 'All services' },
+    ...active.map((c) => ({ key: c.key, label: c.label })),
+    ...(current && !active.some((c) => c.key === current) ? [{ key: current, label: `${categoryLabel(current, settings)} (off)` }] : []),
+  ];
+  return (
+    <View style={styles.catPick}>
+      <Text style={styles.catPickLabel}>Shows</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips} keyboardShouldPersistTaps="handled">
+        {options.map((o) => {
+          const on = o.key === current;
+          return (
+            <Pressable
+              key={o.key || 'all'}
+              style={[styles.chip, on && styles.chipOn]}
+              onPress={() => onChange(o.key)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+            >
+              <Text style={[styles.chipText, on && styles.chipTextOn]}>{o.label}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
 /** What shoppers get: the promo as a slide of the green home header. Drawn even while switched off, with a note. */
 function PromoPreview({ promo }: { promo: HomePromo }) {
   const copy = useCustomerUiCopy();
@@ -973,6 +1005,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   addPillText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
+  catPick: { marginBottom: spacing.sm },
+  catPickLabel: { fontFamily: fonts.bodySemi, fontSize: 13, color: ui.text, marginBottom: 8 },
   chipRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',

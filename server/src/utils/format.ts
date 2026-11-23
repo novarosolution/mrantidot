@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 import { IUser } from '../models/User';
 import { IService } from '../models/Service';
-import { IBooking } from '../models/Booking';
+import { IBooking, type IAdminNote } from '../models/Booking';
 import { IReview } from '../models/Review';
 import { PROPERTY_TYPE_LABELS } from '../constants/propertyTypes';
 import {
@@ -158,6 +158,8 @@ function formatBookingForTechnician(
     status: base.status,
     assignmentMode: base.assignmentMode,
     paymentMethod: base.paymentMethod,
+    // Paid / unpaid only (e.g. collect payment on site) — no notes or references.
+    paymentStatus: base.paymentStatus,
     steps: base.steps,
     problemPhotos: base.problemPhotos,
     otpRequired: otpRequiredForBooking(booking),
@@ -183,10 +185,16 @@ export function formatBookingForRole(
       ? (base.technician as Record<string, unknown>)
       : undefined;
     const visitActive = ['confirmed', 'in_progress', 'awaiting_verification'].includes(String(base.status));
+    const cancelledBy = base.cancelledBy as { role?: string } | undefined;
     return {
       ...base,
       customerId: undefined,
       customer: undefined,
+      // Ops-only fields: internal notes, who in the team did what, and an admin's cancel reason.
+      adminNotes: undefined,
+      createdByAdmin: undefined,
+      cancelledBy: cancelledBy?.role ? { role: cancelledBy.role } : undefined,
+      cancelReason: cancelledBy?.role === 'customer' ? base.cancelReason : undefined,
       technicianId: undefined,
       technician: tech
         ? {
@@ -288,6 +296,32 @@ export function formatBooking(booking: IBooking & { populate?: unknown }) {
     workStartedAt: isoDate(doc.workStartedAt),
     workCompletedAt: isoDate(doc.workCompletedAt),
     otpRequired: otpRequiredForBooking(booking),
+    rescheduleCount: typeof doc.rescheduleCount === 'number' ? doc.rescheduleCount : 0,
+    preferredTechnicianId: oid(doc.preferredTechnicianId),
+    paymentStatus: doc.paymentStatus ?? 'unpaid',
+    paidAt: isoDate(doc.paidAt),
+    paidVia: doc.paidVia || undefined,
+    paymentRef: doc.paymentRef || undefined,
+    refundedAt: isoDate(doc.refundedAt),
+    cancelReason: doc.cancelReason || undefined,
+    cancelledAt: isoDate(doc.cancelledAt),
+    cancelledBy: doc.cancelledBy?.role
+      ? { id: oid(doc.cancelledBy.id), role: doc.cancelledBy.role, name: doc.cancelledBy.name || undefined }
+      : undefined,
+    // Internal admin notes — formatBookingForRole strips them for customers and technicians.
+    adminNotes: Array.isArray(doc.adminNotes)
+      ? (doc.adminNotes as IAdminNote[]).map((n) => ({
+          id: String(n._id),
+          text: n.text,
+          by: oid(n.by),
+          byName: n.byName || 'Admin',
+          at: isoDate(n.at),
+        }))
+      : [],
+    createdByAdmin: doc.createdByAdmin?.name
+      ? { id: oid(doc.createdByAdmin.id), name: doc.createdByAdmin.name }
+      : undefined,
+    source: doc.source,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };

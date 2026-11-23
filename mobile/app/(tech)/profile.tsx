@@ -1,113 +1,123 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Alert } from 'react-native';
-import {
-  TechnicianProfilePanel,
-  loadTechnicianProfileData,
-} from '@/components/kit/TechnicianProfilePanel';
+import { useState } from 'react';
+import { PremiumAppHeader } from '@/components/kit/PremiumAppHeader';
+import { TechnicianProfilePanel } from '@/components/kit/TechnicianProfilePanel';
 import { TechScreen } from '@/components/kit/TechScreenKit';
+import { TechConfirmSheet } from '@/components/tech/TechConfirmSheet';
+import { TechInlineNotice } from '@/components/tech/TechInlineNotice';
+import { TechProfileSkeleton } from '@/components/tech/TechSkeletons';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
 import { useAuth } from '@/context/AuthContext';
-import { getApiErrorMessage, safeAsync } from '@/lib/api';
-import { localDateKey } from '@/lib/dates';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { appReplace, authRoutes } from '@/lib/routes';
 import { useTechCopy } from '@/lib/tech-copy';
-import type { Booking, DayAttendanceStatus, TechnicianStats } from '@/types/api';
-import { authRoutes, appReplace } from '@/lib/routes';
-import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
+import { clearTechData, techCurrentMonth, useTechAttendance, useTechJobs, useTechStats } from '@/lib/techData';
 
 export default function TechProfileScreen() {
-  const copy = useTechCopy();
+  const booking = useTechCopy();
+  const copy = useCustomerUiCopy();
   const { user, logout } = useAuth();
-  const [stats, setStats] = useState<TechnicianStats | null>(null);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [attendance, setAttendance] = useState<Record<string, DayAttendanceStatus>>({});
-  const [calendar, setCalendar] = useState<Record<string, number>>({});
-  const [month, setMonth] = useState(() => localDateKey().slice(0, 7));
-  const [todayStatus, setTodayStatus] = useState<DayAttendanceStatus>('pending');
-  const [onDuty, setOnDuty] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoadError(null);
-    const data = await loadTechnicianProfileData(month);
-    setStats(data.stats);
-    setBookings(data.bookings);
-    setAttendance(data.attendance);
-    setTodayStatus(data.todayStatus);
-    setOnDuty(data.onDuty);
-    setCalendar(data.calendar);
-  }, [month]);
-
-  useEffect(() => {
-    safeAsync(async () => {
-      try {
-        await load();
-      } catch (err) {
-        setLoadError(getApiErrorMessage(err, 'Could not load profile'));
-      } finally {
-        setLoading(false);
-      }
-    });
-  }, [load]);
-
-  useStaleFocusRefresh(() => load().catch(() => undefined), 3_000);
+  const currentMonth = techCurrentMonth();
+  const [month, setMonth] = useState(currentMonth);
+  const jobs = useTechJobs();
+  const today = useTechAttendance(currentMonth);
+  const calendar = useTechAttendance(month);
+  const stats = useTechStats(currentMonth);
+  const monthStats = useTechStats(month);
+  const [pulling, setPulling] = useState(false);
+  const [signOutOpen, setSignOutOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   async function onRefresh() {
-    setRefreshing(true);
+    setPulling(true);
     try {
-      await load();
-    } catch (err) {
-      setLoadError(getApiErrorMessage(err, 'Could not refresh profile'));
+      await Promise.all([jobs.reload(true), today.reload(true), calendar.reload(true), stats.reload(true), monthStats.reload(true)]);
     } finally {
-      setRefreshing(false);
+      setPulling(false);
     }
   }
 
-  const confirmLogout = useCallback(() => {
-    Alert.alert('Sign out?', 'You will return to the login screen.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign out',
-        style: 'destructive',
-        onPress: async () => {
-          await logout();
-          appReplace(authRoutes.login);
-        },
-      },
-    ]);
-  }, [logout]);
+  async function signOut() {
+    setSigningOut(true);
+    try {
+      await logout();
+      clearTechData();
+      appReplace(authRoutes.login);
+    } finally {
+      setSigningOut(false);
+      setSignOutOpen(false);
+    }
+  }
 
-  if (loading) return <Spinner fullScreen />;
+  const header = (
+    <PremiumAppHeader eyebrow={copy.techProfileEyebrow} title={booking.techProfileTitle} subtitle={copy.techProfileSubtitle} />
+  );
 
-  if (loadError) {
+  if (stats.loading) {
     return (
-      <TechScreen>
+      <TechScreen header={header}>
+        <TechProfileSkeleton />
+      </TechScreen>
+    );
+  }
+
+  if (!stats.data) {
+    return (
+      <TechScreen header={header}>
         <ListEmptyRetry
-          message={loadError}
-          onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
+          title={copy.techProfileLoadError}
+          message={stats.error ?? undefined}
+          retryLabel={copy.techRetry}
+          onRetry={() => void stats.refresh()}
         />
       </TechScreen>
     );
   }
 
+  // Jobs, the calendar or the month's numbers failed while the profile loaded: say so above the calendar.
+  const notice =
+    jobs.error || calendar.error || monthStats.error ? (
+      <TechInlineNotice
+        message={copy.techRefreshError}
+        actionLabel={copy.techRetry}
+        busy={jobs.refreshing || calendar.refreshing || monthStats.refreshing}
+        onAction={() => {
+          void jobs.refresh();
+          void calendar.refresh();
+          void monthStats.refresh();
+        }}
+      />
+    ) : null;
+
   return (
     <TechScreen>
       <TechnicianProfilePanel
-        copy={copy}
-        user={user}
-        stats={stats}
-        bookings={bookings}
-        attendance={attendance}
-        calendar={calendar}
+        name={user?.name?.trim() || copy.techNameFallback}
+        phone={user?.phone}
+        city={user?.city}
+        stats={stats.data}
+        monthStats={monthStats.data ?? null}
+        monthStatsLoading={monthStats.loading}
+        bookings={jobs.data ?? []}
+        attendance={calendar.data?.attendance ?? {}}
         month={month}
-        todayStatus={todayStatus}
-        onDuty={onDuty}
-        refreshing={refreshing}
+        todayStatus={today.data?.todayStatus ?? stats.data.todayStatus ?? 'pending'}
+        onDuty={today.data?.onDuty ?? false}
+        notice={notice}
+        refreshing={pulling}
         onRefresh={() => void onRefresh()}
         onMonthChange={setMonth}
-        onLogout={confirmLogout}
+        onLogout={() => setSignOutOpen(true)}
+      />
+      <TechConfirmSheet
+        visible={signOutOpen}
+        title={copy.techSignOutTitle}
+        message={copy.techSignOutText}
+        confirmLabel={copy.techSignOut}
+        cancelLabel={copy.techCancel}
+        destructive
+        loading={signingOut}
+        onConfirm={() => void signOut()}
+        onClose={() => setSignOutOpen(false)}
       />
     </TechScreen>
   );

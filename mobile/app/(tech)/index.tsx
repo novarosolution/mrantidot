@@ -1,542 +1,421 @@
-import { LinearGradient } from 'expo-linear-gradient';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-  type TextStyle,
-  type ViewStyle,
-} from 'react-native';
-import { homeShadow } from '@/components/kit/homeUi';
-import Toast from 'react-native-toast-message';
-import { useAuth } from '@/context/AuthContext';
+import { CheckCircle2, ChevronRight, Play } from 'lucide-react-native';
+import { useMemo, useState } from 'react';
+import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { BookingListCard } from '@/components/kit/BookingListCard';
 import { PremiumAppHeader } from '@/components/kit/PremiumAppHeader';
-import { TechCheckInCard, TechOffDutyCard, TechOnDutyCard } from '@/components/kit/TechPageKit';
-import { TechJobQuickBar } from '@/components/kit/TechJobQuickBar';
 import { TechPriorityBanner } from '@/components/kit/TechPriorityBanner';
 import { TechScreen, TechScreenGutter, TechScreenList, techScreenStyles } from '@/components/kit/TechScreenKit';
+import { TechConfirmSheet } from '@/components/tech/TechConfirmSheet';
+import { TechDutyCard, type DutyAction } from '@/components/tech/TechDutyCard';
+import { TechDutyPill } from '@/components/tech/TechDutyPill';
+import { TechEarningsCard } from '@/components/tech/TechEarningsCard';
+import { TechInlineNotice } from '@/components/tech/TechInlineNotice';
+import { TechDutySkeleton, TechEarningsSkeleton, TechJobsSkeleton } from '@/components/tech/TechSkeletons';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
-import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
-import { CACHE_TTL } from '@/lib/apiCache';
-import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/lib/api';
+import { bookingVisitDate, isTerminalBookingStatus } from '@/lib/booking-helpers';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { localDateKey } from '@/lib/dates';
-import { bookingVisitDate } from '@/lib/booking-helpers';
+import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
+import { haptic, stagger } from '@/lib/motion';
+import { appPush, techRoutes } from '@/lib/routes';
 import { useTechCopy } from '@/lib/tech-copy';
-import type { AttendanceRecord, Booking, DayAttendanceStatus, TechnicianStats } from '@/types/api';
-import { colors, fonts, spacing, ui } from '@/constants/theme';
-import { techRoutes, appPush } from '@/lib/routes';
-import { formatRupeeFull } from '@/components/kit/format';
-import { CheckCircle2, ChevronRight } from 'lucide-react-native';
-import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
+import { techCurrentMonth, useTechAttendance, useTechJobs, useTechStats } from '@/lib/techData';
+import { dutyState, techErrorText } from '@/lib/techLabels';
+import { appToast } from '@/lib/toast';
+import type { Booking, CustomerUiCopy } from '@/types/api';
+import { colors, fonts, radii, spacing, ui } from '@/constants/theme';
 
-type Section = { key: string; title: string; data: Booking[] };
+type SectionKey = 'overdue' | 'today' | 'upcoming' | 'assigned' | 'past';
 
-export default function TechDashboard() {
-  const copy = useTechCopy();
+type Row =
+  | { type: 'header'; key: SectionKey; count: number }
+  | { type: 'job'; booking: Booking; section: SectionKey; index: number };
+
+const DUTY_PATH: Record<DutyAction, string> = {
+  checkIn: '/attendance/check-in',
+  checkOut: '/attendance/check-out',
+  absent: '/attendance/mark-absent',
+};
+
+function sectionTitle(copy: CustomerUiCopy, key: SectionKey): string {
+  switch (key) {
+    case 'overdue':
+      return copy.techSectionOverdue;
+    case 'today':
+      return copy.techSectionToday;
+    case 'upcoming':
+      return copy.techSectionUpcoming;
+    case 'assigned':
+      return copy.techSectionAssigned;
+    default:
+      return copy.techSectionPast;
+  }
+}
+
+/** Jobs grouped the way a technician works through them: overdue, today, upcoming, then past. */
+function buildRows(bookings: Booking[], today: string): Row[] {
+  const active = bookings.filter((b) => !isTerminalBookingStatus(b.status));
+  const past = bookings.filter((b) => isTerminalBookingStatus(b.status));
+  const overdue = active.filter((b) => {
+    const d = bookingVisitDate(b);
+    return Boolean(d) && d < today;
+  });
+  const todayJobs = active.filter((b) => bookingVisitDate(b) === today);
+  const upcoming = active.filter((b) => bookingVisitDate(b) > today);
+  const groups: [SectionKey, Booking[]][] = [
+    ['overdue', overdue],
+    ['today', todayJobs],
+    ['upcoming', upcoming],
+  ];
+  // Jobs without a visit date yet still need a home.
+  if (!overdue.length && !todayJobs.length && !upcoming.length && active.length) groups.push(['assigned', active]);
+  groups.push(['past', past]);
+
+  const rows: Row[] = [];
+  let index = 0;
+  for (const [key, list] of groups) {
+    if (!list.length) continue;
+    rows.push({ type: 'header', key, count: list.length });
+    for (const booking of list) rows.push({ type: 'job', booking, section: key, index: index++ });
+  }
+  return rows;
+}
+
+export default function TechJobsScreen() {
+  const booking = useTechCopy();
+  const copy = useCustomerUiCopy();
   const { refreshMe, user } = useAuth();
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [todayStatus, setTodayStatus] = useState<DayAttendanceStatus>('pending');
-  const [onDuty, setOnDuty] = useState(false);
-  const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
-  const [stats, setStats] = useState<TechnicianStats | null>(null);
-  const [checkingIn, setCheckingIn] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  const load = useCallback(async (opts?: { skipCache?: boolean }) => {
-    setLoadError(null);
-    const cacheOpts = opts?.skipCache ? { skipCache: true as const } : { cacheTtlMs: CACHE_TTL.stats };
-    const listCache = opts?.skipCache ? { skipCache: true as const } : { cacheTtlMs: CACHE_TTL.bookingsList };
-    const [bookingsRes, attRes, statsRes] = await Promise.all([
-      api.get<{ bookings: Booking[] }>('/bookings', { ...screenLoadConfig, ...listCache }),
-      api
-        .get<{
-          todayStatus: DayAttendanceStatus;
-          onDuty?: boolean;
-          todayRecord?: AttendanceRecord | null;
-        }>('/attendance/me', {
-          ...screenLoadConfig,
-          ...cacheOpts,
-        })
-        .catch(() => {
-          Toast.show({ type: 'info', text1: 'Could not load attendance status' });
-          return null;
-        }),
-      api
-        .get<TechnicianStats>('/stats/technician', {
-          ...screenLoadConfig,
-          ...cacheOpts,
-        })
-        .catch(() => {
-          Toast.show({ type: 'info', text1: 'Could not load earnings stats' });
-          return null;
-        }),
-    ]);
-    setBookings(bookingsRes.data.bookings);
-    if (attRes?.data) {
-      setTodayStatus(attRes.data.todayStatus ?? 'pending');
-      setOnDuty(Boolean(attRes.data.onDuty));
-      setTodayRecord(attRes.data.todayRecord ?? null);
-    }
-    if (statsRes?.data) {
-      setStats(statsRes.data);
-    }
-  }, []);
-
-  async function checkInToday() {
-    setCheckingIn(true);
-    try {
-      await api.post('/attendance/check-in');
-      Toast.show({ type: 'success', text1: copy.techOnDutyBadge.replace('● ', '') });
-      await Promise.all([load({ skipCache: true }), refreshMe({ silent: true })]);
-    } catch (err) {
-      Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not check in') });
-    } finally {
-      setCheckingIn(false);
-    }
-  }
-
-  async function checkOutToday() {
-    setCheckingIn(true);
-    try {
-      await api.post('/attendance/check-out');
-      Toast.show({ type: 'success', text1: 'Checked out — off duty' });
-      await Promise.all([load({ skipCache: true }), refreshMe({ silent: true })]);
-    } catch (err) {
-      Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not check out') });
-    } finally {
-      setCheckingIn(false);
-    }
-  }
-
-  async function markOffToday() {
-    setCheckingIn(true);
-    try {
-      await api.post('/attendance/mark-absent');
-      Toast.show({ type: 'success', text1: copy.techOffDutyBadge });
-      await Promise.all([load({ skipCache: true }), refreshMe({ silent: true })]);
-    } catch (err) {
-      Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not update attendance') });
-    } finally {
-      setCheckingIn(false);
-    }
-  }
-
-  const confirmMarkOff = useCallback(() => {
-    Alert.alert('Mark day absent?', 'Use this for sick / full day off. To end duty after working, use Check out.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Mark absent', style: 'destructive', onPress: () => void markOffToday() },
-    ]);
-  }, []);
-
-  const confirmCheckOut = useCallback(() => {
-    Alert.alert('Check out?', 'You will go off duty. Today still counts as present.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Check out', onPress: () => void checkOutToday() },
-    ]);
-  }, []);
-
-  useEffect(() => {
-    safeAsync(async () => {
-      try {
-        await load();
-      } catch (err) {
-        setLoadError(getApiErrorMessage(err, 'Could not load jobs'));
-      } finally {
-        setLoading(false);
-      }
-    });
-  }, [load]);
-
-  useStaleFocusRefresh(() => load({ skipCache: true }).catch(() => undefined), 3_000);
+  const month = techCurrentMonth();
+  const jobs = useTechJobs();
+  const attendance = useTechAttendance(month);
+  const stats = useTechStats(month);
+  const [pulling, setPulling] = useState(false);
+  const [dutyBusy, setDutyBusy] = useState<DutyAction | null>(null);
+  const [confirm, setConfirm] = useState<'checkOut' | 'absent' | null>(null);
 
   const today = localDateKey();
-
-  const sections = useMemo((): Section[] => {
-    const active = bookings.filter((b) => !['completed', 'cancelled'].includes(b.status));
-    const past = bookings.filter((b) => ['completed', 'cancelled'].includes(b.status));
-    const overdue = active.filter((b) => {
-      const visitDate = bookingVisitDate(b);
-      return visitDate && visitDate < today;
-    });
-    const todayJobs = active.filter((b) => bookingVisitDate(b) === today);
-    const upcoming = active.filter((b) => bookingVisitDate(b) > today);
-    const result: Section[] = [];
-    if (overdue.length) result.push({ key: 'overdue', title: `Overdue (${overdue.length})`, data: overdue });
-    if (todayJobs.length) result.push({ key: 'today', title: `Today (${todayJobs.length})`, data: todayJobs });
-    if (upcoming.length) result.push({ key: 'upcoming', title: `Upcoming (${upcoming.length})`, data: upcoming });
-    if (!overdue.length && !todayJobs.length && !upcoming.length && active.length) {
-      result.push({ key: 'assigned', title: `Assigned (${active.length})`, data: active });
-    }
-    if (past.length) result.push({ key: 'past', title: `Past (${past.length})`, data: past });
-    return result;
-  }, [bookings, today]);
-
-  const flatData = useMemo(
-    () =>
-      sections.flatMap((s) => [
-        { type: 'header' as const, section: s },
-        ...s.data.map((b) => ({ type: 'job' as const, booking: b, sectionKey: s.key })),
-      ]),
-    [sections],
-  );
-
+  const bookings = useMemo(() => jobs.data ?? [], [jobs.data]);
+  const rows = useMemo(() => buildRows(bookings, today), [bookings, today]);
   const verifyJob = bookings.find((b) => b.status === 'awaiting_verification');
   const activeJob = bookings.find((b) => b.status === 'in_progress');
   const overdueJobs = useMemo(
     () =>
       bookings.filter((b) => {
-        if (['completed', 'cancelled'].includes(b.status)) return false;
-        const visitDate = bookingVisitDate(b);
-        return visitDate && visitDate < today;
+        if (isTerminalBookingStatus(b.status)) return false;
+        const d = bookingVisitDate(b);
+        return Boolean(d) && d < today;
       }),
     [bookings, today],
   );
+  const activeCount = bookings.filter((b) => !isTerminalBookingStatus(b.status)).length;
 
-  const activeCount = bookings.filter((b) => !['completed', 'cancelled'].includes(b.status)).length;
-  const firstName = (user?.name?.trim() || 'Technician').split(' ')[0];
-  const dutyLabel =
-    todayStatus === 'leave'
-      ? 'On leave'
-      : onDuty
-        ? 'On duty'
-        : todayStatus === 'came'
-          ? 'Checked out'
-          : todayStatus === 'not_came'
-            ? 'Absent'
-            : 'Check in';
+  const att = attendance.data;
+  const duty = att ? dutyState(att.todayStatus, att.onDuty) : null;
 
-  const dutyTone: DutyTone =
-    todayStatus === 'leave'
-      ? 'leave'
-      : todayStatus === 'came' && onDuty
-        ? 'on'
-        : todayStatus === 'came'
-          ? 'checkedOut'
-          : todayStatus === 'not_came'
-            ? 'off'
-            : 'pending';
+  async function runDuty(action: DutyAction) {
+    if (dutyBusy) return;
+    setDutyBusy(action);
+    try {
+      await api.post(DUTY_PATH[action], undefined, { skipErrorToast: true });
+      haptic('success');
+      appToast.success(
+        action === 'checkIn' ? copy.techOnDutyTitle : action === 'checkOut' ? copy.techToastCheckedOut : copy.techToastAbsent,
+      );
+      await Promise.all([
+        attendance.reload(true),
+        stats.reload(true),
+        refreshMe({ silent: true }).catch(() => undefined),
+      ]);
+    } catch (err) {
+      haptic('error');
+      appToast.error(
+        action === 'checkIn'
+          ? copy.techCheckInError
+          : action === 'checkOut'
+            ? copy.techCheckOutError
+            : copy.techAttendanceUpdateError,
+        techErrorText(copy, err),
+      );
+    } finally {
+      setDutyBusy(null);
+      setConfirm(null);
+    }
+  }
 
+  async function onPull() {
+    setPulling(true);
+    try {
+      await Promise.all([jobs.reload(true), attendance.reload(true), stats.reload(true)]);
+    } finally {
+      setPulling(false);
+    }
+  }
+
+  const firstName = (user?.name?.trim() || copy.techNameFallback).split(/\s+/)[0];
+  const dateLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' });
   const hero = (
     <PremiumAppHeader
-      eyebrow="FIELD WORK"
-      title={copy.techJobsTitle}
-      subtitle={`Hi ${firstName} · ${new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}`}
-      right={
-        <View style={[styles.dutyPill, DUTY_TONES[dutyTone].pill]}>
-          <View style={[styles.dutyDot, DUTY_TONES[dutyTone].dot]} />
-          <Text style={[styles.dutyText, DUTY_TONES[dutyTone].text]}>{dutyLabel}</Text>
-        </View>
-      }
+      eyebrow={copy.techJobsEyebrow}
+      title={booking.techJobsTitle}
+      subtitle={fillCopy(copy.techJobsGreeting, { name: firstName, date: dateLabel })}
+      right={duty ? <View style={styles.pillWrap}><TechDutyPill state={duty} /></View> : null}
     />
   );
 
-  if (loading) {
+  if (jobs.loading) {
     return (
       <TechScreen header={hero}>
-        <View style={styles.loadingBody}>
-          <Spinner />
-        </View>
+        <TechJobsSkeleton />
       </TechScreen>
     );
   }
 
-  if (loadError && bookings.length === 0) {
+  if (!jobs.data) {
     return (
       <TechScreen header={hero}>
         <ListEmptyRetry
-          message={loadError}
-          onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
+          title={copy.techJobsLoadError}
+          message={jobs.error ?? undefined}
+          retryLabel={copy.techRetry}
+          onRetry={() => void jobs.refresh()}
         />
       </TechScreen>
     );
   }
 
+  let block = 0;
+  const enter = () => stagger(block++);
+
+  const header = (
+    <View>
+      {hero}
+      <TechScreenGutter style={styles.headerGutter}>
+        {jobs.error ? (
+          <TechInlineNotice
+            message={copy.techJobsRefreshError}
+            actionLabel={copy.techRetry}
+            onAction={() => void jobs.refresh()}
+            busy={jobs.refreshing}
+          />
+        ) : null}
+
+        <FadeSlideIn delay={enter()} slideFrom={14}>
+          {stats.data ? (
+            <TechEarningsCard stats={stats.data} activeCount={activeCount} onPress={() => appPush(techRoutes.profile)} />
+          ) : stats.loading ? (
+            <View style={styles.blockGap}>
+              <TechEarningsSkeleton />
+            </View>
+          ) : (
+            <TechInlineNotice
+              message={copy.techStatsLoadError}
+              actionLabel={copy.techRetry}
+              onAction={() => void stats.refresh()}
+              busy={stats.refreshing}
+            />
+          )}
+        </FadeSlideIn>
+
+        {verifyJob || overdueJobs.length ? (
+          <FadeSlideIn delay={enter()} slideFrom={14}>
+            <TechPriorityBanner overdueJobs={verifyJob ? [] : overdueJobs} verifyJob={verifyJob} flush />
+          </FadeSlideIn>
+        ) : null}
+
+        {activeJob && duty !== 'pending' ? (
+          <FadeSlideIn delay={enter()} slideFrom={14}>
+            <PressableScale
+              haptic="tap"
+              onPress={() => appPush(techRoutes.job(activeJob.id))}
+              containerStyle={styles.blockGap}
+              style={styles.continue}
+              accessibilityRole="button"
+              accessibilityLabel={copy.techContinueActiveJob}
+            >
+              <View style={styles.continueIcon}>
+                <Play size={16} color={colors.white} strokeWidth={2.6} fill={colors.white} />
+              </View>
+              <Text style={styles.continueText} numberOfLines={1}>
+                {copy.techContinueActiveJob}
+              </Text>
+              <ChevronRight size={18} color={ui.brand} strokeWidth={2.4} />
+            </PressableScale>
+          </FadeSlideIn>
+        ) : null}
+
+        <FadeSlideIn delay={enter()} slideFrom={14}>
+          {att && duty ? (
+            <TechDutyCard
+              state={duty}
+              checkedInAt={att.todayRecord?.checkedInAt}
+              busy={dutyBusy}
+              onCheckIn={() => void runDuty('checkIn')}
+              onCheckOut={() => setConfirm('checkOut')}
+              onMarkAbsent={() => setConfirm('absent')}
+            />
+          ) : attendance.loading ? (
+            <TechDutySkeleton />
+          ) : (
+            <TechInlineNotice
+              message={copy.techAttendanceLoadError}
+              actionLabel={copy.techRetry}
+              onAction={() => void attendance.refresh()}
+              busy={attendance.refreshing}
+            />
+          )}
+        </FadeSlideIn>
+
+        {activeCount === 0 && bookings.length > 0 ? (
+          <FadeSlideIn delay={enter()} slideFrom={14}>
+            <View style={styles.idleCard}>
+              <View style={styles.idleIcon}>
+                <CheckCircle2 size={22} color={ui.brand} strokeWidth={2.2} />
+              </View>
+              <View style={styles.flex}>
+                <Text style={styles.idleTitle}>{copy.techAllCaughtUpTitle}</Text>
+                <Text style={styles.idleSub}>{copy.techAllCaughtUpText}</Text>
+              </View>
+            </View>
+          </FadeSlideIn>
+        ) : null}
+      </TechScreenGutter>
+    </View>
+  );
+
+  const rowsBase = block;
+
   return (
     <TechScreen>
       <TechScreenList
-        data={flatData}
+        data={rows}
         {...CUSTOMER_LIST_PERF}
-        empty={flatData.length === 0}
-        keyExtractor={(item) => (item.type === 'header' ? `h-${item.section.key}` : item.booking.id)}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={async () => {
-              setRefreshing(true);
-              try {
-                await load({ skipCache: true });
-              } catch (err) {
-                Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not refresh') });
-              } finally {
-                setRefreshing(false);
-              }
-            }}
-            tintColor={colors.green}
-          />
-        }
-        ListHeaderComponent={
-          <View>
-            {hero}
-            <TechScreenGutter style={styles.headerGutter}>
-              {stats ? (
-                <Pressable
-                  style={({ pressed }) => [styles.earnShell, pressed && styles.pressed]}
-                  onPress={() => appPush(techRoutes.profile)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Open profile and earnings"
-                >
-                  <LinearGradient
-                    colors={[colors.headerGreen, colors.forest, colors.forestDeep]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.earnCard}
-                  >
-                    <View style={styles.earnTop}>
-                      <View style={styles.flex}>
-                        <Text style={styles.earnLabel}>EARNED THIS MONTH</Text>
-                        <Text style={styles.earnValue}>{formatRupeeFull(stats.earnings)}</Text>
-                        {stats.paySummary ? <Text style={styles.earnHint}>{stats.paySummary}</Text> : null}
-                      </View>
-                      <View style={styles.earnChevron}>
-                        <ChevronRight size={18} color={colors.white} strokeWidth={2.4} />
-                      </View>
-                    </View>
-                    <View style={styles.earnStats}>
-                      <View style={styles.earnStat}>
-                        <Text style={styles.earnStatValue}>{activeCount}</Text>
-                        <Text style={styles.earnStatLabel}>Active</Text>
-                      </View>
-                      <View style={styles.earnDivider} />
-                      <View style={styles.earnStat}>
-                        <Text style={styles.earnStatValue}>{stats.jobsDone ?? stats.completed}</Text>
-                        <Text style={styles.earnStatLabel}>Jobs done</Text>
-                      </View>
-                      <View style={styles.earnDivider} />
-                      <View style={styles.earnStat}>
-                        <Text style={styles.earnStatValue}>{stats.rating > 0 ? `★ ${stats.rating.toFixed(1)}` : '—'}</Text>
-                        <Text style={styles.earnStatLabel}>Rating</Text>
-                      </View>
-                    </View>
-                  </LinearGradient>
-                </Pressable>
-              ) : null}
-
-              <TechPriorityBanner overdueJobs={verifyJob ? [] : overdueJobs} verifyJob={verifyJob} flush />
-
-              {todayStatus !== 'pending' ? (
-                <TechJobQuickBar
-                  activeJobId={activeJob?.id}
-                  verifyJobId={verifyJob?.id}
-                  verifyCount={bookings.filter((b) => b.status === 'awaiting_verification').length}
-                />
-              ) : null}
-
-              {todayStatus === 'pending' ? (
-                <TechCheckInCard
-                  title={copy.techCheckInTitle}
-                  subtitle={copy.techCheckInSubtitle}
-                  onDutyLabel={copy.techOnDutyButton}
-                  offDutyLabel={copy.techOffDutyButton}
-                  onCheckIn={() => void checkInToday()}
-                  onMarkAbsent={confirmMarkOff}
-                  loading={checkingIn}
-                  flush
-                />
-              ) : todayStatus === 'leave' ? (
-                <TechOffDutyCard
-                  badgeLabel="On leave"
-                  hint="Approved leave for today. Contact admin if you need to return early."
-                  showAction={false}
-                  tone="leave"
-                  flush
-                />
-              ) : todayStatus === 'came' && onDuty ? (
-                <TechOnDutyCard
-                  badgeLabel={copy.techOnDutyBadge}
-                  checkedInAt={todayRecord?.checkedInAt}
-                  onCheckOut={confirmCheckOut}
-                  onMarkAbsent={confirmMarkOff}
-                  loading={checkingIn}
-                  flush
-                />
-              ) : todayStatus === 'came' ? (
-                <TechOffDutyCard
-                  badgeLabel="Checked out"
-                  hint="You were present today. Tap below to go back on duty."
-                  backOnDutyLabel={copy.techBackOnDutyButton}
-                  onGoOnDuty={() => void checkInToday()}
-                  loading={checkingIn}
-                  flush
-                />
-              ) : (
-                <TechOffDutyCard
-                  badgeLabel={copy.techOffDutyBadge}
-                  hint={copy.techOffDutyHint}
-                  backOnDutyLabel={copy.techBackOnDutyButton}
-                  onGoOnDuty={() => void checkInToday()}
-                  loading={checkingIn}
-                  flush
-                />
-              )}
-
-              {activeCount === 0 && bookings.length > 0 ? (
-                <View style={styles.idleCard}>
-                  <View style={styles.idleIcon}>
-                    <CheckCircle2 size={22} color={colors.forest} strokeWidth={2.2} />
-                  </View>
-                  <View style={styles.flex}>
-                    <Text style={styles.idleTitle}>You're all caught up</Text>
-                    <Text style={styles.idleSub}>New jobs appear here as soon as admin assigns them.</Text>
-                  </View>
-                </View>
-              ) : null}
-            </TechScreenGutter>
-          </View>
-        }
+        empty={rows.length === 0}
+        keyExtractor={(row) => (row.type === 'header' ? `h-${row.key}` : row.booking.id)}
+        refreshControl={<RefreshControl refreshing={pulling} onRefresh={() => void onPull()} tintColor={ui.brand} />}
+        ListHeaderComponent={header}
         ListEmptyComponent={
           <TechScreenGutter style={techScreenStyles.scrollEmpty}>
-            <EmptyState title={copy.techEmptyJobsTitle} message={copy.techEmptyJobsMessage} />
+            <EmptyState title={booking.techEmptyJobsTitle} message={booking.techEmptyJobsMessage} />
           </TechScreenGutter>
         }
-        renderItem={({ item }) => {
-          if (item.type === 'header') {
-            const isOverdue = item.section.key === 'overdue';
+        renderItem={({ item: row }) => {
+          if (row.type === 'header') {
+            const overdue = row.key === 'overdue';
             return (
               <TechScreenGutter style={styles.sectionHeadWrap}>
-                <View style={styles.sectionHead}>
-                  <Text style={[styles.sectionHeader, isOverdue && styles.sectionHeaderWarn]}>
-                    {item.section.title}
+                <View style={styles.sectionHead} accessible accessibilityRole="header">
+                  <Text style={[styles.sectionTitle, overdue && styles.sectionTitleWarn]}>
+                    {sectionTitle(copy, row.key)}
                   </Text>
+                  <View style={[styles.countPill, overdue && styles.countPillWarn]}>
+                    <Text style={[styles.countText, overdue && styles.countTextWarn]}>{row.count}</Text>
+                  </View>
                 </View>
               </TechScreenGutter>
             );
           }
           return (
             <TechScreenGutter>
-              <BookingListCard
-                booking={item.booking}
-                hideAmount
-                showCustomer
-                hint={
-                  item.type === 'job' &&
-                  item.sectionKey === 'overdue' &&
-                  (verifyJob || overdueJobs.length === 0)
-                    ? 'Past visit date — action needed'
-                    : undefined
-                }
-                onPress={() => appPush(techRoutes.job(item.booking.id))}
-              />
+              <FadeSlideIn delay={stagger(rowsBase + row.index)} slideFrom={12} disabled={row.index > 6}>
+                <BookingListCard
+                  booking={row.booking}
+                  hideAmount
+                  showCustomer
+                  hint={row.section === 'overdue' && verifyJob ? copy.techOverdueHint : undefined}
+                  hintTone="warning"
+                  onPress={() => appPush(techRoutes.job(row.booking.id))}
+                />
+              </FadeSlideIn>
             </TechScreenGutter>
           );
         }}
+      />
+
+      <TechConfirmSheet
+        visible={confirm !== null}
+        title={confirm === 'checkOut' ? copy.techCheckOutConfirmTitle : copy.techAbsentConfirmTitle}
+        message={confirm === 'checkOut' ? copy.techCheckOutConfirmText : copy.techAbsentConfirmText}
+        confirmLabel={confirm === 'checkOut' ? copy.techCheckOutButton : copy.techMarkAbsentButton}
+        cancelLabel={copy.techCancel}
+        destructive={confirm === 'absent'}
+        loading={dutyBusy !== null}
+        onConfirm={() => {
+          if (confirm) void runDuty(confirm);
+        }}
+        onClose={() => setConfirm(null)}
       />
     </TechScreen>
   );
 }
 
-type DutyTone = 'on' | 'checkedOut' | 'leave' | 'off' | 'pending';
-
-/** Duty pill colours on the light header. */
-const DUTY_TONES: Record<DutyTone, { pill: ViewStyle; dot: ViewStyle; text: TextStyle }> = {
-  on: { pill: { backgroundColor: ui.brandSoft, borderColor: 'rgba(10,100,35,0.18)' }, dot: { backgroundColor: colors.green }, text: { color: ui.brand } },
-  checkedOut: { pill: { backgroundColor: colors.white, borderColor: ui.border }, dot: { backgroundColor: ui.textTertiary }, text: { color: ui.textSecondary } },
-  leave: { pill: { backgroundColor: colors.blueBg, borderColor: 'rgba(46,86,158,0.18)' }, dot: { backgroundColor: colors.blue }, text: { color: colors.blue } },
-  off: { pill: { backgroundColor: colors.errorBg, borderColor: 'rgba(179,63,40,0.18)' }, dot: { backgroundColor: colors.error }, text: { color: colors.error } },
-  pending: { pill: { backgroundColor: colors.amberBg, borderColor: 'rgba(154,111,18,0.2)' }, dot: { backgroundColor: colors.amber }, text: { color: colors.warning } },
-};
-
 const styles = StyleSheet.create({
-  loadingBody: { flex: 1, justifyContent: 'center' },
-  dutyPill: {
+  pillWrap: { marginTop: 4 },
+  headerGutter: { marginTop: 10 },
+  blockGap: { marginBottom: spacing.sm },
+  flex: { flex: 1 },
+  continue: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    borderRadius: 999,
+    gap: 12,
+    minHeight: 56,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: radii.card,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    marginTop: 4,
+    borderColor: ui.hairline,
+    ...ui.shadow,
   },
-  dutyDot: { width: 7, height: 7, borderRadius: 4 },
-  dutyText: { fontFamily: fonts.bodyBold, fontSize: 12 },
-  headerGutter: { marginTop: 10 },
-  flex: { flex: 1 },
-  pressed: { opacity: 0.94, transform: [{ scale: 0.99 }] },
-  earnShell: { borderRadius: 22, marginBottom: spacing.sm, ...homeShadow.card },
-  earnCard: { borderRadius: 22, padding: 18, overflow: 'hidden' },
-  earnTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  earnLabel: { fontFamily: fonts.bodyBold, fontSize: 10.5, letterSpacing: 1, color: 'rgba(255,255,255,0.72)' },
-  earnValue: {
-    marginTop: 4,
-    fontFamily: fonts.displayExtra,
-    fontSize: 30,
-    color: colors.white,
-    letterSpacing: -0.6,
-  },
-  earnHint: { marginTop: 2, fontFamily: fonts.body, fontSize: 12, color: 'rgba(255,255,255,0.75)' },
-  earnChevron: {
-    width: 34,
-    height: 34,
+  continueIcon: {
+    width: 36,
+    height: 36,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: ui.brand,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  earnStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 16,
-    paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  earnStat: { flex: 1, alignItems: 'center' },
-  earnStatValue: { fontFamily: fonts.displayExtra, fontSize: 16, color: colors.white },
-  earnStatLabel: { marginTop: 1, fontFamily: fonts.bodySemi, fontSize: 10.5, color: 'rgba(255,255,255,0.7)' },
-  earnDivider: { width: StyleSheet.hairlineWidth, height: 26, backgroundColor: 'rgba(255,255,255,0.3)' },
+  continueText: { flex: 1, fontFamily: fonts.bodyBold, fontSize: 14.5, color: ui.text },
   idleCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     padding: 14,
-    borderRadius: 18,
+    borderRadius: radii.card,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: ui.border,
+    borderColor: ui.hairline,
     marginTop: spacing.sm,
-    ...homeShadow.card,
+    ...ui.shadow,
   },
   idleIcon: {
     width: 42,
     height: 42,
     borderRadius: 14,
-    backgroundColor: colors.mint,
+    backgroundColor: ui.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   idleTitle: { fontFamily: fonts.bodyBold, fontSize: 14.5, color: ui.text },
   idleSub: { marginTop: 2, fontFamily: fonts.body, fontSize: 12.5, color: ui.textSecondary },
-  sectionHeadWrap: { paddingTop: spacing.sm },
-  sectionHead: {
-    flexDirection: 'row',
+  sectionHeadWrap: { paddingTop: spacing.md },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.sm },
+  sectionTitle: { fontFamily: fonts.bodyBold, fontSize: 15, letterSpacing: -0.1, color: ui.text },
+  sectionTitleWarn: { color: colors.error },
+  countPill: {
+    minWidth: 24,
+    height: 22,
+    paddingHorizontal: 7,
+    borderRadius: radii.pill,
+    backgroundColor: ui.brandSoft,
     alignItems: 'center',
-    gap: 10,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
+    justifyContent: 'center',
   },
-  sectionHeader: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 13.5,
-    letterSpacing: 0.15,
-    color: ui.text,
-  },
-  sectionHeaderWarn: { color: colors.error },
+  countPillWarn: { backgroundColor: colors.errorBg },
+  countText: { fontFamily: fonts.bodyBold, fontSize: 12, color: ui.brand },
+  countTextWarn: { color: colors.error },
 });

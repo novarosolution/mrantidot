@@ -7,7 +7,9 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import { formatRupeeFull } from '@/components/kit/format';
 import { serviceDisplayRating } from '@/lib/ratings';
 import type { Service } from '@/types/api';
-import { colors, fonts, ui } from '@/constants/theme';
+import { colors, fonts, radii, ui } from '@/constants/theme';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { formatDuration, serviceDurationMins, serviceStartPrice } from '@/lib/serviceDisplay';
 
 export const SHOWCASE_W = 152;
@@ -25,18 +27,20 @@ export function serviceDurationLabel(s: Service): string {
 }
 
 /** White "Add" button — rides the bottom-right corner of the service art. */
-function AddButton({ service, onAdd }: { service: Service; onAdd: () => void }) {
+function AddButton({ service, onAdd }: { service: Service; onAdd: (s: Service) => void }) {
+  const copy = useCustomerUiCopy();
   return (
     <PressableScale
       containerStyle={styles.addWrap}
       style={styles.add}
       scaleTo={0.92}
-      onPress={onAdd}
-      hitSlop={6}
+      haptic="tap"
+      onPress={() => onAdd(service)}
+      hitSlop={8}
       accessibilityRole="button"
-      accessibilityLabel={`Book ${service.name}`}
+      accessibilityLabel={fillCopy(copy.serviceRowBookA11y, { service: service.name })}
     >
-      <Text style={styles.addText}>Add</Text>
+      <Text style={styles.addText}>{copy.homeAdd}</Text>
     </PressableScale>
   );
 }
@@ -55,22 +59,25 @@ export const ServiceShowcaseCard = memo(function ServiceShowcaseCard({
   service: Service;
   badge?: string;
   width?: number;
-  onPress: () => void;
-  onAdd: () => void;
+  /** Stable callbacks (they receive the service), so the memoised card skips re-renders. */
+  onPress: (s: Service) => void;
+  onAdd: (s: Service) => void;
 }) {
+  const copy = useCustomerUiCopy();
   const rating = serviceDisplayRating(s);
   const reviews = s.stats?.reviewCount ?? 0;
+  const price = formatRupeeFull(serviceStartPrice(s));
 
   return (
     <PressableScale
       containerStyle={{ width }}
       scaleTo={0.97}
-      onPress={onPress}
+      onPress={() => onPress(s)}
       accessibilityRole="button"
-      accessibilityLabel={`${s.name}, starts at ₹${serviceStartPrice(s)}`}
+      accessibilityLabel={fillCopy(copy.serviceRowA11y, { service: s.name, price })}
     >
       <View>
-        <ServiceThumb service={s} width={width} height={width} radius={16} iconSize={64} />
+        <ServiceThumb service={s} width={width} height={width} radius={radii.control} iconSize={64} />
         {badge ? (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{badge}</Text>
@@ -89,8 +96,8 @@ export const ServiceShowcaseCard = memo(function ServiceShowcaseCard({
           {reviews > 0 ? ` (${compactCount(reviews)})` : ''} · {serviceDurationLabel(s)}
         </Text>
       </View>
-      <Text style={styles.from}>Starts at</Text>
-      <Text style={styles.price}>{formatRupeeFull(serviceStartPrice(s))}</Text>
+      <Text style={styles.from}>{copy.homeStartsAt}</Text>
+      <Text style={styles.price}>{price}</Text>
     </PressableScale>
   );
 });
@@ -99,20 +106,30 @@ export const ServiceShowcaseCard = memo(function ServiceShowcaseCard({
  * Full-width row for a rail that holds a single service — a lone narrow card would leave the row
  * looking half empty, so it gets the whole width with the art on the left.
  */
-function ServiceWideCard({ service: s, onPress, onAdd }: { service: Service; onPress: () => void; onAdd: () => void }) {
+function ServiceWideCard({
+  service: s,
+  onPress,
+  onAdd,
+}: {
+  service: Service;
+  onPress: (s: Service) => void;
+  onAdd: (s: Service) => void;
+}) {
+  const copy = useCustomerUiCopy();
   const rating = serviceDisplayRating(s);
   const reviews = s.stats?.reviewCount ?? 0;
+  const price = formatRupeeFull(serviceStartPrice(s));
   return (
     <PressableScale
       containerStyle={styles.wideWrap}
       scaleTo={0.98}
-      onPress={onPress}
+      onPress={() => onPress(s)}
       accessibilityRole="button"
-      accessibilityLabel={`${s.name}, starts at ₹${serviceStartPrice(s)}`}
+      accessibilityLabel={fillCopy(copy.serviceRowA11y, { service: s.name, price })}
     >
       <View style={styles.wide}>
         <View>
-          <ServiceThumb service={s} width={132} height={132} radius={16} iconSize={64} />
+          <ServiceThumb service={s} width={132} height={132} radius={radii.control} iconSize={64} />
           <AddButton service={s} onAdd={onAdd} />
         </View>
         <View style={styles.wideBody}>
@@ -126,8 +143,8 @@ function ServiceWideCard({ service: s, onPress, onAdd }: { service: Service; onP
               {reviews > 0 ? ` (${compactCount(reviews)})` : ''} · {serviceDurationLabel(s)}
             </Text>
           </View>
-          <Text style={styles.from}>Starts at</Text>
-          <Text style={styles.price}>{formatRupeeFull(serviceStartPrice(s))}</Text>
+          <Text style={styles.from}>{copy.homeStartsAt}</Text>
+          <Text style={styles.price}>{price}</Text>
         </View>
       </View>
     </PressableScale>
@@ -153,12 +170,13 @@ export function HomeServiceRail({
   onOpen: (s: Service) => void;
   onAdd: (s: Service) => void;
 }) {
+  const copy = useCustomerUiCopy();
   if (services.length === 0) return null;
   return (
     <View>
-      <HomeSectionTitle title={title} subtitle={subtitle} actionLabel="See all" onAction={onSeeAll} />
+      <HomeSectionTitle title={title} subtitle={subtitle} actionLabel={copy.homeSeeAll} onAction={onSeeAll} />
       {services.length === 1 ? (
-        <ServiceWideCard service={services[0]} onPress={() => onOpen(services[0])} onAdd={() => onAdd(services[0])} />
+        <ServiceWideCard service={services[0]} onPress={onOpen} onAdd={onAdd} />
       ) : (
         <ScrollView
           horizontal
@@ -173,8 +191,8 @@ export function HomeServiceRail({
               key={s.id}
               service={s}
               badge={i === 0 ? firstBadge : undefined}
-              onPress={() => onOpen(s)}
-              onAdd={() => onAdd(s)}
+              onPress={onOpen}
+              onAdd={onAdd}
             />
           ))}
         </ScrollView>
@@ -191,16 +209,16 @@ const styles = StyleSheet.create({
     left: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: radii.pill,
     backgroundColor: 'rgba(255,255,255,0.94)',
   },
   badgeText: { fontFamily: fonts.bodyBold, fontSize: 10.5, color: ui.brand },
   addWrap: { position: 'absolute', right: -4, bottom: -14 },
   add: {
     minWidth: 68,
-    height: 34,
+    height: 36,
     paddingHorizontal: 16,
-    borderRadius: 10,
+    borderRadius: radii.thumb,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.white,

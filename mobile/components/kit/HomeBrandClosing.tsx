@@ -4,6 +4,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BrandLogo } from '@/components/BrandLogo';
 import { useReducedMotion } from '@/lib/a11yPrefs';
 import { fonts, ui } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { fillCopy } from '@/constants/customerUiCopy';
 
 const CLOSING_IMAGE = require('@/assets/home-closing.webp');
 /** Source artwork is 1806×2000 — keep its ratio so nothing is cropped. */
@@ -22,6 +24,7 @@ function splitHeadline(line: string): { script?: string; bold: string } {
  * door" artwork that fades in from the page background.
  */
 export function HomeBrandClosing({ brandName, line }: { brandName: string; line: string }) {
+  const copy = useCustomerUiCopy();
   const reduced = useReducedMotion();
   const { width: screenW } = useWindowDimensions();
   const imageH = Math.round(screenW / IMAGE_RATIO);
@@ -59,7 +62,7 @@ export function HomeBrandClosing({ brandName, line }: { brandName: string; line:
           style={{ width: screenW, height: imageH }}
           resizeMode="cover"
           accessibilityIgnoresInvertColors
-          accessibilityLabel="A Mr Antidot technician being welcomed at a customer's front door"
+          accessibilityLabel={fillCopy(copy.homeClosingA11y, { brand: brandName })}
         />
         {/* Sky dissolves into the white page above, so the art feels poured into the feed. */}
         <LinearGradient

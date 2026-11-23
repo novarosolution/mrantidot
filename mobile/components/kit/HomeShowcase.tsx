@@ -9,6 +9,8 @@ import type { ServiceTypeKey } from '@/constants/serviceTypes';
 import type { Service } from '@/types/api';
 import { colors, fonts, ui } from '@/constants/theme';
 import { serviceStartPrice } from '@/lib/serviceDisplay';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { fillCopy } from '@/constants/customerUiCopy';
 
 function metaFor(s: Service) {
   const key = (s.serviceTypes?.[0] ?? 'general') as ServiceTypeKey;
@@ -30,6 +32,7 @@ export function SpotlightCarousel({
   onOpen: (s: Service) => void;
   onBook: (s: Service) => void;
 }) {
+  const copy = useCustomerUiCopy();
   const { width } = useWindowDimensions();
   const cardW = width - 64;
   if (services.length === 0) return null;
@@ -72,7 +75,7 @@ export function SpotlightCarousel({
                   scaleTo={0.94}
                   onPress={() => onBook(s)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Book ${s.name}`}
+                  accessibilityLabel={fillCopy(copy.serviceRowBookA11y, { service: s.name })}
                 >
                   <Text style={styles.spotCtaText}>{ctaLabel}</Text>
                 </PressableScale>
@@ -136,6 +139,7 @@ export function CurationsRail({
   types: ServiceTypeKey[];
   onOpen: (type: ServiceTypeKey) => void;
 }) {
+  const copy = useCustomerUiCopy();
   if (types.length === 0) return null;
   return (
     <View>
@@ -165,7 +169,7 @@ export function CurationsRail({
                 pointerEvents="none"
               />
               <View style={styles.curText}>
-                <Text style={styles.curScript}>Expert</Text>
+                <Text style={styles.curScript}>{copy.homeCurationScript}</Text>
                 <Text style={styles.curBig} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
                   {meta.label.toUpperCase()}
                 </Text>
@@ -193,6 +197,7 @@ export function FeatureBanner({
   onOpen: (s: Service) => void;
   onBook: (s: Service) => void;
 }) {
+  const copy = useCustomerUiCopy();
   if (!service) return null;
   const meta = metaFor(service);
   return (
@@ -225,7 +230,7 @@ export function FeatureBanner({
         style={styles.featBar}
       >
         <View style={styles.featBarText}>
-          <Text style={styles.featBarName}>Starts at</Text>
+          <Text style={styles.featBarName}>{copy.homeStartsAt}</Text>
           <Text style={styles.featBarPrice}>{formatRupeeFull(serviceStartPrice(service))}</Text>
         </View>
         <PressableScale
@@ -233,7 +238,7 @@ export function FeatureBanner({
           scaleTo={0.94}
           onPress={() => onBook(service)}
           accessibilityRole="button"
-          accessibilityLabel={`Book ${service.name}`}
+          accessibilityLabel={fillCopy(copy.serviceRowBookA11y, { service: service.name })}
         >
           <Text style={styles.featCtaText}>{ctaLabel}</Text>
         </PressableScale>

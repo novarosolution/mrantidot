@@ -42,7 +42,7 @@ export function BookingsEmpty({ filter }: { filter: 'active' | 'completed' | 'ca
         <Pressable
           onPress={() => appPush(customerRoutes.bookGuide)}
           accessibilityRole="button"
-          accessibilityLabel="How to book a service"
+          accessibilityLabel={ui2.helpGuideTitle}
           style={({ pressed }) => [styles.guideLink, pressed && { opacity: 0.7 }]}
         >
           <Text style={styles.guideLinkText}>{ui2.bookingsHowToBook}</Text>

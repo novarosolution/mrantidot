@@ -1,13 +1,17 @@
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { haptic } from '@/lib/motion';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { AppIcons } from '@/constants/appIcons';
 import { appToast } from '@/lib/toast';
 import { Button } from '@/components/ui/Button';
 import type { WorkOtpView } from '@/types/api';
-import { adminType, buttonTokens, colors, premium, spacing, surfaces } from '@/constants/theme';
+import { adminType, buttonTokens, colors, premium, radii, spacing, surfaces } from '@/constants/theme';
 
 export function WorkOtpCard({
   title,
@@ -22,6 +26,7 @@ export function WorkOtpCard({
   onRegenerate?: () => void;
   regenerating?: boolean;
 }) {
+  const copy = useCustomerUiCopy();
   const [secondsLeft, setSecondsLeft] = useState(otp.expiresIn);
 
   useEffect(() => {
@@ -40,7 +45,8 @@ export function WorkOtpCard({
 
   async function copyCode() {
     await Clipboard.setStringAsync(otp.code);
-    appToast.success('Code copied');
+    haptic('success');
+    appToast.success(copy.otpCodeCopied);
   }
 
   return (
@@ -56,7 +62,7 @@ export function WorkOtpCard({
           </View>
         </View>
 
-        <View style={styles.codeRow}>
+        <View style={styles.codeRow} accessible accessibilityLabel={fillCopy(copy.otpCodeA11y, { code: otp.code.split('').join(' ') })}>
           {otp.code.split('').map((digit, i) => (
             <View key={`${digit}-${i}`} style={styles.digitBox}>
               <Text style={styles.digit}>{digit}</Text>
@@ -65,17 +71,17 @@ export function WorkOtpCard({
         </View>
 
         <Text style={[styles.timer, expired && styles.timerExpired]}>
-          {expired ? 'Code expired' : `Expires in ${mins}:${String(secs).padStart(2, '0')}`}
+          {expired ? copy.otpCodeExpired : fillCopy(copy.otpExpiresIn, { time: `${mins}:${String(secs).padStart(2, '0')}` })}
         </Text>
 
         <View style={styles.actions}>
-          <Pressable style={styles.copyBtn} onPress={() => void copyCode()}>
+          <PressableScale containerStyle={styles.copyWrap} style={styles.copyBtn} onPress={() => void copyCode()} accessibilityRole="button">
             <PremiumIcon icon={AppIcons.ui.copy} variant="plain" size="sm" color={colors.forest} />
-            <Text style={styles.copyText}>Copy code</Text>
-          </Pressable>
+            <Text style={styles.copyText}>{copy.otpCopyCode}</Text>
+          </PressableScale>
           {onRegenerate ? (
             <Button
-              title={regenerating ? 'Refreshing…' : 'Get new code'}
+              title={regenerating ? copy.otpRefreshing : copy.otpGetNew}
               variant="secondary"
               onPress={onRegenerate}
               disabled={regenerating}
@@ -98,7 +104,7 @@ export function getActiveCustomerOtp(
 }
 
 const styles = StyleSheet.create({
-  shell: { marginBottom: spacing.md, borderRadius: 20 },
+  shell: { marginBottom: spacing.md, borderRadius: radii.card },
   card: { padding: spacing.md, paddingTop: spacing.sm + 10 },
   head: { flexDirection: 'row', gap: 12, marginBottom: spacing.md },
   iconWrap: {
@@ -116,7 +122,7 @@ const styles = StyleSheet.create({
   digitBox: {
     width: 44,
     height: 52,
-    borderRadius: 14,
+    borderRadius: radii.thumb,
     backgroundColor: surfaces.glassSoft,
     borderWidth: 1.5,
     borderColor: surfaces.glassBorderStrong,
@@ -132,15 +138,15 @@ const styles = StyleSheet.create({
   },
   timerExpired: { color: colors.error },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  copyWrap: { flex: 1 },
   copyBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     minHeight: buttonTokens.heightLg,
     borderRadius: buttonTokens.radius,
-    backgroundColor: 'rgba(238,248,230,0.65)',
+    backgroundColor: colors.mint,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,
   },

@@ -10,8 +10,8 @@ import {
   AuthSecureNote,
 } from '@/components/kit/auth/AuthScreenKit';
 import { AuthField, AuthPrimaryButton, authScreenStyles } from '@/components/kit/auth/AuthScreenLayout';
-import { WebAuthFrame } from '@/components/admin/WebAuthFrame';
-import { isWebAdminOnlyError, useAuth } from '@/context/AuthContext';
+import { WebAdminLogin } from '@/components/admin/WebAdminLogin';
+import { useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
 import { getApiErrorMessage } from '@/lib/api';
 import { appPush, appReplace, authRoutes, customerRoutes, homeRouteForRole } from '@/lib/routes';
@@ -23,11 +23,6 @@ import { DEFAULT_CUSTOMER_UI_COPY, fillCopy } from '@/constants/customerUiCopy';
 import { haptic } from '@/lib/motion';
 import { WEB_LOGIN_DOCUMENT_TITLE } from '@/lib/webAdmin';
 
-/** The web build is the admin panel: admin heading, no customer sign-up link. */
-const IS_WEB = Platform.OS === 'web';
-const WEB_LOGIN_TITLE = 'Admin panel';
-const WEB_LOGIN_SUBTITLE = 'Sign in with your admin account to manage Mr Antidot.';
-
 /**
  * A placeholder that only repeats the field label adds nothing — show the built-in example instead
  * (or nothing, if that would repeat the label too).
@@ -38,7 +33,8 @@ function distinctPlaceholder(placeholder: string, label: string, example: string
   return same(example) ? '' : example;
 }
 
-export default function LoginScreen() {
+/** iOS / Android sign-in (customers, technicians, admins). */
+function NativeLoginScreen() {
   const { login } = useAuth();
   const { content } = useAppContent();
   const ui = useCustomerUiCopy();
@@ -91,13 +87,6 @@ export default function LoginScreen() {
       }
       appReplace(homeRouteForRole(signedIn.role));
     } catch (err) {
-      if (isWebAdminOnlyError(err)) {
-        // Signed in fine, but not an admin — the session was never kept (see AuthContext).
-        haptic('error');
-        setPasswordError(err.message);
-        appToast.error(WEB_LOGIN_TITLE, err.message);
-        return;
-      }
       const message = getApiErrorMessage(err, 'Check your credentials and try again');
       haptic('error');
       setPasswordError(message === 'Invalid credentials' ? ui.authWrongCredentials : message);
@@ -108,105 +97,110 @@ export default function LoginScreen() {
   }, [identifier, loading, login, password, ui]);
 
   return (
-    <WebAuthFrame>
-      {IS_WEB ? <Stack.Screen options={{ title: WEB_LOGIN_DOCUMENT_TITLE }} /> : null}
-      <AuthLoginShell
-        brandName={brandName}
-        brandTag={content.branding.tagline}
-        title={IS_WEB ? WEB_LOGIN_TITLE : ui.authLoginTitle}
-        subtitle={IS_WEB ? WEB_LOGIN_SUBTITLE : ui.authLoginSubtitle}
-        compact
-      >
-        <AuthFormSection>
-          <AuthField
-            label={ui.authFieldIdentifier}
-            value={identifier}
-            onChangeText={(text) => {
-              setIdentifier(text);
-              if (identifierError) setIdentifierError(undefined);
-            }}
-            placeholder={distinctPlaceholder(
-              ui.authLoginEmailPlaceholder,
-              ui.authFieldIdentifier,
-              DEFAULT_CUSTOMER_UI_COPY.authLoginEmailPlaceholder,
-            )}
-            error={identifierError}
-            icon={AppIcons.ui.mail}
-            returnKeyType="next"
-            onSubmitEditing={() => passwordRef.current?.focus()}
-          />
+    <AuthLoginShell
+      brandName={brandName}
+      brandTag={content.branding.tagline}
+      title={ui.authLoginTitle}
+      subtitle={ui.authLoginSubtitle}
+      compact
+    >
+      <AuthFormSection>
+        <AuthField
+          label={ui.authFieldIdentifier}
+          value={identifier}
+          onChangeText={(text) => {
+            setIdentifier(text);
+            if (identifierError) setIdentifierError(undefined);
+          }}
+          placeholder={distinctPlaceholder(
+            ui.authLoginEmailPlaceholder,
+            ui.authFieldIdentifier,
+            DEFAULT_CUSTOMER_UI_COPY.authLoginEmailPlaceholder,
+          )}
+          error={identifierError}
+          icon={AppIcons.ui.mail}
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+        />
 
-          <AuthField
-            label={ui.authFieldPassword}
-            value={password}
-            onChangeText={(text) => {
-              setPassword(text);
-              if (passwordError) setPasswordError(undefined);
-            }}
-            placeholder={distinctPlaceholder(
-              ui.authLoginPasswordPlaceholder,
-              ui.authFieldPassword,
-              DEFAULT_CUSTOMER_UI_COPY.authLoginPasswordPlaceholder,
-            )}
-            error={passwordError}
-            secure
-            icon={AppIcons.ui.lock}
-            inputRef={passwordRef}
-            returnKeyType="go"
-            onSubmitEditing={() => void handleLogin()}
-          />
+        <AuthField
+          label={ui.authFieldPassword}
+          value={password}
+          onChangeText={(text) => {
+            setPassword(text);
+            if (passwordError) setPasswordError(undefined);
+          }}
+          placeholder={distinctPlaceholder(
+            ui.authLoginPasswordPlaceholder,
+            ui.authFieldPassword,
+            DEFAULT_CUSTOMER_UI_COPY.authLoginPasswordPlaceholder,
+          )}
+          error={passwordError}
+          secure
+          icon={AppIcons.ui.lock}
+          inputRef={passwordRef}
+          returnKeyType="go"
+          onSubmitEditing={() => void handleLogin()}
+        />
 
-          <Pressable
-            style={styles.forgotBtn}
-            onPress={() => {
-              appToast.info(
-                ui.authForgotTitle,
-                supportContact ? fillCopy(ui.authForgotBody, { contact: supportContact }) : ui.authForgotBodyFallback,
-              );
-            }}
-            hitSlop={8}
-          >
-            <Text style={styles.forgotText}>{ui.authForgotPassword}</Text>
-          </Pressable>
+        <Pressable
+          style={styles.forgotBtn}
+          onPress={() => {
+            appToast.info(
+              ui.authForgotTitle,
+              supportContact ? fillCopy(ui.authForgotBody, { contact: supportContact }) : ui.authForgotBodyFallback,
+            );
+          }}
+          hitSlop={8}
+        >
+          <Text style={styles.forgotText}>{ui.authForgotPassword}</Text>
+        </Pressable>
 
-          <AuthPrimaryButton
-            title={ui.authLoginButton}
-            loadingTitle={ui.authSigningIn}
-            loading={loading}
-            onPress={() => void handleLogin()}
-          />
+        <AuthPrimaryButton
+          title={ui.authLoginButton}
+          loadingTitle={ui.authSigningIn}
+          loading={loading}
+          onPress={() => void handleLogin()}
+        />
 
-          {__DEV__ ? (
-            <>
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>{ui.authOrDivider}</Text>
-                <View style={styles.dividerLine} />
-              </View>
-              <Pressable
-                style={({ pressed }) => [styles.otpBtn, pressed && styles.otpPressed]}
-                onPress={() => appPush(authRoutes.otp)}
-                accessibilityRole="button"
-              >
-                <Smartphone size={18} color={themeUi.text} strokeWidth={2} />
-                <Text style={styles.otpText}>{ui.authOtpContinue}</Text>
-              </Pressable>
-            </>
-          ) : null}
+        {__DEV__ ? (
+          <>
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>{ui.authOrDivider}</Text>
+              <View style={styles.dividerLine} />
+            </View>
+            <Pressable
+              style={({ pressed }) => [styles.otpBtn, pressed && styles.otpPressed]}
+              onPress={() => appPush(authRoutes.otp)}
+              accessibilityRole="button"
+            >
+              <Smartphone size={18} color={themeUi.text} strokeWidth={2} />
+              <Text style={styles.otpText}>{ui.authOtpContinue}</Text>
+            </Pressable>
+          </>
+        ) : null}
 
-          <AuthSecureNote text={ui.authSecureNote} />
-        </AuthFormSection>
+        <AuthSecureNote text={ui.authSecureNote} />
+      </AuthFormSection>
 
-        {IS_WEB ? null : (
-          <AuthFooterText>
-            <Text style={authScreenStyles.footer}>{ui.authNewHere} </Text>
-            <Link href={authRoutes.register}>
-              <Text style={authScreenStyles.footerLink}>{ui.authCreateAccountLink}</Text>
-            </Link>
-          </AuthFooterText>
-        )}
-      </AuthLoginShell>
-    </WebAuthFrame>
+      <AuthFooterText>
+        <Text style={authScreenStyles.footer}>{ui.authNewHere} </Text>
+        <Link href={authRoutes.register}>
+          <Text style={authScreenStyles.footerLink}>{ui.authCreateAccountLink}</Text>
+        </Link>
+      </AuthFooterText>
+    </AuthLoginShell>
+  );
+}
+
+/** Web build = the admin panel: its own premium sign-in (split brand panel on desktop, no sign-up link). */
+function WebLoginScreen() {
+  return (
+    <>
+      <Stack.Screen options={{ title: WEB_LOGIN_DOCUMENT_TITLE }} />
+      <WebAdminLogin />
+    </>
   );
 }
 
@@ -215,6 +209,8 @@ function displayUserGreeting(name: string | undefined, fallback: string): string
   if (!trimmed || trimmed.toLowerCase() === 'customer') return fallback;
   return trimmed.split(' ')[0] ?? trimmed;
 }
+
+export default Platform.OS === 'web' ? WebLoginScreen : NativeLoginScreen;
 
 const styles = StyleSheet.create({
   forgotBtn: {

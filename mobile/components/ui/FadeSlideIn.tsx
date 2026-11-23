@@ -1,16 +1,18 @@
 import { type ReactNode, useEffect, useRef } from 'react';
-import { Animated, Easing, type ViewStyle } from 'react-native';
-import { useReducedMotion } from '@/lib/a11yPrefs';
+import { Animated, type StyleProp, type ViewStyle } from 'react-native';
+import { getReducedMotion, useReducedMotion } from '@/lib/a11yPrefs';
+import { motion } from '@/lib/motion';
 
 /**
- * Entrance fade/slide. Safe inside ScrollViews:
- * - Does not re-flash to opacity 0 on remount unless `trigger` changes
- * - Uses a stable “already shown” latch so clipped-view remounts stay visible
+ * Entrance fade + slide up (motion tokens: `duration.slow`, `spring`, `enterOffset`). Safe inside ScrollViews:
+ * - plays once per mount; re-renders and clipped-view remounts stay visible unless `trigger` changes
+ * - the wrapper never changes shape, so Reduce Motion resolving late can't remount the children
+ * - with Reduce Motion the content is simply shown
  */
 export function FadeSlideIn({
   children,
   delay = 0,
-  slideFrom = 20,
+  slideFrom = motion.enterOffset,
   style,
   trigger,
   disabled: disabledProp = false,
@@ -18,34 +20,28 @@ export function FadeSlideIn({
   children: ReactNode;
   delay?: number;
   slideFrom?: number;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   /** Re-run animation when this value changes (e.g. wizard step). */
   trigger?: string | number;
   /** Skip animation — render children statically (preferred in long scroll screens). */
   disabled?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
-  const disabled = disabledProp || reducedMotion;
-  const opacity = useRef(new Animated.Value(disabled ? 1 : 0)).current;
-  const translateY = useRef(new Animated.Value(disabled ? 0 : slideFrom)).current;
-  const shown = useRef(disabled);
+  const still = disabledProp || reducedMotion;
+  const startHidden = !disabledProp && !getReducedMotion();
+  const opacity = useRef(new Animated.Value(startHidden ? 0 : 1)).current;
+  const translateY = useRef(new Animated.Value(startHidden ? slideFrom : 0)).current;
+  const shown = useRef(!startHidden);
   const lastTrigger = useRef(trigger);
 
   useEffect(() => {
-    if (disabled) {
-      opacity.setValue(1);
-      translateY.setValue(0);
-      shown.current = true;
-      return;
-    }
-
     const triggerChanged = lastTrigger.current !== trigger;
     lastTrigger.current = trigger;
 
-    // Remount / re-render after first play: stay visible (fixes scroll flash/ghost).
-    if (shown.current && !triggerChanged) {
+    if (still || (shown.current && !triggerChanged)) {
       opacity.setValue(1);
       translateY.setValue(0);
+      shown.current = true;
       return;
     }
 
@@ -54,26 +50,25 @@ export function FadeSlideIn({
     const anim = Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 340,
+        duration: motion.duration.slow,
         delay,
-        easing: Easing.out(Easing.cubic),
+        easing: motion.easing.out,
         useNativeDriver: true,
       }),
-      Animated.spring(translateY, {
-        toValue: 0,
-        delay,
-        friction: 10,
-        tension: 68,
-        useNativeDriver: true,
-      }),
+      Animated.spring(translateY, { toValue: 0, delay, ...motion.spring, useNativeDriver: true }),
     ]);
     anim.start(({ finished }) => {
       if (finished) shown.current = true;
     });
-    return () => anim.stop();
-  }, [delay, disabled, opacity, slideFrom, translateY, trigger]);
+    return () => {
+      anim.stop();
+      // Interrupted (unmount, trigger change): land on the final frame rather than freezing mid-way.
+      opacity.setValue(1);
+      translateY.setValue(0);
+    };
+  }, [delay, still, opacity, slideFrom, translateY, trigger]);
 
-  if (disabled) {
+  if (disabledProp) {
     return <>{children}</>;
   }
 
@@ -91,8 +86,9 @@ export function FadeSlideHorizontal({
 }: {
   children: ReactNode;
   step: number;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }) {
+  const reduced = useReducedMotion();
   const opacity = useRef(new Animated.Value(1)).current;
   const translateX = useRef(new Animated.Value(0)).current;
   const prevStep = useRef(step);
@@ -100,23 +96,19 @@ export function FadeSlideHorizontal({
   useEffect(() => {
     const dir = step >= prevStep.current ? 1 : -1;
     prevStep.current = step;
+    if (reduced) return;
     opacity.setValue(0);
     translateX.setValue(dir * 28);
     Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
+        duration: motion.duration.slow,
+        easing: motion.easing.out,
         useNativeDriver: true,
       }),
-      Animated.spring(translateX, {
-        toValue: 0,
-        friction: 11,
-        tension: 72,
-        useNativeDriver: true,
-      }),
+      Animated.spring(translateX, { toValue: 0, ...motion.spring, useNativeDriver: true }),
     ]).start();
-  }, [opacity, step, translateX]);
+  }, [opacity, reduced, step, translateX]);
 
   return (
     <Animated.View style={[{ opacity, transform: [{ translateX }] }, style]} collapsable={false}>

@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { ArrowUpDown, Globe, UserPlus, UserRoundPlus } from 'lucide-react-native';
+import { ArrowUpDown, BriefcaseBusiness, Globe, Megaphone, ScrollText, UserPlus, UserRoundPlus } from 'lucide-react-native';
 import { AdminHubGroup, AdminHubLink } from '@/components/kit/AdminHubLink';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -53,6 +53,18 @@ const OPERATIONS_LINKS: HubLink[] = [
     label: 'Reports',
     desc: 'Revenue, trends & performance',
     href: adminRoutes.reports,
+  },
+  {
+    icon: Megaphone,
+    label: 'Broadcast',
+    desc: 'Send a notice to customers or technicians',
+    href: adminRoutes.broadcast,
+  },
+  {
+    icon: ScrollText,
+    label: 'Activity log',
+    desc: 'Who changed what, and when',
+    href: adminRoutes.activity,
   },
 ];
 
@@ -147,6 +159,13 @@ const PEOPLE_LINKS: HubLink[] = [
 ];
 
 const SYSTEM_LINKS: HubLink[] = [
+  {
+    icon: BriefcaseBusiness,
+    label: 'Business settings',
+    desc: 'Tax, time slots, booking rules, lists, service area, payments & app status',
+    href: adminRoutes.businessSettings,
+    featured: true,
+  },
   {
     icon: AppIcons.ui.download,
     image: AppImageIcons.file,

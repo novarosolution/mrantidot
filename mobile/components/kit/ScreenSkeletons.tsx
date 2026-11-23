@@ -112,6 +112,25 @@ export function ListRowsSkeleton({ rows = 4, tall = false }: { rows?: number; ta
   );
 }
 
+/** Service rows (name, rating, price on the left; square art on the right) — search results, catalog. */
+export function ServiceRowsSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <View style={styles.rowsPad}>
+      {Array.from({ length: rows }, (_, i) => (
+        <View key={i} style={[styles.row, i > 0 && styles.gap24]}>
+          <View style={styles.flex}>
+            <Skeleton width="78%" height={17} radius={6} />
+            <Skeleton width="44%" height={12} radius={6} style={styles.gap8} />
+            <Skeleton width="36%" height={14} radius={6} style={styles.gap8} />
+            <Skeleton width="88%" height={12} radius={6} style={styles.gap12} />
+          </View>
+          <Skeleton width={100} height={100} radius={20} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 /** Loading state for a category page — summary card and a few service rows. */
 export function CategorySkeleton() {
   return (
@@ -142,8 +161,9 @@ export function CategorySkeleton() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: ui.surfaceMuted },
+  root: { flex: 1, backgroundColor: ui.canvas },
   pad: { padding: spacing.md },
+  rowsPad: { paddingHorizontal: spacing.md, paddingVertical: 18 },
   white: { backgroundColor: colors.white, padding: spacing.md },
   card: {
     padding: 14,

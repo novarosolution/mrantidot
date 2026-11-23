@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { colors, fonts, premium, spacing, surfaces, ui } from '@/constants/theme';
+import { useWideWebLayout } from '@/lib/webAdmin';
 
 export type AnalyticsStatItem = {
   key: string;
@@ -15,6 +16,9 @@ export type AnalyticsStatItem = {
 };
 
 export function AnalyticsStatGrid({ items, glass = false }: { items: AnalyticsStatItem[]; glass?: boolean }) {
+  // Desktop browser: 4 tiles per row instead of the phone's 2 (percentages follow window resizes).
+  const wideWeb = useWideWebLayout();
+  const cellStyle = [styles.cell, wideWeb && styles.cellWide];
   return (
     <View style={styles.grid}>
       {items.map((item) => {
@@ -41,7 +45,7 @@ export function AnalyticsStatGrid({ items, glass = false }: { items: AnalyticsSt
           return (
             <PressableScale
               key={item.key}
-              containerStyle={styles.cell}
+              containerStyle={cellStyle}
               style={[...chipStyle, styles.fill]}
               onPress={item.onPress}
               accessibilityRole="button"
@@ -52,7 +56,7 @@ export function AnalyticsStatGrid({ items, glass = false }: { items: AnalyticsSt
           );
         }
         return (
-          <View key={item.key} style={[...chipStyle, styles.cell]}>
+          <View key={item.key} style={[...chipStyle, ...cellStyle]}>
             {inner}
           </View>
         );
@@ -65,6 +69,7 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, width: '100%' },
   /** Grid sizing sits on the outer touch target so pressable and static tiles line up. */
   cell: { width: '47%', flexGrow: 1 },
+  cellWide: { width: '22%' },
   fill: { flexGrow: 1 },
   chip: {
     padding: spacing.md,

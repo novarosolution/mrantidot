@@ -1,77 +1,85 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { AppIcons } from '@/constants/appIcons';
-import { PAYMENT_TYPE_META } from '@/lib/bookingPayment';
 import type { PaymentMethodRecord } from '@/types/api';
-import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { colors, radii, spacing, typeScale, ui } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
+import { useBusinessSettings } from '@/lib/businessSettings';
+import { activePaymentMethods } from '@/lib/settingsLabels';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { haptic } from '@/lib/motion';
 
-function PaymentIcon({ type, selected }: { type: 'upi_card' | 'pay_after'; selected: boolean }) {
-  const color = ui.brand;
-  if (type === 'pay_after') {
-    return <PremiumIcon icon={AppIcons.payment.wallet} variant="plain" size={22} color={color} strokeWidth={2.2} />;
-  }
-  return <PremiumIcon icon={AppIcons.payment.upi} variant="plain" size={22} color={color} strokeWidth={2.2} />;
+function PaymentIcon({ type }: { type: string }) {
+  const icon = type === 'pay_after' ? AppIcons.payment.wallet : AppIcons.payment.upi;
+  return <PremiumIcon icon={icon} variant="plain" size={22} color={ui.brand} strokeWidth={2.2} />;
 }
 
+/**
+ * Payment choice for checkout — the methods the admin switched on (Business settings → Payments),
+ * in their order and with their names. A saved record of the same type adds its details (UPI id…).
+ */
 export function BookPaymentPicker({
   methods,
   selected,
   onSelect,
   showManageLink,
 }: {
+  /** The customer's saved payment records (details only). */
   methods: PaymentMethodRecord[];
-  selected: 'upi_card' | 'pay_after' | null;
-  onSelect: (type: 'upi_card' | 'pay_after') => void;
+  selected: string | null;
+  onSelect: (type: string) => void;
   showManageLink?: boolean;
 }) {
-  const types = Array.from(new Set(methods.map((m) => m.type))).filter(
-    (t): t is 'upi_card' | 'pay_after' => t === 'upi_card' || t === 'pay_after',
-  );
+  const settings = useBusinessSettings();
+  const copy = useCustomerUiCopy();
+  const options = activePaymentMethods(settings);
 
   return (
-    <View style={styles.wrap}>
-      {types.map((type) => {
-        const meta = PAYMENT_TYPE_META[type];
-        if (!meta) return null;
-        const method = methods.find((m) => m.type === type);
-        const on = selected === type;
-
+    <View style={styles.wrap} accessibilityRole="radiogroup">
+      {options.map((opt) => {
+        const record = methods.find((m) => m.type === opt.key);
+        const on = selected === opt.key;
+        const sub = opt.key === 'upi_card' ? copy.payUpiCardSub : opt.key === 'pay_after' ? copy.payAfterSub : copy.payOtherSub;
         return (
-          <Pressable
-            key={type}
-            style={({ pressed }) => [styles.tile, on && styles.tileOn, pressed && styles.pressed]}
-            onPress={() => onSelect(type)}
+          <PressableScale
+            key={opt.key}
+            style={[styles.tile, on && styles.tileOn]}
+            onPress={() => {
+              if (!on) haptic('select');
+              onSelect(opt.key);
+            }}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={`${opt.label}. ${sub}`}
           >
             <View style={[styles.iconWrap, on && styles.iconWrapOn]}>
-              <PaymentIcon type={type} selected={on} />
+              <PaymentIcon type={opt.key} />
             </View>
             <View style={styles.body}>
-              <Text style={[styles.title, on && styles.titleOn]}>{method?.label ?? meta.title}</Text>
-              {method?.details ? (
+              <Text style={styles.title}>{opt.label}</Text>
+              <Text style={styles.sub} numberOfLines={2}>
+                {sub}
+              </Text>
+              {record?.details ? (
                 <View style={styles.detailsRow}>
                   <PremiumIcon icon={AppIcons.payment.card} variant="plain" size={11} color={ui.textTertiary} />
-                  <Text style={styles.details}>{method.details}</Text>
+                  <Text style={styles.details}>{record.details}</Text>
                 </View>
               ) : null}
             </View>
             <View style={[styles.radio, on && styles.radioOn]}>
-              {on ? (
-                <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={14} color={colors.white} strokeWidth={3} />
-              ) : null}
+              {on ? <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={14} color={colors.white} strokeWidth={3} /> : null}
             </View>
-          </Pressable>
+          </PressableScale>
         );
       })}
 
       {showManageLink ? (
-        <Pressable
-          style={({ pressed }) => [styles.manage, pressed && styles.pressed]}
-          onPress={() => appPush(customerRoutes.paymentMethods)}
-        >
-          <Text style={styles.manageText}>Manage saved payment methods</Text>
+        <PressableScale style={styles.manage} onPress={() => appPush(customerRoutes.paymentMethods)} accessibilityRole="link">
+          <Text style={styles.manageText}>{copy.payManageSaved}</Text>
           <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={16} color={ui.brand} />
-        </Pressable>
+        </PressableScale>
       ) : null}
     </View>
   );
@@ -84,37 +92,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 14,
-    borderRadius: 16,
+    borderRadius: radii.control,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.border,
   },
-  tileOn: {
-    backgroundColor: ui.brandSoft,
-    borderColor: ui.brand,
-    borderWidth: 1.5,
-  },
-  pressed: { opacity: 0.92 },
+  tileOn: { backgroundColor: ui.brandSoft, borderColor: ui.brand, borderWidth: 1.5 },
   iconWrap: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: radii.pill,
     backgroundColor: ui.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconWrapOn: { backgroundColor: colors.white },
   body: { flex: 1, minWidth: 0 },
-  title: { fontFamily: fonts.bodyBold, fontSize: 14.5, color: ui.text },
-  titleOn: { color: ui.text },
+  title: { ...typeScale.rowTitle, fontFamily: typeScale.button.fontFamily, color: ui.text },
+  sub: { ...typeScale.caption, fontSize: 12.5, marginTop: 2, color: ui.textSecondary },
   detailsRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
-  details: { fontFamily: fonts.body, fontSize: 12, color: ui.textSecondary },
+  details: { ...typeScale.caption, fontSize: 12, color: ui.textSecondary },
   radio: {
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: radii.pill,
     borderWidth: 1.5,
-    borderColor: ui.hairline,
+    borderColor: ui.border,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.white,
@@ -125,8 +128,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    paddingVertical: 12,
+    minHeight: 44,
     marginTop: spacing.xs,
   },
-  manageText: { fontFamily: fonts.bodySemi, fontSize: 13, color: ui.brand },
+  manageText: { ...typeScale.captionStrong, color: ui.brand },
 });

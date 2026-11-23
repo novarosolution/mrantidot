@@ -4,15 +4,17 @@ import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
 import { BookingGuide } from '@/components/kit/BookingGuide';
 import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
 import { spacing, ui } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 /** How-to-book guide — helps customers complete a service booking. */
 export default function BookGuideScreen() {
+  const copy = useCustomerUiCopy();
   return (
     <View style={styles.root}>
       <SafeAreaView style={styles.safe} edges={['left', 'right']}>
         <CustomerPageHeader
-          title="How to book"
-          subtitle="Steps, date & book-time options"
+          title={copy.guideTitle}
+          subtitle={copy.guideSubtitle}
           showBack
           variant="premium"
         />
@@ -28,7 +30,7 @@ export default function BookGuideScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: ui.surfaceMuted },
+  root: { flex: 1, backgroundColor: ui.canvas },
   safe: { flex: 1 },
   scroll: {
     paddingTop: spacing.md,

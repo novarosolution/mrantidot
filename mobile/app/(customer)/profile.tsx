@@ -1,18 +1,25 @@
-import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
-import type { LucideIcon } from 'lucide-react-native';
-import { Bell, ChevronRight, CircleAlert, LogOut } from 'lucide-react-native';
+import { CalendarCheck, CircleAlert, CreditCard, LogOut, MapPin } from 'lucide-react-native';
 import { customerScrollProps, TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
+import { CustomerProfileHero, type ProfileStat } from '@/components/kit/CustomerProfileHero';
 import { HomeNextVisitCard } from '@/components/kit/HomeNextVisitCard';
+import { ProfileMenuRow } from '@/components/kit/ProfileMenuRow';
+import { ProfileMenuSection } from '@/components/kit/ProfileMenuSection';
+import { ProfileSupportCard } from '@/components/kit/ProfileSupportCard';
+import { ProfileTrustBanner } from '@/components/kit/ProfileTrustBanner';
+import { AdminActionSheet } from '@/components/kit/AdminActionSheet';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
-import { AppIcons } from '@/constants/appIcons';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { AppIconImages } from '@/constants/appImageIcons';
+import { fillCopy } from '@/constants/customerUiCopy';
 import { bookingDetailPath, authRoutes, customerRoutes, appPush, appReplace } from '@/lib/routes';
-import { api, screenLoadConfig } from '@/lib/api';
-import { useScreenLoad } from '@/lib/useScreenLoad';
+import { getApiErrorMessage, screenLoadConfig } from '@/lib/api';
+import { CACHE_TTL } from '@/lib/apiCache';
+import { cachedGet } from '@/lib/cachedGet';
 import { useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
 import { useLocation } from '@/context/LocationContext';
@@ -21,11 +28,9 @@ import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { localDateKey } from '@/lib/dates';
 import { bookingVisitDate } from '@/lib/booking-helpers';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
+import { haptic, stagger } from '@/lib/motion';
 import type { Booking } from '@/types/api';
-import { colors, fonts, spacing, ui } from '@/constants/theme';
-import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
-import { PressableScale } from '@/components/ui/PressableScale';
-import { stagger } from '@/lib/motion';
+import { colors, radii, spacing, typeScale, ui } from '@/constants/theme';
 
 function pickUpcoming(bookings: Booking[]): Booking | null {
   const today = localDateKey();
@@ -48,117 +53,121 @@ function pickUpcoming(bookings: Booking[]): Booking | null {
   );
 }
 
-/** Square shortcut tile — the reference's "My bookings / Help & support" row. */
-function QuickTile({ icon: Icon, label, sub, onPress }: { icon: LucideIcon; label: string; sub?: string; onPress: () => void }) {
-  return (
-    <PressableScale
-      containerStyle={styles.tileWrap}
-      style={styles.tile}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={sub ? `${label}, ${sub}` : label}
-    >
-      <Icon size={26} color={ui.brand} strokeWidth={1.9} />
-      <View>
-        <Text style={styles.tileLabel} numberOfLines={2}>
-          {label}
-        </Text>
-        {sub ? <Text style={styles.tileSub}>{sub}</Text> : null}
-      </View>
-    </PressableScale>
-  );
-}
+type Counts = { bookings: Booking[]; saved: number; payments: number; unread: number };
 
-/** Plain list row: icon, label, optional count, chevron. */
-function MenuRow({ icon: Icon, label, count, onPress }: { icon: LucideIcon; label: string; count?: number; onPress: () => void }) {
-  return (
-    <Pressable style={({ pressed }) => [styles.menuRow, pressed && styles.pressed]} onPress={onPress} accessibilityRole="button">
-      <Icon size={20} color={ui.text} strokeWidth={1.9} />
-      <Text style={styles.menuLabel}>{label}</Text>
-      {count ? (
-        <View style={styles.count}>
-          <Text style={styles.countText}>{count}</Text>
-        </View>
-      ) : null}
-      <ChevronRight size={18} color={ui.textTertiary} strokeWidth={2} />
-    </Pressable>
-  );
-}
-
+/**
+ * Profile — identity hero with live stats, the next visit, account + help menus, support and the brand
+ * promise. Lists come through the shared GET cache (one request per list per minute at most, cleared
+ * on any change), and the account itself refreshes once per focus.
+ */
 export default function ProfileScreen() {
   const { user, logout, refreshMe } = useAuth();
   const { content } = useAppContent();
   const copy = useCustomerUiCopy();
   const { displayLabel } = useLocation();
-  const { error, runLoad, reload } = useScreenLoad();
+  const [counts, setCounts] = useState<Counts | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [savedCount, setSavedCount] = useState(0);
-  const [paymentCount, setPaymentCount] = useState(0);
-  const [unread, setUnread] = useState(0);
+  const [signOutAsk, setSignOutAsk] = useState(false);
 
-  const load = useCallback(async () => {
-    await refreshMe();
-    const [bookingsRes, addrRes, payRes, notifRes] = await Promise.allSettled([
-      api.get<{ bookings: Booking[] }>('/bookings', screenLoadConfig),
-      api.get<{ addresses: unknown[] }>('/addresses', screenLoadConfig),
-      api.get<{ paymentMethods: unknown[] }>('/payment-methods', screenLoadConfig),
-      api.get<{ unreadCount: number }>('/notifications', screenLoadConfig),
-    ]);
-    if (bookingsRes.status === 'fulfilled') setBookings(bookingsRes.value.data.bookings);
-    if (addrRes.status === 'fulfilled') setSavedCount(addrRes.value.data.addresses.length);
-    if (payRes.status === 'fulfilled') setPaymentCount(payRes.value.data.paymentMethods.length);
-    if (notifRes.status === 'fulfilled') setUnread(notifRes.value.data.unreadCount);
-  }, [refreshMe]);
-
-  useEffect(() => {
-    void runLoad(load, 'Could not load profile');
-  }, [load, runLoad]);
-
-  useStaleFocusRefresh(() => load().catch(() => undefined), 3_000);
-
-  useFocusEffect(
-    useCallback(() => {
-      void refreshMe({ silent: true });
-    }, [refreshMe]),
+  const load = useCallback(
+    async (force = false) => {
+      const opts = { ...screenLoadConfig, force };
+      const [bookingsRes, addrRes, payRes, notifRes] = await Promise.allSettled([
+        cachedGet<{ bookings: Booking[] }>('/bookings', CACHE_TTL.bookingsList, opts),
+        cachedGet<{ addresses: unknown[] }>('/addresses', CACHE_TTL.addresses, opts),
+        cachedGet<{ paymentMethods: unknown[] }>('/payment-methods', CACHE_TTL.paymentMethods, opts),
+        cachedGet<{ unreadCount: number }>('/notifications', CACHE_TTL.notifications, opts),
+      ]);
+      if (bookingsRes.status === 'rejected' && addrRes.status === 'rejected') {
+        throw bookingsRes.reason;
+      }
+      setError(null);
+      setCounts({
+        bookings: bookingsRes.status === 'fulfilled' ? bookingsRes.value.bookings : [],
+        saved: addrRes.status === 'fulfilled' ? addrRes.value.addresses.length : 0,
+        payments: payRes.status === 'fulfilled' ? payRes.value.paymentMethods.length : 0,
+        unread: notifRes.status === 'fulfilled' ? notifRes.value.unreadCount : 0,
+      });
+    },
+    [],
   );
 
+  useEffect(() => {
+    void load().catch((err) => setError(getApiErrorMessage(err, copy.systemErrorMessage)));
+    // First paint only — copy edits must not refetch.
+  }, [load]);
+
+  // Coming back to the tab: account + lists, at most every 30 s (the GET cache answers in between).
+  useStaleFocusRefresh(() => {
+    void refreshMe({ silent: true });
+    void load().catch(() => undefined);
+  });
+
+  const bookings = counts?.bookings ?? [];
   const upcoming = useMemo(() => pickUpcoming(bookings), [bookings]);
   const activeCount = useMemo(() => bookings.filter((b) => !['completed', 'cancelled'].includes(b.status)).length, [bookings]);
 
   async function onRefresh() {
     setRefreshing(true);
     try {
-      await load();
+      await Promise.all([refreshMe({ silent: true }), load(true)]);
+    } catch (err) {
+      setError(getApiErrorMessage(err, copy.systemErrorMessage));
     } finally {
       setRefreshing(false);
     }
   }
 
-  function confirmSignOut() {
-    Alert.alert('Sign out?', undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: copy.profileSignOut,
-        style: 'destructive',
-        onPress: async () => {
-          await logout();
-          appReplace(authRoutes.login);
-        },
-      },
-    ]);
-  }
-
   const name = displayUserName(user);
   const email = displayUserEmail(user?.email);
   const phone = formatPhoneDisplay(user?.phone);
-  const city = displayLabel ?? user?.city;
+  const city = displayLabel ?? user?.city ?? undefined;
   const incomplete = isProfileIncomplete(user);
   const brand = content.branding.name?.trim() || 'Mr Antidot';
+  const loading = counts === null;
+
+  const stats: ProfileStat[] = [
+    {
+      value: loading ? null : String(activeCount),
+      label: copy.profileStatActiveLabel,
+      icon: CalendarCheck,
+      onPress: () => appPush(customerRoutes.bookings),
+    },
+    {
+      value: loading ? null : String(counts.saved),
+      label: copy.profileStatAddresses,
+      icon: MapPin,
+      onPress: () => appPush(customerRoutes.addresses),
+    },
+    {
+      value: loading ? null : String(counts.payments),
+      label: copy.profileStatPayments,
+      icon: CreditCard,
+      onPress: () => appPush(customerRoutes.paymentMethods),
+    },
+  ];
+
+  const incompleteBadge = incomplete ? (
+    <View style={styles.incompleteRow}>
+      <View style={styles.incomplete}>
+        <CircleAlert size={13} color={colors.error} strokeWidth={2.4} />
+        <Text style={styles.incompleteText}>{copy.profileIncomplete}</Text>
+      </View>
+      <PressableScale
+        style={styles.completeBtn}
+        hitSlop={4}
+        haptic="tap"
+        onPress={() => appPush(customerRoutes.settings)}
+        accessibilityRole="button"
+      >
+        <Text style={styles.completeText}>{copy.profileComplete}</Text>
+      </PressableScale>
+    </View>
+  ) : null;
 
   return (
     <View style={styles.root}>
-      <FocusStatusBar style="dark" />
       <SafeAreaView style={styles.flex} edges={['top', 'left', 'right']}>
         <ScrollView
           style={styles.flex}
@@ -167,188 +176,203 @@ export default function ProfileScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ui.brand} />}
           {...customerScrollProps}
         >
-          <View style={styles.topRow}>
-            {incomplete ? (
-              <View style={styles.incomplete}>
-                <CircleAlert size={13} color={colors.error} strokeWidth={2.4} />
-                <Text style={styles.incompleteText}>Incomplete profile</Text>
-              </View>
-            ) : (
-              <View />
-            )}
-            <View style={styles.topActions}>
-              {incomplete ? (
-                <Pressable style={styles.completeBtn} onPress={() => appPush(customerRoutes.settings)} accessibilityRole="button">
-                  <Text style={styles.completeText}>Complete</Text>
-                </Pressable>
-              ) : null}
-              <Pressable
-                style={({ pressed }) => [styles.bell, pressed && styles.pressed]}
-                onPress={() => appPush(customerRoutes.notifications)}
-                accessibilityRole="button"
-                accessibilityLabel={unread > 0 ? `${unread} unread notifications` : 'Notifications'}
-              >
-                <Bell size={20} color={ui.text} strokeWidth={2} />
-                {unread > 0 ? <View style={styles.bellDot} /> : null}
-              </Pressable>
-            </View>
-          </View>
+          <CustomerProfileHero
+            name={name}
+            initial={(name.trim()[0] ?? '?').toUpperCase()}
+            phone={phone || undefined}
+            email={email || undefined}
+            city={city}
+            unread={counts?.unread ?? 0}
+            stats={stats}
+            badge={incompleteBadge}
+            onEdit={() => appPush(customerRoutes.settings)}
+          />
 
-          <FadeSlideIn delay={stagger(0)} slideFrom={14}>
-            <Pressable onPress={() => appPush(customerRoutes.settings)} accessibilityRole="button" accessibilityLabel="Edit profile">
-              <Text style={styles.name}>{name}</Text>
-              <Text style={styles.meta}>{[phone, email].filter(Boolean).join('  ·  ')}</Text>
-              {city ? <Text style={styles.city}>{city}</Text> : null}
-            </Pressable>
-          </FadeSlideIn>
-
-          {error ? <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} /> : null}
-
-          <FadeSlideIn delay={stagger(1)} slideFrom={14}>
-            <View style={styles.tiles}>
-              <QuickTile
-                icon={AppIcons.profile.bookings}
-                label={copy.profileMenuBookings}
-                sub={activeCount > 0 ? `${activeCount} active` : undefined}
-                onPress={() => appPush(customerRoutes.bookings)}
-              />
-              <QuickTile icon={AppIcons.profile.offers} label="Offers" onPress={() => appPush(customerRoutes.offers)} />
-              <QuickTile icon={AppIcons.profile.help} label={copy.profileMenuHelp} onPress={() => appPush(customerRoutes.help)} />
-            </View>
-          </FadeSlideIn>
+          {error ? <ListEmptyRetry message={error} onRetry={() => void load(true).catch(() => undefined)} /> : null}
 
           {upcoming ? (
-            <FadeSlideIn delay={stagger(2)} slideFrom={14}>
-              <View style={styles.block}>
-                <Text style={styles.blockTitle}>{copy.profileNextVisitTitle}</Text>
-                <HomeNextVisitCard booking={upcoming} onPress={() => appPush(bookingDetailPath(user?.role, upcoming.id))} />
-              </View>
+            <FadeSlideIn delay={stagger(1)} style={styles.block}>
+              <Text style={styles.blockTitle} accessibilityRole="header">
+                {copy.profileNextVisitTitle}
+              </Text>
+              <HomeNextVisitCard booking={upcoming} onPress={() => appPush(bookingDetailPath(user?.role, upcoming.id))} />
             </FadeSlideIn>
           ) : null}
 
-          <FadeSlideIn delay={stagger(3)} slideFrom={14}>
-            <View style={styles.menu}>
-              <MenuRow icon={AppIcons.profile.addresses} label={copy.profileMenuAddresses} count={savedCount} onPress={() => appPush(customerRoutes.addresses)} />
-              <MenuRow icon={AppIcons.profile.payments} label={copy.profileMenuPayments} count={paymentCount} onPress={() => appPush(customerRoutes.paymentMethods)} />
-              <MenuRow icon={AppIcons.profile.notifications} label={copy.profileMenuNotifications} count={unread} onPress={() => appPush(customerRoutes.notifications)} />
-              <MenuRow icon={AppIcons.profile.settings} label={copy.profileMenuSettings} onPress={() => appPush(customerRoutes.settings)} />
-              <View style={styles.menuGap} />
-              <MenuRow icon={AppIcons.profile.faq} label={copy.profileMenuFaq} onPress={() => appPush(customerRoutes.faq)} />
-              <MenuRow icon={AppIcons.profile.about} label={`${copy.profileMenuAbout} ${brand}`} onPress={() => appPush(customerRoutes.about)} />
-              <MenuRow icon={AppIcons.profile.terms} label={copy.profileMenuTerms} onPress={() => appPush(customerRoutes.terms)} />
-              <MenuRow icon={AppIcons.profile.privacy} label={copy.profileMenuPrivacy} onPress={() => appPush(customerRoutes.privacy)} />
-            </View>
+          <FadeSlideIn delay={stagger(2)}>
+            <ProfileMenuSection title={copy.profileSectionAccount}>
+              <ProfileMenuRow
+                image={AppIconImages.profile.bookings}
+                label={copy.profileMenuBookings}
+                description={copy.profileMenuBookingsSub}
+                badge={activeCount}
+                showBorder
+                onPress={() => appPush(customerRoutes.bookings)}
+              />
+              <ProfileMenuRow
+                image={AppIconImages.profile.addresses}
+                label={copy.profileMenuAddresses}
+                description={copy.profileMenuAddressesSub}
+                showBorder
+                onPress={() => appPush(customerRoutes.addresses)}
+              />
+              <ProfileMenuRow
+                image={AppIconImages.profile.payments}
+                label={copy.profileMenuPayments}
+                description={copy.profileMenuPaymentsSub}
+                showBorder
+                onPress={() => appPush(customerRoutes.paymentMethods)}
+              />
+              <ProfileMenuRow
+                image={AppIconImages.profile.notifications}
+                label={copy.profileMenuNotifications}
+                description={copy.profileMenuNotificationsSub}
+                badge={counts?.unread ?? 0}
+                showBorder
+                onPress={() => appPush(customerRoutes.notifications)}
+              />
+              <ProfileMenuRow
+                image={AppIconImages.profile.offers}
+                label={copy.profileMenuOffers}
+                description={copy.profileMenuOffersSub}
+                showBorder
+                onPress={() => appPush(customerRoutes.offers)}
+              />
+              <ProfileMenuRow
+                image={AppIconImages.profile.settings}
+                label={copy.profileMenuSettings}
+                description={copy.profileMenuSettingsSub}
+                onPress={() => appPush(customerRoutes.settings)}
+              />
+            </ProfileMenuSection>
           </FadeSlideIn>
 
-          <Pressable
-            style={({ pressed }) => [styles.logout, pressed && styles.logoutPressed]}
-            onPress={confirmSignOut}
-            accessibilityRole="button"
-          >
-            <LogOut size={17} color={colors.error} strokeWidth={2.2} />
-            <Text style={styles.logoutText}>{copy.profileSignOut}</Text>
-          </Pressable>
-          <Text style={styles.version}>
-            {brand} · v{Constants.expoConfig?.version ?? '1.0.0'}
-          </Text>
+          <FadeSlideIn delay={stagger(3)}>
+            <ProfileSupportCard phone={content.support.phone} whatsapp={content.support.whatsapp} hours={content.support.hours} />
+          </FadeSlideIn>
+
+          <FadeSlideIn delay={stagger(4)}>
+            <ProfileMenuSection title={copy.profileSectionInfo}>
+              <ProfileMenuRow
+                image={AppIconImages.profile.help}
+                label={copy.profileMenuHelp}
+                description={copy.profileMenuHelpSub}
+                showBorder
+                onPress={() => appPush(customerRoutes.help)}
+              />
+              <ProfileMenuRow
+                image={AppIconImages.profile.faq}
+                label={copy.profileMenuFaq}
+                description={copy.profileMenuFaqSub}
+                showBorder
+                onPress={() => appPush(customerRoutes.faq)}
+              />
+              <ProfileMenuRow
+                image={AppIconImages.profile.about}
+                label={`${copy.profileMenuAbout} ${brand}`}
+                description={copy.profileMenuAboutSub}
+                showBorder
+                onPress={() => appPush(customerRoutes.about)}
+              />
+              <ProfileMenuRow
+                image={AppIconImages.profile.terms}
+                label={copy.profileMenuTerms}
+                description={copy.profileMenuTermsSub}
+                showBorder
+                onPress={() => appPush(customerRoutes.terms)}
+              />
+              <ProfileMenuRow
+                image={AppIconImages.profile.privacy}
+                label={copy.profileMenuPrivacy}
+                description={copy.profileMenuPrivacySub}
+                onPress={() => appPush(customerRoutes.privacy)}
+              />
+            </ProfileMenuSection>
+          </FadeSlideIn>
+
+          <FadeSlideIn delay={stagger(5)}>
+            <ProfileTrustBanner guaranteeText={content.trust.guaranteeText} badges={content.trust.badges} />
+          </FadeSlideIn>
+
+          <View style={styles.footer}>
+            <PressableScale
+              style={styles.logout}
+              onPress={() => {
+                haptic('warning');
+                setSignOutAsk(true);
+              }}
+              accessibilityRole="button"
+            >
+              <LogOut size={17} color={colors.error} strokeWidth={2.2} />
+              <Text style={styles.logoutText}>{copy.profileSignOut}</Text>
+            </PressableScale>
+            <Text style={styles.version}>
+              {fillCopy(copy.profileVersion, { brand, version: Constants.expoConfig?.version ?? '1.0.0' })}
+            </Text>
+          </View>
         </ScrollView>
       </SafeAreaView>
+
+      <AdminActionSheet
+        visible={signOutAsk}
+        title={copy.profileSignOutTitle}
+        message={copy.profileSignOutMessage}
+        onClose={() => setSignOutAsk(false)}
+        options={[
+          {
+            key: 'signout',
+            label: copy.profileSignOut,
+            destructive: true,
+            onPress: async () => {
+              await logout();
+              appReplace(authRoutes.login);
+            },
+          },
+        ]}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.white },
+  root: { flex: 1, backgroundColor: ui.canvas },
   flex: { flex: 1 },
-  pressed: { opacity: 0.7 },
-  content: { paddingHorizontal: spacing.md, paddingTop: 8, paddingBottom: TAB_BAR_SCROLL_PAD + 24 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
-  topActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  content: { paddingBottom: TAB_BAR_SCROLL_PAD + 24 },
+  incompleteRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   incomplete: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 9,
-    height: 26,
-    borderRadius: 13,
+    paddingHorizontal: 10,
+    height: 28,
+    borderRadius: radii.pill,
     backgroundColor: colors.errorBg,
   },
-  incompleteText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.error },
+  incompleteText: { ...typeScale.micro, fontSize: 12, color: colors.error },
   completeBtn: {
-    paddingHorizontal: 14,
-    height: 34,
-    borderRadius: 17,
+    paddingHorizontal: 16,
+    minHeight: 40,
+    borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: ui.text,
     justifyContent: 'center',
+    backgroundColor: colors.white,
   },
-  completeText: { fontFamily: fonts.bodySemi, fontSize: 13.5, color: ui.text },
-  bell: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 1,
-    borderColor: ui.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bellDot: {
-    position: 'absolute',
-    top: 9,
-    right: 10,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: colors.error,
-    borderWidth: 1.5,
-    borderColor: colors.white,
-  },
-  name: { marginTop: 10, fontFamily: fonts.displaySemi, fontSize: 28, letterSpacing: -0.7, color: ui.text },
-  meta: { marginTop: 4, fontFamily: fonts.bodyMedium, fontSize: 14, color: ui.textSecondary },
-  city: { marginTop: 2, fontFamily: fonts.body, fontSize: 13, color: ui.textTertiary },
-  tiles: { flexDirection: 'row', gap: 10, marginTop: 22 },
-  tileWrap: { flex: 1 },
-  tile: {
-    minHeight: 104,
-    padding: 12,
-    gap: 10,
-    justifyContent: 'space-between',
-    borderRadius: 16,
+  completeText: { ...typeScale.captionStrong, color: ui.text },
+  block: { marginHorizontal: spacing.md, marginBottom: spacing.md },
+  blockTitle: { ...typeScale.section, marginBottom: 12, color: ui.text },
+  footer: { paddingHorizontal: spacing.md, paddingTop: spacing.xs },
+  logout: {
+    height: 52,
+    borderRadius: radii.control,
     borderWidth: 1,
     borderColor: ui.border,
     backgroundColor: colors.white,
-    ...ui.shadow,
-  },
-  tileLabel: { fontFamily: fonts.bodySemi, fontSize: 13.5, lineHeight: 18, color: ui.text },
-  tileSub: { marginTop: 2, fontFamily: fonts.body, fontSize: 12, color: ui.brand },
-  block: { marginTop: 24 },
-  blockTitle: { marginBottom: 12, fontFamily: fonts.displaySemi, fontSize: 18, letterSpacing: -0.3, color: ui.text },
-  menu: { marginTop: 18 },
-  menuGap: { height: 10, marginVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: ui.border },
-  menuRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
-  menuLabel: { flex: 1, fontFamily: fonts.bodyMedium, fontSize: 15.5, color: ui.text },
-  count: {
-    minWidth: 22,
-    height: 22,
-    paddingHorizontal: 6,
-    borderRadius: 11,
-    backgroundColor: ui.brandSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  countText: { fontFamily: fonts.bodyBold, fontSize: 12, color: ui.brand },
-  logout: {
-    marginTop: 22,
-    height: 50,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: ui.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
-  logoutPressed: { backgroundColor: colors.errorBg },
-  logoutText: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.error },
-  version: { marginTop: 14, textAlign: 'center', fontFamily: fonts.bodyMedium, fontSize: 12, color: ui.textTertiary },
+  logoutText: { ...typeScale.button, color: colors.error },
+  version: { ...typeScale.caption, fontSize: 12, marginTop: 14, textAlign: 'center', color: ui.textTertiary },
 });

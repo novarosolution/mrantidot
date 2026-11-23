@@ -806,6 +806,608 @@ export interface ICustomerUiCopy {
   webErrPhoneInvalid: string;
   webErrPasswordShort: string;
   webErrAddressMissing: string;
+  techTabJobs: string;
+  techTabProfile: string;
+  appMaintenanceTitle: string;
+  appMaintenanceText: string;
+  appMaintenanceRetry: string;
+  appUpdateTitle: string;
+  appUpdateText: string;
+  appUpdateButton: string;
+  liveBadgeLabel: string;
+  systemLoading: string;
+  systemBootPreparing: string;
+  systemOfflineTitle: string;
+  systemOfflineMessage: string;
+  systemErrorTitle: string;
+  systemErrorMessage: string;
+  systemRetry: string;
+  systemClose: string;
+  systemCancel: string;
+  systemDone: string;
+  toastLabelSuccess: string;
+  toastLabelError: string;
+  toastLabelInfo: string;
+  toastLabelWarning: string;
+  toastLabelOffline: string;
+  toastDismiss: string;
+  homeSearchHintPrefix: string;
+  homeSearchForHint: string;
+  homeSearchClear: string;
+  techCancel: string;
+  techRetry: string;
+  techClose: string;
+  techRefreshError: string;
+  techCheckConnection: string;
+  techLiveBadge: string;
+  techPhotosOne: string;
+  techPhotosMany: string;
+  techDaysOne: string;
+  techDaysMany: string;
+  techJobsOne: string;
+  techJobsMany: string;
+  techOpenSettings: string;
+  techDutyOn: string;
+  techDutyCheckedOut: string;
+  techDutyLeave: string;
+  techDutyAbsent: string;
+  techDutyPending: string;
+  techOnDutyTitle: string;
+  techOnDutySince: string;
+  techCheckOutButton: string;
+  techMarkAbsentButton: string;
+  techCheckedOutHint: string;
+  techLeaveTodayTitle: string;
+  techLeaveTodayHint: string;
+  techToastCheckedOut: string;
+  techToastAbsent: string;
+  techCheckInError: string;
+  techCheckOutError: string;
+  techAttendanceUpdateError: string;
+  techAbsentConfirmTitle: string;
+  techAbsentConfirmText: string;
+  techCheckOutConfirmTitle: string;
+  techCheckOutConfirmText: string;
+  techJobsEyebrow: string;
+  techJobsGreeting: string;
+  techNameFallback: string;
+  techJobsLoadError: string;
+  techJobsRefreshError: string;
+  techAttendanceLoadError: string;
+  techStatsLoadError: string;
+  techEarnedThisMonth: string;
+  techEarningsA11y: string;
+  techStatActive: string;
+  techStatJobsDone: string;
+  techStatRating: string;
+  techSectionOverdue: string;
+  techSectionToday: string;
+  techSectionUpcoming: string;
+  techSectionAssigned: string;
+  techSectionPast: string;
+  techOverdueHint: string;
+  techAllCaughtUpTitle: string;
+  techAllCaughtUpText: string;
+  techContinueActiveJob: string;
+  techBannerActionNeeded: string;
+  techBannerVerifyTitle: string;
+  techBannerOverdue: string;
+  techJobTitle: string;
+  techJobNotFound: string;
+  techJobLoadError: string;
+  techJobSubtitle: string;
+  techStatusPending: string;
+  techStatusConfirmed: string;
+  techStatusInProgress: string;
+  techStatusAwaiting: string;
+  techStatusCompleted: string;
+  techStatusCancelled: string;
+  techGuidePending: string;
+  techGuideConfirmed: string;
+  techGuideInProgress: string;
+  techGuideAwaiting: string;
+  techGuideCompleted: string;
+  techGuideCancelled: string;
+  techReadyTitle: string;
+  techReadyText: string;
+  techEstimateNote: string;
+  techProgressJob: string;
+  techProgressStepsComplete: string;
+  techProgressTreatment: string;
+  techProgressSteps: string;
+  techStepDoneTag: string;
+  techStepAddPhotos: string;
+  techStepAddToComplete: string;
+  techStepCompleteWith: string;
+  techStepNeedPhoto: string;
+  techStepSaveError: string;
+  techToastStepDone: string;
+  techToastPhotosSaved: string;
+  techStepPhotoA11y: string;
+  techVisitStatus: string;
+  techVisitStarted: string;
+  techVisitNotStarted: string;
+  techVisitCompleted: string;
+  techVisitInProgress: string;
+  techVisitDuration: string;
+  techVisitStateScheduled: string;
+  techVisitStateInProgress: string;
+  techVisitStateCompleted: string;
+  techVisitStateNoShow: string;
+  techVisitStateCancelled: string;
+  techCollectPayment: string;
+  techOpenDirections: string;
+  techToastStartVerified: string;
+  techToastWorkStarted: string;
+  techToastAskCompletionCode: string;
+  techToastJobCompleted: string;
+  techOtpErrorTitle: string;
+  techOtpErrorText: string;
+  techOtpStartHint: string;
+  techOtpEndHint: string;
+  techOtpVerify: string;
+  techOtpVerifying: string;
+  techOtpInputA11y: string;
+  techGpsLocatingTitle: string;
+  techGpsLocatingText: string;
+  techGpsUseLastKnown: string;
+  techGpsFailTitle: string;
+  techGpsFailText: string;
+  techGpsDeniedTitle: string;
+  techGpsDeniedText: string;
+  techGpsOffTitle: string;
+  techGpsOffText: string;
+  techGpsFallbackAddress: string;
+  techPhotoCounter: string;
+  techLeaveTitle: string;
+  techLeaveSubtitle: string;
+  techLeaveFormTitle: string;
+  techLeaveFormHint: string;
+  techLeaveWhen: string;
+  techLeaveFrom: string;
+  techLeaveTo: string;
+  techLeaveToday: string;
+  techLeaveTomorrow: string;
+  techLeaveWeek: string;
+  techLeaveType: string;
+  techLeaveReason: string;
+  techLeaveReasonPlaceholder: string;
+  techLeaveSubmit: string;
+  techLeaveRequestedToast: string;
+  techLeaveRequestError: string;
+  techLeaveEndBeforeStart: string;
+  techLeaveLoadError: string;
+  techLeaveListTitle: string;
+  techLeaveListCount: string;
+  techLeaveListPending: string;
+  techLeaveEmptyTitle: string;
+  techLeaveEmptyText: string;
+  techLeaveAdminNote: string;
+  techLeavePending: string;
+  techLeaveApproved: string;
+  techLeaveRejected: string;
+  techLeaveCancelled: string;
+  techLeaveCancelTitle: string;
+  techLeaveCancelText: string;
+  techLeaveKeep: string;
+  techLeaveCancelAction: string;
+  techLeaveCancelledToast: string;
+  techLeaveCancelError: string;
+  techLeavePickTitle: string;
+  techLeavePickHint: string;
+  techLeavePickEnd: string;
+  techLeavePickApply: string;
+  techLeaveDatesA11y: string;
+  techCalendarPrevMonth: string;
+  techCalendarNextMonth: string;
+  techCalPresent: string;
+  techCalLeave: string;
+  techCalPending: string;
+  techCalJobs: string;
+  techCalNoJobs: string;
+  techCalToday: string;
+  techProfileEyebrow: string;
+  techProfileSubtitle: string;
+  techVerifiedBadge: string;
+  techStatThisMonth: string;
+  techProfileLoadError: string;
+  techQuickActionsTitle: string;
+  techActionJobs: string;
+  techActionJobsCount: string;
+  techActionJobsEmpty: string;
+  techActionActive: string;
+  techActionActiveContinue: string;
+  techActionActiveNone: string;
+  techActionVerify: string;
+  techActionVerifyCount: string;
+  techActionVerifyNone: string;
+  techActionLeaveSub: string;
+  techPayRuleTitle: string;
+  techPayRuleHint: string;
+  techPerformanceHint: string;
+  techStatAssigned: string;
+  techStatCompleted: string;
+  techAttendanceTitle: string;
+  techAttendanceHint: string;
+  techAttRate: string;
+  techAttPresent: string;
+  techAttLeave: string;
+  techAttStarted: string;
+  techAttCompleted: string;
+  techAttOnTime: string;
+  techAttAvgVisit: string;
+  techAttSummary: string;
+  techScheduleHint: string;
+  techSignOut: string;
+  techSignOutTitle: string;
+  techSignOutText: string;
+  onboardSlide1Title: string;
+  onboardSlide1Sub: string;
+  onboardSlide2Title: string;
+  onboardSlide2Sub: string;
+  onboardSlide3Title: string;
+  onboardSlide3Sub: string;
+  onboardPageLabel: string;
+  launchTaglineFallback: string;
+  launchFindingTitle: string;
+  launchFindingBody: string;
+  launchFoundTitle: string;
+  launchFoundBody: string;
+  launchDeniedTitle: string;
+  launchDeniedBody: string;
+  launchContinue: string;
+  cartAreaNotServed: string;
+  cartSlotUnavailable: string;
+  cartSlotTooSoon: string;
+  cartDateTooFar: string;
+  cartPropertyUnavailable: string;
+  cartPaymentUnavailable: string;
+  bookingDetailRescheduleCutoff: string;
+  bookingDetailRescheduleLimit: string;
+  appMaintenanceStaff: string;
+  webBookAreaHint: string;
+  customerTabHome: string;
+  customerTabBookings: string;
+  customerTabOffers: string;
+  customerTabProfile: string;
+  statusLabelPending: string;
+  statusLabelConfirmed: string;
+  statusLabelInProgress: string;
+  statusLabelAwaiting: string;
+  statusLabelCompleted: string;
+  statusLabelCancelled: string;
+  statusGuidePending: string;
+  statusGuideConfirmed: string;
+  statusGuideInProgress: string;
+  statusGuideAwaiting: string;
+  statusGuideCompleted: string;
+  statusGuideCancelled: string;
+  bookingServiceFallback: string;
+  bookingScheduleTbd: string;
+  trackAssigned: string;
+  trackStartCode: string;
+  trackWorkStarted: string;
+  trackStepDone: string;
+  trackEndCode: string;
+  trackCompleted: string;
+  trackCancelled: string;
+  trackAdminOverride: string;
+  trackScheduleConfirmed: string;
+  trackRescheduled: string;
+  bookingDetailCancelCutoff: string;
+  photoViewerLabel: string;
+  photoViewerCount: string;
+  photoOpenHint: string;
+  photoUnavailable: string;
+  bookingProblemPhotos: string;
+  bookingFactPackage: string;
+  bookingCallLabel: string;
+  stepPhotosOne: string;
+  stepPhotosMany: string;
+  stepWorkingNow: string;
+  problemPhotosTitle: string;
+  problemPhotosSub: string;
+  webSlotNight: string;
+  listMoreOptions: string;
+  servicePerSqFt: string;
+  serviceRowA11y: string;
+  serviceRowBookA11y: string;
+  timeJustNow: string;
+  timeMinutesAgo: string;
+  timeHoursAgo: string;
+  timeYesterday: string;
+  notificationsUnreadA11y: string;
+  appMaintenanceBadge: string;
+  appUpdateBadge: string;
+  slotPassedNote: string;
+  slotUnavailableA11y: string;
+  slotNoneOpen: string;
+  dayToday: string;
+  dayTomorrowShort: string;
+  dayTomorrow: string;
+  rescheduleTitle: string;
+  rescheduleHint: string;
+  rescheduleButton: string;
+  photoSheetTitle: string;
+  photoSheetSub: string;
+  photoTake: string;
+  photoTakeSub: string;
+  photoGallery: string;
+  photoGallerySub: string;
+  serviceInvalidLink: string;
+  serviceGone: string;
+  serviceOptionsFallbackTitle: string;
+  servicePickSizeFirst: string;
+  serviceShareA11y: string;
+  serviceReviewCountOne: string;
+  serviceReviewCountMany: string;
+  serviceSeeAllReviews: string;
+  serviceAllReviewsTitle: string;
+  serviceStarsA11y: string;
+  navBack: string;
+  propertyGroupHome: string;
+  propertyGroupBusiness: string;
+  payUpiCardSub: string;
+  payAfterSub: string;
+  payOtherSub: string;
+  payManageSaved: string;
+  billItemTotal: string;
+  billGst: string;
+  billCoupon: string;
+  billAmountToPay: string;
+  billSaving: string;
+  offerApply: string;
+  offerRemove: string;
+  offerAppliedA11y: string;
+  offerTapToApplyA11y: string;
+  offerPercentOff: string;
+  offerFlatOff: string;
+  couponPlaceholder: string;
+  couponClear: string;
+  couponInvalid: string;
+  couponApplied: string;
+  payTotalPayable: string;
+  paySavePill: string;
+  payServiceRow: string;
+  payDiscountRow: string;
+  paySecureNote: string;
+  payReadyKicker: string;
+  payEstimated: string;
+  addrHouseLabel: string;
+  addrHousePlaceholder: string;
+  addrStreetLabel: string;
+  addrStreetPlaceholder: string;
+  addrLandmarkLabel: string;
+  addrLandmarkPlaceholder: string;
+  addrCityLabel: string;
+  addrCityPlaceholder: string;
+  addrPincodeLabel: string;
+  addrPincodePlaceholder: string;
+  addrSaveAsLabel: string;
+  addrSaveHome: string;
+  addrSaveOffice: string;
+  addrSaveOther: string;
+  addrSaveAsA11y: string;
+  addrHousePrefix: string;
+  addrLandmarkPrefix: string;
+  addrFieldMissing: string;
+  cartLocationFilled: string;
+  cartLocationFilledSub: string;
+  cartAddressIncomplete: string;
+  cartAddressNotSaved: string;
+  cartAddressNotSavedSub: string;
+  cartBookFailed: string;
+  cartLoadFailed: string;
+  cartTimePast: string;
+  cartTimeOutside: string;
+  invoiceTaxTitle: string;
+  invoicePreparing: string;
+  invoiceItemised: string;
+  invoiceDownload: string;
+  invoiceGenerate: string;
+  invoiceOpening: string;
+  invoiceDownloadA11y: string;
+  invoiceGenerateA11y: string;
+  invoiceCopyA11y: string;
+  invoiceShareA11y: string;
+  invoiceReadyToast: string;
+  invoiceDownloadFailed: string;
+  invoiceCopied: string;
+  invoiceCopyFailed: string;
+  invoiceTotalPaid: string;
+  invoiceAmountDue: string;
+  invoiceGstin: string;
+  invoiceBadge: string;
+  invoiceReceiptTitle: string;
+  invoiceReceiptSub: string;
+  invoiceTapToGenerate: string;
+  invoiceServiceKicker: string;
+  invoiceFactVisit: string;
+  invoiceFactProperty: string;
+  invoiceFactPayment: string;
+  invoiceFactTechnician: string;
+  invoiceCharges: string;
+  invoiceChargeService: string;
+  invoiceChargeCoupon: string;
+  invoiceTreatment: string;
+  invoicePremiumTitle: string;
+  invoicePremiumBody: string;
+  invoiceCopy: string;
+  invoiceCopying: string;
+  invoiceShare: string;
+  bookingStepsProgress: string;
+  trackingEmpty: string;
+  bookingNotFound: string;
+  bookingLoadFailed: string;
+  cancelSheetKeep: string;
+  otpCodeCopied: string;
+  otpCodeExpired: string;
+  otpExpiresIn: string;
+  otpCopyCode: string;
+  otpRefreshing: string;
+  otpGetNew: string;
+  otpCodeA11y: string;
+  homeSeeAll: string;
+  homeAdd: string;
+  homeStartsAt: string;
+  homeSearching: string;
+  homeResultsOne: string;
+  homeResultsMany: string;
+  homeSeeAllResults: string;
+  homeOffersTile: string;
+  homeNewlyAdded: string;
+  homeMostBookedTitle: string;
+  homeSlideOffer: string;
+  homeSlideService: string;
+  homeLoadFailed: string;
+  homeRefreshFailed: string;
+  servicesSearchPlaceholder: string;
+  servicesAllTypesA11y: string;
+  servicesCountOne: string;
+  servicesCountMany: string;
+  servicesPopularBadge: string;
+  servicesLoadFailed: string;
+  servicesRefreshFailed: string;
+  browseFallbackTitle: string;
+  browseUnknownType: string;
+  profileSignOutTitle: string;
+  profileSignOutMessage: string;
+  profileIncomplete: string;
+  profileComplete: string;
+  profileEditA11y: string;
+  profileNotificationsA11y: string;
+  profileAddDetails: string;
+  profileSectionAccount: string;
+  profileSectionInfo: string;
+  profileSupportTitle: string;
+  profileSupportSub: string;
+  profileSupportCall: string;
+  profileSupportWhatsapp: string;
+  profileSupportFaq: string;
+  profileVersion: string;
+  profileStatAddresses: string;
+  profileStatActiveLabel: string;
+  profileStatPayments: string;
+  profilePromiseEyebrow: string;
+  homeTrustHeadline: string;
+  homeTrustBadges: string;
+  settingsLocationUpdated: string;
+  settingsNameRequired: string;
+  settingsEmailInvalid: string;
+  settingsPhoneInvalid: string;
+  settingsSaved: string;
+  settingsSave: string;
+  settingsFieldName: string;
+  settingsFieldEmail: string;
+  settingsFieldPhone: string;
+  settingsFieldCity: string;
+  aboutTitle: string;
+  aboutSubtitle: string;
+  aboutEmptyTitle: string;
+  aboutEmptyMessage: string;
+  termsTitle: string;
+  termsSubtitle: string;
+  termsEmptyTitle: string;
+  privacyTitle: string;
+  privacySubtitle: string;
+  privacyEmptyTitle: string;
+  legalEmptyMessage: string;
+  guideTitle: string;
+  guideSubtitle: string;
+  helpGuideSub: string;
+  helpNoChannels: string;
+  faqEmptyTitle: string;
+  faqEmptyMessage: string;
+  faqStillNeedHelp: string;
+  faqStillNeedHelpSub: string;
+  faqSearchPlaceholder: string;
+  faqNoMatches: string;
+  helpContactA11y: string;
+  notifGroupToday: string;
+  notifGroupYesterday: string;
+  notifGroupWeek: string;
+  notifGroupEarlier: string;
+  notifLoadFailed: string;
+  notifMarkFailed: string;
+  addressesEdit: string;
+  addressesEditSub: string;
+  addressesEditSheetTitle: string;
+  addressesUpdatedToast: string;
+  addressesLoadFailed: string;
+  paymentsLabelRequired: string;
+  paymentsAddedToast: string;
+  paymentsRemovedToast: string;
+  paymentsDefaultToast: string;
+  paymentsSetDefault: string;
+  paymentsSetDefaultSub: string;
+  paymentsRemove: string;
+  paymentsRemoveTitle: string;
+  paymentsKeep: string;
+  paymentsSavedTitle: string;
+  paymentsDefaultBadge: string;
+  paymentsSheetHint: string;
+  paymentsSave: string;
+  paymentsLabelField: string;
+  paymentsLabelPlaceholder: string;
+  paymentsLoadFailed: string;
+  reviewStar1: string;
+  reviewStar2: string;
+  reviewStar3: string;
+  reviewStar4: string;
+  reviewStar5: string;
+  reviewStarA11y: string;
+  reviewSelectRating: string;
+  reviewNotePlaceholder: string;
+  reviewSubmit: string;
+  reviewSubmitFailed: string;
+  reviewThanksTitle: string;
+  reviewThanksBody: string;
+  reviewThanksDone: string;
+  offersLoadFailed: string;
+  offersRefreshFailed: string;
+  offersNoServicesOk: string;
+  offerCouponCopied: string;
+  offerCodeCopiedSub: string;
+  offerCopy: string;
+  offerCopyCode: string;
+  offerCopied: string;
+  offerCopyA11y: string;
+  offerTicketA11y: string;
+  offerRailTicketA11y: string;
+  offerValidTill: string;
+  offerMinOrder: string;
+  offerApplyBook: string;
+  offerSave: string;
+  offerOff: string;
+  offersRailTitle: string;
+  offersEmptyTitle: string;
+  offersEmptyMessage: string;
+  offersDealsTitle: string;
+  offersDealsSub: string;
+  bookingsLoadFailed: string;
+  timeSelected: string;
+  timeHour: string;
+  timeMinutes: string;
+  timePassedNote: string;
+  timeAnyNote: string;
+  modeStandardDesc: string;
+  modeCustomDesc: string;
+  photoRemoveA11y: string;
+  photoAddAnotherA11y: string;
+  photosOptionalCount: string;
+  locateFinding: string;
+  locateUse: string;
+  locateFindingSub: string;
+  locateUseSub: string;
+  homeCurationScript: string;
+  homeSpecialistTitle: string;
+  homeOpenProfileA11y: string;
+  homeLocationA11y: string;
+  homeLocationUpdatingA11y: string;
+  homeLocationRefreshA11y: string;
+  homeClosingA11y: string;
+  trustNoteTitle: string;
+  homeTopLocationA11y: string;
 }
 
 export interface IAppConfig {
@@ -1724,6 +2326,608 @@ export const DEFAULT_CUSTOMER_UI_COPY: ICustomerUiCopy = {
   webErrPhoneInvalid: 'Enter a valid 10-digit mobile number.',
   webErrPasswordShort: 'Password must be at least 8 characters.',
   webErrAddressMissing: 'House / flat and city are required.',
+  techTabJobs: 'Jobs',
+  techTabProfile: 'Profile',
+  appMaintenanceTitle: 'We\'ll be right back',
+  appMaintenanceText: 'Mr Antidot is getting an upgrade. Please try again in a little while.',
+  appMaintenanceRetry: 'Try again',
+  appUpdateTitle: 'Update available',
+  appUpdateText: 'A newer version of Mr Antidot is required to continue.',
+  appUpdateButton: 'Update now',
+  liveBadgeLabel: 'Live',
+  systemLoading: 'Loading…',
+  systemBootPreparing: 'Preparing {brand}…',
+  systemOfflineTitle: 'You’re offline',
+  systemOfflineMessage: 'Check your internet connection and try again.',
+  systemErrorTitle: 'Something went wrong',
+  systemErrorMessage: 'We couldn’t load this right now. Please try again.',
+  systemRetry: 'Try again',
+  systemClose: 'Close',
+  systemCancel: 'Cancel',
+  systemDone: 'Done',
+  toastLabelSuccess: 'Success',
+  toastLabelError: 'Error',
+  toastLabelInfo: 'Info',
+  toastLabelWarning: 'Notice',
+  toastLabelOffline: 'Offline',
+  toastDismiss: 'Dismiss notification',
+  homeSearchHintPrefix: 'Search for',
+  homeSearchForHint: 'Search for {query}',
+  homeSearchClear: 'Clear search',
+  techCancel: 'Cancel',
+  techRetry: 'Try again',
+  techClose: 'Close',
+  techRefreshError: 'Could not refresh',
+  techCheckConnection: 'Check your connection and try again',
+  techLiveBadge: 'Live',
+  techPhotosOne: '1 photo',
+  techPhotosMany: '{count} photos',
+  techDaysOne: '1 day',
+  techDaysMany: '{count} days',
+  techJobsOne: '1 job',
+  techJobsMany: '{count} jobs',
+  techOpenSettings: 'Open settings',
+  techDutyOn: 'On duty',
+  techDutyCheckedOut: 'Checked out',
+  techDutyLeave: 'On leave',
+  techDutyAbsent: 'Absent',
+  techDutyPending: 'Not checked in',
+  techOnDutyTitle: 'You\'re on duty',
+  techOnDutySince: 'On duty since {time}',
+  techCheckOutButton: 'Check out',
+  techMarkAbsentButton: 'Mark absent',
+  techCheckedOutHint: 'You were present today. Go back on duty if you\'re taking more jobs.',
+  techLeaveTodayTitle: 'On leave today',
+  techLeaveTodayHint: 'Approved leave for today. Contact admin if you need to return early.',
+  techToastCheckedOut: 'Checked out — off duty',
+  techToastAbsent: 'Marked absent for today',
+  techCheckInError: 'Could not check in',
+  techCheckOutError: 'Could not check out',
+  techAttendanceUpdateError: 'Could not update attendance',
+  techAbsentConfirmTitle: 'Mark today absent?',
+  techAbsentConfirmText: 'Use this for sick leave or a full day off. To end duty after working, use Check out.',
+  techCheckOutConfirmTitle: 'Check out for today?',
+  techCheckOutConfirmText: 'You\'ll go off duty. Today still counts as present.',
+  techJobsEyebrow: 'FIELD WORK',
+  techJobsGreeting: 'Hi {name} · {date}',
+  techNameFallback: 'Technician',
+  techJobsLoadError: 'Could not load jobs',
+  techJobsRefreshError: 'Couldn\'t refresh your jobs — showing the last saved list.',
+  techAttendanceLoadError: 'Couldn\'t load today\'s attendance.',
+  techStatsLoadError: 'Couldn\'t load your earnings.',
+  techEarnedThisMonth: 'Earned this month',
+  techEarningsA11y: 'Open profile and earnings',
+  techStatActive: 'Active',
+  techStatJobsDone: 'Jobs done',
+  techStatRating: 'Rating',
+  techSectionOverdue: 'Overdue',
+  techSectionToday: 'Today',
+  techSectionUpcoming: 'Upcoming',
+  techSectionAssigned: 'Assigned',
+  techSectionPast: 'Past',
+  techOverdueHint: 'Past visit date — action needed',
+  techAllCaughtUpTitle: 'You\'re all caught up',
+  techAllCaughtUpText: 'New jobs appear here as soon as admin assigns them.',
+  techContinueActiveJob: 'Continue active job',
+  techBannerActionNeeded: 'Action needed',
+  techBannerVerifyTitle: 'Enter customer completion code',
+  techBannerOverdue: 'Overdue · {count}',
+  techJobTitle: 'Job',
+  techJobNotFound: 'Job not found',
+  techJobLoadError: 'Could not load this job',
+  techJobSubtitle: 'Field job · {schedule}',
+  techStatusPending: 'Pending',
+  techStatusConfirmed: 'Confirmed',
+  techStatusInProgress: 'In progress',
+  techStatusAwaiting: 'Awaiting completion code',
+  techStatusCompleted: 'Completed',
+  techStatusCancelled: 'Cancelled',
+  techGuidePending: 'Waiting for operations to confirm the visit schedule.',
+  techGuideConfirmed: 'Ask the customer for their 6-digit start code, then tap below to begin.',
+  techGuideInProgress: 'Capture a geotagged photo for each step, or finish when no steps are required.',
+  techGuideAwaiting: 'Ask the customer for their completion code to finish this job.',
+  techGuideCompleted: 'This job is finished. Great work!',
+  techGuideCancelled: 'This job was cancelled. No further action needed.',
+  techReadyTitle: 'Ready to start',
+  techReadyText: 'Ask the customer for their start code, then enter it below to begin the visit.',
+  techEstimateNote: 'estimate until complete',
+  techProgressJob: 'Job progress',
+  techProgressStepsComplete: 'Steps complete',
+  techProgressTreatment: 'Treatment progress',
+  techProgressSteps: '{done} of {total} steps',
+  techStepDoneTag: 'Done · {photos}',
+  techStepAddPhotos: 'Add up to {max} photos',
+  techStepAddToComplete: 'Add photos to complete',
+  techStepCompleteWith: 'Complete with {photos}',
+  techStepNeedPhoto: 'Add at least one photo',
+  techStepSaveError: 'Could not save step',
+  techToastStepDone: '{step} completed',
+  techToastPhotosSaved: '{photos} saved',
+  techStepPhotoA11y: 'Open photo {index} of {total}',
+  techVisitStatus: 'Visit status',
+  techVisitStarted: 'Started',
+  techVisitNotStarted: 'Not started',
+  techVisitCompleted: 'Completed',
+  techVisitInProgress: 'In progress',
+  techVisitDuration: 'Duration',
+  techVisitStateScheduled: 'Scheduled',
+  techVisitStateInProgress: 'In progress',
+  techVisitStateCompleted: 'Completed',
+  techVisitStateNoShow: 'No show',
+  techVisitStateCancelled: 'Cancelled',
+  techCollectPayment: 'Collect payment',
+  techOpenDirections: 'Open directions',
+  techToastStartVerified: 'Start verified',
+  techToastWorkStarted: 'Work started',
+  techToastAskCompletionCode: 'Ask the customer for their completion code',
+  techToastJobCompleted: 'Job completed',
+  techOtpErrorTitle: 'Could not verify code',
+  techOtpErrorText: 'Check the code with the customer and try again',
+  techOtpStartHint: 'Ask the customer for the 6-digit start code in their app.',
+  techOtpEndHint: 'Ask the customer for the 6-digit completion code in their app.',
+  techOtpVerify: 'Verify code',
+  techOtpVerifying: 'Verifying…',
+  techOtpInputA11y: '6-digit code',
+  techGpsLocatingTitle: 'Getting your location…',
+  techGpsLocatingText: 'Step photos are tagged with where they were taken. This can take a few seconds indoors.',
+  techGpsUseLastKnown: 'Use last known location',
+  techGpsFailTitle: 'Couldn\'t find your location',
+  techGpsFailText: 'Move near a window or step outside, then try again.',
+  techGpsDeniedTitle: 'Allow location access',
+  techGpsDeniedText: 'Step photos need your location. Allow location access for this app in Settings.',
+  techGpsOffTitle: 'Turn on location',
+  techGpsOffText: 'Location services are off on this phone. Turn them on to save this step.',
+  techGpsFallbackAddress: 'On-site location',
+  techPhotoCounter: '{index} of {total}',
+  techLeaveTitle: 'Leave',
+  techLeaveSubtitle: 'Request time off for approval',
+  techLeaveFormTitle: 'Request leave',
+  techLeaveFormHint: 'Admin must approve. Approved days mark attendance as leave automatically.',
+  techLeaveWhen: 'When',
+  techLeaveFrom: 'From',
+  techLeaveTo: 'To',
+  techLeaveToday: 'Today',
+  techLeaveTomorrow: 'Tomorrow',
+  techLeaveWeek: '1 week',
+  techLeaveType: 'Type',
+  techLeaveReason: 'Reason (optional)',
+  techLeaveReasonPlaceholder: 'Short note for admin',
+  techLeaveSubmit: 'Submit request',
+  techLeaveRequestedToast: 'Leave requested',
+  techLeaveRequestError: 'Could not request leave',
+  techLeaveEndBeforeStart: 'End date must be on or after the start date',
+  techLeaveLoadError: 'Could not load your leave requests',
+  techLeaveListTitle: 'Your requests',
+  techLeaveListCount: '{total} total',
+  techLeaveListPending: '{count} pending',
+  techLeaveEmptyTitle: 'No leave requests yet',
+  techLeaveEmptyText: 'Submit above when you need time off.',
+  techLeaveAdminNote: 'Admin: {note}',
+  techLeavePending: 'Pending',
+  techLeaveApproved: 'Approved',
+  techLeaveRejected: 'Rejected',
+  techLeaveCancelled: 'Cancelled',
+  techLeaveCancelTitle: 'Cancel this leave request?',
+  techLeaveCancelText: 'Admin will no longer see this pending request.',
+  techLeaveKeep: 'Keep request',
+  techLeaveCancelAction: 'Cancel request',
+  techLeaveCancelledToast: 'Leave request cancelled',
+  techLeaveCancelError: 'Could not cancel the request',
+  techLeavePickTitle: 'Choose leave dates',
+  techLeavePickHint: 'Tap the first day, then the last day. Tap a day twice for a single day.',
+  techLeavePickEnd: 'Now tap the last day',
+  techLeavePickApply: 'Use these dates',
+  techLeaveDatesA11y: 'Leave from {from} to {to}. Double-tap to change.',
+  techCalendarPrevMonth: 'Previous month',
+  techCalendarNextMonth: 'Next month',
+  techCalPresent: 'Present',
+  techCalLeave: 'Leave',
+  techCalPending: 'Pending',
+  techCalJobs: 'Jobs',
+  techCalNoJobs: 'No jobs on this day',
+  techCalToday: 'Today',
+  techProfileEyebrow: 'FIELD CREW',
+  techProfileSubtitle: 'Verified technician · performance & schedule',
+  techVerifiedBadge: 'Verified technician',
+  techStatThisMonth: 'This month',
+  techProfileLoadError: 'Could not load your profile',
+  techQuickActionsTitle: 'Quick actions',
+  techActionJobs: 'Open jobs',
+  techActionJobsCount: '{count} assigned',
+  techActionJobsEmpty: 'View schedule',
+  techActionActive: 'Active job',
+  techActionActiveContinue: 'Continue work',
+  techActionActiveNone: 'None right now',
+  techActionVerify: 'Verify',
+  techActionVerifyCount: '{count} need code',
+  techActionVerifyNone: 'All clear',
+  techActionLeaveSub: 'Request time off',
+  techPayRuleTitle: 'Pay rule',
+  techPayRuleHint: 'Set by admin · applied when a job is completed',
+  techPerformanceHint: 'Tap a metric to open related work',
+  techStatAssigned: 'Assigned',
+  techStatCompleted: 'Completed',
+  techAttendanceTitle: 'Attendance & visits',
+  techAttendanceHint: 'Presence and visit performance this month',
+  techAttRate: 'Attendance',
+  techAttPresent: 'Days present',
+  techAttLeave: 'Leave days',
+  techAttStarted: 'Jobs started',
+  techAttCompleted: 'Jobs completed',
+  techAttOnTime: 'On time',
+  techAttAvgVisit: 'Avg visit',
+  techAttSummary: '{done} of {scheduled} jobs completed',
+  techScheduleHint: 'Your attendance and visits by day',
+  techSignOut: 'Sign out',
+  techSignOutTitle: 'Sign out?',
+  techSignOutText: 'You\'ll return to the login screen.',
+  onboardSlide1Title: 'Pest control made simple',
+  onboardSlide1Sub: 'Book trusted professionals for your home or business in seconds.',
+  onboardSlide2Title: 'Track every step',
+  onboardSlide2Sub: 'Follow your technician live from visit start to photo proof.',
+  onboardSlide3Title: 'Guaranteed results',
+  onboardSlide3Sub: 'Eco-safe treatments backed by our satisfaction promise.',
+  onboardPageLabel: 'Page {current} of {total}',
+  launchTaglineFallback: 'Trusted pest control & home services',
+  launchFindingTitle: 'Finding your area…',
+  launchFindingBody: 'Matching trusted experts near you',
+  launchFoundTitle: 'Serving {city}',
+  launchFoundBody: 'Verified technicians are ready nearby',
+  launchDeniedTitle: 'Location is off',
+  launchDeniedBody: 'You can set your city anytime from home',
+  launchContinue: 'Continue',
+  cartAreaNotServed: 'Sorry, we don’t serve this area yet. Try another address or call us.',
+  cartSlotUnavailable: 'That time isn’t open for booking. Please pick another slot.',
+  cartSlotTooSoon: 'Please pick a time at least {lead} from now.',
+  cartDateTooFar: 'Bookings open up to {days} days ahead. Please pick an earlier date.',
+  cartPropertyUnavailable: 'Please pick a property type from the list.',
+  cartPaymentUnavailable: 'That payment option isn’t available right now. Please choose another.',
+  bookingDetailRescheduleCutoff: 'Visits can’t be moved less than {window} before they start. Please call us to change it.',
+  bookingDetailRescheduleLimit: 'You’ve used all reschedules for this visit ({count}). Please call us to change it.',
+  appMaintenanceStaff: 'Team sign-in',
+  webBookAreaHint: 'We currently serve {areas}.',
+  customerTabHome: 'Home',
+  customerTabBookings: 'Bookings',
+  customerTabOffers: 'Offers',
+  customerTabProfile: 'Profile',
+  statusLabelPending: 'Pending',
+  statusLabelConfirmed: 'Confirmed',
+  statusLabelInProgress: 'In progress',
+  statusLabelAwaiting: 'Awaiting code',
+  statusLabelCompleted: 'Completed',
+  statusLabelCancelled: 'Cancelled',
+  statusGuidePending: 'We’re confirming your visit time. You’ll be notified once it’s scheduled.',
+  statusGuideConfirmed: 'Share your start code when our service expert arrives.',
+  statusGuideInProgress: 'Treatment is in progress at your location.',
+  statusGuideAwaiting: 'Share your completion code to finish the booking.',
+  statusGuideCompleted: 'This booking is complete. Thank you for choosing {brand}.',
+  statusGuideCancelled: 'This booking was cancelled. You can book again anytime.',
+  bookingServiceFallback: 'Service',
+  bookingScheduleTbd: 'Schedule TBD',
+  trackAssigned: 'Service expert assigned',
+  trackStartCode: 'Start code issued',
+  trackWorkStarted: 'Work started',
+  trackStepDone: 'Treatment step captured',
+  trackEndCode: 'Completion code issued',
+  trackCompleted: 'Job completed',
+  trackCancelled: 'Booking cancelled',
+  trackAdminOverride: 'Marked complete by our team',
+  trackScheduleConfirmed: 'Visit time confirmed',
+  trackRescheduled: 'Visit rescheduled',
+  bookingDetailCancelCutoff: 'Visits can’t be cancelled less than {window} before they start. Please call us to cancel.',
+  photoViewerLabel: 'Photo {current} of {total}',
+  photoViewerCount: '{current} / {total}',
+  photoOpenHint: 'Opens the photo full screen',
+  photoUnavailable: 'Photo unavailable',
+  bookingProblemPhotos: 'Problem photos ({count})',
+  bookingFactPackage: 'Package',
+  bookingCallLabel: 'Call {name}',
+  stepPhotosOne: '1 photo captured',
+  stepPhotosMany: '{count} photos captured',
+  stepWorkingNow: 'Technician is working on this now',
+  problemPhotosTitle: 'Problem photos',
+  problemPhotosSub: '{count} attached',
+  webSlotNight: 'Night',
+  listMoreOptions: 'More options for {name}',
+  servicePerSqFt: '{price} / sq ft',
+  serviceRowA11y: '{service}, starts at {price}',
+  serviceRowBookA11y: 'Book {service}',
+  timeJustNow: 'Just now',
+  timeMinutesAgo: '{count}m ago',
+  timeHoursAgo: '{count}h ago',
+  timeYesterday: 'Yesterday',
+  notificationsUnreadA11y: 'Unread',
+  appMaintenanceBadge: 'Scheduled maintenance',
+  appUpdateBadge: 'You have version {version}',
+  slotPassedNote: 'Earlier slots today have passed — showing what’s still open.',
+  slotUnavailableA11y: 'unavailable',
+  slotNoneOpen: 'No open slots on this day. Pick another day.',
+  dayToday: 'Today',
+  dayTomorrowShort: 'Tmrw',
+  dayTomorrow: 'Tomorrow',
+  rescheduleTitle: 'Reschedule visit',
+  rescheduleHint: 'Pick a new day and time. Our team will confirm it shortly.',
+  rescheduleButton: 'Request new time',
+  photoSheetTitle: 'Add photo',
+  photoSheetSub: 'Take a new photo or choose from your gallery',
+  photoTake: 'Take photo',
+  photoTakeSub: 'Open camera and capture now',
+  photoGallery: 'Choose from gallery',
+  photoGallerySub: 'Pick one or more saved photos',
+  serviceInvalidLink: 'This service link is invalid.',
+  serviceGone: 'This service is no longer available.',
+  serviceOptionsFallbackTitle: 'Size of home',
+  servicePickSizeFirst: 'Select a size to continue',
+  serviceShareA11y: 'Share this service',
+  serviceReviewCountOne: '1 review',
+  serviceReviewCountMany: '{count} reviews',
+  serviceSeeAllReviews: 'See all {count} reviews',
+  serviceAllReviewsTitle: 'All reviews',
+  serviceStarsA11y: '{stars} stars: {count}',
+  navBack: 'Go back',
+  propertyGroupHome: 'Residential',
+  propertyGroupBusiness: 'Commercial',
+  payUpiCardSub: 'Pay by UPI or card at the visit — nothing is charged in the app',
+  payAfterSub: 'Pay cash to the technician once the job is done',
+  payOtherSub: 'Pay at the visit',
+  payManageSaved: 'Manage saved payment methods',
+  billItemTotal: 'Item total',
+  billGst: 'Taxes (GST {percent}%)',
+  billCoupon: 'Coupon discount',
+  billAmountToPay: 'Amount to pay',
+  billSaving: 'You’re saving {amount} on this booking',
+  offerApply: 'Apply',
+  offerRemove: 'Remove',
+  offerAppliedA11y: 'Applied, tap to remove',
+  offerTapToApplyA11y: 'Tap to apply',
+  offerPercentOff: '{value}% off',
+  offerFlatOff: '{amount} off',
+  couponPlaceholder: 'Enter coupon code',
+  couponClear: 'Clear coupon',
+  couponInvalid: 'This coupon is not valid',
+  couponApplied: 'Applied',
+  payTotalPayable: 'Total payable',
+  paySavePill: 'You save {amount}',
+  payServiceRow: 'Service',
+  payDiscountRow: 'Discount',
+  paySecureNote: 'Secure checkout · Your payment details stay protected',
+  payReadyKicker: 'Ready to continue',
+  payEstimated: '{amount} estimated',
+  addrHouseLabel: 'House / flat number',
+  addrHousePlaceholder: 'e.g. A-302 / 14',
+  addrStreetLabel: 'Street / area',
+  addrStreetPlaceholder: 'Street, society, area',
+  addrLandmarkLabel: 'Landmark',
+  addrLandmarkPlaceholder: 'Near park, opposite temple…',
+  addrCityLabel: 'City',
+  addrCityPlaceholder: 'City',
+  addrPincodeLabel: 'Pincode',
+  addrPincodePlaceholder: '6 digits',
+  addrSaveAsLabel: 'Save as',
+  addrSaveHome: 'Home',
+  addrSaveOffice: 'Office',
+  addrSaveOther: 'Other',
+  addrSaveAsA11y: 'Save as {label}',
+  addrHousePrefix: 'Flat/House {house}',
+  addrLandmarkPrefix: 'Landmark: {landmark}',
+  addrFieldMissing: 'Add this to continue',
+  cartLocationFilled: 'Location filled',
+  cartLocationFilledSub: 'Add your house / flat number to finish',
+  cartAddressIncomplete: 'Add house/flat, street and city — or pick a saved place',
+  cartAddressNotSaved: 'Address not saved for later',
+  cartAddressNotSavedSub: 'Booking will still use the details you entered',
+  cartBookFailed: 'Could not confirm booking',
+  cartLoadFailed: 'Could not load booking details',
+  cartTimePast: 'Pick a time later than now',
+  cartTimeOutside: 'That time is outside our booking hours. Pick another time.',
+  invoiceTaxTitle: 'Tax invoice',
+  invoicePreparing: 'Preparing invoice…',
+  invoiceItemised: 'Itemised receipt for this visit',
+  invoiceDownload: 'Download',
+  invoiceGenerate: 'Generate',
+  invoiceOpening: 'Opening…',
+  invoiceDownloadA11y: 'Download invoice',
+  invoiceGenerateA11y: 'Generate invoice',
+  invoiceCopyA11y: 'Copy invoice',
+  invoiceShareA11y: 'Share invoice',
+  invoiceReadyToast: 'Invoice ready to save or share',
+  invoiceDownloadFailed: 'Could not download invoice',
+  invoiceCopied: 'Invoice copied',
+  invoiceCopyFailed: 'Could not copy invoice',
+  invoiceTotalPaid: 'Total paid',
+  invoiceAmountDue: 'Amount due',
+  invoiceGstin: 'GSTIN {gstin}',
+  invoiceBadge: 'TAX INVOICE',
+  invoiceReceiptTitle: 'Service receipt',
+  invoiceReceiptSub: 'Itemised charges, visit details & treatment summary',
+  invoiceTapToGenerate: 'Tap below to generate',
+  invoiceServiceKicker: 'SERVICE',
+  invoiceFactVisit: 'Visit',
+  invoiceFactProperty: 'Property',
+  invoiceFactPayment: 'Payment',
+  invoiceFactTechnician: 'Technician',
+  invoiceCharges: 'Charges',
+  invoiceChargeService: 'Service',
+  invoiceChargeCoupon: 'Coupon',
+  invoiceTreatment: 'Treatment included',
+  invoicePremiumTitle: 'Premium invoice',
+  invoicePremiumBody: 'Download a branded receipt with service coverage, visit details, and itemised charges.',
+  invoiceCopy: 'Copy',
+  invoiceCopying: 'Copying…',
+  invoiceShare: 'Share',
+  bookingStepsProgress: '{done} of {total} treatment steps',
+  trackingEmpty: 'No activity yet',
+  bookingNotFound: 'Booking not found',
+  bookingLoadFailed: 'Could not load booking',
+  cancelSheetKeep: 'Keep booking',
+  otpCodeCopied: 'Code copied',
+  otpCodeExpired: 'Code expired',
+  otpExpiresIn: 'Expires in {time}',
+  otpCopyCode: 'Copy code',
+  otpRefreshing: 'Refreshing…',
+  otpGetNew: 'Get new code',
+  otpCodeA11y: 'Your code is {code}',
+  homeSeeAll: 'See all',
+  homeAdd: 'Add',
+  homeStartsAt: 'Starts at',
+  homeSearching: 'Searching…',
+  homeResultsOne: '1 result for “{query}”',
+  homeResultsMany: '{count} results for “{query}”',
+  homeSeeAllResults: 'See all {count} results',
+  homeOffersTile: 'Offers',
+  homeNewlyAdded: 'Newly added',
+  homeMostBookedTitle: 'Most booked services',
+  homeSlideOffer: 'Get {amount} off with code {code}',
+  homeSlideService: '{service} from {price}',
+  homeLoadFailed: 'Could not load services',
+  homeRefreshFailed: 'Could not refresh',
+  servicesSearchPlaceholder: 'Search services…',
+  servicesAllTypesA11y: 'All types',
+  servicesCountOne: '1 service',
+  servicesCountMany: '{count} services',
+  servicesPopularBadge: 'Popular',
+  servicesLoadFailed: 'Could not load services',
+  servicesRefreshFailed: 'Could not refresh services',
+  browseFallbackTitle: 'Browse',
+  browseUnknownType: 'This service type isn’t available.',
+  profileSignOutTitle: 'Sign out?',
+  profileSignOutMessage: 'You can sign back in anytime.',
+  profileIncomplete: 'Incomplete profile',
+  profileComplete: 'Complete',
+  profileEditA11y: '{name}. Edit profile',
+  profileNotificationsA11y: 'Notifications, {count} unread',
+  profileAddDetails: 'Add your phone and email',
+  profileSectionAccount: 'Account',
+  profileSectionInfo: 'Help & info',
+  profileSupportTitle: 'Need help?',
+  profileSupportSub: 'Our team is here for you',
+  profileSupportCall: 'Call',
+  profileSupportWhatsapp: 'WhatsApp',
+  profileSupportFaq: 'FAQ',
+  profileVersion: '{brand} · v{version}',
+  profileStatAddresses: 'Addresses',
+  profileStatActiveLabel: 'Active',
+  profileStatPayments: 'Payments',
+  profilePromiseEyebrow: '{brand} promise',
+  homeTrustHeadline: '100% Satisfaction Guarantee',
+  homeTrustBadges: 'Verified Pros, On-time Service, Safe Chemicals',
+  settingsLocationUpdated: 'Location updated',
+  settingsNameRequired: 'Please enter your name',
+  settingsEmailInvalid: 'Please enter a valid email',
+  settingsPhoneInvalid: 'Please enter a valid 10-digit mobile number',
+  settingsSaved: 'Profile updated',
+  settingsSave: 'Save changes',
+  settingsFieldName: 'Full name',
+  settingsFieldEmail: 'Email',
+  settingsFieldPhone: 'Phone',
+  settingsFieldCity: 'City',
+  aboutTitle: 'About us',
+  aboutSubtitle: 'Who we are',
+  aboutEmptyTitle: 'Nothing here yet',
+  aboutEmptyMessage: 'Check back soon.',
+  termsTitle: 'Terms of Service',
+  termsSubtitle: 'Please read carefully',
+  termsEmptyTitle: 'Terms unavailable',
+  privacyTitle: 'Privacy Policy',
+  privacySubtitle: 'How we protect your data',
+  privacyEmptyTitle: 'Privacy policy unavailable',
+  legalEmptyMessage: 'Please contact support.',
+  guideTitle: 'How to book',
+  guideSubtitle: 'Steps, date & book-time options',
+  helpGuideSub: '5 easy steps · Book with confidence',
+  helpNoChannels: 'Call or message us from the Help page once our support lines are set up.',
+  faqEmptyTitle: 'No FAQs yet',
+  faqEmptyMessage: 'Check back soon.',
+  faqStillNeedHelp: 'Still need help?',
+  faqStillNeedHelpSub: 'Talk to our support team',
+  faqSearchPlaceholder: 'Search questions',
+  faqNoMatches: 'No questions match “{query}”.',
+  helpContactA11y: '{label}: {value}',
+  notifGroupToday: 'Today',
+  notifGroupYesterday: 'Yesterday',
+  notifGroupWeek: 'This week',
+  notifGroupEarlier: 'Earlier',
+  notifLoadFailed: 'Could not load notifications',
+  notifMarkFailed: 'Could not mark as read',
+  addressesEdit: 'Edit address',
+  addressesEditSub: 'Change the street, landmark or city',
+  addressesEditSheetTitle: 'Edit address',
+  addressesUpdatedToast: 'Address updated',
+  addressesLoadFailed: 'Could not load addresses',
+  paymentsLabelRequired: 'Enter a label for this method',
+  paymentsAddedToast: 'Payment method added',
+  paymentsRemovedToast: 'Payment method removed',
+  paymentsDefaultToast: 'Default updated',
+  paymentsSetDefault: 'Set as default',
+  paymentsSetDefaultSub: 'Pre-selected at checkout',
+  paymentsRemove: 'Remove',
+  paymentsRemoveTitle: 'Remove this payment method?',
+  paymentsKeep: 'Keep it',
+  paymentsSavedTitle: 'Saved methods',
+  paymentsDefaultBadge: 'Default',
+  paymentsSheetHint: 'Choose how you’d like to pay at the visit.',
+  paymentsSave: 'Save',
+  paymentsLabelField: 'Label',
+  paymentsLabelPlaceholder: 'e.g. Personal UPI',
+  paymentsLoadFailed: 'Could not load payment methods',
+  reviewStar1: 'Poor',
+  reviewStar2: 'Fair',
+  reviewStar3: 'Good',
+  reviewStar4: 'Great',
+  reviewStar5: 'Excellent',
+  reviewStarA11y: '{count} out of 5 stars',
+  reviewSelectRating: 'Select a rating',
+  reviewNotePlaceholder: 'Optional',
+  reviewSubmit: 'Submit review',
+  reviewSubmitFailed: 'Could not submit review',
+  reviewThanksTitle: 'Thanks for your feedback!',
+  reviewThanksBody: 'Your review helps other families choose with confidence.',
+  reviewThanksDone: 'Back to bookings',
+  offersLoadFailed: 'Could not load offers',
+  offersRefreshFailed: 'Could not refresh offers',
+  offersNoServicesOk: 'OK',
+  offerCouponCopied: 'Coupon copied',
+  offerCodeCopiedSub: '{code} — apply it at checkout',
+  offerCopy: 'Copy',
+  offerCopyCode: 'Copy code',
+  offerCopied: 'Copied',
+  offerCopyA11y: 'Copy code {code}',
+  offerTicketA11y: '{value} off with {code}. Apply and book',
+  offerRailTicketA11y: '{value} off with code {code}. Tap to copy',
+  offerValidTill: 'Valid till {date}',
+  offerMinOrder: 'Min order {amount}',
+  offerApplyBook: 'Apply & book',
+  offerSave: 'SAVE',
+  offerOff: 'OFF',
+  offersRailTitle: 'Offers for you',
+  offersEmptyTitle: 'No offers right now',
+  offersEmptyMessage: 'New coupons and seasonal deals will show up here. Book a service anytime at regular pricing.',
+  offersDealsTitle: '{brand} deals',
+  offersDealsSub: 'Save on your next booking',
+  bookingsLoadFailed: 'Could not load bookings',
+  timeSelected: 'Selected',
+  timeHour: 'Hour',
+  timeMinutes: 'Minutes',
+  timePassedNote: 'Times that have already passed today are greyed out',
+  timeAnyNote: 'Available 24/7 — any time',
+  modeStandardDesc: '2-hour arrival window',
+  modeCustomDesc: 'Pick an exact time',
+  photoRemoveA11y: 'Remove photo',
+  photoAddAnotherA11y: 'Add another photo',
+  photosOptionalCount: 'Optional · {count}/{max} photos',
+  locateFinding: 'Finding your location…',
+  locateUse: 'Use current location',
+  locateFindingSub: 'Hang tight — filling your address',
+  locateUseSub: 'One tap · auto-fill from GPS',
+  homeCurationScript: 'Expert',
+  homeSpecialistTitle: 'Specialist treatments',
+  homeOpenProfileA11y: 'Open profile',
+  homeLocationA11y: 'Location {label}. Tap to refresh',
+  homeLocationUpdatingA11y: 'Updating location',
+  homeLocationRefreshA11y: 'Refresh location',
+  homeClosingA11y: 'A {brand} technician being welcomed at a customer’s front door',
+  trustNoteTitle: 'Every booking is protected',
+  homeTopLocationA11y: '{title}. Service location: {place}. Tap to refresh',
 };
 
 export const DEFAULT_APP_CONFIG: IAppConfig = {

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { ArrowRight, CalendarClock, Navigation } from 'lucide-react-native';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -16,20 +16,21 @@ import { colors, fonts, ui } from '@/constants/theme';
 import { localDateKey } from '@/lib/dates';
 import { getCustomerTrackingSteps, useBookingCopy } from '@/lib/schedule-copy';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { useAmbientLoop } from '@/lib/a11yPrefs';
 
 /** Pulsing "live" dot while a technician is on site. */
 function LiveDot() {
   const pulse = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.6, duration: 700, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 700, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [pulse]);
+  useAmbientLoop(
+    () =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulse, { toValue: 1.6, duration: 700, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 1, duration: 700, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+        ]),
+      ),
+    [pulse],
+  );
   return (
     <View style={styles.liveDotWrap}>
       <Animated.View
@@ -73,7 +74,7 @@ export function HomeNextVisitCard({ booking, onPress }: { booking: Booking; onPr
       style={[styles.card, live && styles.cardLive]}
       scaleTo={0.985}
       accessibilityRole="button"
-      accessibilityLabel={`Your next visit: ${bookingServiceName(booking)}, ${bookingScheduleDisplay(booking)}`}
+      accessibilityLabel={`${uiCopy.profileNextVisitTitle}: ${bookingServiceName(booking, uiCopy)}, ${bookingScheduleDisplay(booking, uiCopy)}`}
     >
       <View style={styles.top}>
         <ServiceThumb service={service} width={56} radius={17} iconSize={30} />

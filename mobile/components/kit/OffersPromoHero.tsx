@@ -1,7 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
 import { TicketPercent } from 'lucide-react-native';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, gradients, spacing } from '@/constants/theme';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 /**
  * Compact brand banner that opens the Offers list. It carries the promise (and a code / guarantee line),
@@ -18,11 +20,12 @@ export function OffersPromoHero({
   fallbackTitle?: string;
   fallbackSub?: string;
 }) {
+  const copy = useCustomerUiCopy();
   const sub = subtitle?.trim();
   return (
     <View style={styles.wrap}>
       <LinearGradient
-        colors={['#169A4A', '#087B35', '#075C2B']}
+        colors={[...gradients.premiumHero]}
         locations={[0, 0.55, 1]}
         style={styles.card}
         start={{ x: 0, y: 0 }}
@@ -34,9 +37,9 @@ export function OffersPromoHero({
         </View>
         <View style={styles.body}>
           <Text style={styles.badge}>
-            {fallbackTitle?.trim() || (brandName ? `${brandName} deals` : 'Exclusive deals')}
+            {fallbackTitle?.trim() || fillCopy(copy.offersDealsTitle, { brand: brandName || 'Mr Antidot' })}
           </Text>
-          <Text style={styles.title}>{fallbackSub?.trim() || 'Save on your next booking'}</Text>
+          <Text style={styles.title}>{fallbackSub?.trim() || copy.offersDealsSub}</Text>
           {sub ? <Text style={styles.sub}>{sub}</Text> : null}
         </View>
       </LinearGradient>

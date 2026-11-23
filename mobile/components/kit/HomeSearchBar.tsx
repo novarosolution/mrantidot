@@ -1,19 +1,23 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from 'react-native';
 import { Search, X } from 'lucide-react-native';
 import { TEXT_INPUT_FONT_SIZE, textInputDefaults } from '@/components/ui/textInputDefaults';
-import { colors, fonts, ui } from '@/constants/theme';
+import { colors, fonts, radii, ui } from '@/constants/theme';
+import { useAmbientInterval } from '@/lib/a11yPrefs';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { motion } from '@/lib/motion';
 
 const ROTATE_MS = 2600;
 /** Solid band behind the search pill (and the status strip) when the bar is stuck to the top. */
-export const SEARCH_BAND = '#F2F3F2';
+export const SEARCH_BAND = ui.band;
 
 /**
  * Sticky search pill. While empty it cycles "Search for '…'" through real service names;
  * the hint is an overlay so the TextInput stays a plain input. Resting it floats on the header;
  * stuck to the top it sits on a solid light-grey band with a hairline.
  */
-export function HomeSearchBar({
+export const HomeSearchBar = memo(function HomeSearchBar({
   query,
   onChangeQuery,
   onSubmit,
@@ -35,34 +39,37 @@ export function HomeSearchBar({
   background?: string;
   onLayout?: (e: LayoutChangeEvent) => void;
 }) {
+  const copy = useCustomerUiCopy();
   const [focused, setFocused] = useState(false);
   const [hintIdx, setHintIdx] = useState(0);
   const fade = useRef(new Animated.Value(1)).current;
+  /** Brand focus ring cross-fades over the hairline (opacity only, so it stays on the native driver). */
   const focusAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(focusAnim, {
       toValue: focused ? 1 : 0,
-      duration: 220,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
+      duration: motion.duration.base,
+      easing: motion.easing.out,
+      useNativeDriver: true,
     }).start();
   }, [focusAnim, focused]);
   const showHint = query.length === 0;
   const rotating = showHint && !focused && hints.length > 1;
 
-  useEffect(() => {
-    if (!rotating) return;
-    const t = setInterval(() => {
+  // Rotates only while Home is visible (paused on other tabs, in the background and with Reduce Motion).
+  useAmbientInterval(
+    () => {
       Animated.timing(fade, { toValue: 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(
         () => {
-          setHintIdx((i) => (i + 1) % hints.length);
+          setHintIdx((i) => (i + 1) % Math.max(1, hints.length));
           Animated.timing(fade, { toValue: 1, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
         },
       );
-    }, ROTATE_MS);
-    return () => clearInterval(t);
-  }, [fade, hints.length, rotating]);
+    },
+    ROTATE_MS,
+    rotating,
+  );
 
   const hint = hints.length > 0 ? hints[hintIdx % hints.length] : null;
   const restOpacity =
@@ -83,14 +90,8 @@ export function HomeSearchBar({
         style={[StyleSheet.absoluteFill, styles.band, { opacity: dividerOpacity ?? 0 }]}
         pointerEvents="none"
       />
-      <Animated.View
-        style={[
-          styles.field,
-          {
-            borderColor: focusAnim.interpolate({ inputRange: [0, 1], outputRange: ['rgba(17,26,21,0.08)', ui.brand] }),
-          },
-        ]}
-      >
+      <View style={styles.field}>
+        <Animated.View style={[styles.focusRing, { opacity: focusAnim }]} pointerEvents="none" />
         <Search size={22} color={focused ? ui.brand : ui.text} strokeWidth={1.8} />
         <View style={styles.inputWrap}>
           <TextInput
@@ -103,14 +104,14 @@ export function HomeSearchBar({
             onBlur={() => setFocused(false)}
             returnKeyType="search"
             autoCapitalize="none"
-            accessibilityLabel={hint ? `Search for ${hint}` : fallbackPlaceholder}
+            accessibilityLabel={hint ? fillCopy(copy.homeSearchForHint, { query: hint }) : fallbackPlaceholder}
             multiline={false}
           />
           {showHint ? (
             <View style={styles.hintRow} pointerEvents="none">
               {hint ? (
                 <>
-                  <Text style={styles.hint}>Search for </Text>
+                  <Text style={styles.hint}>{`${copy.homeSearchHintPrefix} `}</Text>
                   <Animated.Text
                     style={[
                       styles.hintAccent,
@@ -139,16 +140,16 @@ export function HomeSearchBar({
             onPress={() => onChangeQuery('')}
             hitSlop={10}
             accessibilityRole="button"
-            accessibilityLabel="Clear search"
+            accessibilityLabel={copy.homeSearchClear}
           >
             <X size={13} color={colors.white} strokeWidth={2.6} />
           </Pressable>
         ) : null}
-      </Animated.View>
+      </View>
       <Animated.View style={[styles.divider, { opacity: dividerOpacity ?? 0 }]} pointerEvents="none" />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   wrap: {
@@ -163,9 +164,17 @@ const styles = StyleSheet.create({
     height: 46,
     paddingLeft: 16,
     paddingRight: 12,
-    borderRadius: 23,
+    borderRadius: radii.pill,
     backgroundColor: colors.white,
     borderWidth: 1,
+    borderColor: 'rgba(17,26,21,0.08)',
+  },
+  focusRing: {
+    ...StyleSheet.absoluteFill,
+    margin: -1,
+    borderRadius: radii.pill,
+    borderWidth: 1.5,
+    borderColor: ui.brand,
   },
   /** Light-grey strip the pill sits on once the bar sticks. */
   band: { backgroundColor: SEARCH_BAND },

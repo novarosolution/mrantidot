@@ -1,31 +1,35 @@
 import { useEffect, useRef, useState } from 'react';
 import * as Clipboard from 'expo-clipboard';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { haptic } from '@/lib/motion';
+import { formatRupeeFull } from '@/components/kit/format';
 import { ArrowRight, CalendarClock, Check, Copy } from 'lucide-react-native';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { appToast } from '@/lib/toast';
 import type { Offer } from '@/types/api';
-import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { colors, fonts, radii, spacing, ui } from '@/constants/theme';
 
 const STUB_W = 100;
 const NOTCH = 18;
 
 /** Ticket palettes cycle so neighbouring coupons read as distinct offers (matches the home rail). */
 const PALETTES = [
-  { bg: '#E9F6EA', ink: '#087B35' },
-  { bg: '#EEEFFE', ink: '#4338CA' },
-  { bg: '#FFF3E2', ink: '#A15C07' },
+  { bg: colors.soft, ink: colors.forest },
+  { bg: colors.blueBg, ink: colors.blue },
+  { bg: colors.amberBg, ink: colors.amberInk },
 ] as const;
 
 function discountValue(offer: Offer): string {
   return offer.discountType === 'percent' ? `${offer.discount}%` : `₹${offer.discount}`;
 }
 
-function formatExpiry(iso?: string): string | null {
+function formatExpiry(iso: string | undefined, template: string): string | null {
   if (!iso) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
-  return `Valid till ${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+  return fillCopy(template, { date: d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) });
 }
 
 /** Full coupon ticket for the Offers screen — tear-off stub, copyable code, "Apply & book". */
@@ -41,8 +45,9 @@ export function OfferCouponCard({
   /** Position in the list — picks the ticket colour. */
   index?: number;
 }) {
+  const copy = useCustomerUiCopy();
   const palette = PALETTES[index % PALETTES.length];
-  const expiry = formatExpiry(offer.expiresAt);
+  const expiry = formatExpiry(offer.expiresAt, copy.offerValidTill);
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => {
@@ -51,10 +56,11 @@ export function OfferCouponCard({
 
   async function copyCode() {
     await Clipboard.setStringAsync(offer.code);
+    haptic('success');
     setCopied(true);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setCopied(false), 1800);
-    appToast.success('Coupon copied', offer.code);
+    appToast.success(copy.offerCouponCopied, offer.code);
   }
 
   return (
@@ -65,14 +71,14 @@ export function OfferCouponCard({
       containerStyle={styles.outer}
       style={[styles.ticket, disabled && styles.disabled]}
       accessibilityRole="button"
-      accessibilityLabel={`${discountValue(offer)} off with ${offer.code}. Apply and book`}
+      accessibilityLabel={fillCopy(copy.offerTicketA11y, { value: discountValue(offer), code: offer.code })}
     >
       <View style={[styles.stub, { backgroundColor: palette.bg }]}>
-        <Text style={[styles.save, { color: palette.ink }]}>SAVE</Text>
+        <Text style={[styles.save, { color: palette.ink }]}>{copy.offerSave}</Text>
         <Text style={[styles.value, { color: palette.ink }]} numberOfLines={1} adjustsFontSizeToFit>
           {discountValue(offer)}
         </Text>
-        <Text style={[styles.save, { color: palette.ink }]}>OFF</Text>
+        <Text style={[styles.save, { color: palette.ink }]}>{copy.offerOff}</Text>
       </View>
       <View style={[styles.perforation, { borderColor: palette.ink }]} />
 
@@ -81,12 +87,13 @@ export function OfferCouponCard({
           <Text style={styles.code} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
             {offer.code}
           </Text>
-          <Pressable
+          <PressableScale
             onPress={() => void copyCode()}
-            hitSlop={8}
+            hitSlop={10}
+            scaleTo={0.92}
             style={[styles.copyPill, copied && { backgroundColor: palette.ink, borderColor: palette.ink }]}
             accessibilityRole="button"
-            accessibilityLabel={`Copy code ${offer.code}`}
+            accessibilityLabel={fillCopy(copy.offerCopyA11y, { code: offer.code })}
           >
             {copied ? (
               <Check size={12} color={colors.white} strokeWidth={3} />
@@ -94,14 +101,16 @@ export function OfferCouponCard({
               <Copy size={12} color={palette.ink} strokeWidth={2.4} />
             )}
             <Text style={[styles.copyText, { color: copied ? colors.white : palette.ink }]}>
-              {copied ? 'Copied' : 'Copy'}
+              {copied ? copy.offerCopied : copy.offerCopy}
             </Text>
-          </Pressable>
+          </PressableScale>
         </View>
         <Text style={styles.desc}>{offer.description}</Text>
         {offer.minOrderAmount || expiry ? (
           <View style={styles.metaRow}>
-            {offer.minOrderAmount ? <Text style={styles.meta}>Min order ₹{offer.minOrderAmount}</Text> : null}
+            {offer.minOrderAmount ? (
+              <Text style={styles.meta}>{fillCopy(copy.offerMinOrder, { amount: formatRupeeFull(offer.minOrderAmount) })}</Text>
+            ) : null}
             {expiry ? (
               <View style={styles.expiryRow}>
                 <CalendarClock size={11} color={ui.textTertiary} strokeWidth={2.2} />
@@ -111,7 +120,7 @@ export function OfferCouponCard({
           </View>
         ) : null}
         <View style={styles.ctaRow}>
-          <Text style={styles.cta}>Apply & book</Text>
+          <Text style={styles.cta}>{copy.offerApplyBook}</Text>
           <View style={styles.ctaIcon}>
             <ArrowRight size={14} color={colors.white} strokeWidth={2.6} />
           </View>
@@ -129,7 +138,7 @@ const styles = StyleSheet.create({
   ticket: {
     flexDirection: 'row',
     minHeight: 138,
-    borderRadius: 22,
+    borderRadius: radii.card,
     overflow: 'hidden',
     backgroundColor: colors.white,
     borderWidth: 1,
@@ -148,9 +157,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 10,
-    height: 28,
-    borderRadius: 14,
+    paddingHorizontal: 12,
+    height: 32,
+    borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: ui.border,
     backgroundColor: colors.white,
@@ -173,7 +182,7 @@ const styles = StyleSheet.create({
   ctaIcon: {
     width: 28,
     height: 28,
-    borderRadius: 14,
+    borderRadius: radii.pill,
     backgroundColor: ui.brand,
     alignItems: 'center',
     justifyContent: 'center',
@@ -184,7 +193,7 @@ const styles = StyleSheet.create({
     width: NOTCH,
     height: NOTCH,
     borderRadius: NOTCH / 2,
-    backgroundColor: ui.surfaceMuted,
+    backgroundColor: ui.canvas,
     borderWidth: 1,
     borderColor: ui.border,
   },

@@ -14,8 +14,23 @@ import { User } from '../models/User';
 import { getOptionalUser } from '../utils/optionalAuth';
 import { formatServiceStatsForRole } from '../utils/ratings';
 import { revalidateWebsite } from '../utils/websiteRevalidate';
+import { getBusinessSettings } from '../utils/businessSettings';
 
 export const servicesRouter = Router();
+
+/**
+ * Category must be one of Business settings → Lists → Categories (on or off). A service keeps the
+ * category it already has even after the admin removes it from the list.
+ */
+async function assertCategory(value: unknown, current?: string): Promise<void> {
+  if (value === undefined) return;
+  const key = String(value).trim().toLowerCase();
+  if (current && key === current) return;
+  const { lists } = await getBusinessSettings();
+  if (!lists.categories.some((c) => c.key === key)) {
+    throw new AppError(400, 'Pick a category from Business settings → Lists → Categories');
+  }
+}
 
 function adminIncludeInactive(req: { query: Record<string, unknown>; headers: { authorization?: string } }): boolean {
   const flag = req.query.includeInactive === '1' || req.query.includeInactive === 'true';
@@ -57,13 +72,11 @@ servicesRouter.get(
       filter.serviceTypes = type;
     }
     if (category && category !== 'All') {
-      const map: Record<string, string> = {
-        Residential: 'residential',
-        Commercial: 'commercial',
-        Cleaning: 'cleaning',
-      };
-      const cat = map[category] ?? category.toLowerCase();
-      filter.category = cat;
+      // Accepts the key or the admin's label ("Residential", "Deep clean"…).
+      const { lists } = await getBusinessSettings();
+      const wanted = category.toLowerCase();
+      const match = lists.categories.find((c) => c.key === wanted || c.label.toLowerCase() === wanted);
+      filter.category = match?.key ?? wanted;
     }
     const services = await Service.find(filter).sort({ sortOrder: 1, name: 1 });
     const includeStats =
@@ -163,7 +176,7 @@ servicesRouter.post(
   body('basePrice').isFloat({ min: 0 }),
   body('shortDesc').trim().notEmpty(),
   body('stepTemplate').optional().isArray(),
-  body('category').optional().isIn(['residential', 'commercial', 'cleaning', 'general']),
+  body('category').optional().isString().trim().toLowerCase().matches(/^[a-z0-9_]{1,40}$/),
   body('serviceTypes').optional().isArray(),
   body('serviceTypes.*').optional().isIn([...SERVICE_TYPE_KEYS]),
   body('rating').optional().isFloat({ min: 0, max: 5 }),
@@ -172,6 +185,7 @@ servicesRouter.post(
   ...serviceContentRules,
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
+    await assertCategory(req.body.category);
     // New services go to the end of the admin's order.
     const last = await Service.findOne().sort({ sortOrder: -1 }).select('sortOrder').lean();
     const payload = {
@@ -217,7 +231,7 @@ servicesRouter.patch(
   body('basePrice').optional().isFloat({ min: 0 }),
   body('shortDesc').optional().trim().notEmpty(),
   body('stepTemplate').optional().isArray(),
-  body('category').optional().isIn(['residential', 'commercial', 'cleaning', 'general']),
+  body('category').optional().isString().trim().toLowerCase().matches(/^[a-z0-9_]{1,40}$/),
   body('serviceTypes').optional().isArray(),
   body('serviceTypes.*').optional().isIn([...SERVICE_TYPE_KEYS]),
   body('active').optional().isBoolean(),
@@ -228,6 +242,10 @@ servicesRouter.patch(
   ...serviceContentRules,
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
+    if (req.body.category !== undefined) {
+      const existing = await Service.findById(req.params.id).select('category').lean<{ category?: string }>();
+      await assertCategory(req.body.category, existing?.category);
+    }
     const updates = { ...req.body, ...pickServiceContent(req.body) };
     if (req.body.serviceTypes !== undefined) {
       updates.serviceTypes = normalizeServiceTypes(req.body.serviceTypes);

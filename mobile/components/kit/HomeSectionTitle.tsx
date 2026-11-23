@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { fonts, ui } from '@/constants/theme';
+import { fonts, typeScale, ui } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 /** Home section title — bold heading, a quiet grey line under it, and a plain coloured "See all" link. */
 export function HomeSectionTitle({
@@ -13,12 +14,13 @@ export function HomeSectionTitle({
   actionLabel?: string;
   onAction?: () => void;
 }) {
-  const label = actionLabel?.trim() || 'See all';
+  const copy = useCustomerUiCopy();
+  const label = actionLabel?.trim() || copy.homeSeeAll;
 
   return (
     <View style={styles.wrap}>
       <View style={styles.titleBlock}>
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={styles.title} numberOfLines={2} accessibilityRole="header">
           {title}
         </Text>
         {subtitle?.trim() ? (
@@ -53,20 +55,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   titleBlock: { flex: 1, minWidth: 0, gap: 4 },
-  title: {
-    fontFamily: fonts.displaySemi,
-    fontSize: 22,
-    lineHeight: 28,
-    letterSpacing: -0.5,
-    color: ui.text,
-  },
-  subtitle: {
-    fontFamily: fonts.body,
-    fontSize: 15,
-    lineHeight: 20,
-    color: ui.textSecondary,
-  },
-  action: { paddingTop: 4, maxWidth: '36%' },
+  /** Home feed headings use the large title step (22) in the softer semibold face. */
+  title: { ...typeScale.title, fontFamily: fonts.displaySemi, color: ui.text },
+  subtitle: { ...typeScale.body, color: ui.textSecondary },
+  action: { paddingTop: 4, maxWidth: '36%', minHeight: 32 },
   actionLabel: {
     fontFamily: fonts.bodyMedium,
     fontSize: 15,

@@ -2,8 +2,10 @@ import { Redirect, useLocalSearchParams } from 'expo-router';
 import { BookingSuccessScreen } from '@/components/kit/BookingSuccessScreen';
 import { paramString } from '@/lib/routeParams';
 import { customerRoutes, appHref } from '@/lib/routes';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 export default function BookSuccessRoute() {
+  const copy = useCustomerUiCopy();
   const params = useLocalSearchParams<{
     bookingId?: string | string[];
     serviceName?: string | string[];
@@ -13,8 +15,8 @@ export default function BookSuccessRoute() {
   }>();
 
   const bookingId = paramString(params.bookingId)?.trim();
-  const serviceName = paramString(params.serviceName)?.trim() || 'Service';
-  const schedule = paramString(params.schedule)?.trim() || '—';
+  const serviceName = paramString(params.serviceName)?.trim() || copy.bookingServiceFallback;
+  const schedule = paramString(params.schedule)?.trim() || copy.bookingScheduleTbd;
   const total = Number(paramString(params.total) ?? 0);
   const paymentLabel = paramString(params.payment)?.trim() || undefined;
 

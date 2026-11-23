@@ -18,8 +18,31 @@ import { requireAuth, requireRole } from '../middleware/auth';
 import { LEGACY_DEFAULT_SUPPORT_PHONE } from '../utils/backfillSupportContact';
 import { revalidateWebsite } from '../utils/websiteRevalidate';
 import { asyncHandler } from '../middleware/error';
+import { AppError } from '../utils/AppError';
 
 export const contentRouter = Router();
+
+/** Version stamp the admin screen sends back with its save (ISO `updatedAt` of the document it loaded). */
+function versionOf(doc: { updatedAt?: Date }): string | undefined {
+  return doc.updatedAt instanceof Date ? doc.updatedAt.toISOString() : undefined;
+}
+
+/**
+ * Two admins editing at once: a save carrying the `updatedAt` it loaded is refused (409) when the
+ * document has been saved since, instead of silently overwriting the other person's changes.
+ * Saves without `updatedAt` (older app builds) still go through.
+ */
+function assertNotStale(doc: { updatedAt?: Date }, sent: unknown): void {
+  if (typeof sent !== 'string' || !sent) return;
+  const current = versionOf(doc);
+  if (current && current !== sent) {
+    throw new AppError(
+      409,
+      'Someone else saved the app content meanwhile. Reload to see their changes, then save again.',
+      'CONTENT_CONFLICT',
+    );
+  }
+}
 
 const HOME_KEY = 'home';
 const APP_KEY = 'app';
@@ -206,6 +229,7 @@ contentRouter.get(
     res.json({
       promo: await formatHomePromoResolved(doc),
       homeConfig: await formatHomeConfigResolved(doc),
+      updatedAt: versionOf(doc),
     });
   }),
 );
@@ -220,6 +244,7 @@ contentRouter.patch(
   body('serviceId').optional({ nullable: true }),
   body('active').optional().isBoolean(),
   body('homeConfig').optional().isObject(),
+  body('updatedAt').optional().isString(),
   asyncHandler(async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -227,6 +252,7 @@ contentRouter.patch(
       return;
     }
     const doc = await getOrCreateHomeDoc();
+    assertNotStale(doc, req.body.updatedAt);
     const nextPromo = { ...(doc.homePromo ?? DEFAULT_HOME_PROMO) };
     if (typeof req.body.badge === 'string') nextPromo.badge = req.body.badge;
     if (typeof req.body.title === 'string') nextPromo.title = req.body.title;
@@ -250,6 +276,7 @@ contentRouter.patch(
     res.json({
       promo: await formatHomePromoResolved(doc),
       homeConfig: await formatHomeConfigResolved(doc),
+      updatedAt: versionOf(doc),
     });
   }),
 );
@@ -404,7 +431,7 @@ contentRouter.get(
   requireRole('admin'),
   asyncHandler(async (_req, res) => {
     const doc = await getOrCreateAppDoc();
-    res.json({ app: formatAppConfig(doc) });
+    res.json({ app: formatAppConfig(doc), updatedAt: versionOf(doc) });
   }),
 );
 
@@ -421,6 +448,7 @@ contentRouter.patch(
   body('faq').optional().isArray(),
   body('booking').optional().isObject(),
   body('customerUi').optional().isObject(),
+  body('updatedAt').optional().isString(),
   asyncHandler(async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -428,10 +456,11 @@ contentRouter.patch(
       return;
     }
     const doc = await getOrCreateAppDoc();
+    assertNotStale(doc, req.body.updatedAt);
     const current = formatAppConfig(doc);
     doc.appConfig = mergeAppConfig(current, req.body);
     await doc.save();
     revalidateWebsite(['content']);
-    res.json({ app: formatAppConfig(doc) });
+    res.json({ app: formatAppConfig(doc), updatedAt: versionOf(doc) });
   }),
 );

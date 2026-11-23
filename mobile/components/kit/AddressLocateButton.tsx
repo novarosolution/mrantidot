@@ -2,6 +2,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { colors, fonts, ui } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 export function AddressLocateButton({
   loading,
@@ -10,13 +11,14 @@ export function AddressLocateButton({
   loading?: boolean;
   onPress: () => void;
 }) {
+  const copy = useCustomerUiCopy();
   return (
     <Pressable
       style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}
       onPress={onPress}
       disabled={loading}
       accessibilityRole="button"
-      accessibilityLabel={loading ? 'Finding your location' : 'Use current location'}
+      accessibilityLabel={loading ? copy.locateFinding : copy.locateUse}
       accessibilityState={{ busy: Boolean(loading), disabled: Boolean(loading) }}
     >
       <View style={styles.iconWrap}>
@@ -27,8 +29,8 @@ export function AddressLocateButton({
         )}
       </View>
       <View style={styles.textCol}>
-        <Text style={styles.title}>{loading ? 'Finding your location…' : 'Use current location'}</Text>
-        <Text style={styles.sub}>{loading ? 'Hang tight — filling your address' : 'One tap · auto-fill from GPS'}</Text>
+        <Text style={styles.title}>{loading ? copy.locateFinding : copy.locateUse}</Text>
+        <Text style={styles.sub}>{loading ? copy.locateFindingSub : copy.locateUseSub}</Text>
       </View>
       {!loading ? (
         <PremiumIcon icon={AppIcons.ui.chevronRight} variant="plain" size={18} color={ui.brand} strokeWidth={2.4} fill="none" />

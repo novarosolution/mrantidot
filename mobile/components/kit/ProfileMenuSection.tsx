@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
-import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { colors, radii, spacing, typeScale, ui } from '@/constants/theme';
 
 export function ProfileMenuSection({
   title,
@@ -14,7 +14,9 @@ export function ProfileMenuSection({
     <View style={[styles.wrap, style]}>
       {title ? (
         <View style={styles.titleRow}>
-          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.title} accessibilityRole="header">
+            {title}
+          </Text>
         </View>
       ) : null}
       <View style={styles.card}>{children}</View>
@@ -34,15 +36,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     marginLeft: 2,
   },
-  title: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 11,
-    letterSpacing: 0.75,
-    textTransform: 'uppercase',
-    color: ui.textTertiary,
-  },
+  title: { ...typeScale.label, color: ui.textTertiary },
   card: {
-    borderRadius: 18,
+    borderRadius: radii.card,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.hairline,

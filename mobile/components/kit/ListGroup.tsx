@@ -1,37 +1,47 @@
 import { Children, isValidElement, type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react-native';
 import { ChevronDown, ChevronRight, ChevronUp, Ellipsis, Plus } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, ui } from '@/constants/theme';
+import { StyleSheet, Text, View } from 'react-native';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { colors, radii, typeScale, ui } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 const ICON = 42;
 const PAD = 14;
 /** Hairlines start past the icon tile by default (rows with an icon column). */
 const ICON_INSET = PAD + ICON + 12;
+/** Rows inside a card give a gentler press than standalone cards. */
+const ROW_SCALE = 0.985;
 
 /** Dashed "+ Add …" card that sits above a saved-items list (Urban-style). */
 export function ListAddRow({ label, onPress }: { label: string; onPress: () => void }) {
   return (
-    <Pressable style={({ pressed }) => [styles.addRow, pressed && styles.pressed]} onPress={onPress} accessibilityRole="button">
+    <PressableScale style={styles.addRow} onPress={onPress} haptic="tap" accessibilityRole="button" accessibilityLabel={label}>
       <View style={styles.addIcon}>
         <Plus size={18} color={ui.brand} strokeWidth={2.4} />
       </View>
       <Text style={styles.addText}>{label}</Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
 /** Small uppercase label above a group. `first` drops the top gap when it opens a page. */
 export function ListSectionTitle({ title, first = false }: { title: string; first?: boolean }) {
-  return <Text style={[styles.sectionTitle, first && styles.sectionTitleFirst]}>{title}</Text>;
+  return (
+    <Text style={[styles.sectionTitle, first && styles.sectionTitleFirst]} accessibilityRole="header">
+      {title}
+    </Text>
+  );
 }
 
 /**
- * One white card holding rows, with hairlines inset past the icon column.
+ * One white card (radius 20) holding rows, with hairlines inset past the icon column.
  * Pass `dividerInset` for rows without an icon (e.g. FAQ questions).
  */
 export function ListGroup({ children, dividerInset = ICON_INSET }: { children: ReactNode; dividerInset?: number }) {
-  const rows = Children.toArray(children);
+  const rows = Children.toArray(children).filter(Boolean);
   return (
     <View style={styles.group}>
       {rows.map((row, i) => (
@@ -49,25 +59,31 @@ export function ListNavRow({
   icon: Icon,
   title,
   subtitle,
+  value,
   onPress,
+  destructive = false,
 }: {
   icon: LucideIcon;
   title: string;
   subtitle?: string;
+  /** Short value shown before the chevron ("2 saved", "English"). */
+  value?: string;
   onPress: () => void;
+  destructive?: boolean;
 }) {
   return (
-    <Pressable
-      style={({ pressed }) => [styles.navRow, pressed && styles.pressed]}
+    <PressableScale
+      style={styles.navRow}
+      scaleTo={ROW_SCALE}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={subtitle ? `${title}. ${subtitle}` : title}
+      accessibilityLabel={[title, subtitle, value].filter(Boolean).join('. ')}
     >
-      <View style={styles.rowIcon}>
-        <Icon size={19} color={ui.brand} strokeWidth={2.1} />
+      <View style={[styles.rowIcon, destructive && styles.rowIconDanger]}>
+        <Icon size={19} color={destructive ? colors.error : ui.brand} strokeWidth={2.1} />
       </View>
       <View style={styles.navBody}>
-        <Text style={styles.navTitle} numberOfLines={1}>
+        <Text style={[styles.navTitle, destructive && styles.danger]} numberOfLines={1}>
           {title}
         </Text>
         {subtitle ? (
@@ -76,8 +92,53 @@ export function ListNavRow({
           </Text>
         ) : null}
       </View>
-      <ChevronRight size={18} color={ui.textTertiary} strokeWidth={2.2} />
-    </Pressable>
+      {value ? <Text style={styles.navValue}>{value}</Text> : null}
+      {destructive ? null : <ChevronRight size={18} color={ui.textTertiary} strokeWidth={2.2} />}
+    </PressableScale>
+  );
+}
+
+/**
+ * Checkout-style action row: line icon, title + detail, and an action word ("Change", "Add") or a
+ * chevron. `missing` tints it so an unfilled step stands out.
+ */
+export function ListActionRow({
+  icon: Icon,
+  title,
+  sub,
+  action,
+  onPress,
+  missing = false,
+}: {
+  icon: LucideIcon;
+  title: string;
+  sub?: string;
+  action?: string;
+  onPress: () => void;
+  missing?: boolean;
+}) {
+  return (
+    <PressableScale
+      onPress={onPress}
+      scaleTo={ROW_SCALE}
+      haptic="select"
+      style={styles.actionRow}
+      accessibilityRole="button"
+      accessibilityLabel={[title, sub, action].filter(Boolean).join('. ')}
+    >
+      <Icon size={20} color={missing ? ui.brand : ui.text} strokeWidth={2} />
+      <View style={styles.navBody}>
+        <Text style={[styles.actionTitle, missing && styles.actionTitleMissing]} numberOfLines={2}>
+          {title}
+        </Text>
+        {sub ? (
+          <Text style={styles.navSub} numberOfLines={2}>
+            {sub}
+          </Text>
+        ) : null}
+      </View>
+      {action ? <Text style={styles.actionText}>{action}</Text> : <ChevronRight size={18} color={ui.textTertiary} />}
+    </PressableScale>
   );
 }
 
@@ -95,8 +156,10 @@ export function ListFaqRow({
 }) {
   const Chevron = open ? ChevronUp : ChevronDown;
   return (
-    <Pressable
-      style={({ pressed }) => [styles.faqRow, pressed && styles.pressed]}
+    <PressableScale
+      style={styles.faqRow}
+      scaleTo={ROW_SCALE}
+      haptic="select"
       onPress={onToggle}
       accessibilityRole="button"
       accessibilityState={{ expanded: open }}
@@ -106,8 +169,12 @@ export function ListFaqRow({
         <Text style={[styles.faqQ, open && styles.faqQOpen]}>{question}</Text>
         <Chevron size={18} color={open ? ui.brand : ui.textTertiary} strokeWidth={2.2} />
       </View>
-      {open ? <Text style={styles.faqA}>{answer}</Text> : null}
-    </Pressable>
+      {open ? (
+        <FadeSlideIn slideFrom={6}>
+          <Text style={styles.faqA}>{answer}</Text>
+        </FadeSlideIn>
+      ) : null}
+    </PressableScale>
   );
 }
 
@@ -120,6 +187,7 @@ export function ListGroupRow({
   lines,
   onMore,
   moreLabel,
+  onPress,
 }: {
   icon: LucideIcon;
   highlighted?: boolean;
@@ -128,10 +196,13 @@ export function ListGroupRow({
   lines: (string | undefined | null)[];
   onMore?: () => void;
   moreLabel?: string;
+  /** Tap the row itself (e.g. edit). */
+  onPress?: () => void;
 }) {
+  const copy = useCustomerUiCopy();
   const shown = lines.filter((l): l is string => Boolean(l && l.trim()));
-  return (
-    <View style={styles.row}>
+  const body = (
+    <>
       <View style={[styles.rowIcon, highlighted && styles.rowIconOn]}>
         <Icon size={19} color={highlighted ? colors.white : ui.brand} strokeWidth={2.1} />
       </View>
@@ -152,16 +223,35 @@ export function ListGroupRow({
           </Text>
         ))}
       </View>
-      {onMore ? (
-        <Pressable
-          style={({ pressed }) => [styles.more, pressed && styles.pressed]}
-          onPress={onMore}
-          hitSlop={8}
+    </>
+  );
+  return (
+    <View style={styles.row}>
+      {onPress ? (
+        <PressableScale
+          onPress={onPress}
+          scaleTo={ROW_SCALE}
+          containerStyle={styles.rowMain}
+          style={styles.rowMainInner}
           accessibilityRole="button"
-          accessibilityLabel={moreLabel ?? `More options for ${title}`}
+          accessibilityLabel={[title, badge, ...shown].filter(Boolean).join('. ')}
+        >
+          {body}
+        </PressableScale>
+      ) : (
+        <View style={[styles.rowMain, styles.rowMainInner]}>{body}</View>
+      )}
+      {onMore ? (
+        <PressableScale
+          style={styles.more}
+          onPress={onMore}
+          haptic="tap"
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={moreLabel ?? fillCopy(copy.listMoreOptions, { name: title })}
         >
           <Ellipsis size={18} color={ui.textSecondary} strokeWidth={2.2} />
-        </Pressable>
+        </PressableScale>
       ) : null}
     </View>
   );
@@ -173,13 +263,12 @@ export function ListFootnote({ children }: { children: ReactNode }) {
 }
 
 const styles = StyleSheet.create({
-  pressed: { backgroundColor: ui.surfaceMuted },
   addRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     padding: PAD,
-    borderRadius: 18,
+    borderRadius: radii.card,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.hairline,
@@ -188,27 +277,24 @@ const styles = StyleSheet.create({
   addIcon: {
     width: ICON,
     height: ICON,
-    borderRadius: 13,
+    borderRadius: radii.thumb,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: 'rgba(10,100,35,0.35)',
+    borderColor: ui.brand,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addText: { fontFamily: fonts.bodyBold, fontSize: 15, color: ui.brand },
+  addText: { ...typeScale.rowTitle, fontFamily: typeScale.button.fontFamily, color: ui.brand },
   sectionTitle: {
+    ...typeScale.label,
     marginTop: 22,
     marginBottom: 8,
     marginLeft: 4,
-    fontFamily: fonts.bodyBold,
-    fontSize: 12,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
     color: ui.textTertiary,
   },
   sectionTitleFirst: { marginTop: 4 },
   group: {
-    borderRadius: 20,
+    borderRadius: radii.card,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.hairline,
@@ -216,46 +302,49 @@ const styles = StyleSheet.create({
     ...ui.shadow,
   },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: ui.border },
-  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: PAD },
-  navRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: PAD },
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 4, paddingRight: 8 },
+  rowMain: { flex: 1, minWidth: 0 },
+  rowMainInner: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: PAD, paddingRight: 4 },
+  navRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: PAD, minHeight: 64, backgroundColor: colors.white },
   navBody: { flex: 1, minWidth: 0 },
-  navTitle: { fontFamily: fonts.bodyBold, fontSize: 15.5, color: ui.text },
-  navSub: { marginTop: 2, fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: ui.textSecondary },
-  faqRow: { paddingHorizontal: PAD, paddingVertical: 16 },
-  faqHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  faqQ: { flex: 1, fontFamily: fonts.bodySemi, fontSize: 15.5, lineHeight: 21, color: ui.text },
-  faqQOpen: { fontFamily: fonts.bodyBold },
-  faqA: {
-    marginTop: 8,
-    paddingRight: 30,
-    fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 21,
-    color: ui.textSecondary,
+  navTitle: { ...typeScale.rowTitle, color: ui.text },
+  navSub: { ...typeScale.caption, marginTop: 2, color: ui.textSecondary },
+  navValue: { ...typeScale.caption, color: ui.textSecondary },
+  danger: { color: colors.error },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: PAD + 2,
+    paddingVertical: 16,
+    minHeight: 60,
+    backgroundColor: colors.white,
   },
+  actionTitle: { ...typeScale.rowTitle, color: ui.text },
+  actionTitleMissing: { color: ui.brand },
+  actionText: { ...typeScale.bodyStrong, fontFamily: typeScale.button.fontFamily, color: ui.brand },
+  faqRow: { paddingHorizontal: PAD, paddingVertical: 16, backgroundColor: colors.white },
+  faqHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  faqQ: { ...typeScale.rowTitle, flex: 1, color: ui.text },
+  faqQOpen: { fontFamily: typeScale.rowTitleLg.fontFamily },
+  faqA: { ...typeScale.body, marginTop: 8, paddingRight: 30, lineHeight: 21, color: ui.textSecondary },
   rowIcon: {
     width: ICON,
     height: ICON,
-    borderRadius: 13,
+    borderRadius: radii.thumb,
     backgroundColor: ui.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rowIconOn: { backgroundColor: ui.brand },
+  rowIconDanger: { backgroundColor: colors.errorBg },
   rowBody: { flex: 1, minWidth: 0, paddingTop: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { flexShrink: 1, fontFamily: fonts.bodyBold, fontSize: 15.5, color: ui.text },
-  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: ui.brandSoft },
-  badgeText: { fontFamily: fonts.bodyBold, fontSize: 10.5, letterSpacing: 0.3, color: ui.brand },
-  line: { marginTop: 3, fontFamily: fonts.bodyMedium, fontSize: 13.5, lineHeight: 19, color: ui.text },
-  subLine: { marginTop: 2, fontFamily: fonts.body, fontSize: 12.5, color: ui.textSecondary },
-  more: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  footnote: {
-    marginTop: 10,
-    marginHorizontal: 4,
-    fontFamily: fonts.body,
-    fontSize: 12.5,
-    lineHeight: 18,
-    color: ui.textTertiary,
-  },
+  title: { ...typeScale.rowTitle, flexShrink: 1, color: ui.text },
+  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: radii.pill, backgroundColor: ui.brandSoft },
+  badgeText: { ...typeScale.micro, fontFamily: typeScale.button.fontFamily, color: ui.brand },
+  line: { ...typeScale.caption, marginTop: 3, color: ui.text },
+  subLine: { ...typeScale.caption, fontSize: 12.5, marginTop: 2, color: ui.textSecondary },
+  more: { width: 44, height: 44, marginTop: 6, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center' },
+  footnote: { ...typeScale.caption, fontSize: 12.5, marginTop: 10, marginHorizontal: 4, color: ui.textTertiary },
 });

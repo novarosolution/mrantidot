@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -15,7 +15,7 @@ import {
 import { ArrowRight } from 'lucide-react-native';
 import { ctaLabelText } from '@/components/kit/format';
 import { SERVICE_TYPE_IMAGES } from '@/constants/serviceImages';
-import { useReducedMotion } from '@/lib/a11yPrefs';
+import { useAmbientInterval, useAmbientLoop } from '@/lib/a11yPrefs';
 import type { HomePromo } from '@/types/api';
 import { colors, fonts } from '@/constants/theme';
 
@@ -63,7 +63,6 @@ export function promoHeroSlide(
 export function HomeHeroCarousel({ slides, width: widthProp }: { slides: HeroSlide[]; width?: number }) {
   const { width: windowWidth } = useWindowDimensions();
   const width = widthProp ?? windowWidth;
-  const reduced = useReducedMotion();
   const [index, setIndex] = useState(0);
   const indexRef = useRef(0);
   const dragging = useRef(false);
@@ -71,17 +70,17 @@ export function HomeHeroCarousel({ slides, width: widthProp }: { slides: HeroSli
   const float = useRef(new Animated.Value(0)).current;
   const count = slides.length;
 
-  useEffect(() => {
-    if (reduced) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(float, { toValue: 1, duration: 2400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(float, { toValue: 0, duration: 2400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [float, reduced]);
+  // Art bob + auto-advance run only while Home is on screen (and never with Reduce Motion).
+  useAmbientLoop(
+    () =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(float, { toValue: 1, duration: 2400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(float, { toValue: 0, duration: 2400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+      ),
+    [float],
+  );
 
   // Slides can change length (offer arrives, catalogue loads) — keep the page in range.
   useEffect(() => {
@@ -92,17 +91,19 @@ export function HomeHeroCarousel({ slides, width: widthProp }: { slides: HeroSli
     }
   }, [count]);
 
-  useEffect(() => {
-    if (count < 2 || reduced) return;
-    const timer = setInterval(() => {
-      if (dragging.current) return;
+  useAmbientInterval(
+    () => {
+      if (dragging.current || count < 2) return;
       const next = (indexRef.current + 1) % count;
       indexRef.current = next;
       setIndex(next);
       scrollRef.current?.scrollTo({ x: next * width, animated: true });
-    }, AUTO_MS);
-    return () => clearInterval(timer);
-  }, [count, reduced, width]);
+    },
+    AUTO_MS,
+    count > 1,
+  );
+
+  const artLift = useMemo(() => float.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }), [float]);
 
   function onScrollEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
     const i = Math.round(e.nativeEvent.contentOffset.x / width);
@@ -157,7 +158,7 @@ export function HomeHeroCarousel({ slides, width: widthProp }: { slides: HeroSli
               source={s.art}
               style={[
                 styles.art,
-                { transform: [{ translateY: float.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) }] },
+                { transform: [{ translateY: artLift }] },
               ]}
               resizeMode="contain"
             />

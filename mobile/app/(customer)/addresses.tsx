@@ -13,7 +13,9 @@ import {
   AddressDetailsForm,
   EMPTY_ADDRESS_FORM,
   addressFormValid,
+  composeStreetLine,
   type AddressFormValues,
+  type AddressSaveAs,
 } from '@/components/kit/AddressDetailsForm';
 import { AddressLocateButton } from '@/components/kit/AddressLocateButton';
 import { CustomerListShell, listShellStyles } from '@/components/kit/CustomerListShell';
@@ -26,8 +28,28 @@ import { api, screenLoadConfig } from '@/lib/api';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { useLocation } from '@/context/LocationContext';
 import { useScreenLoad } from '@/lib/useScreenLoad';
-import type { SavedAddress } from '@/types/api';
+import type { CustomerUiCopy, SavedAddress } from '@/types/api';
 import { spacing, ui as themeUi } from '@/constants/theme';
+
+/**
+ * Saved addresses only keep one street line ("Flat/House A-1, MG Road, Landmark: Park"). Split it back
+ * into the form's fields for editing; anything unrecognised stays in the street field.
+ */
+function formFromAddress(a: SavedAddress, copy: Pick<CustomerUiCopy, 'addrHousePrefix' | 'addrLandmarkPrefix'>): AddressFormValues {
+  const prefixOf = (template: string) => template.split('{')[0] ?? '';
+  const housePrefix = prefixOf(copy.addrHousePrefix).trim();
+  const landmarkPrefix = prefixOf(copy.addrLandmarkPrefix).trim();
+  let house = '';
+  let landmark = '';
+  const rest: string[] = [];
+  for (const part of a.line1.split(',').map((p) => p.trim()).filter(Boolean)) {
+    if (!house && housePrefix && part.startsWith(housePrefix)) house = part.slice(housePrefix.length).trim();
+    else if (!landmark && landmarkPrefix && part.startsWith(landmarkPrefix)) landmark = part.slice(landmarkPrefix.length).trim();
+    else rest.push(part);
+  }
+  const saveAs: AddressSaveAs = a.label === 'Office' || a.label === 'Other' ? a.label : 'Home';
+  return { house, street: rest.join(', '), landmark, city: a.city ?? '', pincode: a.pincode ?? '', saveAs };
+}
 
 export default function AddressesScreen() {
   const ui = useCustomerUiCopy();
@@ -39,6 +61,9 @@ export default function AddressesScreen() {
   const [saving, setSaving] = useState(false);
   const [menuFor, setMenuFor] = useState<SavedAddress | null>(null);
   const [deleteFor, setDeleteFor] = useState<SavedAddress | null>(null);
+  /** Address being edited in the sheet (null = adding a new one). */
+  const [editFor, setEditFor] = useState<SavedAddress | null>(null);
+  const [showErrors, setShowErrors] = useState(false);
 
   const fetchAddresses = useCallback(async () => {
     const { data } = await api.get<{ addresses: SavedAddress[] }>('/addresses', screenLoadConfig);
@@ -52,11 +77,20 @@ export default function AddressesScreen() {
   useStaleFocusRefresh(() => load().catch(() => undefined), 20_000);
 
   useEffect(() => {
-    void runLoad(load, 'Could not load addresses');
+    void runLoad(load, ui.addressesLoadFailed);
   }, [load, runLoad]);
 
   function openAdd() {
+    setEditFor(null);
+    setShowErrors(false);
     setForm({ ...EMPTY_ADDRESS_FORM, saveAs: 'Home' });
+    setModalOpen(true);
+  }
+
+  function openEdit(a: SavedAddress) {
+    setEditFor(a);
+    setShowErrors(false);
+    setForm(formFromAddress(a, ui));
     setModalOpen(true);
   }
 
@@ -69,33 +103,39 @@ export default function AddressesScreen() {
         city: loc.city && loc.city !== 'your area' ? loc.city : prev.city,
         pincode: loc.pincode || prev.pincode,
       }));
-      Toast.show({ type: 'success', text1: 'Location added', text2: 'Add house / flat number to finish' });
+      Toast.show({ type: 'success', text1: ui.cartLocationFilled, text2: ui.cartLocationFilledSub });
     }
   }
 
   async function saveAddress() {
-    if (!addressFormValid(form)) {
-      Toast.show({ type: 'error', text1: 'Fill house/flat, street, and city' });
+    // Editing an older address may have no separate house number — street + city are enough then.
+    const valid = editFor ? Boolean(form.street.trim() && form.city.trim()) : addressFormValid(form);
+    if (!valid) {
+      setShowErrors(true);
+      haptic('warning');
       return;
     }
     setSaving(true);
     try {
-      const line1 = [
-        form.house.trim() ? `Flat/House ${form.house.trim()}` : '',
-        form.street.trim(),
-        form.landmark.trim() ? `Landmark: ${form.landmark.trim()}` : '',
-      ]
-        .filter(Boolean)
-        .join(', ');
-      await api.post('/addresses', {
-        label: form.saveAs,
-        line1,
-        city: form.city.trim(),
-        pincode: form.pincode.trim() || undefined,
-        isDefault: form.saveAs === 'Home' || addresses.length === 0,
-      });
+      const line1 = composeStreetLine(form, ui);
+      if (editFor) {
+        await api.patch(`/addresses/${editFor.id}`, {
+          label: form.saveAs,
+          line1,
+          city: form.city.trim(),
+          pincode: form.pincode.trim(),
+        });
+      } else {
+        await api.post('/addresses', {
+          label: form.saveAs,
+          line1,
+          city: form.city.trim(),
+          pincode: form.pincode.trim() || undefined,
+          isDefault: form.saveAs === 'Home' || addresses.length === 0,
+        });
+      }
       haptic('success');
-      Toast.show({ type: 'success', text1: ui.addressesSavedToast });
+      Toast.show({ type: 'success', text1: editFor ? ui.addressesUpdatedToast : ui.addressesSavedToast });
       setModalOpen(false);
       await load();
     } catch {
@@ -129,6 +169,7 @@ export default function AddressesScreen() {
 
   const menuOptions: ActionSheetOption[] = menuFor
     ? [
+        { key: 'edit', label: ui.addressesEdit, subtitle: ui.addressesEditSub, onPress: () => openEdit(menuFor) },
         ...(menuFor.isDefault
           ? []
           : [{ key: 'default', label: ui.addressesSetDefault, subtitle: ui.addressesSetDefaultSub, onPress: () => void setDefault(menuFor) }]),
@@ -145,7 +186,7 @@ export default function AddressesScreen() {
         embedded
         loading={loading}
         error={error && addresses.length === 0 ? error : null}
-        onRetry={() => void reload(load, 'Could not load addresses')}
+        onRetry={() => void reload(load, ui.addressesLoadFailed)}
         skeleton={<ListRowsSkeleton rows={3} tall />}
       >
         <ScrollView
@@ -154,7 +195,7 @@ export default function AddressesScreen() {
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => void refresh(load, 'Could not refresh')}
+              onRefresh={() => void refresh(load, ui.homeRefreshFailed)}
               tintColor={themeUi.brand}
             />
           }
@@ -177,6 +218,7 @@ export default function AddressesScreen() {
                     title={a.label}
                     badge={a.isDefault ? ui.addressesDefaultBadge : undefined}
                     lines={[a.line1, [a.city, a.pincode].filter(Boolean).join(' · ')]}
+                    onPress={() => openEdit(a)}
                     onMore={() => setMenuFor(a)}
                   />
                 ))}
@@ -210,7 +252,7 @@ export default function AddressesScreen() {
       <BottomSheet
         visible={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={ui.addressesSheetTitle}
+        title={editFor ? ui.addressesEditSheetTitle : ui.addressesSheetTitle}
         hint={ui.addressesSheetHint}
         footer={
           <Button title={ui.addressesSaveButton} variant="premium" onPress={() => void saveAddress()} loading={saving} />
@@ -218,7 +260,7 @@ export default function AddressesScreen() {
       >
         <AddressLocateButton loading={locating} onPress={() => void useCurrentLocation()} />
         <View style={styles.formPad}>
-          <AddressDetailsForm value={form} onChange={setForm} />
+          <AddressDetailsForm value={form} onChange={setForm} showErrors={showErrors && !editFor} />
         </View>
       </BottomSheet>
     </CustomerListShell>

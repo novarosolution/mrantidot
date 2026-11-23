@@ -96,14 +96,27 @@ export const adminRoutes = {
   home: ADMIN_HOME,
   team: ADMIN_TEAM,
   bookings: '/(admin)/bookings',
-  bookingsFiltered: (params: { status?: string; serviceId?: string }) =>
+  /** Bookings list opened with filters (only the filters given are passed). Dates are YYYY-MM-DD. */
+  bookingsFiltered: (params: {
+    status?: string;
+    serviceId?: string;
+    technicianId?: string;
+    customerId?: string;
+    paymentStatus?: string;
+    from?: string;
+    to?: string;
+    q?: string;
+  }) =>
     ({
       pathname: '/(admin)/bookings',
-      params: {
-        ...(params.status ? { status: params.status } : {}),
-        ...(params.serviceId ? { serviceId: params.serviceId } : {}),
-      },
+      params: Object.fromEntries(
+        Object.entries(params).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].length > 0),
+      ),
     }) as const,
+  /** New booking made by an admin on a customer's behalf (optionally for a chosen customer). */
+  bookingCreate: '/(admin)/booking-create',
+  bookingCreateFor: (customerId?: string) =>
+    ({ pathname: '/(admin)/booking-create', params: customerId ? { customerId } : {} }) as const,
   reports: '/(admin)/reports',
   services: '/(admin)/services',
   serviceOrder: '/(admin)/service-order',
@@ -124,6 +137,9 @@ export const adminRoutes = {
   leave: '/(admin)/leave',
   payroll: '/(admin)/payroll',
   dataExport: '/(admin)/data-export',
+  businessSettings: '/(admin)/settings-business',
+  activity: '/(admin)/activity',
+  broadcast: '/(admin)/broadcast',
   /* Website (public site) */
   website: '/(admin)/website',
   websitePages: '/(admin)/website/pages',
@@ -172,6 +188,7 @@ export function adminBackFallback(pathname?: string): string {
   if (pathname.includes('/user-edit')) return adminRoutes.users;
   if (pathname.includes('/customer/')) return adminRoutes.customers;
   if (pathname.includes('/technician/')) return adminRoutes.technicians;
+  if (pathname.includes('/booking-create')) return adminRoutes.bookings;
   if (pathname.includes('/booking/')) return adminRoutes.bookings;
   if (pathname.includes('/notifications')) return ADMIN_TEAM;
   if (pathname.includes('/settings')) return ADMIN_TEAM;

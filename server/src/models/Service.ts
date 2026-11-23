@@ -1,7 +1,8 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import { SERVICE_TYPE_KEYS, type ServiceTypeKey } from '../constants/serviceTypes';
 
-export type ServiceCategory = 'residential' | 'commercial' | 'cleaning' | 'general';
+/** Built-in categories plus any key the admin adds in Business settings → Lists → Categories. */
+export type ServiceCategory = 'residential' | 'commercial' | 'cleaning' | 'general' | (string & {});
 
 /** One bookable size/package (e.g. "2 BHK") — when a service has options, the booking is priced from the picked one. */
 export interface IServiceOption {
@@ -65,9 +66,12 @@ const serviceSchema = new Schema<IService>(
     basePrice: { type: Number, required: true, min: 0 },
     shortDesc: { type: String, required: true, trim: true },
     rating: { type: Number, default: 4.8 },
+    // Checked against Business settings categories by the services route (existing values stay valid).
     category: {
       type: String,
-      enum: ['residential', 'commercial', 'cleaning', 'general'],
+      trim: true,
+      lowercase: true,
+      match: /^[a-z0-9_]{1,40}$/,
       default: 'general',
     },
     serviceTypes: {

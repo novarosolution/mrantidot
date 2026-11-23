@@ -2,6 +2,7 @@ import { Redirect, Stack } from 'expo-router';
 import type { ComponentProps } from 'react';
 import { Platform } from 'react-native';
 import { WebAdminShell } from '@/components/admin/WebAdminShell';
+import { WebDialogHost } from '@/components/admin/WebDialogHost';
 import { Spinner } from '@/components/ui/Spinner';
 import { useAuth } from '@/context/AuthContext';
 import { appHref, authRoutes, homeRouteForRole } from '@/lib/routes';
@@ -59,6 +60,13 @@ export default function AdminLayout() {
     </Stack>
   );
 
-  // Desktop browsers get the sidebar frame (narrow windows keep the phone layout inside it).
-  return IS_WEB ? <WebAdminShell>{stack}</WebAdminShell> : stack;
+  // Desktop browsers get the sidebar frame (narrow windows keep the phone layout inside it), and every
+  // confirmation in the browser uses the in-app dialog (lib/confirm.ts).
+  if (!IS_WEB) return stack;
+  return (
+    <>
+      <WebAdminShell>{stack}</WebAdminShell>
+      <WebDialogHost />
+    </>
+  );
 }

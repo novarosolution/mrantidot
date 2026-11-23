@@ -1,6 +1,9 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, Share, StyleSheet, Text, View, type ScrollView } from 'react-native';
+import { AppImage } from '@/components/ui/AppImage';
+import { BottomSheet } from '@/components/ui/BottomSheet';
+import { serviceCoverUri } from '@/components/kit/ServiceThumb';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Check, CircleCheck, Info, Share2, ShieldCheck, Star, X } from 'lucide-react-native';
 import { paramString } from '@/lib/routeParams';
@@ -12,7 +15,7 @@ import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { useReducedMotion } from '@/lib/a11yPrefs';
-import { haptic, motion, stagger } from '@/lib/motion';
+import { haptic, motion, shakeAnimation, stagger } from '@/lib/motion';
 import { AppIcons } from '@/constants/appIcons';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import { useAppContent } from '@/context/AppContentContext';
@@ -25,10 +28,10 @@ import { formatSocialProof } from '@/lib/display';
 import { serviceDisplayRating } from '@/lib/ratings';
 import { earliestSlotLabel } from '@/lib/earliestSlot';
 import { formatDuration, serviceDurationMins, serviceStartPrice } from '@/lib/serviceDisplay';
-import { formatRupeeFull, plural } from '@/components/kit/format';
+import { formatRupeeFull } from '@/components/kit/format';
 import { safeGoBack, customerRoutes, sharedRoutes, appPush } from '@/lib/routes';
 import type { Service, ServiceReview, ServiceStats, ServiceTypeKey } from '@/types/api';
-import { colors, fonts, ui } from '@/constants/theme';
+import { colors, fonts, radii, typeScale, ui } from '@/constants/theme';
 import { ServiceDetailSkeleton } from '@/components/kit/ScreenSkeletons';
 
 const PAD = 16;
@@ -42,7 +45,9 @@ function reviewDate(iso?: string): string | null {
 function SectionTitle({ title, sub }: { title: string; sub?: string }) {
   return (
     <View style={styles.sectionHead}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <Text style={styles.sectionTitle} accessibilityRole="header">
+        {title}
+      </Text>
       {sub ? <Text style={styles.sectionSub}>{sub}</Text> : null}
     </View>
   );
@@ -51,6 +56,26 @@ function SectionTitle({ title, sub }: { title: string; sub?: string }) {
 /** Grey band between sections — the Urban-style page rhythm. */
 function Band() {
   return <View style={styles.band} />;
+}
+
+function ReviewItem({ review: r, first }: { review: ServiceReview; first: boolean }) {
+  const text = r.comment?.trim() || (r.tags ?? []).join(', ');
+  const when = reviewDate(r.createdAt);
+  return (
+    <View style={[styles.review, !first && styles.reviewBorder]}>
+      <View style={styles.reviewHead}>
+        <View style={styles.flex}>
+          <Text style={styles.reviewName}>{r.customerName}</Text>
+          {when ? <Text style={styles.reviewDate}>{when}</Text> : null}
+        </View>
+        <View style={styles.reviewStars}>
+          <Star size={11} color={colors.white} fill={colors.white} strokeWidth={1.5} />
+          <Text style={styles.reviewStarsText}>{r.stars}</Text>
+        </View>
+      </View>
+      {text ? <Text style={styles.reviewText}>{text}</Text> : null}
+    </View>
+  );
 }
 
 export default function ServiceDetailScreen() {
@@ -71,6 +96,10 @@ export default function ServiceDetailScreen() {
   const reducedMotion = useReducedMotion();
   /** Hero art pops in once the service has loaded. */
   const artIn = useRef(new Animated.Value(0)).current;
+  /** "Pick a size first" — shakes the size grid and shows a line under it. */
+  const sizeShake = useRef(new Animated.Value(0)).current;
+  const [sizeWarning, setSizeWarning] = useState(false);
+  const [allReviewsOpen, setAllReviewsOpen] = useState(false);
 
   const load = useCallback(
     async (skipCache = false) => {
@@ -112,16 +141,26 @@ export default function ServiceDetailScreen() {
         <CustomerPageHeader variant="premium" title={copy.serviceUnavailableTitle} showBack onBack={() => safeGoBack(customerRoutes.services)} />
         <ListEmptyRetry
           title={copy.serviceUnavailableTitle}
-          message={!id ? 'This service link is invalid.' : (error ?? 'This service is no longer available.')}
+          message={!id ? copy.serviceInvalidLink : (error ?? copy.serviceGone)}
           onRetry={() => (id ? void runLoad(() => load(true)) : safeGoBack(customerRoutes.services))}
         />
       </View>
     );
   }
 
-  if (loading || !service) return <ServiceDetailSkeleton />;
+  if (loading || !service) {
+    // Light skeleton → dark status-bar glyphs from the first frame (not only once the page loads).
+    return (
+      <View style={styles.root}>
+        <FocusStatusBar style="dark" />
+        <ServiceDetailSkeleton />
+      </View>
+    );
+  }
 
   const brand = content.branding.name?.trim() || 'Mr Antidot';
+  const cover = serviceCoverUri(service);
+  const highlights = (service.highlights ?? []).map((h) => h.trim()).filter(Boolean).slice(0, 4);
   const type = (service.serviceTypes?.[0] ?? 'general') as ServiceTypeKey;
   const meta = SERVICE_TYPE_META[type] ?? SERVICE_TYPE_META.general;
   const rating = serviceDisplayRating(service);
@@ -146,9 +185,14 @@ export default function ServiceDetailScreen() {
   function book() {
     if (!service) return;
     if (options.length > 0 && !selected) {
+      // Missing size: bring the grid into view, shake it and say why — never a silent scroll.
+      haptic('warning');
+      setSizeWarning(true);
       scrollTo(optionsY.current);
+      if (!reducedMotion) shakeAnimation(sizeShake).start();
       return;
     }
+    haptic('tap');
     appPush(sharedRoutes.book(service.id, selected ? { option: selected.key } : undefined));
   }
 
@@ -165,7 +209,7 @@ export default function ServiceDetailScreen() {
 
   const headerFade = scrollY.interpolate({ inputRange: [140, 200], outputRange: [0, 1], extrapolate: 'clamp' });
   // Hero stretches to cover the pull-down gap and drifts slower than the page on scroll (parallax).
-  const heroH = insets.top + 60 + 170 + 18;
+  const heroH = cover ? insets.top + 280 : insets.top + 60 + 170 + 18;
   const heroMotion = reducedMotion
     ? undefined
     : {
@@ -192,26 +236,40 @@ export default function ServiceDetailScreen() {
         scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
       >
-        {/* Hero art in the pest type's colour; the floating back/share buttons sit on it. */}
-        <Animated.View style={[styles.hero, { paddingTop: insets.top + 60, backgroundColor: meta.bg }, heroMotion]}>
-          <Animated.View
-            style={[
-              styles.heroArt,
-              {
-                opacity: artIn,
-                transform: [{ scale: artIn.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] }) }],
-              },
-            ]}
-          >
-            <PestImage source={meta.image} size={150} />
+        {/* Admin cover photo full-bleed (or pest art in the type's colour); back/share float on top. */}
+        {cover ? (
+          <Animated.View style={[styles.heroPhoto, { height: heroH, backgroundColor: meta.bg }, heroMotion]}>
+            <AppImage
+              uri={cover}
+              style={StyleSheet.absoluteFill}
+              priority="high"
+              placeholderColor={meta.bg}
+              accessibilityLabel={service.coverImage?.alt || service.name}
+            />
           </Animated.View>
-        </Animated.View>
+        ) : (
+          <Animated.View style={[styles.hero, { paddingTop: insets.top + 60, backgroundColor: meta.bg }, heroMotion]}>
+            <Animated.View
+              style={[
+                styles.heroArt,
+                {
+                  opacity: artIn,
+                  transform: [{ scale: artIn.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] }) }],
+                },
+              ]}
+            >
+              <PestImage source={meta.image} size={150} />
+            </Animated.View>
+          </Animated.View>
+        )}
 
         <FadeSlideIn delay={stagger(1)} slideFrom={16}>
           <View style={styles.white}>
             <View style={styles.titleRow}>
               <View style={styles.flex}>
-                <Text style={styles.title}>{service.name}</Text>
+                <Text style={styles.title} accessibilityRole="header">
+                  {service.name}
+                </Text>
                 {socialProof ? (
                   <View style={styles.ratingRow}>
                     <Star size={13} color={ui.star} fill={ui.star} strokeWidth={1.5} />
@@ -235,6 +293,16 @@ export default function ServiceDetailScreen() {
               {duration}
             </Text>
             {service.shortDesc ? <Text style={styles.about}>{service.shortDesc}</Text> : null}
+            {highlights.length > 0 ? (
+              <View style={styles.highlights}>
+                {highlights.map((h) => (
+                  <View key={h} style={styles.highlightRow}>
+                    <Check size={15} color={ui.brand} strokeWidth={2.6} />
+                    <Text style={styles.highlightText}>{h}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
             <View style={styles.facts}>
               {[
                 { icon: AppIcons.ui.leaf, label: `${copy.serviceFactOneTitle} · ${copy.serviceFactOneSub}` },
@@ -266,25 +334,25 @@ export default function ServiceDetailScreen() {
                   <View style={styles.reqNum}>
                     <Text style={styles.reqNumText}>1</Text>
                   </View>
-                  <Text style={styles.reqTitle}>{service.optionsTitle || 'Size of home'}</Text>
+                  <Text style={styles.reqTitle}>{service.optionsTitle || copy.serviceOptionsFallbackTitle}</Text>
                 </View>
-                <View style={styles.optionGrid}>
+                <Animated.View
+                  style={[styles.optionGrid, { transform: [{ translateX: sizeShake }] }]}
+                  accessibilityRole="radiogroup"
+                >
                   {options.map((o) => {
                     const on = o.key === optionKey;
                     return (
-                      <Pressable
+                      <PressableScale
                         key={o.key}
                         onPress={() => {
                           if (o.key !== optionKey) haptic('select');
                           setOptionKey(o.key);
+                          setSizeWarning(false);
                         }}
-                        style={({ pressed }) => [
-                          styles.option,
-                          // 2 or 4 sizes read best as a 2-column grid; otherwise three across.
-                          options.length === 2 || options.length === 4 ? styles.optionHalf : styles.optionThird,
-                          on && styles.optionOn,
-                          pressed && styles.pressed,
-                        ]}
+                        // 2 or 4 sizes read best as a 2-column grid; otherwise three across.
+                        containerStyle={options.length === 2 || options.length === 4 ? styles.optionHalf : styles.optionThird}
+                        style={[styles.option, on && styles.optionOn, sizeWarning && styles.optionWarn]}
                         accessibilityRole="radio"
                         accessibilityState={{ selected: on }}
                         accessibilityLabel={`${o.label}, ${formatRupeeFull(o.price)}`}
@@ -303,12 +371,17 @@ export default function ServiceDetailScreen() {
                             <Check size={11} color={colors.white} strokeWidth={3.2} />
                           </View>
                         ) : null}
-                      </Pressable>
+                      </PressableScale>
                     );
                   })}
-                </View>
+                </Animated.View>
+                {sizeWarning ? (
+                  <Text style={styles.sizeWarning} accessibilityLiveRegion="polite" accessibilityRole="alert">
+                    {copy.servicePickSizeFirst}
+                  </Text>
+                ) : null}
                 {included.length > 0 ? (
-                  <Pressable onPress={() => scrollTo(includedY.current)} hitSlop={6} accessibilityRole="link">
+                  <Pressable onPress={() => scrollTo(includedY.current)} hitSlop={12} accessibilityRole="link" style={styles.linkHit}>
                     <Text style={styles.link}>{copy.serviceIncludedLink}</Text>
                   </Pressable>
                 ) : null}
@@ -318,7 +391,7 @@ export default function ServiceDetailScreen() {
         ) : null}
 
         {notes.length > 0 ? (
-          <>
+          <FadeSlideIn delay={stagger(3)}>
             <Band />
             <View style={styles.white}>
               <SectionTitle title={copy.serviceNotesTitle} />
@@ -329,18 +402,19 @@ export default function ServiceDetailScreen() {
                 </View>
               ))}
             </View>
-          </>
+          </FadeSlideIn>
         ) : null}
 
         {included.length > 0 ? (
-          <>
+          <View
+            onLayout={(e) => {
+              // Measured on the scroll content's direct child (the band above the card is 8 pt).
+              includedY.current = e.nativeEvent.layout.y + 8;
+            }}
+          >
+          <FadeSlideIn delay={stagger(4)}>
             <Band />
-            <View
-              style={styles.white}
-              onLayout={(e) => {
-                includedY.current = e.nativeEvent.layout.y;
-              }}
-            >
+            <View style={styles.white}>
               <SectionTitle title={copy.serviceIncludedTitle} />
               <View style={styles.tileGrid}>
                 {included.map((item) => (
@@ -351,11 +425,12 @@ export default function ServiceDetailScreen() {
                 ))}
               </View>
             </View>
-          </>
+          </FadeSlideIn>
+          </View>
         ) : null}
 
         {steps.length > 0 ? (
-          <>
+          <FadeSlideIn delay={stagger(5)}>
             <Band />
             <View style={styles.white}>
               <SectionTitle title={copy.serviceStepsTitle} sub={fillCopy(copy.serviceStepsSub, { duration })} />
@@ -371,11 +446,11 @@ export default function ServiceDetailScreen() {
                 </View>
               ))}
             </View>
-          </>
+          </FadeSlideIn>
         ) : null}
 
         {excluded.length > 0 ? (
-          <>
+          <FadeSlideIn delay={stagger(6)}>
             <Band />
             <View style={styles.white}>
               <SectionTitle title={copy.serviceExcludedTitle} />
@@ -386,11 +461,11 @@ export default function ServiceDetailScreen() {
                 </View>
               ))}
             </View>
-          </>
+          </FadeSlideIn>
         ) : null}
 
         {trustBadges.length > 0 || guarantee ? (
-          <>
+          <FadeSlideIn delay={stagger(6)}>
             <Band />
             <View style={styles.white}>
               <SectionTitle title={fillCopy(copy.serviceWhyTitle, { brand })} />
@@ -409,11 +484,11 @@ export default function ServiceDetailScreen() {
               </View>
               {guarantee ? <Text style={styles.guarantee}>{guarantee}</Text> : null}
             </View>
-          </>
+          </FadeSlideIn>
         ) : null}
 
         {reviews.length > 0 ? (
-          <>
+          <FadeSlideIn delay={stagger(6)}>
             <Band />
             <View style={styles.white}>
               <View style={styles.ratingSummary}>
@@ -422,12 +497,22 @@ export default function ServiceDetailScreen() {
                     <Star size={22} color={ui.star} fill={ui.star} strokeWidth={1.5} />
                     <Text style={styles.ratingBigText}>{(rating ?? 0).toFixed(1)}</Text>
                   </View>
-                  <Text style={styles.ratingBigSub}>{plural(reviewTotal, 'review')}</Text>
+                  <Text style={styles.ratingBigSub}>
+                    {reviewTotal === 1 ? copy.serviceReviewCountOne : fillCopy(copy.serviceReviewCountMany, { count: reviewTotal })}
+                  </Text>
                 </View>
                 <View style={styles.bars}>
                   {counts.map((c) => (
-                    <View key={c.n} style={styles.barRow}>
-                      <Text style={styles.barLabel}>{c.n}★</Text>
+                    <View
+                      key={c.n}
+                      style={styles.barRow}
+                      accessible
+                      accessibilityLabel={fillCopy(copy.serviceStarsA11y, { stars: c.n, count: c.count })}
+                    >
+                      <View style={styles.barLabelRow}>
+                        <Text style={styles.barLabel}>{c.n}</Text>
+                        <Star size={10} color={ui.text} fill={ui.text} strokeWidth={1.5} />
+                      </View>
                       <View style={styles.barTrack}>
                         <View style={[styles.barFill, { width: `${(c.count / maxCount) * 100}%` }]} />
                       </View>
@@ -436,31 +521,28 @@ export default function ServiceDetailScreen() {
                   ))}
                 </View>
               </View>
-              <Text style={styles.reviewsHeading}>{copy.serviceReviewsTitle}</Text>
-              {reviews.slice(0, 5).map((r, i) => {
-                const text = r.comment?.trim() || (r.tags ?? []).join(', ');
-                const when = reviewDate(r.createdAt);
-                return (
-                  <View key={r.id} style={[styles.review, i > 0 && styles.reviewBorder]}>
-                    <View style={styles.reviewHead}>
-                      <View style={styles.flex}>
-                        <Text style={styles.reviewName}>{r.customerName}</Text>
-                        {when ? <Text style={styles.reviewDate}>{when}</Text> : null}
-                      </View>
-                      <View style={styles.reviewStars}>
-                        <Star size={11} color={colors.white} fill={colors.white} strokeWidth={1.5} />
-                        <Text style={styles.reviewStarsText}>{r.stars}</Text>
-                      </View>
-                    </View>
-                    {text ? <Text style={styles.reviewText}>{text}</Text> : null}
-                  </View>
-                );
-              })}
+              <Text style={styles.reviewsHeading} accessibilityRole="header">
+                {copy.serviceReviewsTitle}
+              </Text>
+              {reviews.slice(0, 5).map((r, i) => (
+                <ReviewItem key={r.id} review={r} first={i === 0} />
+              ))}
+              {reviews.length > 5 ? (
+                <PressableScale
+                  style={styles.seeAll}
+                  onPress={() => setAllReviewsOpen(true)}
+                  haptic="tap"
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.seeAllText}>{fillCopy(copy.serviceSeeAllReviews, { count: reviews.length })}</Text>
+                </PressableScale>
+              ) : null}
             </View>
-          </>
+          </FadeSlideIn>
         ) : null}
 
         <Band />
+        <FadeSlideIn delay={stagger(6)}>
         <View style={[styles.white, styles.shareBlock]}>
           <Text style={styles.shareText}>{copy.serviceShareText}</Text>
           <PressableScale
@@ -473,6 +555,7 @@ export default function ServiceDetailScreen() {
             <Share2 size={15} color={ui.brand} strokeWidth={2.4} />
           </PressableScale>
         </View>
+        </FadeSlideIn>
       </Animated.ScrollView>
 
       {/* Floating header: buttons always on, white bar + title fade in once the hero scrolls away. */}
@@ -485,7 +568,7 @@ export default function ServiceDetailScreen() {
             onPress={() => safeGoBack(customerRoutes.services)}
             hitSlop={10}
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel={copy.navBack}
           >
             <ArrowLeft size={20} color={ui.text} strokeWidth={2.2} />
           </PressableScale>
@@ -498,12 +581,18 @@ export default function ServiceDetailScreen() {
             onPress={shareService}
             hitSlop={10}
             accessibilityRole="button"
-            accessibilityLabel="Share this service"
+            accessibilityLabel={copy.serviceShareA11y}
           >
             <Share2 size={18} color={ui.text} strokeWidth={2.2} />
           </PressableScale>
         </View>
       </View>
+
+      <BottomSheet visible={allReviewsOpen} onClose={() => setAllReviewsOpen(false)} title={copy.serviceAllReviewsTitle}>
+        {reviews.map((r, i) => (
+          <ReviewItem key={r.id} review={r} first={i === 0} />
+        ))}
+      </BottomSheet>
 
       <StickyActionBar>
         <View style={styles.footerRow}>
@@ -513,7 +602,7 @@ export default function ServiceDetailScreen() {
               {selected ? `${selected.label} · ${duration}` : `${copy.serviceFromLabel} · ${duration}`}
             </Text>
           </View>
-          <PressableScale containerStyle={styles.bookWrap} style={styles.bookBtn} onPress={book} haptic="tap" accessibilityRole="button">
+          <PressableScale containerStyle={styles.bookWrap} style={styles.bookBtn} onPress={book} accessibilityRole="button">
             <Text style={styles.bookText}>{copy.serviceBookButton}</Text>
           </PressableScale>
         </View>
@@ -523,10 +612,13 @@ export default function ServiceDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: ui.surfaceMuted },
+  root: { flex: 1, backgroundColor: ui.canvas },
   flex: { flex: 1, minWidth: 0 },
-  pressed: { opacity: 0.85 },
   hero: { alignItems: 'center', paddingBottom: 18 },
+  heroPhoto: { width: '100%', overflow: 'hidden' },
+  highlights: { marginTop: 12, gap: 6 },
+  highlightRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  highlightText: { ...typeScale.body, flex: 1, color: ui.text },
   heroArt: {
     width: 190,
     height: 170,
@@ -534,9 +626,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   white: { backgroundColor: colors.white, paddingHorizontal: PAD, paddingVertical: 20 },
-  band: { height: 8, backgroundColor: ui.surfaceMuted },
+  band: { height: 8, backgroundColor: ui.canvas },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  title: { fontFamily: fonts.displaySemi, fontSize: 25, lineHeight: 31, letterSpacing: -0.6, color: ui.text },
+  title: { ...typeScale.title, color: ui.text },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
   ratingText: {
     fontFamily: fonts.bodyMedium,
@@ -546,7 +638,7 @@ const styles = StyleSheet.create({
   earliest: {
     paddingHorizontal: 10,
     paddingVertical: 8,
-    borderRadius: 12,
+    borderRadius: radii.thumb,
     borderWidth: 1,
     borderColor: ui.border,
     backgroundColor: colors.white,
@@ -566,13 +658,13 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 10,
     height: 30,
-    borderRadius: 15,
+    borderRadius: radii.pill,
     backgroundColor: ui.brandSoft,
   },
   factText: { fontFamily: fonts.bodySemi, fontSize: 12, color: ui.text },
   sectionHead: { marginBottom: 14 },
-  sectionTitle: { fontFamily: fonts.displaySemi, fontSize: 20, letterSpacing: -0.4, color: ui.text },
-  sectionSub: { marginTop: 3, fontFamily: fonts.body, fontSize: 13, color: ui.textSecondary },
+  sectionTitle: { ...typeScale.section, color: ui.text },
+  sectionSub: { ...typeScale.caption, marginTop: 3, color: ui.textSecondary },
   reqHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
   reqNum: {
     width: 24,
@@ -583,13 +675,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   reqNumText: { fontFamily: fonts.bodyBold, fontSize: 12, color: ui.textSecondary },
-  reqTitle: { fontFamily: fonts.bodySemi, fontSize: 15.5, color: ui.text },
+  reqTitle: { ...typeScale.rowTitle, color: ui.text },
   optionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   option: {
     minHeight: 74,
     paddingHorizontal: 12,
     paddingVertical: 11,
-    borderRadius: 14,
+    borderRadius: radii.control,
     borderWidth: 1,
     borderColor: ui.border,
     backgroundColor: colors.white,
@@ -597,6 +689,8 @@ const styles = StyleSheet.create({
   optionHalf: { width: '48.4%' },
   optionThird: { width: '31.6%' },
   optionOn: { borderColor: ui.brand, borderWidth: 1.5, backgroundColor: ui.brandSoft },
+  optionWarn: { borderColor: colors.amber },
+  sizeWarning: { ...typeScale.captionStrong, marginTop: 10, color: colors.amberInk },
   optionLabel: { fontFamily: fonts.bodySemi, fontSize: 13, color: ui.textSecondary, paddingRight: 14 },
   optionLabelOn: { color: ui.text },
   optionPrice: { marginTop: 6, fontFamily: fonts.bodyBold, fontSize: 15, color: ui.text },
@@ -612,13 +706,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  link: {
-    marginTop: 16,
-    fontFamily: fonts.bodySemi,
-    fontSize: 14,
-    color: ui.brand,
-    textDecorationLine: 'underline',
-  },
+  linkHit: { alignSelf: 'flex-start', marginTop: 8, paddingVertical: 8 },
+  link: { ...typeScale.bodyStrong, color: ui.brand, textDecorationLine: 'underline' },
   noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 7 },
   noteText: { flex: 1, fontFamily: fonts.body, fontSize: 14.5, lineHeight: 21, color: ui.text },
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -627,7 +716,7 @@ const styles = StyleSheet.create({
     minHeight: 92,
     padding: 12,
     gap: 8,
-    borderRadius: 16,
+    borderRadius: radii.control,
     backgroundColor: ui.surfaceMuted,
   },
   tileText: { fontFamily: fonts.bodySemi, fontSize: 13.5, lineHeight: 19, color: ui.text },
@@ -649,7 +738,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 16,
-    borderRadius: 18,
+    borderRadius: radii.card,
     backgroundColor: ui.brandSoft,
   },
   trustRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5 },
@@ -657,7 +746,7 @@ const styles = StyleSheet.create({
   trustSeal: {
     width: 60,
     height: 60,
-    borderRadius: 18,
+    borderRadius: radii.control,
     backgroundColor: ui.brand,
     alignItems: 'center',
     justifyContent: 'center',
@@ -670,11 +759,22 @@ const styles = StyleSheet.create({
   ratingBigSub: { marginTop: 2, fontFamily: fonts.bodyMedium, fontSize: 13, color: ui.textSecondary },
   bars: { flex: 1, gap: 5 },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  barLabel: { width: 24, fontFamily: fonts.bodySemi, fontSize: 12, color: ui.text },
+  barLabelRow: { width: 24, flexDirection: 'row', alignItems: 'center', gap: 2 },
+  barLabel: { fontFamily: fonts.bodySemi, fontSize: 12, color: ui.text },
   barTrack: { flex: 1, height: 5, borderRadius: 3, backgroundColor: ui.surfaceMuted, overflow: 'hidden' },
   barFill: { height: 5, borderRadius: 3, backgroundColor: ui.text },
   barCount: { width: 24, textAlign: 'right', fontFamily: fonts.body, fontSize: 12, color: ui.textSecondary },
-  reviewsHeading: { fontFamily: fonts.displaySemi, fontSize: 18, letterSpacing: -0.3, color: ui.text, marginBottom: 4 },
+  reviewsHeading: { ...typeScale.section, color: ui.text, marginBottom: 4 },
+  seeAll: {
+    marginTop: 6,
+    height: 48,
+    borderRadius: radii.control,
+    borderWidth: 1,
+    borderColor: ui.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  seeAllText: { ...typeScale.button, color: ui.brand },
   review: { paddingVertical: 14 },
   reviewBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ui.border },
   reviewHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
@@ -684,9 +784,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    paddingHorizontal: 7,
+    paddingHorizontal: 8,
     height: 22,
-    borderRadius: 6,
+    borderRadius: radii.pill,
     backgroundColor: ui.brand,
   },
   reviewStarsText: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.white },
@@ -695,8 +795,8 @@ const styles = StyleSheet.create({
   shareText: { fontFamily: fonts.bodyMedium, fontSize: 14, color: ui.textSecondary },
   shareBtnWrap: { alignSelf: 'stretch' },
   shareBtn: {
-    height: 46,
-    borderRadius: 14,
+    height: 48,
+    borderRadius: radii.control,
     borderWidth: 1,
     borderColor: ui.border,
     flexDirection: 'row',
@@ -715,25 +815,25 @@ const styles = StyleSheet.create({
   topBarRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: PAD },
   topBarTitle: { flex: 1, fontFamily: fonts.bodyBold, fontSize: 16, color: ui.text },
   circleBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: radii.pill,
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
     ...ui.shadow,
   },
   footerRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  footerPrice: { fontFamily: fonts.displaySemi, fontSize: 21, letterSpacing: -0.4, color: ui.text },
+  footerPrice: { ...typeScale.priceLg, color: ui.text },
   footerSub: { marginTop: 1, fontFamily: fonts.bodyMedium, fontSize: 12.5, color: ui.textSecondary },
   bookWrap: { flexShrink: 0 },
   bookBtn: {
-    height: 50,
+    height: 52,
     paddingHorizontal: 34,
-    borderRadius: 14,
+    borderRadius: radii.control,
     backgroundColor: ui.brand,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bookText: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.white },
+  bookText: { ...typeScale.button, fontSize: 16, color: colors.white },
 });

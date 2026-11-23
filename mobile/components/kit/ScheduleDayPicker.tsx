@@ -1,42 +1,53 @@
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
-import { nextBookableDays } from '@/lib/dates';
-import { colors, fonts, ui } from '@/constants/theme';
+import { ScrollView, StyleSheet, Text } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { bookingPickerDays, nextBookableDays } from '@/lib/dates';
+import { useBusinessSettings } from '@/lib/businessSettings';
+import { colors, radii, typeScale, ui } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { haptic } from '@/lib/motion';
 
-/** Day chips — "Today / Tomorrow" then weekday, with the date number (Urban-style date row). */
+/**
+ * Day chips — "Today / Tmrw" then weekday, with the date number (Urban-style date row).
+ * Without `count` it shows the admin's `booking.pickerDays` days that still have an open window;
+ * pass `count` for a plain run of days (staff tools).
+ */
 export function ScheduleDayPicker({
   selectedDate,
   onSelect,
-  count = 7,
+  count,
 }: {
   selectedDate: string;
   onSelect: (date: string, index: number) => void;
   count?: number;
 }) {
-  const days = nextBookableDays(count);
+  const settings = useBusinessSettings();
+  const copy = useCustomerUiCopy();
+  const days = count ? nextBookableDays(count) : bookingPickerDays(settings);
+  const todayKey = nextBookableDays(2);
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.row}
-      nestedScrollEnabled
-    >
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row} nestedScrollEnabled>
       {days.map((d, i) => {
         const on = selectedDate === d.date;
-        const top = i === 0 ? 'Today' : i === 1 ? 'Tmrw' : d.weekday;
+        const isToday = d.date === todayKey[0]?.date;
+        const isTomorrow = d.date === todayKey[1]?.date;
+        const top = isToday ? copy.dayToday : isTomorrow ? copy.dayTomorrowShort : d.weekday;
         return (
-          <Pressable
+          <PressableScale
             key={d.date}
-            style={({ pressed }) => [styles.card, on && styles.cardOn, pressed && styles.pressed]}
-            onPress={() => onSelect(d.date, i)}
+            style={[styles.card, on && styles.cardOn]}
+            onPress={() => {
+              if (!on) haptic('select');
+              onSelect(d.date, i);
+            }}
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
-            accessibilityLabel={`${i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.weekday}, ${d.month} ${d.dayNum}`}
+            accessibilityLabel={`${isToday ? copy.dayToday : isTomorrow ? copy.dayTomorrow : d.weekday}, ${d.month} ${d.dayNum}`}
           >
             <Text style={[styles.week, on && styles.textOn]}>{top}</Text>
             <Text style={[styles.num, on && styles.textOn]}>{d.dayNum}</Text>
             <Text style={[styles.month, on && styles.textOn]}>{d.month}</Text>
-          </Pressable>
+          </PressableScale>
         );
       })}
     </ScrollView>
@@ -49,15 +60,14 @@ const styles = StyleSheet.create({
     width: 62,
     paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: 14,
+    borderRadius: radii.control,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.border,
   },
   cardOn: { backgroundColor: ui.brandSoft, borderColor: ui.brand, borderWidth: 1.5 },
-  pressed: { opacity: 0.75 },
-  week: { fontFamily: fonts.bodySemi, fontSize: 11.5, color: ui.textSecondary },
-  num: { marginTop: 2, fontFamily: fonts.displayExtra, fontSize: 20, lineHeight: 25, color: ui.text },
-  month: { fontFamily: fonts.bodyMedium, fontSize: 11, color: ui.textTertiary },
+  week: { ...typeScale.micro, fontSize: 11.5, color: ui.textSecondary },
+  num: { ...typeScale.title, fontSize: 20, lineHeight: 25, marginTop: 2, color: ui.text },
+  month: { ...typeScale.micro, fontFamily: typeScale.caption.fontFamily, color: ui.textTertiary },
   textOn: { color: ui.brand },
 });
