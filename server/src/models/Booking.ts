@@ -39,6 +39,36 @@ export interface IBookingCancelActor {
   name?: string;
 }
 
+/**
+ * A line an admin added to the bill: `amount` > 0 is an extra charge, < 0 a discount (whole rupees,
+ * before GST). `label` is printed on the customer's bill and invoice; `reason` stays internal.
+ */
+export interface IBookingAdjustment {
+  _id: Types.ObjectId;
+  label: string;
+  amount: number;
+  reason?: string;
+  by?: Types.ObjectId;
+  byName?: string;
+  at: Date;
+}
+
+/** One admin edit of the order (service, size, property, coupon, adjustments, payment method). */
+export interface IOrderChange {
+  _id: Types.ObjectId;
+  at: Date;
+  by?: Types.ObjectId;
+  byName: string;
+  totalBefore: number;
+  totalAfter: number;
+  /** Readable lines, e.g. "Service: Cockroach control → Termite control", "Coupon FIRST50 removed". */
+  changes: string[];
+  /** Why the admin changed it (optional). */
+  note?: string;
+  /** The customer was told (the total or the service changed). */
+  notified?: boolean;
+}
+
 export type TrackingEventType =
   | 'assigned'
   | 'start_otp_sent'
@@ -49,7 +79,9 @@ export type TrackingEventType =
   | 'cancelled'
   | 'admin_override'
   | 'schedule_confirmed'
-  | 'rescheduled';
+  | 'rescheduled'
+  | 'reopened'
+  | 'order_updated';
 
 export interface IScheduleRequest {
   date: string;
@@ -137,7 +169,13 @@ export interface IBooking extends Document {
     total: number;
     /** GST rate charged (missing on bookings made before rates were stored = 18). */
     gstPercent?: number;
+    /** Net of the admin's adjustment lines (before GST); missing = none. */
+    adjustments?: number;
   };
+  /** Extra charges (+) and discounts (−) an admin added to the bill. */
+  adjustments?: IBookingAdjustment[];
+  /** Admin edits of the order, oldest first (kept to the last 50). */
+  orderHistory?: IOrderChange[];
   /** Locked technician take-home when job is completed (admin pay rules). */
   technicianEarning?: number;
   paymentMethod: PaymentMethod;
@@ -203,9 +241,30 @@ const amountSchema = new Schema(
     coupon: { type: Number, default: 0 },
     total: { type: Number, required: true },
     gstPercent: { type: Number, min: 0, max: 100 },
+    adjustments: { type: Number },
   },
   { _id: false },
 );
+
+const adjustmentSchema = new Schema<IBookingAdjustment>({
+  label: { type: String, required: true, trim: true, maxlength: 60 },
+  amount: { type: Number, required: true },
+  reason: { type: String, trim: true, maxlength: 200 },
+  by: { type: Schema.Types.ObjectId, ref: 'User' },
+  byName: { type: String, trim: true },
+  at: { type: Date, required: true },
+});
+
+const orderChangeSchema = new Schema<IOrderChange>({
+  at: { type: Date, required: true },
+  by: { type: Schema.Types.ObjectId, ref: 'User' },
+  byName: { type: String, default: '' },
+  totalBefore: { type: Number, required: true },
+  totalAfter: { type: Number, required: true },
+  changes: { type: [String], default: [] },
+  note: { type: String, trim: true, maxlength: 200 },
+  notified: { type: Boolean },
+});
 
 const scheduleRequestSchema = new Schema(
   {
@@ -253,6 +312,8 @@ const trackingEventSchema = new Schema(
         'admin_override',
         'schedule_confirmed',
         'rescheduled',
+        'reopened',
+        'order_updated',
       ],
       required: true,
     },
@@ -315,6 +376,8 @@ const bookingSchema = new Schema<IBooking>(
       required: false,
     },
     amount: { type: amountSchema, required: true },
+    adjustments: { type: [adjustmentSchema], default: undefined },
+    orderHistory: { type: [orderChangeSchema], default: undefined },
     technicianEarning: { type: Number, min: 0 },
     paymentMethod: {
       type: String,

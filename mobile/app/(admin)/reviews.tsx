@@ -1,6 +1,9 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MessageSquareReply, Trash2 } from 'lucide-react-native';
+import Toast from 'react-native-toast-message';
+import { ReviewReplySheet } from '@/components/admin/ReviewReplySheet';
 import { TableText, TableTwoLine, type AdminTableColumn } from '@/components/admin/AdminDataTable';
 import { FilterButton, FilterRow, FilterSummary } from '@/components/admin/AdminFilterBar';
 import { AdminPagedList, useAdminPagedList } from '@/components/admin/AdminPagedList';
@@ -19,19 +22,42 @@ import { formatDayKey } from '@/components/kit/format';
 import { StarRating } from '@/components/ui/StarRating';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
-import { api, screenLoadConfig } from '@/lib/api';
+import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
-import { notify } from '@/lib/confirm';
+import { confirmAsync, notify } from '@/lib/confirm';
+import { formatTimeAgo } from '@/lib/time-ago';
+import { webTitle } from '@/lib/webKeys';
 import { haptic } from '@/lib/motion';
 import { paramString } from '@/lib/routeParams';
 import { adminRoutes, appPush } from '@/lib/routes';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { useWideWebLayout } from '@/lib/webAdmin';
-import type { AdminReviewRow, AdminReviewsPage, ListSort } from '@/types/adminLists';
+import type { AdminReviewsPage, ListSort } from '@/types/adminLists';
 import type { User } from '@/types/api';
+import type { AdminReviewReply, AdminReviewRowV2 } from '@/types/adminManage';
 
+type AdminReviewRow = AdminReviewRowV2;
 type Visibility = 'all' | 'visible' | 'hidden';
+type Replied = 'all' | 'no' | 'yes';
+
+const REPLIED_LABEL: Record<Replied, string> = { all: 'Any', no: 'Needs a reply', yes: 'Replied' };
+
+/** The business's reply under a review (cards and table). */
+function ReplyPreview({ reply, lines = 2 }: { reply?: AdminReviewReply | null; lines?: number }) {
+  if (!reply) return null;
+  return (
+    <View style={styles.reply}>
+      <Text style={styles.replyHead} numberOfLines={1}>
+        Your reply · {reply.byName} · {formatTimeAgo(reply.editedAt ?? reply.at)}
+        {reply.editedAt ? ' · edited' : ''}
+      </Text>
+      <Text style={styles.replyText} numberOfLines={lines}>
+        {reply.text}
+      </Text>
+    </View>
+  );
+}
 type Summary = AdminReviewsPage['summary'];
 
 const SORTS: { key: string; label: string; sort: ListSort }[] = [
@@ -121,9 +147,11 @@ export default function AdminReviewsScreen() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
   const [sort, setSort] = useState<ListSort>({ key: 'created', order: 'desc' });
-  const [sheet, setSheet] = useState<null | 'technician' | 'sort'>(null);
+  const [sheet, setSheet] = useState<null | 'technician' | 'sort' | 'replied'>(null);
   const [techs, setTechs] = useState<User[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [replied, setReplied] = useState<Replied>('all');
+  const [replyFor, setReplyFor] = useState<AdminReviewRow | null>(null);
 
   useEffect(() => {
     setStars(parseRatingParam(paramString(params.rating)));
@@ -159,8 +187,9 @@ export default function AdminReviewsScreen() {
       q: debouncedSearch.trim() || undefined,
       sort: sort.key,
       order: sort.order,
+      replied: replied === 'all' ? undefined : replied,
     }),
-    [visibility, stars, technician, range?.from, range?.to, debouncedSearch, sort],
+    [visibility, stars, technician, range?.from, range?.to, debouncedSearch, sort, replied],
   );
 
   const fetchPage = useCallback(
@@ -204,6 +233,51 @@ export default function AdminReviewsScreen() {
     [busyId, list],
   );
 
+  /** Permanent delete (hide keeps it for your records) — the technician's rating is recalculated. */
+  const deleteReview = useCallback(
+    async (r: AdminReviewRow) => {
+      if (busyId) return;
+      const who = r.customerFullName || r.customerName;
+      const ok = await confirmAsync({
+        title: 'Delete this review for good?',
+        message: `${r.stars}★ by ${who}${r.comment ? ` — “${r.comment.length > 90 ? `${r.comment.slice(0, 87)}…` : r.comment}”` : ''}\n\n${
+          r.technicianName ? `${r.technicianName}'s rating` : 'The technician’s rating'
+        } is recalculated without it. This can’t be undone — Hide keeps it out of sight but on record.`,
+        confirmLabel: 'Delete review',
+        cancelLabel: 'Keep',
+        destructive: true,
+      });
+      if (!ok) return;
+      setBusyId(r.id);
+      try {
+        const { data } = await api.delete<{ technicianRating: number }>(`/admin/reviews/${r.id}`, { skipErrorToast: true });
+        haptic('success');
+        list.updateItems((items) => items.filter((x) => x.id !== r.id));
+        Toast.show({
+          type: 'success',
+          text1: 'Review deleted',
+          text2: r.technicianName ? `${r.technicianName} is now at ★ ${data.technicianRating.toFixed(1)}` : undefined,
+        });
+        void list.refresh();
+      } catch (err) {
+        haptic('error');
+        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not delete the review') });
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [busyId, list],
+  );
+
+  const onReplySaved = useCallback(
+    (reviewId: string, reply: AdminReviewReply | null) => {
+      list.updateItems((items) => items.map((x) => (x.id === reviewId ? { ...x, reply } : x)));
+      // The "Needs a reply" / "Replied" views change membership.
+      if (replied !== 'all') void list.refresh();
+    },
+    [list, replied],
+  );
+
   const toggleStar = useCallback((n: number) => {
     setStars((cur) => (cur.includes(n) ? cur.filter((x) => x !== n) : [...cur, n].sort()));
   }, []);
@@ -214,6 +288,7 @@ export default function AdminReviewsScreen() {
     setTechnician(null);
     setDateValue({ preset: 'all' });
     setSearch('');
+    setReplied('all');
   }, []);
 
   const summaryParts = [
@@ -221,11 +296,22 @@ export default function AdminReviewsScreen() {
     ratingLabel(stars),
     technician ? (technician.name === 'Selected' ? 'One technician' : technician.name) : '',
     range ? formatRangeLabel(range) : '',
+    replied !== 'all' ? REPLIED_LABEL[replied] : '',
     debouncedSearch.trim() ? `“${debouncedSearch.trim()}”` : '',
   ].filter(Boolean);
 
   const actions = (r: AdminReviewRow) => (
     <View style={styles.actions}>
+      <Pressable
+        onPress={() => setReplyFor(r)}
+        accessibilityRole="button"
+        accessibilityLabel={r.reply ? 'Edit your reply' : 'Reply to this review'}
+        hitSlop={6}
+        style={({ pressed }) => [styles.linkBtn, !r.reply && styles.linkPrimary, pressed && styles.linkPressed]}
+      >
+        <MessageSquareReply size={13} color={r.reply ? colors.forest : colors.white} strokeWidth={2.4} />
+        <Text style={[styles.link, !r.reply && styles.linkPrimaryText]}>{r.reply ? 'Edit reply' : 'Reply'}</Text>
+      </Pressable>
       <Pressable
         onPress={() => appPush(adminRoutes.booking(r.bookingId))}
         accessibilityRole="button"
@@ -244,6 +330,17 @@ export default function AdminReviewsScreen() {
         style={({ pressed }) => [styles.linkBtn, pressed && styles.linkPressed]}
       >
         <Text style={[styles.link, busyId === r.id && styles.linkBusy]}>{busyId === r.id ? '…' : r.hidden ? 'Show' : 'Hide'}</Text>
+      </Pressable>
+      <Pressable
+        ref={webTitle('Delete review permanently')}
+        onPress={() => void deleteReview(r)}
+        disabled={busyId === r.id}
+        accessibilityRole="button"
+        accessibilityLabel="Delete review permanently"
+        hitSlop={6}
+        style={({ pressed }) => [styles.iconBtn, pressed && styles.linkPressed]}
+      >
+        <Trash2 size={14} color={colors.error} strokeWidth={2.3} />
       </Pressable>
     </View>
   );
@@ -269,6 +366,7 @@ export default function AdminReviewsScreen() {
               {r.comment || 'No comment'}
             </TableText>
             {r.tags?.length ? <TableText muted>{r.tags.join(' · ')}</TableText> : null}
+            <ReplyPreview reply={r.reply} lines={1} />
           </View>
         ),
       },
@@ -295,7 +393,7 @@ export default function AdminReviewsScreen() {
       {
         key: 'status',
         title: '',
-        width: 190,
+        width: 330,
         align: 'right',
         render: (r) => (
           <View style={styles.statusCell}>
@@ -306,7 +404,7 @@ export default function AdminReviewsScreen() {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [busyId, toggleHidden],
+    [busyId, toggleHidden, deleteReview],
   );
 
   const technicianOptions: ActionSheetOption[] = [
@@ -320,6 +418,12 @@ export default function AdminReviewsScreen() {
     onPress: () => setSort(o.sort),
   }));
   const sortLabel = SORTS.find((o) => o.sort.key === sort.key && o.sort.order === sort.order)?.label;
+  const repliedOptions: ActionSheetOption[] = (['all', 'no', 'yes'] as Replied[]).map((k) => ({
+    key: k,
+    label: REPLIED_LABEL[k],
+    subtitle: k === replied ? 'Current' : k === 'no' ? 'Reviews you have not answered yet' : undefined,
+    onPress: () => setReplied(k),
+  }));
 
   const summary = list.extra;
   const header = (
@@ -342,6 +446,12 @@ export default function AdminReviewsScreen() {
           value={technician ? (technician.name === 'Selected' ? 'One technician' : technician.name) : null}
           onPress={() => setSheet('technician')}
           onClear={() => setTechnician(null)}
+        />
+        <FilterButton
+          label="Reply"
+          value={replied !== 'all' ? REPLIED_LABEL[replied] : null}
+          onPress={() => setSheet('replied')}
+          onClear={() => setReplied('all')}
         />
         {!wide ? <FilterButton label="Sort" value={sortLabel} onPress={() => setSheet('sort')} /> : null}
       </FilterRow>
@@ -382,6 +492,7 @@ export default function AdminReviewsScreen() {
                 {item.comment}
               </Text>
             ) : null}
+            <ReplyPreview reply={item.reply} />
             <View style={styles.cardFoot}>
               <Text style={styles.date}>{item.createdAt ? formatDayKey(String(item.createdAt).slice(0, 10)) : ''}</Text>
               {actions(item)}
@@ -391,6 +502,8 @@ export default function AdminReviewsScreen() {
       />
       <AdminActionSheet visible={sheet === 'technician'} title="Filter by technician" options={technicianOptions} onClose={() => setSheet(null)} />
       <AdminActionSheet visible={sheet === 'sort'} title="Sort reviews" options={sortOptions} onClose={() => setSheet(null)} />
+      <AdminActionSheet visible={sheet === 'replied'} title="Your reply" options={repliedOptions} onClose={() => setSheet(null)} />
+      <ReviewReplySheet review={replyFor} onClose={() => setReplyFor(null)} onSaved={onReplySaved} />
     </AdminListShell>
   );
 }
@@ -434,10 +547,13 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   meta: { fontFamily: fonts.body, fontSize: 12, color: ui.textSecondary, marginTop: 6 },
   comment: { fontFamily: fonts.body, fontSize: 13, color: ui.text, marginTop: 8, lineHeight: 18 },
-  cardFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
+  cardFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   date: { fontFamily: fonts.body, fontSize: 12, color: ui.textTertiary },
-  actions: { flexDirection: 'row', gap: 8 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' },
   linkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
@@ -445,6 +561,27 @@ const styles = StyleSheet.create({
     borderColor: ui.border,
     backgroundColor: colors.white,
   },
+  linkPrimary: { backgroundColor: colors.forest, borderColor: colors.forest },
+  linkPrimaryText: { color: colors.white },
+  iconBtn: {
+    width: 32,
+    height: 30,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: ui.border,
+    backgroundColor: colors.white,
+  },
+  reply: {
+    marginTop: 8,
+    paddingLeft: 10,
+    borderLeftWidth: 2,
+    borderLeftColor: colors.green,
+    maxWidth: '100%',
+  },
+  replyHead: { fontFamily: fonts.bodySemi, fontSize: 11.5, color: colors.forest },
+  replyText: { fontFamily: fonts.body, fontSize: 12.5, lineHeight: 17, color: ui.textSecondary, marginTop: 1 },
   linkPressed: { backgroundColor: ui.surfaceMuted },
   link: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
   linkBusy: { opacity: 0.5 },

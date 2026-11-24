@@ -37,13 +37,16 @@ type SheetMode = 'paid' | 'refunded' | null;
 /**
  * Price breakdown plus the admin-tracked payment state.
  * Server: PATCH /bookings/:id/payment { status: 'unpaid' | 'paid' | 'refunded', via?, ref? } → { booking }.
+ * `onEditOrder` adds the "Edit order" button (service, size, coupon, extra charges / discounts).
  */
 export function AdminBookingPayment({
   booking,
   onBookingChange,
+  onEditOrder,
 }: {
   booking: Booking;
   onBookingChange: (next: Booking) => void;
+  onEditOrder?: () => void;
 }) {
   const settings = useBusinessSettings();
   const status: BookingPaymentStatus = booking.paymentStatus ?? 'unpaid';
@@ -121,6 +124,7 @@ export function AdminBookingPayment({
 
       <BookingPriceBreakdown
         amount={booking.amount}
+        adjustments={booking.adjustments}
         serviceName={bookingServiceName(booking)}
         serviceDesc={booking.service && typeof booking.service === 'object' ? booking.service.shortDesc : undefined}
       />
@@ -139,6 +143,18 @@ export function AdminBookingPayment({
       </View>
 
       <View style={styles.actions}>
+        {onEditOrder ? (
+          <Button
+            title="Edit order"
+            variant="secondary"
+            size="sm"
+            onPress={onEditOrder}
+            disabled={busy}
+            fullWidth={false}
+            style={styles.action}
+            accessibilityHint="Change the service, size, coupon, extra charges or discounts"
+          />
+        ) : null}
         {status !== 'paid' ? (
           <Button
             title={status === 'refunded' ? 'Mark paid again' : 'Mark as paid'}

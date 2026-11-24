@@ -11,6 +11,8 @@ import { TechnicianAttendance, formatAttendance } from '../models/TechnicianAtte
 import { Notification } from '../models/Notification';
 import { SavedAddress } from '../models/SavedAddress';
 import { PaymentMethod } from '../models/PaymentMethod';
+import { PayAdjustment } from '../models/PayAdjustment';
+import { Payout } from '../models/Payout';
 import {
   BlogPost,
   ContactMessage,
@@ -95,6 +97,18 @@ function createdFilter(range: Range): Doc {
   return cond ? { createdAt: cond } : {};
 }
 
+/** Payouts: the date the money went out. */
+function paidAtFilter(range: Range): Doc {
+  const cond = dateFieldRange(range.from, range.to);
+  return cond ? { paidAt: cond } : {};
+}
+
+/** Pay adjustments: their YYYY-MM-DD `date`. */
+function dateKeyFilter(range: Range): Doc {
+  const cond = dateKeyRange(range.from, range.to);
+  return cond ? { date: cond } : {};
+}
+
 function bookingFilter(range: Range & { dateField?: string }): Doc {
   if (range.dateField === 'created') return createdFilter(range);
   const visit = dateKeyRange(range.from, range.to);
@@ -167,7 +181,8 @@ export const EXPORT_DATASETS: Dataset[] = [
       'ref', 'bookingId', 'createdAt', 'source', 'bookedByAdmin', 'visitDate', 'visitSlot', 'visitTime', 'status',
       'customerName', 'customerPhone', 'customerEmail', 'technicianName', 'technicianPhone', 'service', 'sizeOption',
       'propertyType', 'address', 'paymentMethod', 'paymentStatus', 'paidAt', 'paidVia', 'paymentRef', 'baseAmount',
-      'gstPercent', 'gst', 'coupon', 'couponCode', 'total', 'technicianEarning', 'workStartedAt', 'workCompletedAt',
+      'gstPercent', 'gst', 'coupon', 'couponCode', 'adjustments', 'adjustmentLines', 'total', 'technicianEarning',
+      'workStartedAt', 'workCompletedAt',
       'rescheduleCount', 'cancelReason', 'cancelledAt',
     ],
     count: (range) => Booking.countDocuments(bookingFilter(range)),
@@ -216,6 +231,11 @@ export const EXPORT_DATASETS: Dataset[] = [
         gst: amount.gst,
         coupon: amount.coupon,
         couponCode: d.couponCode,
+        // Admin extra charges (+) and discounts (−) before GST: the net, then each line.
+        adjustments: amount.adjustments ?? 0,
+        adjustmentLines: ((d.adjustments ?? []) as Doc[]).map(
+          (a) => `${String(a.label ?? '')} ${Number(a.amount) < 0 ? '-' : '+'}${Math.abs(Number(a.amount) || 0)}`,
+        ),
         total: amount.total,
         technicianEarning: d.technicianEarning,
         workStartedAt: d.workStartedAt,
@@ -283,6 +303,68 @@ export const EXPORT_DATASETS: Dataset[] = [
         ...lookupOne('users', 'technicianId', 'technician', PERSON),
       ]),
     row: (d) => ({ ...d, id: idOf(d._id), technicianName: (d.technician as Doc | undefined)?.name }),
+    json: (d) => d,
+  },
+  {
+    key: 'payouts',
+    label: 'Technician payouts',
+    group: 'operations',
+    headers: [
+      'id', 'technicianName', 'technicianPhone', 'periodFrom', 'periodTo', 'amount', 'method', 'reference', 'paidAt',
+      'note', 'recordedBy', 'createdAt',
+    ],
+    count: (range) => Payout.countDocuments(paidAtFilter(range)),
+    cursor: (range) =>
+      aggregateCursor(Payout, [
+        { $match: paidAtFilter(range) },
+        { $sort: { paidAt: -1 } },
+        ...lookupOne('users', 'technicianId', 'technician', PERSON),
+      ]),
+    row: (d) => {
+      const technician = (d.technician ?? {}) as Doc;
+      return {
+        id: idOf(d._id),
+        technicianName: technician.name,
+        technicianPhone: technician.phone,
+        periodFrom: d.periodFrom,
+        periodTo: d.periodTo,
+        amount: d.amount,
+        method: d.method,
+        reference: d.reference,
+        paidAt: d.paidAt,
+        note: d.note,
+        recordedBy: d.createdByName,
+        createdAt: d.createdAt,
+      };
+    },
+    json: (d) => d,
+  },
+  {
+    key: 'payAdjustments',
+    label: 'Pay adjustments',
+    group: 'operations',
+    headers: ['id', 'technicianName', 'technicianPhone', 'date', 'type', 'amount', 'reason', 'recordedBy', 'createdAt'],
+    count: (range) => PayAdjustment.countDocuments(dateKeyFilter(range)),
+    cursor: (range) =>
+      aggregateCursor(PayAdjustment, [
+        { $match: dateKeyFilter(range) },
+        { $sort: { date: -1, createdAt: -1 } },
+        ...lookupOne('users', 'technicianId', 'technician', PERSON),
+      ]),
+    row: (d) => {
+      const technician = (d.technician ?? {}) as Doc;
+      return {
+        id: idOf(d._id),
+        technicianName: technician.name,
+        technicianPhone: technician.phone,
+        date: d.date,
+        type: Number(d.amount) < 0 ? 'deduction' : 'bonus',
+        amount: d.amount,
+        reason: d.reason,
+        recordedBy: d.createdByName,
+        createdAt: d.createdAt,
+      };
+    },
     json: (d) => d,
   },
   {

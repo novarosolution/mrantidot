@@ -21,8 +21,11 @@ import {
 import { AdminProfileSkeleton } from '@/components/kit/AdminSkeletons';
 import { JobVisitCard } from '@/components/kit/JobVisitCard';
 import { MetricDetailSheet } from '@/components/kit/MetricDetailSheet';
-import { AdminActionSheet } from '@/components/kit/AdminActionSheet';
-import { chooseAsync } from '@/lib/confirm';
+import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/AdminActionSheet';
+import { chooseAsync, confirmAsync } from '@/lib/confirm';
+import { AdminAddLeaveSheet } from '@/components/admin/AdminAddLeaveSheet';
+import { TechnicianCoverageCard } from '@/components/admin/TechnicianCoverageCard';
+import { formatDayKey } from '@/components/admin/DateRangePicker';
 import { TechnicianAnalyticsTab } from '@/components/kit/TechnicianAnalyticsTab';
 import { TechnicianDayCalendar } from '@/components/kit/TechnicianDayCalendar';
 import {
@@ -33,7 +36,7 @@ import {
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { type BadgeTone } from '@/components/ui/StatusBadge';
-import { api, screenLoadConfig } from '@/lib/api';
+import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
 import { localDateKey } from '@/lib/dates';
 import { haptic } from '@/lib/motion';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
@@ -43,6 +46,7 @@ import { buildMetricDetailRows, metricSheetMeta } from '@/lib/technician-metrics
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { isAccountDisabled } from '@/lib/user-helpers';
 import type { Booking, TechnicianDetailResponse, TechnicianMetricKey, User } from '@/types/api';
+import type { TechnicianUser } from '@/types/adminManage';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 type MetricSheetState = {
@@ -102,6 +106,8 @@ export default function AdminTechnicianDetailScreen() {
   const [listStatusFilter, setListStatusFilter] = useState<string | null>(null);
   /** Web only — the day whose attendance sheet is open (browsers have no multi-button alert). */
   const [attendanceDate, setAttendanceDate] = useState<string | null>(null);
+  /** Add-leave sheet (open with an optional first day). */
+  const [leaveSheet, setLeaveSheet] = useState<{ open: boolean; date?: string }>({ open: false });
   const [metricSheet, setMetricSheet] = useState<MetricSheetState>({
     visible: false,
     key: 'active',
@@ -154,16 +160,60 @@ export default function AdminTechnicianDetailScreen() {
     }
   }
 
-  function setAttendance(date: string, status: 'present' | 'absent') {
+  function setAttendance(date: string, status: 'present' | 'absent' | 'leave') {
     if (!id) return;
     void api
-      .put(`/admin/technicians/${id}/attendance/${date}`, { status })
+      .put(`/admin/technicians/${id}/attendance/${date}`, { status }, { skipErrorToast: true })
       .then(() => {
         haptic('success');
-        Toast.show({ type: 'success', text1: status === 'present' ? 'Marked as came' : 'Marked as absent' });
+        Toast.show({
+          type: 'success',
+          text1: status === 'present' ? 'Marked as came' : status === 'absent' ? 'Marked as absent' : 'Marked as leave',
+          text2: formatDayKey(date, true),
+        });
         return load();
       })
-      .catch(() => haptic('error'));
+      .catch((err) => {
+        haptic('error');
+        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not update attendance') });
+      });
+  }
+
+  /** A day off without a leave request: confirm first — it changes attendance and auto-assign. */
+  function markLeave(date: string) {
+    const name = detail?.technician.name ?? 'this technician';
+    void confirmAsync({
+      title: `Mark ${formatDayKey(date, true)} as leave?`,
+      message: `Attendance shows leave for this day and auto-assign skips ${name}. To notify ${name} and record the leave type, use Add leave instead.`,
+      confirmLabel: 'Mark leave',
+      cancelLabel: 'Back',
+    }).then((ok) => {
+      if (ok) setAttendance(date, 'leave');
+    });
+  }
+
+  type DayAction = 'present' | 'absent' | 'leave' | 'add_leave';
+
+  /** Past days and today: came / absent / leave. Future days: leave (one day) or a full leave entry. */
+  function dayActions(date: string): { label: string; value: DayAction }[] {
+    const future = date > today;
+    return future
+      ? [
+          { label: 'Mark this day as leave', value: 'leave' },
+          { label: 'Add leave from this day…', value: 'add_leave' },
+        ]
+      : [
+          { label: 'Mark came', value: 'present' },
+          { label: 'Absent', value: 'absent' },
+          { label: 'Mark leave', value: 'leave' },
+        ];
+  }
+
+  function runDayAction(date: string, action: DayAction) {
+    // iOS drops an alert presented while the previous one is still closing — give it a moment.
+    if (action === 'leave') setTimeout(() => markLeave(date), Platform.OS === 'ios' ? 350 : 0);
+    else if (action === 'add_leave') setLeaveSheet({ open: true, date });
+    else setAttendance(date, action);
   }
 
   function overrideAttendance(date: string) {
@@ -172,15 +222,12 @@ export default function AdminTechnicianDetailScreen() {
       setAttendanceDate(date);
       return;
     }
-    void chooseAsync({
-      title: 'Update attendance',
-      message: date,
-      options: [
-        { label: 'Mark came', value: 'present' },
-        { label: 'Absent', value: 'absent' },
-      ],
-    }).then((status) => {
-      if (status) setAttendance(date, status);
+    void chooseAsync<DayAction>({
+      title: date > today ? 'Plan time off' : 'Update attendance',
+      message: formatDayKey(date, true),
+      options: dayActions(date),
+    }).then((action) => {
+      if (action) runDayAction(date, action);
     });
   }
 
@@ -274,19 +321,33 @@ export default function AdminTechnicianDetailScreen() {
     />
   );
 
+  const attendanceOptions: ActionSheetOption[] = attendanceDate
+    ? dayActions(attendanceDate).map((a) => ({
+        key: a.value,
+        label: a.label,
+        onPress: () => runDayAction(attendanceDate, a.value),
+      }))
+    : [];
   const attendanceSheetEl =
     Platform.OS === 'web' ? (
       <AdminActionSheet
         visible={attendanceDate != null}
-        title="Update attendance"
-        message={attendanceDate ?? undefined}
+        title={attendanceDate && attendanceDate > today ? 'Plan time off' : 'Update attendance'}
+        message={attendanceDate ? formatDayKey(attendanceDate, true) : undefined}
         onClose={() => setAttendanceDate(null)}
-        options={[
-          { key: 'present', label: 'Mark came', onPress: () => attendanceDate && setAttendance(attendanceDate, 'present') },
-          { key: 'absent', label: 'Absent', onPress: () => attendanceDate && setAttendance(attendanceDate, 'absent') },
-        ]}
+        options={attendanceOptions}
       />
     ) : null;
+
+  const leaveSheetEl = (
+    <AdminAddLeaveSheet
+      visible={leaveSheet.open}
+      technician={{ id: technician.id, name: technician.name }}
+      initialDate={leaveSheet.date}
+      onClose={() => setLeaveSheet({ open: false })}
+      onCreated={() => void load().catch(() => undefined)}
+    />
+  );
 
   const reviewsBlock =
     reviews.length > 0 ? (
@@ -303,7 +364,21 @@ export default function AdminTechnicianDetailScreen() {
 
   const profileBlock = (
     <AdminEntrance index={0} play={firstPaint(0)}>
-      <View style={styles.profileWrap}>{profileHeader}</View>
+      <View style={styles.profileWrap}>
+        {profileHeader}
+        {viewMode !== 'analytics' ? (
+          <TechnicianCoverageCard
+            coverage={technician as TechnicianUser}
+            onEdit={() =>
+              appPush({
+                pathname: adminRoutes.userEdit,
+                params: { id: technician.id, returnTo: adminRoutes.technician(technician.id) },
+              })
+            }
+            onAddLeave={() => setLeaveSheet({ open: true })}
+          />
+        ) : null}
+      </View>
     </AdminEntrance>
   );
 
@@ -335,6 +410,7 @@ export default function AdminTechnicianDetailScreen() {
         </AdminListShell>
         {metricSheetEl}
         {attendanceSheetEl}
+        {leaveSheetEl}
       </>
     );
   }
@@ -374,6 +450,7 @@ export default function AdminTechnicianDetailScreen() {
         </AdminListShell>
         {metricSheetEl}
         {attendanceSheetEl}
+        {leaveSheetEl}
       </>
     );
   }
@@ -439,6 +516,7 @@ export default function AdminTechnicianDetailScreen() {
       </AdminListShell>
       {metricSheetEl}
       {attendanceSheetEl}
+      {leaveSheetEl}
     </>
   );
 }

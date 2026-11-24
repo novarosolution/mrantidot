@@ -22,6 +22,7 @@ import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { TeamMember, TeamMemberSocials, WebsiteImage } from '@/types/api';
 import { adminType, colors, fonts, spacing, ui } from '@/constants/theme';
 import { confirmAsync } from '@/lib/confirm';
+import { deleteWebsiteItem } from '@/lib/websiteTrash';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -143,20 +144,12 @@ export default function WebsiteTeamEditScreen() {
     if (!id) return;
     void confirmAsync({
       title: 'Delete team member?',
-      message: `${name || 'This person'} will be removed from the website.`,
+      message: `${name || 'This person'} will be taken off the website. You can undo it, or restore them from Recently deleted for 30 days.`,
       confirmLabel: 'Delete',
       destructive: true,
     }).then(async (ok) => {
       if (!ok) return;
-      try {
-        await api.delete(`/website/admin/team/${id}`, { skipErrorToast: true });
-        haptic('success');
-        Toast.show({ type: 'success', text1: 'Team member deleted' });
-        adminGoBack(adminRoutes.websiteTeam);
-      } catch (err) {
-        haptic('error');
-        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not delete the team member') });
-      }
+      if (await deleteWebsiteItem('team', id, 'Could not delete the team member')) adminGoBack(adminRoutes.websiteTeam);
     });
   }
 

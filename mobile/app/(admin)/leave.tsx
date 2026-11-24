@@ -12,6 +12,9 @@ import {
   type DateRangeValue,
 } from '@/components/admin/DateRangePicker';
 import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/AdminActionSheet';
+import { AdminAddButton } from '@/components/kit/AdminAddButton';
+import { AdminAddLeaveSheet } from '@/components/admin/AdminAddLeaveSheet';
+import { istTodayKey } from '@/components/admin/DateRangePicker';
 import { AdminListShell } from '@/components/kit/AdminListShell';
 import { AdminFilterChips, AdminSearchField } from '@/components/kit/AdminPageKit';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
@@ -27,7 +30,11 @@ import { adminRoutes } from '@/lib/routes';
 import { leaveTypeLabel } from '@/lib/settingsLabels';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
-import type { AdminLeavePage, AdminLeaveRow, LeaveStatusFilter } from '@/types/adminLists';
+import type { AdminLeavePage, LeaveStatusFilter } from '@/types/adminLists';
+import type { AdminLeaveRowV2 } from '@/types/adminManage';
+
+type AdminLeaveRow = AdminLeaveRowV2;
+type Decision = 'approve' | 'reject' | 'cancel';
 
 const FILTERS: { key: LeaveStatusFilter; label: string }[] = [
   { key: 'pending', label: 'Pending' },
@@ -58,12 +65,52 @@ function leaveDates(l: AdminLeaveRow): string {
   return `${range} · ${l.days} ${l.days === 1 ? 'day' : 'days'}`;
 }
 
+function statusLabel(l: AdminLeaveRow): string {
+  if (l.status === 'cancelled' && l.cancelledBy) return 'Cancelled by admin';
+  return STATUS_LABEL[l.status] ?? l.status;
+}
+
 function decidedLine(l: AdminLeaveRow): string | null {
+  if (l.status === 'cancelled' && l.cancelledBy) {
+    const who = l.cancelledByName ? ` by ${l.cancelledByName}` : '';
+    const when = l.cancelledAt ? ` on ${formatDayKey(l.cancelledAt.slice(0, 10))}` : '';
+    return `Cancelled${who}${when}`;
+  }
   if (l.status !== 'approved' && l.status !== 'rejected') return null;
   const who = l.decidedByName ? ` by ${l.decidedByName}` : '';
   const when = l.decidedAt ? ` on ${formatDayKey(l.decidedAt.slice(0, 10))}` : '';
+  if (l.source === 'admin') return `Added${who}${when}`;
   return `${l.status === 'approved' ? 'Approved' : 'Not approved'}${who}${when}`;
 }
+
+/** Approved leave that has not ended yet can still be called off. */
+function cancellable(l: AdminLeaveRow, today: string): boolean {
+  return l.status === 'approved' && l.to >= today;
+}
+
+const DECISION_COPY: Record<Decision, { title: string; button: string; placeholder: string; helper: string; done: string }> = {
+  approve: {
+    title: 'Approve leave?',
+    button: 'Approve',
+    placeholder: 'e.g. Enjoy your time off',
+    helper: 'Attendance is marked as leave for these dates. The technician gets a notification.',
+    done: 'Leave approved',
+  },
+  reject: {
+    title: 'Reject leave?',
+    button: 'Reject',
+    placeholder: 'e.g. We are short-staffed that week',
+    helper: 'The technician gets a notification with your note.',
+    done: 'Leave not approved',
+  },
+  cancel: {
+    title: 'Cancel this leave?',
+    button: 'Cancel leave',
+    placeholder: 'e.g. We need you on the 14th — sorry!',
+    helper: 'Leave marks for today and later are removed and the technician is told. Past days stay as they were.',
+    done: 'Leave cancelled',
+  },
+};
 
 export default function AdminLeaveScreen() {
   const settings = useBusinessSettings();
@@ -73,9 +120,11 @@ export default function AdminLeaveScreen() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
   const [typeOpen, setTypeOpen] = useState(false);
-  const [decision, setDecision] = useState<{ leave: AdminLeaveRow; action: 'approve' | 'reject' } | null>(null);
+  const [decision, setDecision] = useState<{ leave: AdminLeaveRow; action: Decision } | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const today = istTodayKey();
 
   const range = resolveDateRange(dateValue);
   const query = useMemo(
@@ -112,7 +161,7 @@ export default function AdminLeaveScreen() {
   useStaleFocusRefresh(() => list.refresh(), 15_000);
   const counts = list.extra;
 
-  const openDecision = useCallback((leave: AdminLeaveRow, action: 'approve' | 'reject') => {
+  const openDecision = useCallback((leave: AdminLeaveRow, action: Decision) => {
     haptic('tap');
     setNote('');
     setDecision({ leave, action });
@@ -123,11 +172,12 @@ export default function AdminLeaveScreen() {
     setBusy(true);
     try {
       const trimmed = note.trim();
-      await api.post(`/leave/${decision.leave.id}/${decision.action}`, trimmed ? { adminNote: trimmed } : {});
+      const path = decision.action === 'cancel' ? 'cancel-approved' : decision.action;
+      await api.post(`/leave/${decision.leave.id}/${path}`, trimmed ? { adminNote: trimmed } : {}, { skipErrorToast: true });
       haptic('success');
       Toast.show({
         type: 'success',
-        text1: decision.action === 'approve' ? 'Leave approved' : 'Leave not approved',
+        text1: DECISION_COPY[decision.action].done,
         text2: 'The technician has been notified.',
       });
       setDecision(null);
@@ -161,6 +211,18 @@ export default function AdminLeaveScreen() {
     range ? `Overlapping ${formatRangeLabel(range)}` : '',
     debouncedSearch.trim() ? `“${debouncedSearch.trim()}”` : '',
   ].filter(Boolean);
+
+  const cancelButton = (l: AdminLeaveRow, compact: boolean) =>
+    cancellable(l, today) ? (
+      <Button
+        title="Cancel leave"
+        variant="dangerOutline"
+        size="sm"
+        fullWidth={false}
+        style={compact ? undefined : styles.cancelBtn}
+        onPress={() => openDecision(l, 'cancel')}
+      />
+    ) : null;
 
   const decisionButtons = (l: AdminLeaveRow, compact: boolean) =>
     l.status === 'pending' ? (
@@ -199,7 +261,14 @@ export default function AdminLeaveScreen() {
         width: 188,
         render: (l) => <TableText>{leaveDates(l)}</TableText>,
       },
-      { key: 'type', title: 'Type', width: 112, render: (l) => <TableText>{leaveTypeLabel(l.type, settings)}</TableText> },
+      {
+        key: 'type',
+        title: 'Type',
+        width: 112,
+        render: (l) => (
+          <TableTwoLine title={leaveTypeLabel(l.type, settings)} sub={l.source === 'admin' ? 'Added by admin' : undefined} strong={false} />
+        ),
+      },
       {
         key: 'reason',
         title: 'Reason & note',
@@ -230,14 +299,15 @@ export default function AdminLeaveScreen() {
             decisionButtons(l, true)
           ) : (
             <View style={styles.statusCell}>
-              <StatusBadge label={STATUS_LABEL[l.status] ?? l.status} tone={STATUS_TONE[l.status] ?? 'neutral'} />
+              <StatusBadge label={statusLabel(l)} tone={STATUS_TONE[l.status] ?? 'neutral'} />
               {decidedLine(l) ? <TableText muted>{decidedLine(l)}</TableText> : null}
+              {cancelButton(l, true)}
             </View>
           ),
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [settings, openDecision],
+    [settings, openDecision, today],
   );
 
   const header = (
@@ -267,6 +337,7 @@ export default function AdminLeaveScreen() {
       title="Leave requests"
       subtitle={counts ? `${counts.pending} waiting · approve technician time off` : 'Approve technician time off'}
       backFallback={adminRoutes.team}
+      rightAction={<AdminAddButton label="Add leave" onPress={() => setAddOpen(true)} />}
     >
       <AdminPagedList
         list={list}
@@ -275,7 +346,13 @@ export default function AdminLeaveScreen() {
         header={header}
         noun="requests"
         emptyTitle={status === 'all' ? 'No leave requests' : `No ${status} requests`}
-        emptyMessage={status === 'pending' ? 'New time-off requests from technicians show up here.' : undefined}
+        emptyMessage={
+          status === 'pending'
+            ? 'New time-off requests from technicians show up here. To record leave yourself, use Add leave.'
+            : undefined
+        }
+        emptyActionLabel="Add leave"
+        onEmptyAction={() => setAddOpen(true)}
         skeletonVariant="leave"
         renderCard={(l) => (
           <GlassPanel goldEdge tone="light" style={styles.card}>
@@ -283,20 +360,32 @@ export default function AdminLeaveScreen() {
               <Text style={styles.name} numberOfLines={1}>
                 {l.technicianName || 'Technician'}
               </Text>
-              <StatusBadge label={STATUS_LABEL[l.status] ?? l.status} tone={STATUS_TONE[l.status] ?? 'neutral'} />
+              <StatusBadge label={statusLabel(l)} tone={STATUS_TONE[l.status] ?? 'neutral'} />
             </View>
             <Text style={styles.meta} numberOfLines={1}>
               {leaveDates(l)} · {leaveTypeLabel(l.type, settings)}
+              {l.source === 'admin' ? ' · added by admin' : ''}
             </Text>
             {l.reason ? <Text style={styles.reason}>{l.reason}</Text> : null}
             {l.adminNote ? <Text style={styles.note}>Note: {l.adminNote}</Text> : null}
             {decidedLine(l) ? <Text style={styles.decided}>{decidedLine(l)}</Text> : null}
             {decisionButtons(l, false)}
+            {cancelButton(l, false)}
           </GlassPanel>
         )}
       />
 
       <AdminActionSheet visible={typeOpen} title="Leave type" options={typeOptions} onClose={() => setTypeOpen(false)} />
+
+      <AdminAddLeaveSheet
+        visible={addOpen}
+        onClose={() => setAddOpen(false)}
+        onCreated={() => {
+          // Show it where it landed: approved leave.
+          if (status !== 'approved' && status !== 'all') setStatus('approved');
+          else void list.refresh();
+        }}
+      />
 
       <SheetModal
         visible={decision !== null}
@@ -305,7 +394,7 @@ export default function AdminLeaveScreen() {
         keyboardAvoiding
         header={
           <View style={styles.sheetHead}>
-            <Text style={styles.sheetTitle}>{decision?.action === 'approve' ? 'Approve leave?' : 'Reject leave?'}</Text>
+            <Text style={styles.sheetTitle}>{decision ? DECISION_COPY[decision.action].title : ''}</Text>
             {d ? (
               <Text style={styles.sheetSub}>
                 {d.technicianName || 'Technician'} · {leaveDates(d)} · {leaveTypeLabel(d.type, settings)}
@@ -320,22 +409,26 @@ export default function AdminLeaveScreen() {
           <TextInput
             value={note}
             onChangeText={(t) => setNote(t.slice(0, NOTE_MAX))}
-            placeholder={decision?.action === 'approve' ? 'e.g. Enjoy your time off' : 'e.g. We are short-staffed that week'}
+            placeholder={decision ? DECISION_COPY[decision.action].placeholder : ''}
             placeholderTextColor={ui.textTertiary}
             style={styles.noteInput}
             multiline
             maxLength={NOTE_MAX}
             accessibilityLabel="Note to the technician"
           />
-          <Text style={styles.helper}>
-            {decision?.action === 'approve'
-              ? 'Attendance is marked as leave for these dates. The technician gets a notification.'
-              : 'The technician gets a notification with your note.'}
-          </Text>
+          <Text style={styles.helper}>{decision ? DECISION_COPY[decision.action].helper : ''}</Text>
           <View style={styles.sheetActions}>
-            <Button title="Cancel" variant="outline" size="md" fullWidth={false} style={styles.sheetBtn} disabled={busy} onPress={() => setDecision(null)} />
             <Button
-              title={decision?.action === 'approve' ? 'Approve' : 'Reject'}
+              title={decision?.action === 'cancel' ? 'Keep leave' : 'Cancel'}
+              variant="outline"
+              size="md"
+              fullWidth={false}
+              style={styles.sheetBtn}
+              disabled={busy}
+              onPress={() => setDecision(null)}
+            />
+            <Button
+              title={decision ? DECISION_COPY[decision.action].button : ''}
               variant={decision?.action === 'approve' ? 'premium' : 'danger'}
               size="md"
               fullWidth={false}
@@ -362,6 +455,7 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 10, marginTop: 14 },
   actionsCompact: { marginTop: 0, gap: 8, justifyContent: 'flex-end' },
   actionBtn: { flex: 1 },
+  cancelBtn: { alignSelf: 'flex-start', marginTop: 12 },
   reasonCell: { gap: 2, maxWidth: '100%' },
   statusCell: { alignItems: 'flex-end', gap: 4 },
   sheetHead: { paddingHorizontal: spacing.md + 4, paddingTop: 4, paddingBottom: 4 },

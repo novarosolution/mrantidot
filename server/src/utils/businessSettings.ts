@@ -102,6 +102,9 @@ export const DEFAULT_MESSAGES: Record<string, MessageTemplate> = {
   'cancelled.customer': { title: 'Booking cancelled', body: 'Your booking has been cancelled.' },
   'cancelled.tech': { title: 'Job cancelled', body: 'An assigned job was cancelled.' },
   'cancelled.admin': { title: 'Booking cancelled', body: 'A booking was cancelled and may need follow-up.' },
+  // Admin edits / reopens. {total} is the booking's new total (order_updated only).
+  'order_updated.customer': { title: 'Booking updated', body: 'We updated your {service} booking {ref}. New total: {total}.' },
+  'reopened.customer': { title: 'Booking reopened', body: 'Your {service} booking {ref} is active again. Open the app to see your visit time.' },
   'start_otp_ready.customer': { title: 'Start code ready', body: 'Share your start code with the technician when they arrive.' },
   'start_otp_ready.tech': { title: 'Ask for start code', body: 'Ask the customer for their start code to begin the job.' },
   'start_otp_ready.admin': { title: 'Start OTP issued', body: 'Customer received a start code for this booking.' },
@@ -118,6 +121,10 @@ export const DEFAULT_MESSAGES: Record<string, MessageTemplate> = {
   'leave_requested.admin': { title: 'Leave request', body: '{name} asked for {type} leave on {date}. {note}' },
   'leave_approved.tech': { title: 'Leave approved', body: 'Your {type} leave for {date} is approved. {note}' },
   'leave_rejected.tech': { title: 'Leave not approved', body: 'Your {type} leave for {date} was not approved. {note}' },
+  'leave_added.tech': { title: 'Leave added', body: 'The office added {type} leave for you on {date}. {note}' },
+  'leave_cancelled.tech': { title: 'Leave cancelled', body: 'Your {type} leave for {date} was cancelled by the office. {note}' },
+  // Admin reply to a review (first reply only). Placeholders: {service} {ref} {date} {time} of the visit, {note} the reply.
+  'review_replied.customer': { title: 'We replied to your review', body: 'Thanks for reviewing your {service} visit. {note}' },
 };
 
 export function defaultBusinessSettings(): BusinessSettings {

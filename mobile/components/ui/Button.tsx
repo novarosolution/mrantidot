@@ -2,11 +2,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
   type PressableProps,
+  type PressableStateCallbackType,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
@@ -50,6 +52,13 @@ function ButtonLabel({
       {title}
     </Text>
   );
+}
+
+const IS_WEB = Platform.OS === 'web';
+
+/** Web (admin): a soft dip while the mouse is over an enabled button (react-native-web reports `hovered`). */
+function hoverStyle(state: PressableStateCallbackType, disabled: boolean): StyleProp<ViewStyle> {
+  return IS_WEB && !disabled && !state.pressed && (state as { hovered?: boolean }).hovered ? styles.hovered : null;
 }
 
 function ButtonShell({
@@ -125,7 +134,7 @@ export function Button({
         accessibilityRole="button"
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
-        style={shellStyle}
+        style={(state) => [shellStyle, hoverStyle(state, !!isDisabled)]}
         {...pressProps}
       >
         {({ pressed }) => (
@@ -143,7 +152,7 @@ export function Button({
         accessibilityRole="button"
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
-        style={shellStyle}
+        style={(state) => [shellStyle, hoverStyle(state, !!isDisabled)]}
         {...pressProps}
       >
         {({ pressed }) => (
@@ -161,7 +170,7 @@ export function Button({
         accessibilityRole="button"
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
-        style={shellStyle}
+        style={(state) => [shellStyle, hoverStyle(state, !!isDisabled)]}
         {...pressProps}
       >
         {({ pressed }) => (
@@ -186,7 +195,7 @@ export function Button({
         accessibilityRole="button"
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
-        style={shellStyle}
+        style={(state) => [shellStyle, hoverStyle(state, !!isDisabled)]}
         {...pressProps}
       >
         {({ pressed }) => (
@@ -208,7 +217,7 @@ export function Button({
         accessibilityRole="button"
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
-        style={shellStyle}
+        style={(state) => [shellStyle, hoverStyle(state, !!isDisabled)]}
         {...pressProps}
       >
         {({ pressed }) => (
@@ -230,7 +239,7 @@ export function Button({
         accessibilityRole="button"
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
-        style={shellStyle}
+        style={(state) => [shellStyle, hoverStyle(state, !!isDisabled)]}
         {...pressProps}
       >
         {({ pressed }) => (
@@ -252,11 +261,12 @@ export function Button({
         accessibilityRole="button"
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
-        style={({ pressed }) => [
+        style={(state) => [
           fullWidth ? styles.full : styles.inline,
           styles.ghost,
           frame,
-          pressed && !isDisabled && styles.ghostPressed,
+          state.pressed && !isDisabled && styles.ghostPressed,
+          hoverStyle(state, !!isDisabled),
           isDisabled && styles.disabled,
           style,
         ]}
@@ -272,7 +282,7 @@ export function Button({
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
-      style={shellStyle}
+      style={(state) => [shellStyle, hoverStyle(state, !!isDisabled)]}
       {...pressProps}
     >
       {({ pressed }) => (
@@ -289,6 +299,7 @@ export function Button({
 }
 
 const styles = StyleSheet.create({
+  hovered: { opacity: 0.88 },
   full: { width: '100%' },
   inline: { alignSelf: 'flex-start' },
   label: {

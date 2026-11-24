@@ -457,6 +457,7 @@ export default function CustomerBookingDetailScreen() {
             <View style={styles.priceInset}>
               <BookingPriceBreakdown
                 amount={booking.amount}
+                adjustments={booking.adjustments}
                 compact
                 serviceName={bookingServiceName(booking, labels)}
                 serviceDesc={
@@ -499,7 +500,7 @@ export default function CustomerBookingDetailScreen() {
           <FadeSlideIn delay={stagger(6)}>
             <PremiumSectionHeader title={labels.bookingDetailInvoiceTitle} compact />
             <BookingInvoiceCard bookingId={booking.id}
-            refreshKey={`${booking.status}|${booking.schedule.date}|${booking.schedule.slot}|${booking.schedule.time ?? ''}`} summaryOnly />
+            refreshKey={`${booking.status}|${booking.schedule.date}|${booking.schedule.slot}|${booking.schedule.time ?? ''}|${booking.amount?.total ?? ''}`} summaryOnly />
           </FadeSlideIn>
         ) : null}
       </ScrollView>

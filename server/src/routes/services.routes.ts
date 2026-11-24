@@ -8,7 +8,7 @@ import { isServiceTypeKey, normalizeServiceTypes, SERVICE_TYPE_KEYS } from '../c
 import { formatService } from '../utils/format';
 import { pickServiceContent, serviceContentRules } from '../utils/serviceContent';
 import { getServiceStats, getStatsForServiceIds } from '../utils/service-stats';
-import { Review } from '../models/Review';
+import { Review, publicReviewReply } from '../models/Review';
 import { Booking } from '../models/Booking';
 import { User } from '../models/User';
 import { getOptionalUser } from '../utils/optionalAuth';
@@ -31,6 +31,28 @@ async function assertCategory(value: unknown, current?: string): Promise<void> {
     throw new AppError(400, 'Pick a category from Business settings → Lists → Categories');
   }
 }
+
+const MAX_STEPS = 15;
+const MAX_STEP_LENGTH = 60;
+
+/** Visit steps: trimmed, blanks dropped, at most 15 (empty = the default Arrival … Sign-off steps). */
+function cleanSteps(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((v): v is string => typeof v === 'string')
+    .map((v) => v.replace(/\s+/g, ' ').trim().slice(0, MAX_STEP_LENGTH))
+    .filter(Boolean)
+    .slice(0, MAX_STEPS);
+}
+
+const stepRules = [
+  body('stepTemplate').optional().isArray({ max: MAX_STEPS }).withMessage(`Use at most ${MAX_STEPS} visit steps`),
+  body('stepTemplate.*')
+    .optional()
+    .isString()
+    .isLength({ max: MAX_STEP_LENGTH })
+    .withMessage(`Keep each step under ${MAX_STEP_LENGTH} characters`),
+];
 
 function adminIncludeInactive(req: { query: Record<string, unknown>; headers: { authorization?: string } }): boolean {
   const flag = req.query.includeInactive === '1' || req.query.includeInactive === 'true';
@@ -144,6 +166,7 @@ servicesRouter.get(
       comment: r.comment,
       customerName: nameById.get(r.customerId.toString()) ?? 'Customer',
       createdAt: r.createdAt,
+      reply: publicReviewReply(r.reply),
     }));
 
     res.json({ reviews: enriched });
@@ -175,7 +198,7 @@ servicesRouter.post(
   body('iconKey').trim().notEmpty(),
   body('basePrice').isFloat({ min: 0 }),
   body('shortDesc').trim().notEmpty(),
-  body('stepTemplate').optional().isArray(),
+  ...stepRules,
   body('category').optional().isString().trim().toLowerCase().matches(/^[a-z0-9_]{1,40}$/),
   body('serviceTypes').optional().isArray(),
   body('serviceTypes.*').optional().isIn([...SERVICE_TYPE_KEYS]),
@@ -186,6 +209,7 @@ servicesRouter.post(
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
     await assertCategory(req.body.category);
+    if (req.body.stepTemplate !== undefined) req.body.stepTemplate = cleanSteps(req.body.stepTemplate);
     // New services go to the end of the admin's order.
     const last = await Service.findOne().sort({ sortOrder: -1 }).select('sortOrder').lean();
     const payload = {
@@ -230,7 +254,7 @@ servicesRouter.patch(
   body('iconKey').optional().trim().notEmpty(),
   body('basePrice').optional().isFloat({ min: 0 }),
   body('shortDesc').optional().trim().notEmpty(),
-  body('stepTemplate').optional().isArray(),
+  ...stepRules,
   body('category').optional().isString().trim().toLowerCase().matches(/^[a-z0-9_]{1,40}$/),
   body('serviceTypes').optional().isArray(),
   body('serviceTypes.*').optional().isIn([...SERVICE_TYPE_KEYS]),
@@ -250,12 +274,22 @@ servicesRouter.patch(
     if (req.body.serviceTypes !== undefined) {
       updates.serviceTypes = normalizeServiceTypes(req.body.serviceTypes);
     }
+    if (req.body.stepTemplate !== undefined) updates.stepTemplate = cleanSteps(req.body.stepTemplate);
     const service = await Service.findByIdAndUpdate(req.params.id, updates, {
       new: true,
       runValidators: true,
     });
     if (!service) {
       throw new AppError(404, 'Service not found');
+    }
+    if (typeof req.body.active === 'boolean' && Object.keys(req.body).length === 1) {
+      res.locals.activity = {
+        summary: req.body.active ? `Restored service ${service.name}` : `Deactivated service ${service.name}`,
+        targetLabel: service.name,
+        fields: ['active'],
+      };
+    } else {
+      res.locals.activity = { summary: `Updated service ${service.name}`, targetLabel: service.name };
     }
     revalidateWebsite(['services']);
     res.json({ service: formatService(service) });
@@ -277,7 +311,47 @@ servicesRouter.delete(
     if (!service) {
       throw new AppError(404, 'Service not found');
     }
+    res.locals.activity = { summary: `Deactivated service ${service.name}`, targetLabel: service.name, fields: ['active'] };
     revalidateWebsite(['services']);
     res.json({ service: formatService(service) });
+  }),
+);
+
+/**
+ * Admin: copy a service — POST /services/:id/duplicate → 201 { service }. The copy is named "<name> (copy)",
+ * starts switched off (customers don't see it until you turn it on), sits right after the original and is
+ * not pinned to the home rail. Steps, sizes, content, photo and pest types are copied.
+ */
+servicesRouter.post(
+  '/:id/duplicate',
+  requireAuth,
+  requireRole('admin'),
+  param('id').isMongoId(),
+  (req, res, next) => runValidation(req, res, next),
+  asyncHandler(async (req, res) => {
+    const source = await Service.findById(req.params.id).lean<Record<string, unknown> & { name: string; sortOrder?: number }>();
+    if (!source) throw new AppError(404, 'Service not found');
+    const { _id, __v: _v, createdAt: _c, updatedAt: _u, ...fields } = source;
+    let name = `${source.name} (copy)`;
+    for (let n = 2; await Service.exists({ name }); n += 1) name = `${source.name} (copy ${n})`;
+    // Right after the original (between it and the next one), without moving any other service.
+    const after = Number(source.sortOrder ?? 1000);
+    const next = await Service.findOne({ sortOrder: { $gt: after } }).sort({ sortOrder: 1 }).select('sortOrder').lean<{ sortOrder?: number }>();
+    const sortOrder = next?.sortOrder != null ? (after + next.sortOrder) / 2 : after + 10;
+    const copy = await Service.create({
+      ...fields,
+      name,
+      active: false,
+      showInPopular: false,
+      sortOrder,
+    });
+    res.locals.activity = {
+      summary: `Duplicated service ${source.name} as ${name}`,
+      targetId: String(copy._id),
+      targetLabel: name,
+      fields: ['name', 'active'],
+    };
+    revalidateWebsite(['services']);
+    res.status(201).json({ service: formatService(copy), sourceId: String(_id) });
   }),
 );

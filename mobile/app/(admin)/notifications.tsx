@@ -11,6 +11,7 @@ import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
 import { confirmAsync } from '@/lib/confirm';
+import { webTitle } from '@/lib/webKeys';
 import { bookingDetailPath, adminRoutes, appPush } from '@/lib/routes';
 import { useAuth } from '@/context/AuthContext';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
@@ -278,6 +279,7 @@ export default function AdminNotificationsScreen() {
                 <NotificationRow item={item} onPress={() => openItem(item)} />
               </View>
               <Pressable
+                ref={webTitle('Delete notification')}
                 onPress={() => void remove(item)}
                 disabled={deleting === item.id}
                 hitSlop={6}

@@ -1490,6 +1490,9 @@ export interface ICustomerUiCopy {
   techNotificationsEnd: string;
   techNotificationsBell: string;
   techNotificationsBellUnread: string;
+  trackReopened: string;
+  trackOrderUpdated: string;
+  serviceReviewReplyTitle: string;
 }
 
 export interface IAppConfig {
@@ -3092,6 +3095,9 @@ export const DEFAULT_CUSTOMER_UI_COPY: ICustomerUiCopy = {
   techNotificationsEnd: 'That’s everything',
   techNotificationsBell: 'Notifications',
   techNotificationsBellUnread: 'Notifications, {count} unread',
+  trackReopened: 'Booking reopened',
+  trackOrderUpdated: 'Booking updated',
+  serviceReviewReplyTitle: 'Reply from Mr Antidot',
 };
 
 export const DEFAULT_APP_CONFIG: IAppConfig = {

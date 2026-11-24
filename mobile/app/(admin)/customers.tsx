@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { TableText, TableTwoLine, type AdminTableColumn } from '@/components/admin/AdminDataTable';
 import { FilterButton, FilterRow } from '@/components/admin/AdminFilterBar';
@@ -20,7 +20,9 @@ import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { isAccountDisabled } from '@/lib/user-helpers';
 import { useWideWebLayout } from '@/lib/webAdmin';
 import type { AdminCustomersPage, CustomerStatusFilter, ListSort } from '@/types/adminLists';
-import type { AdminCustomer } from '@/types/api';
+import type { AdminCustomerRow, CustomerTagCount } from '@/types/adminManage';
+
+type AdminCustomer = AdminCustomerRow;
 
 const FILTERS: { key: CustomerStatusFilter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -56,6 +58,22 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
+/** Up to two tags as small pills, then "+n". */
+function TagPills({ tags }: { tags?: string[] }) {
+  const list = tags ?? [];
+  if (list.length === 0) return null;
+  return (
+    <View style={styles.tagRow}>
+      {list.slice(0, 2).map((t) => (
+        <Text key={t} style={styles.tag} numberOfLines={1}>
+          {t}
+        </Text>
+      ))}
+      {list.length > 2 ? <Text style={styles.tagMore}>+{list.length - 2}</Text> : null}
+    </View>
+  );
+}
+
 function vipRuleText(rule?: Extra['vipRule']): string | null {
   if (!rule) return null;
   const parts = [
@@ -72,6 +90,18 @@ export default function AdminCustomersScreen() {
   const [status, setStatus] = useState<CustomerStatusFilter>('all');
   const [sort, setSort] = useState<ListSort>({ key: 'name', order: 'asc' });
   const [sortOpen, setSortOpen] = useState(false);
+  /** Tag filter (exact tag, any case) — GET /admin/customer-tags lists the ones in use. */
+  const [tag, setTag] = useState('');
+  const [tagOpen, setTagOpen] = useState(false);
+  const [tagCounts, setTagCounts] = useState<CustomerTagCount[]>([]);
+
+  const loadTags = useCallback(() => {
+    api
+      .get<{ tags: CustomerTagCount[] }>('/admin/customer-tags', screenLoadConfig)
+      .then(({ data }) => setTagCounts(data.tags))
+      .catch(() => undefined);
+  }, []);
+  useEffect(() => loadTags(), [loadTags]);
 
   const query = useMemo(
     () => ({
@@ -79,8 +109,9 @@ export default function AdminCustomersScreen() {
       q: debouncedSearch.trim() || undefined,
       sort: sort.key,
       order: sort.order,
+      tag: tag || undefined,
     }),
-    [status, debouncedSearch, sort],
+    [status, debouncedSearch, sort, tag],
   );
 
   const fetchPage = useCallback(
@@ -106,7 +137,10 @@ export default function AdminCustomersScreen() {
     errorMessage: 'Could not load customers',
   });
 
-  useStaleFocusRefresh(() => list.refresh(), 3_000);
+  useStaleFocusRefresh(() => {
+    loadTags();
+    return list.refresh();
+  }, 3_000);
 
   const open = useCallback((c: AdminCustomer) => appPush(adminRoutes.customer(c.id)), []);
   const extra = list.extra;
@@ -123,7 +157,10 @@ export default function AdminCustomersScreen() {
         render: (c) => (
           <View style={styles.personCell}>
             <Avatar name={c.name} />
-            <TableTwoLine title={c.name} sub={c.email} />
+            <View style={styles.flex}>
+              <TableTwoLine title={c.name} sub={c.email} />
+              <TagPills tags={c.tags} />
+            </View>
           </View>
         ),
       },
@@ -179,6 +216,15 @@ export default function AdminCustomersScreen() {
     onPress: () => setSort(o.sort),
   }));
   const sortLabel = SORTS.find((o) => o.sort.key === sort.key && o.sort.order === sort.order)?.label;
+  const tagOptions: ActionSheetOption[] = [
+    { key: '', label: 'Any tag', onPress: () => setTag('') },
+    ...tagCounts.map((t) => ({
+      key: t.tag,
+      label: t.tag,
+      subtitle: `${formatIndianNumber(t.count)} customer${t.count === 1 ? '' : 's'}${t.tag.toLowerCase() === tag.toLowerCase() ? ' · current' : ''}`,
+      onPress: () => setTag(t.tag),
+    })),
+  ];
 
   const header = (
     <View style={styles.header}>
@@ -193,7 +239,7 @@ export default function AdminCustomersScreen() {
           ]}
         />
       ) : null}
-      <AdminSearchField value={search} onChangeText={setSearch} placeholder="Search name, phone, email, city" />
+      <AdminSearchField value={search} onChangeText={setSearch} placeholder="Search name, phone, email, city, tag" />
       <AdminFilterChips
         chips={FILTERS.map((f) => ({
           key: f.key,
@@ -202,12 +248,17 @@ export default function AdminCustomersScreen() {
         selected={status}
         onSelect={(k) => setStatus(k as CustomerStatusFilter)}
       />
-      {!wide ? (
+      {tagCounts.length || tag || !wide ? (
         <FilterRow>
-          <FilterButton label="Sort" value={sortLabel} onPress={() => setSortOpen(true)} />
+          {tagCounts.length || tag ? (
+            <FilterButton label="Tag" value={tag || null} onPress={() => setTagOpen(true)} onClear={() => setTag('')} />
+          ) : null}
+          {!wide ? <FilterButton label="Sort" value={sortLabel} onPress={() => setSortOpen(true)} /> : null}
         </FilterRow>
       ) : null}
-      {vipRuleText(extra?.vipRule) ? <Text style={styles.hint}>{vipRuleText(extra?.vipRule)}</Text> : null}
+      {vipRuleText(extra?.vipRule) ? (
+        <Text style={styles.hint}>{vipRuleText(extra?.vipRule)} · set a customer to always / never VIP on their profile</Text>
+      ) : null}
     </View>
   );
 
@@ -241,7 +292,9 @@ export default function AdminCustomersScreen() {
         rowLabel={(c) => `${c.name}, ${customerBadge(c).label}. Open profile`}
         noun="customers"
         emptyTitle="No customers match"
-        emptyMessage={debouncedSearch || status !== 'all' ? 'Try another filter or search.' : 'New sign-ups appear here.'}
+        emptyMessage={debouncedSearch || status !== 'all' || tag ? 'Try another filter or search.' : 'New sign-ups appear here.'}
+        emptyActionLabel={tag ? 'Clear tag filter' : undefined}
+        onEmptyAction={tag ? () => setTag('') : undefined}
         skeletonVariant="person"
         renderCard={(item) => {
           const badge = customerBadge(item);
@@ -262,6 +315,7 @@ export default function AdminCustomersScreen() {
                 <Text style={styles.meta} numberOfLines={1}>
                   {[item.phone, item.city, `${item.bookingCount} bookings`].filter(Boolean).join(' · ')}
                 </Text>
+                <TagPills tags={item.tags} />
               </View>
               <View style={styles.right}>
                 <Text style={styles.spend} numberOfLines={1}>
@@ -274,6 +328,7 @@ export default function AdminCustomersScreen() {
         }}
       />
       <AdminActionSheet visible={sortOpen} title="Sort customers" options={sortOptions} onClose={() => setSortOpen(false)} />
+      <AdminActionSheet visible={tagOpen} title="Filter by tag" options={tagOptions} onClose={() => setTagOpen(false)} />
     </AdminListShell>
   );
 }
@@ -309,4 +364,19 @@ const styles = StyleSheet.create({
   meta: { fontFamily: fonts.body, fontSize: 11.5, color: ui.textSecondary, marginTop: 2 },
   right: { alignItems: 'flex-end', gap: 6 },
   spend: { fontFamily: fonts.displayExtra, fontSize: 13, color: ui.text },
+  tagRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, flexWrap: 'wrap' },
+  tag: {
+    maxWidth: 120,
+    fontFamily: fonts.bodySemi,
+    fontSize: 10.5,
+    color: ui.textSecondary,
+    backgroundColor: ui.surfaceMuted,
+    borderWidth: 1,
+    borderColor: ui.border,
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  tagMore: { fontFamily: fonts.bodySemi, fontSize: 10.5, color: ui.textTertiary },
 });

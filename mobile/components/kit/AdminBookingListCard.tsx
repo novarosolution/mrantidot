@@ -22,10 +22,13 @@ export const AdminBookingListCard = memo(function AdminBookingListCard({
   item,
   onOpen,
   onAssign,
+  onLongPress,
 }: {
   item: Booking;
   onOpen: (id: string) => void;
   onAssign: (booking: Booking) => void;
+  /** Long-press (e.g. start selecting for bulk actions). */
+  onLongPress?: () => void;
 }) {
   const svc = typeof item.service === 'object' ? item.service : null;
   const iconKey = (svc as Service | null)?.iconKey ?? 'spray';
@@ -49,6 +52,8 @@ export const AdminBookingListCard = memo(function AdminBookingListCard({
       <GlassPanel style={styles.panel} padded={false} tone="light" goldEdge intensity={40}>
         <PressableScale
           onPress={() => onOpen(item.id)}
+          onLongPress={onLongPress}
+          delayLongPress={onLongPress ? 380 : undefined}
           style={styles.card}
           scaleTo={0.98}
           accessibilityRole="button"

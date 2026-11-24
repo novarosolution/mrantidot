@@ -25,6 +25,9 @@ function lookForType(type: string): Look {
   if (type.includes('schedule') || type.includes('resched') || type === 'assigned' || type === 'confirmed') {
     return { icon: AppIcons.ui.calendarCheck, fg: colors.blue, bg: colors.blueBg };
   }
+  // An admin reopened a cancelled booking, or changed the order (service, size, price lines).
+  if (type === 'reopened') return { icon: AppIcons.ui.refresh, fg: colors.blue, bg: colors.blueBg };
+  if (type === 'order_updated') return { icon: AppIcons.ui.edit, ...BRAND };
   return { icon: AppIcons.notification.default, ...BRAND };
 }
 

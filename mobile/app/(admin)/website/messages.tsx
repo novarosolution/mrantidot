@@ -24,6 +24,7 @@ import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import type { ContactMessage, ContactMessageStatus } from '@/types/api';
 import { adminType, colors, fonts, spacing, ui } from '@/constants/theme';
 import { confirmAsync } from '@/lib/confirm';
+import { deleteWebsiteItem, useWebsiteItemRestored } from '@/lib/websiteTrash';
 
 type Filter = ContactMessageStatus | 'all';
 
@@ -218,6 +219,8 @@ export default function WebsiteMessagesScreen() {
   }, [load, runLoad]);
 
   useStaleFocusRefresh(() => load().catch(() => undefined), 30_000);
+  // "Undo" on the delete toast (or Recently deleted) brings a message back.
+  useWebsiteItemRestored('messages', () => void load().catch(() => undefined));
 
   const counts = useMemo(() => {
     const c = { new: 0, read: 0, replied: 0 };
@@ -259,20 +262,14 @@ export default function WebsiteMessagesScreen() {
   const onDelete = useCallback((m: ContactMessage) => {
     void confirmAsync({
       title: 'Delete this message?',
-      message: `The message from ${m.name} will be removed for good.`,
+      message: `The message from ${m.name} will be moved to Recently deleted. You can undo it, or restore it there for 30 days.`,
       confirmLabel: 'Delete',
       destructive: true,
     }).then(async (ok) => {
       if (!ok) return;
-      try {
-        await api.delete(`/website/admin/messages/${m.id}`, { skipErrorToast: true });
-        haptic('success');
+      if (await deleteWebsiteItem('messages', m.id, 'Could not delete the message')) {
         setOpenId(null);
         setMessages((prev) => prev.filter((x) => x.id !== m.id));
-        Toast.show({ type: 'success', text1: 'Message deleted' });
-      } catch (err) {
-        haptic('error');
-        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not delete the message') });
       }
     });
   }, []);

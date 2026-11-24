@@ -25,13 +25,16 @@ import { BookingInvoiceCard } from '@/components/kit/BookingInvoiceCard';
 import { AdminCancelSheet } from '@/components/admin/AdminCancelSheet';
 import { AdminBookingNotes } from '@/components/admin/AdminBookingNotes';
 import { AdminBookingPayment } from '@/components/admin/AdminBookingPayment';
+import { AdminOrderEditor } from '@/components/admin/AdminOrderEditor';
+import { AdminOrderHistory } from '@/components/admin/AdminOrderHistory';
+import { useReopenBooking } from '@/components/admin/useReopenBooking';
+import { TechnicianPickerSheet } from '@/components/admin/TechnicianPickerSheet';
 import { PhotoViewer } from '@/components/ui/PhotoViewer';
 import { BookingStatusBanner } from '@/components/kit/BookingStatusBanner';
 import { BookingTrackingTimeline } from '@/components/kit/BookingTrackingTimeline';
 import { JobProgressCard } from '@/components/kit/JobProgressCard';
 import { OtpStatusCard } from '@/components/kit/OtpStatusCard';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
-import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/AdminActionSheet';
 import { AdminBottomSheet } from '@/components/kit/AdminBottomSheet';
 import { AdminBookingDetailSkeleton } from '@/components/kit/AdminSkeletons';
 import { Button } from '@/components/ui/Button';
@@ -59,12 +62,10 @@ import {
   isTerminalBookingStatus,
   isVerificationPhase,
 } from '@/lib/booking-helpers';
-import { assignableTechnicians } from '@/lib/user-helpers';
 import { useBookingCopy } from '@/lib/schedule-copy';
 import { mediaUrl } from '@/lib/images';
-import type { Booking, ScheduleMode, User, WorkOtpAdminView } from '@/types/api';
+import type { Booking, ScheduleMode, WorkOtpAdminView } from '@/types/api';
 import { colors, fonts, spacing, surfaces, ui } from '@/constants/theme';
-import { notify } from '@/lib/confirm';
 
 /** "Asha (admin)", "the customer"… — who cancelled, for the cancelled card. */
 function cancelActorLabel(actor: Booking['cancelledBy']): string {
@@ -86,7 +87,6 @@ export default function AdminBookingDetailScreen() {
   const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
   const bookingCopy = useBookingCopy();
   const [booking, setBooking] = useState<Booking | null>(null);
-  const [techs, setTechs] = useState<User[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -100,6 +100,7 @@ export default function AdminBookingDetailScreen() {
   const [rescheduleAddress, setRescheduleAddress] = useState('');
   const [assignOpen, setAssignOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [orderOpen, setOrderOpen] = useState(false);
   /** Index into `allPhotos` for the full-screen viewer (null = closed). */
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 
@@ -115,20 +116,18 @@ export default function AdminBookingDetailScreen() {
       return;
     }
     setLoadError(null);
-    const [bookingRes, techsRes] = await Promise.allSettled([
-      api.get<{ booking: Booking }>(`/bookings/${id}`, screenLoadConfig),
-      api.get<{ technicians: User[] }>('/admin/technicians', screenLoadConfig),
-    ]);
-    if (bookingRes.status !== 'fulfilled') throw bookingRes.reason;
-    setBooking(bookingRes.value.data.booking);
-    if (techsRes.status === 'fulfilled') {
-      setTechs(techsRes.value.data.technicians);
-    } else {
-      setTechs([]);
-    }
+    // The assign picker loads technicians (with how well each fits this visit) itself.
+    const { data } = await api.get<{ booking: Booking }>(`/bookings/${id}`, screenLoadConfig);
+    setBooking(data.booking);
   }, [id]);
 
   useStaleFocusRefresh(() => load().catch(() => undefined), 15_000);
+
+  // Reopen a cancelled booking (also the "Undo" in the toast right after cancelling here).
+  const { reopen, reopening } = useReopenBooking(async (next) => {
+    setBooking(next);
+    await load().catch(() => undefined);
+  });
 
   useEffect(() => {
     safeAsync(async () => {
@@ -148,35 +147,11 @@ export default function AdminBookingDetailScreen() {
     return () => clearInterval(timer);
   }, [booking?.status, booking?.id, load]);
 
-  const assignable = booking ? assignableTechnicians(techs, booking.schedule?.date) : [];
-
+  // The picker groups technicians by fit (skills, area, off days, leave, daily cap, slot clashes) and assigns.
   function assignTech() {
     if (!booking) return;
-    if (assignable.length === 0) {
-      notify('No technicians', 'Add technicians first.');
-      return;
-    }
     setAssignOpen(true);
   }
-
-  const assignOptions: ActionSheetOption[] = booking
-    ? assignable.map((t) => ({
-        key: t.id,
-        label: t.name,
-        subtitle: [t.available === false ? 'Off duty today' : '', t.phone || t.email].filter(Boolean).join(' · ') || undefined,
-        onPress: () =>
-          safeAsync(
-            async () => {
-              await api.patch(`/bookings/${booking.id}/assign`, { technicianId: t.id });
-              haptic('success');
-              Toast.show({ type: 'success', text1: 'Technician assigned' });
-              await load();
-            },
-            undefined,
-            () => haptic('error'),
-          ),
-      }))
-    : [];
 
   function parseTimeParts(time?: string): [number, number] {
     if (!time) return [10, 0];
@@ -334,6 +309,8 @@ export default function AdminBookingDetailScreen() {
   }, 0);
   const doneCount = bookingStepsDone(booking);
   const terminal = isTerminalBookingStatus(booking.status);
+  // Cancelled before work started → can go back to pending / confirmed (server: POST /bookings/:id/reopen).
+  const canReopen = booking.status === 'cancelled' && !booking.workStartedAt;
   const adminOtp = booking.workOtp as WorkOtpAdminView | undefined;
   const customerId =
     booking.customer && typeof booking.customer === 'object' ? booking.customer.id : undefined;
@@ -406,13 +383,25 @@ export default function AdminBookingDetailScreen() {
               />
             )}
           </StickyActionBar>
+        ) : canReopen ? (
+          <StickyActionBar row>
+            <Button
+              title="Reopen booking"
+              variant="premium"
+              onPress={() => void reopen(booking)}
+              loading={reopening}
+              fullWidth={false}
+              style={styles.footerPrimary}
+              accessibilityHint="Puts this cancelled booking back to pending or confirmed"
+            />
+          </StickyActionBar>
         ) : undefined
       }
     >
       <ScrollView
         contentContainerStyle={[
           adminListShellStyles.list,
-          !terminal ? adminListShellStyles.scrollWithFooter : undefined,
+          !terminal || canReopen ? adminListShellStyles.scrollWithFooter : undefined,
         ]}
         keyboardShouldPersistTaps="handled"
         refreshControl={
@@ -458,6 +447,11 @@ export default function AdminBookingDetailScreen() {
               ) : (
                 <Text style={styles.cancelReason}>No reason given.</Text>
               )}
+              <Text style={styles.cancelHint}>
+                {canReopen
+                  ? 'Reopening puts it back to pending (or confirmed when auto-confirm is on and the time is still open) and tells the customer.'
+                  : 'Work had started before it was cancelled, so it can’t be reopened — book a new visit instead.'}
+              </Text>
             </Card>
           </FadeSlideIn>
         ) : null}
@@ -633,13 +627,23 @@ export default function AdminBookingDetailScreen() {
         ) : null}
 
         <FadeSlideIn delay={stagger(5)} slideFrom={14}>
-          <AdminBookingPayment booking={booking} onBookingChange={setBooking} />
+          <AdminBookingPayment
+            booking={booking}
+            onBookingChange={setBooking}
+            onEditOrder={booking.status !== 'cancelled' ? () => setOrderOpen(true) : undefined}
+          />
         </FadeSlideIn>
+
+        {(booking.orderHistory?.length ?? 0) > 0 ? (
+          <FadeSlideIn delay={stagger(5)} slideFrom={14}>
+            <AdminOrderHistory booking={booking} />
+          </FadeSlideIn>
+        ) : null}
 
         {booking.status !== 'cancelled' ? (
           <FadeSlideIn delay={stagger(6)} slideFrom={14}>
             <BookingInvoiceCard bookingId={booking.id}
-              refreshKey={`${booking.status}|${booking.schedule.date}|${booking.schedule.slot}|${booking.schedule.time ?? ''}`} />
+              refreshKey={`${booking.status}|${booking.schedule.date}|${booking.schedule.slot}|${booking.schedule.time ?? ''}|${booking.amount?.total ?? ''}|${booking.orderHistory?.length ?? 0}`} />
           </FadeSlideIn>
         ) : null}
 
@@ -729,12 +733,11 @@ export default function AdminBookingDetailScreen() {
         )}
       </ScrollView>
 
-      <AdminActionSheet
+      <TechnicianPickerSheet
         visible={assignOpen}
-        title="Assign technician"
-        message={booking ? bookingCustomerName(booking) : undefined}
-        options={assignOptions}
+        bookingId={booking.id}
         onClose={() => setAssignOpen(false)}
+        onAssigned={() => load().catch(() => undefined)}
       />
 
       <AdminCancelSheet
@@ -743,6 +746,17 @@ export default function AdminBookingDetailScreen() {
         bookingLabel={`${bookingRef(booking.id)} · ${bookingServiceName(booking)}`}
         onClose={() => setCancelOpen(false)}
         onCancelled={() => load().catch(() => undefined)}
+        onUndo={
+          booking.workStartedAt ? undefined : () => void reopen({ id: booking.id, couponCode: booking.couponCode }, { undo: true })
+        }
+      />
+
+      <AdminOrderEditor
+        visible={orderOpen}
+        booking={booking}
+        onClose={() => setOrderOpen(false)}
+        onSaved={(next) => setBooking(next)}
+        onStale={() => void load().catch(() => undefined)}
       />
 
       <PhotoViewer photos={allPhotos} index={viewerIndex} onClose={() => setViewerIndex(null)} />
@@ -841,6 +855,7 @@ const styles = StyleSheet.create({
   },
   cancelTitle: { fontFamily: fonts.display, fontSize: 14, color: colors.error },
   cancelReason: { fontFamily: fonts.body, fontSize: 13, color: colors.ink, marginTop: 6, lineHeight: 19 },
+  cancelHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 8, lineHeight: 17 },
   originLine: { marginBottom: 4, color: colors.ink },
   photoHint: { fontFamily: fonts.body, fontSize: 12, color: ui.textSecondary, marginTop: -4, marginBottom: spacing.sm },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },

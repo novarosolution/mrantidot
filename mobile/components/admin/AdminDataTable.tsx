@@ -1,6 +1,6 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown } from 'lucide-react-native';
+import { ArrowDown, ArrowUp, Check, ChevronLeft, ChevronRight, ChevronsUpDown, Minus } from 'lucide-react-native';
 import { formatIndianNumber } from '@/components/charts/chartFormat';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
@@ -40,6 +40,132 @@ const webPointer: ViewStyle | null = Platform.OS === 'web' ? ({ cursor: 'pointer
  * HTML. "link" renders a focusable div and also says what the row does (opens a page).
  */
 const ROW_ROLE = Platform.OS === 'web' ? 'link' : 'button';
+
+/* ─── Selection (opt-in: bulk actions) ─────────────────────────────── */
+
+/** Width of the checkbox column. */
+const CHECK_COL = 44;
+
+/** shift held during a click (web) — selects a range of rows. */
+function shiftOf(event: unknown): boolean {
+  const native = (event as { nativeEvent?: { shiftKey?: boolean } } | undefined)?.nativeEvent;
+  const shift = Boolean(native?.shiftKey);
+  // Shift-click also extends the browser's text selection across the rows — drop that highlight.
+  if (shift && Platform.OS === 'web' && typeof window !== 'undefined') window.getSelection?.()?.removeAllRanges();
+  return shift;
+}
+
+/**
+ * Square checkbox for row selection (header "select all" shows a dash when only some rows are picked).
+ * Click / Enter / Space toggles; the click reports whether Shift was held.
+ */
+export function SelectBox({
+  checked,
+  onToggle,
+  label,
+  size = 20,
+}: {
+  checked: boolean | 'mixed';
+  onToggle: (shiftKey: boolean) => void;
+  label: string;
+  size?: number;
+}) {
+  const [hover, setHover] = useState(false);
+  const on = checked !== false;
+  const keyHandler = {
+    onKeyDown: (e: { nativeEvent?: { key?: string; shiftKey?: boolean }; preventDefault?: () => void }) => {
+      if (e.nativeEvent?.key === ' ') {
+        e.preventDefault?.();
+        onToggle(Boolean(e.nativeEvent.shiftKey));
+      }
+    },
+  };
+  return (
+    <Pressable
+      onPress={(e) => {
+        haptic('select');
+        onToggle(shiftOf(e));
+      }}
+      onHoverIn={() => setHover(true)}
+      onHoverOut={() => setHover(false)}
+      hitSlop={8}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+      accessibilityLabel={label}
+      style={[styles.checkHit, webPointer]}
+      {...(Platform.OS === 'web' ? (keyHandler as object) : null)}
+    >
+      <View
+        style={[
+          styles.checkBox,
+          { width: size, height: size, borderRadius: Math.round(size * 0.3) },
+          on && styles.checkBoxOn,
+          hover && !on && styles.checkBoxHover,
+        ]}
+      >
+        {checked === 'mixed' ? (
+          <Minus size={size - 6} color={colors.white} strokeWidth={3} />
+        ) : checked ? (
+          <Check size={size - 6} color={colors.white} strokeWidth={3} />
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
+
+/**
+ * Selection state helpers for a page of rows: toggle one, Shift-click a range (from the last row clicked,
+ * every row gets the clicked row's new state), select / clear the whole page. Ids from other pages stay.
+ */
+export function useRowSelection<T>(
+  rows: T[],
+  keyOf: (row: T) => string,
+  selectedIds: readonly string[] | undefined,
+  onChange: ((ids: string[]) => void) | undefined,
+) {
+  const anchor = useRef<string | null>(null);
+  const selected = useMemo(() => new Set(selectedIds ?? []), [selectedIds]);
+  const pageKeys = useMemo(() => rows.map(keyOf), [rows, keyOf]);
+  const onPage = pageKeys.reduce((n, k) => (selected.has(k) ? n + 1 : n), 0);
+  const allState: boolean | 'mixed' = pageKeys.length > 0 && onPage === pageKeys.length ? true : onPage > 0 ? 'mixed' : false;
+
+  const toggleRow = useCallback(
+    (row: T, index: number, shiftKey: boolean) => {
+      if (!onChange) return;
+      const key = keyOf(row);
+      const next = new Set(selected);
+      const turnOn = !selected.has(key);
+      const from = anchor.current ? pageKeys.indexOf(anchor.current) : -1;
+      if (shiftKey && from >= 0 && from !== index) {
+        const [a, b] = from < index ? [from, index] : [index, from];
+        for (let i = a; i <= b; i += 1) {
+          const k = pageKeys[i];
+          if (!k) continue;
+          if (turnOn) next.add(k);
+          else next.delete(k);
+        }
+      } else if (turnOn) {
+        next.add(key);
+      } else {
+        next.delete(key);
+      }
+      anchor.current = key;
+      onChange([...next]);
+    },
+    [keyOf, onChange, pageKeys, selected],
+  );
+
+  const toggleAll = useCallback(() => {
+    if (!onChange) return;
+    const next = new Set(selected);
+    if (allState === true) pageKeys.forEach((k) => next.delete(k));
+    else pageKeys.forEach((k) => next.add(k));
+    anchor.current = null;
+    onChange([...next]);
+  }, [allState, onChange, pageKeys, selected]);
+
+  return { selected, allState, toggleRow, toggleAll };
+}
 
 function cellSize<T>(col: AdminTableColumn<T>): ViewStyle {
   if (col.width) return { width: col.width, flexGrow: 0, flexShrink: 0 };
@@ -96,14 +222,22 @@ export function AdminTableHead<T>({
   sort,
   onSortChange,
   style,
+  selectAll,
 }: {
   columns: AdminTableColumn<T>[];
   sort?: ListSort;
   onSortChange?: (sort: ListSort) => void;
   style?: StyleProp<ViewStyle>;
+  /** Selectable tables: the checkbox that selects / clears every row on this page. */
+  selectAll?: { checked: boolean | 'mixed'; onToggle: () => void; label?: string };
 }) {
   return (
     <View style={[styles.head, style]} accessibilityRole="header">
+      {selectAll ? (
+        <View style={[styles.headCell, styles.checkCell]}>
+          <SelectBox checked={selectAll.checked} onToggle={() => selectAll.onToggle()} label={selectAll.label ?? 'Select all rows on this page'} />
+        </View>
+      ) : null}
       {columns.map((col) => {
         const key = col.sortKey ?? col.key;
         const active = Boolean(sort && sort.key === key);
@@ -165,6 +299,8 @@ function TableRow<T>({
   last,
   onPress,
   rowLabel,
+  selected,
+  onToggleSelect,
 }: {
   row: T;
   index: number;
@@ -172,18 +308,37 @@ function TableRow<T>({
   last: boolean;
   onPress?: (row: T) => void;
   rowLabel?: (row: T) => string;
+  selected?: boolean;
+  onToggleSelect?: (shiftKey: boolean) => void;
 }) {
   const [hover, setHover] = useState(false);
+  const label = rowLabel?.(row);
   return (
     <Pressable
       onPress={onPress ? () => onPress(row) : undefined}
       disabled={!onPress}
       onHoverIn={() => setHover(true)}
       onHoverOut={() => setHover(false)}
-      style={[styles.row, last && styles.rowLast, hover && styles.rowHover, onPress ? webPointer : null]}
+      style={[
+        styles.row,
+        last && styles.rowLast,
+        hover && styles.rowHover,
+        selected && styles.rowSelected,
+        selected && hover && styles.rowSelectedHover,
+        onPress ? webPointer : null,
+      ]}
       accessibilityRole={onPress ? ROW_ROLE : undefined}
-      accessibilityLabel={rowLabel?.(row)}
+      accessibilityLabel={label}
     >
+      {onToggleSelect ? (
+        <View style={[styles.cell, styles.checkCell]}>
+          <SelectBox
+            checked={Boolean(selected)}
+            onToggle={onToggleSelect}
+            label={label ? `Select ${label.split('. ')[0]}` : `Select row ${index + 1}`}
+          />
+        </View>
+      ) : null}
       {columns.map((col) => (
         <View key={col.key} style={[styles.cell, cellSize(col), cellAlign(col)]}>
           {col.render(row, index)}
@@ -208,6 +363,8 @@ export function AdminTableRows<T>({
   emptyActionLabel,
   onEmptyAction,
   style,
+  selectedKeys,
+  onToggleRow,
 }: {
   columns: AdminTableColumn<T>[];
   rows: T[];
@@ -223,11 +380,20 @@ export function AdminTableRows<T>({
   emptyActionLabel?: string;
   onEmptyAction?: () => void;
   style?: StyleProp<ViewStyle>;
+  /** Selectable tables: the selected row keys … */
+  selectedKeys?: ReadonlySet<string>;
+  /** … and the checkbox handler (adds the checkbox column when set). */
+  onToggleRow?: (row: T, index: number, shiftKey: boolean) => void;
 }) {
   let body: ReactNode;
   if (loading) {
     body = Array.from({ length: skeletonRows }, (_, i) => (
       <View key={`s${i}`} style={[styles.row, i === skeletonRows - 1 && styles.rowLast]} accessibilityElementsHidden>
+        {onToggleRow ? (
+          <View style={[styles.cell, styles.checkCell]}>
+            <Skeleton width={18} height={18} radius={6} />
+          </View>
+        ) : null}
         {columns.map((col, ci) => (
           <View key={col.key} style={[styles.cell, cellSize(col), cellAlign(col)]}>
             <Skeleton width={ci === 0 ? '80%' : col.align === 'right' ? '55%' : '68%'} height={12} radius={6} />
@@ -248,17 +414,22 @@ export function AdminTableRows<T>({
       </View>
     );
   } else {
-    body = rows.map((row, i) => (
-      <TableRow
-        key={keyExtractor(row)}
-        row={row}
-        index={i}
-        columns={columns}
-        last={i === rows.length - 1}
-        onPress={onRowPress}
-        rowLabel={rowLabel}
-      />
-    ));
+    body = rows.map((row, i) => {
+      const key = keyExtractor(row);
+      return (
+        <TableRow
+          key={key}
+          row={row}
+          index={i}
+          columns={columns}
+          last={i === rows.length - 1}
+          onPress={onRowPress}
+          rowLabel={rowLabel}
+          selected={selectedKeys?.has(key)}
+          onToggleSelect={onToggleRow ? (shiftKey) => onToggleRow(row, i, shiftKey) : undefined}
+        />
+      );
+    });
   }
   return (
     <View style={[styles.body, style]} accessibilityRole={loading ? 'progressbar' : undefined} accessibilityLabel={loading ? 'Loading' : undefined}>
@@ -370,6 +541,9 @@ export function AdminDataTable<T>({
   onPageSizeChange,
   noun,
   maxHeight,
+  selectable,
+  selectedIds,
+  onSelectionChange,
 }: {
   columns: AdminTableColumn<T>[];
   rows: T[];
@@ -392,12 +566,24 @@ export function AdminDataTable<T>({
   noun?: string;
   /** Scroll inside the table past this height (header stays put). */
   maxHeight?: number;
+  /** Opt-in row checkboxes (select all on the page, Shift-click ranges on the web). */
+  selectable?: boolean;
+  /** Selected row ids (keyExtractor values) — may include rows on other pages. */
+  selectedIds?: readonly string[];
+  onSelectionChange?: (ids: string[]) => void;
 }) {
   const paged = page !== undefined && pageSize !== undefined && total !== undefined && onPageChange;
+  const selecting = Boolean(selectable && onSelectionChange);
+  const selection = useRowSelection(rows, keyExtractor, selectedIds, selecting ? onSelectionChange : undefined);
   return (
     <View style={styles.card}>
       <ScrollView style={maxHeight ? { maxHeight } : undefined} stickyHeaderIndices={[0]} nestedScrollEnabled>
-        <AdminTableHead columns={columns} sort={sort} onSortChange={onSortChange} />
+        <AdminTableHead
+          columns={columns}
+          sort={sort}
+          onSortChange={onSortChange}
+          selectAll={selecting ? { checked: selection.allState, onToggle: selection.toggleAll } : undefined}
+        />
         <AdminTableRows
           columns={columns}
           rows={rows}
@@ -410,6 +596,8 @@ export function AdminDataTable<T>({
           emptyTitle={emptyTitle}
           emptyMessage={emptyMessage}
           skeletonRows={Math.min(pageSize ?? 6, 8)}
+          selectedKeys={selecting ? selection.selected : undefined}
+          onToggleRow={selecting ? selection.toggleRow : undefined}
         />
       </ScrollView>
       {paged ? (
@@ -496,6 +684,19 @@ const styles = StyleSheet.create({
   },
   rowLast: { borderBottomWidth: 0 },
   rowHover: { backgroundColor: '#F6FAF6' },
+  rowSelected: { backgroundColor: '#EEF7F0' },
+  rowSelectedHover: { backgroundColor: '#E6F3E9' },
+  checkCell: { width: CHECK_COL, flexGrow: 0, flexShrink: 0, paddingHorizontal: 0, alignItems: 'center', justifyContent: 'center' },
+  checkHit: { alignItems: 'center', justifyContent: 'center' },
+  checkBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#C9D2CB',
+    backgroundColor: colors.white,
+  },
+  checkBoxHover: { borderColor: colors.forest },
+  checkBoxOn: { backgroundColor: colors.forest, borderColor: colors.forest },
   cell: { paddingHorizontal: 8, paddingVertical: 10, justifyContent: 'center', minWidth: 0 },
   state: { paddingVertical: spacing.lg, minHeight: 220 },
   text: { fontFamily: fonts.body, fontSize: 13.5, lineHeight: 19, color: ui.text, maxWidth: '100%' },

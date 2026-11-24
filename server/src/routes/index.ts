@@ -18,6 +18,8 @@ import { websiteRouter } from './website.routes';
 import { settingsRouter } from './settings.routes';
 import { activityRouter } from './activity.routes';
 import { broadcastRouter } from './broadcast.routes';
+import { searchRouter } from './search.routes';
+import { payrollRouter } from './payroll.routes';
 import { activityLog } from '../middleware/activityLog';
 
 export const apiRouter = Router();
@@ -38,6 +40,9 @@ apiRouter.use('/stats', statsRouter);
 // Before the general admin router so these sub-paths reach their own routers.
 apiRouter.use('/admin/activity', activityRouter);
 apiRouter.use('/admin/broadcast', broadcastRouter);
+apiRouter.use('/admin/search', searchRouter);
+// Payouts + pay adjustments; GET /admin/payroll itself falls through to the admin router.
+apiRouter.use('/admin/payroll', payrollRouter);
 apiRouter.use('/admin', adminRouter);
 apiRouter.use('/addresses', addressesRouter);
 apiRouter.use('/payment-methods', paymentMethodsRouter);

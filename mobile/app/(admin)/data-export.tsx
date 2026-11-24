@@ -31,7 +31,11 @@ const IS_WEB = Platform.OS === 'web';
 const DOWNLOAD_TIMEOUT_MS = 180_000;
 
 const GROUPS: { key: ExportDatasetGroup; title: string; hint: string }[] = [
-  { key: 'operations', title: 'Operations', hint: 'Bookings, reviews, leave, attendance, notifications, admin activity' },
+  {
+    key: 'operations',
+    title: 'Operations',
+    hint: 'Bookings, reviews, leave, attendance, technician payouts and pay adjustments, notifications, admin activity',
+  },
   { key: 'people', title: 'People', hint: 'Customers, technicians, saved addresses, payment methods' },
   { key: 'catalog', title: 'Catalog', hint: 'Services and offers' },
   { key: 'website', title: 'Website', hint: 'Blog, gallery, team, testimonials, messages, subscribers, layout' },
@@ -217,7 +221,7 @@ export default function AdminDataExportScreen() {
           ) : null}
           <Text style={styles.note}>
             {range
-              ? `Rows from ${formatRangeSummary(range)}: bookings by ${dateField === 'visit' ? 'visit' : 'booked'} date, attendance by day, leave that overlaps, everything else by the day it was created.`
+              ? `Rows from ${formatRangeSummary(range)}: bookings by ${dateField === 'visit' ? 'visit' : 'booked'} date, attendance and pay adjustments by day, payouts by the day they were paid, leave that overlaps, everything else by the day it was created.`
               : 'All time — every record.'}
           </Text>
 

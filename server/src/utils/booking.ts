@@ -1,12 +1,10 @@
 import { Types } from 'mongoose';
-import { Booking, IBooking, IBookingStep } from '../models/Booking';
-import { LeaveRequest } from '../models/LeaveRequest';
+import { IBooking, IBookingStep } from '../models/Booking';
 import { SavedAddress } from '../models/SavedAddress';
 import { IService } from '../models/Service';
 import { User } from '../models/User';
 import { AppError } from './AppError';
 import { couponValue } from './coupons';
-import { localDateKey } from './dateKey';
 import {
   addressInServiceArea,
   customerText,
@@ -14,20 +12,41 @@ import {
   type BusinessSettings,
 } from './businessSettings';
 import { notifyBookingEvent, notifyWorkOtpEvent } from './notifications';
+import { pickTechnicianForVisit, visitContextForBooking } from './technicianFit';
 import { appendTracking, issueStartOtp } from './workOtp';
 
+/** A booking's bill as stored on `booking.amount`. */
+export type BookingAmount = {
+  base: number;
+  gst: number;
+  coupon: number;
+  total: number;
+  gstPercent: number;
+  /** Net of the admin's adjustment lines (before GST); left out when there are none. */
+  adjustments?: number;
+};
+
 /**
- * Coupon comes off the service price first; GST (Business settings → Tax, 18% by default) is charged
- * on the discounted amount. `gstPercent` is stored with the amount so old invoices keep their rate.
+ * The one bill formula — checkout, admin order edits and reopen all price through it so the app, the
+ * website and the admin always agree: the coupon comes off the service price first, the admin's
+ * adjustment lines (+ extra charge / − discount) are added, and GST (Business settings → Tax) is
+ * charged on what is left. `gstPercent` is stored with the amount so old invoices keep their rate.
  */
-export async function computeAmount(basePrice: number, couponCode?: string, gstPercent?: number) {
-  const pct = gstPercent ?? (await getBusinessSettings()).tax.gstPercent;
-  const base = basePrice;
-  const coupon = Math.min(base, await couponValue(couponCode, base));
-  const taxable = base - coupon;
-  const gst = Math.round((taxable * pct) / 100);
+export function priceBooking(parts: { base: number; coupon: number; adjustments?: number; gstPercent: number }): BookingAmount {
+  const base = parts.base;
+  const coupon = Math.min(base, Math.max(0, parts.coupon));
+  const adjustments = Math.round(parts.adjustments ?? 0);
+  const taxable = Math.max(0, base - coupon + adjustments);
+  const gst = Math.round((taxable * parts.gstPercent) / 100);
   const total = taxable + gst;
-  return { base, gst, coupon, total, gstPercent: pct };
+  return { base, gst, coupon, total, gstPercent: parts.gstPercent, ...(adjustments !== 0 ? { adjustments } : {}) };
+}
+
+/** Checkout price: a coupon is checked like the customer typed it (active, expiry, minimum order, uses). */
+export async function computeAmount(basePrice: number, couponCode?: string, gstPercent?: number): Promise<BookingAmount> {
+  const pct = gstPercent ?? (await getBusinessSettings()).tax.gstPercent;
+  const coupon = Math.min(basePrice, await couponValue(couponCode, basePrice));
+  return priceBooking({ base: basePrice, coupon, gstPercent: pct });
 }
 
 export function buildStepsFromTemplate(template: string[]): IBookingStep[] {
@@ -38,12 +57,12 @@ export function buildStepsFromTemplate(template: string[]): IBookingStep[] {
   }));
 }
 
-const BUSY_STATUSES = ['confirmed', 'in_progress', 'awaiting_verification'];
-
 /**
- * Least-busy technician who can take a visit. Without `date` (older callers): any on-duty technician,
- * fewest open jobs. With `date` (+ `slot`): skips technicians on approved leave that day, with a job in the
- * same slot that day, or off duty when the visit is today; then fewest jobs that day, then fewest open jobs.
+ * Least-busy technician who can take a visit — the rules live in utils/technicianFit.ts (shared with the
+ * admin's assign picker). Skips anyone off duty for a visit today, on leave (approved or marked in
+ * attendance), with a job in the same slot, on a weekly day off, at their daily job cap, without a skill for
+ * the service's pest types (`serviceTypes`) or outside their cities / pincodes (`address`); then fewest jobs
+ * that day, then fewest open jobs. Without `date` (older callers) only duty, skills and area count.
  * `prefer` (e.g. the customer's pick) wins when that technician is free.
  */
 export async function assignLeastBusyTechnician(opts: {
@@ -51,56 +70,19 @@ export async function assignLeastBusyTechnician(opts: {
   slot?: string;
   excludeBookingId?: Types.ObjectId | string;
   prefer?: Types.ObjectId | string;
+  /** Pest types of the booked service. */
+  serviceTypes?: string[];
+  /** Visit address text. */
+  address?: string;
 } = {}): Promise<Types.ObjectId | undefined> {
-  const { date, slot } = opts;
-  const today = localDateKey();
-  const filter: Record<string, unknown> = { role: 'technician', disabled: { $ne: true } };
-  // Off duty only matters for today's visits (the admin's assign rule); older callers keep "on duty".
-  if (!date || date <= today) filter.available = true;
-  const technicians = await User.find(filter).select('_id');
-  if (technicians.length === 0) return undefined;
-  let ids = technicians.map((t) => t._id as Types.ObjectId);
-
-  const exclude = opts.excludeBookingId ? new Types.ObjectId(String(opts.excludeBookingId)) : undefined;
-  if (date) {
-    const onLeave = await LeaveRequest.find({
-      technicianId: { $in: ids },
-      status: 'approved',
-      from: { $lte: date },
-      to: { $gte: date },
-    }).distinct('technicianId');
-    const leaveSet = new Set(onLeave.map(String));
-    if (slot && slot !== 'custom') {
-      const clash = await Booking.find({
-        technicianId: { $in: ids },
-        'schedule.date': date,
-        'schedule.slot': slot,
-        status: { $in: BUSY_STATUSES },
-        ...(exclude ? { _id: { $ne: exclude } } : {}),
-      }).distinct('technicianId');
-      for (const id of clash) leaveSet.add(String(id));
-    }
-    ids = ids.filter((id) => !leaveSet.has(String(id)));
-    if (ids.length === 0) return undefined;
-  }
-
-  if (opts.prefer && ids.some((id) => String(id) === String(opts.prefer))) {
-    return ids.find((id) => String(id) === String(opts.prefer));
-  }
-
-  const countBy = async (match: Record<string, unknown>) => {
-    const rows = await Booking.aggregate<{ _id: Types.ObjectId; n: number }>([
-      { $match: { technicianId: { $in: ids }, status: { $in: BUSY_STATUSES }, ...match } },
-      { $group: { _id: '$technicianId', n: { $sum: 1 } } },
-    ]);
-    return new Map(rows.map((r) => [String(r._id), r.n]));
-  };
-  const [open, sameDay] = await Promise.all([countBy({}), date ? countBy({ 'schedule.date': date }) : Promise.resolve(new Map<string, number>())]);
-
-  const ranked = ids
-    .map((id) => ({ id, day: sameDay.get(String(id)) ?? 0, open: open.get(String(id)) ?? 0 }))
-    .sort((a, b) => a.day - b.day || a.open - b.open);
-  return ranked[0]?.id;
+  return pickTechnicianForVisit({
+    date: opts.date,
+    slot: opts.slot,
+    excludeBookingId: opts.excludeBookingId,
+    prefer: opts.prefer,
+    pestTypes: opts.serviceTypes,
+    address: opts.address,
+  });
 }
 
 /**
@@ -115,11 +97,14 @@ export async function autoAssignIfEnabled(
 ): Promise<boolean> {
   const s = settings ?? (await getBusinessSettings());
   if (!s.booking.autoAssign || booking.status !== 'confirmed' || booking.technicianId) return false;
+  const visit = await visitContextForBooking(booking);
   const techId = await assignLeastBusyTechnician({
-    date: booking.schedule?.date,
-    slot: booking.schedule?.slot,
-    excludeBookingId: booking._id as Types.ObjectId,
+    date: visit.date,
+    slot: visit.slot,
+    excludeBookingId: visit.excludeBookingId,
     prefer: opts.prefer,
+    serviceTypes: visit.pestTypes,
+    address: visit.address,
   });
   if (!techId) return false;
   booking.technicianId = techId;

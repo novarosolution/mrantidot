@@ -13,6 +13,11 @@ export interface ILeaveRequest extends Document {
   adminNote?: string;
   decidedBy?: Types.ObjectId;
   decidedAt?: Date;
+  /** Who entered it: the technician (a request) or an admin (approved straight away). */
+  source?: 'technician' | 'admin';
+  /** Admin who cancelled approved leave (technicians cancel their own pending requests without one). */
+  cancelledBy?: Types.ObjectId;
+  cancelledAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,6 +44,9 @@ const leaveSchema = new Schema<ILeaveRequest>(
     adminNote: { type: String, trim: true },
     decidedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     decidedAt: { type: Date },
+    source: { type: String, enum: ['technician', 'admin'], default: 'technician' },
+    cancelledBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    cancelledAt: { type: Date },
   },
   {
     timestamps: true,

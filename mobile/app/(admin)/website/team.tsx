@@ -24,6 +24,7 @@ import { useReorderMode } from '@/lib/useReorderMode';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import type { TeamMember } from '@/types/api';
+import { useWebsiteItemRestored } from '@/lib/websiteTrash';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 export default function WebsiteTeamScreen() {
@@ -44,6 +45,9 @@ export default function WebsiteTeamScreen() {
   useStaleFocusRefresh(() => {
     if (!order.reordering) return load().catch(() => undefined);
   }, 0);
+  useWebsiteItemRestored('team', () => {
+    if (!order.reordering) void load().catch(() => undefined);
+  });
 
   const shown = useMemo(() => members.filter((m) => m.active).length, [members]);
   const open = useCallback(

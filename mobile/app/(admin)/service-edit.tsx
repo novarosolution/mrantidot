@@ -1,9 +1,12 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { adminGoBack, adminRoutes } from '@/lib/routes';
+import { adminGoBack, adminRoutes, appReplace } from '@/lib/routes';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Plus, X } from 'lucide-react-native';
+import { Copy, Plus, X } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
+import { StepsEditor } from '@/components/admin/StepsEditor';
+import { HeaderActionButton } from '@/components/kit/HeaderActionButton';
+import { IS_WEB } from '@/lib/webAdmin';
 import { AdminFormCard, AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
 import { AdminFormSkeleton } from '@/components/kit/AdminSkeletons';
@@ -16,7 +19,7 @@ import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { api, screenLoadConfig } from '@/lib/api';
+import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
 import { haptic, stagger } from '@/lib/motion';
 import { serviceRealRating } from '@/lib/ratings';
 import { useScreenLoad } from '@/lib/useScreenLoad';
@@ -49,7 +52,11 @@ export default function ServiceEditScreen() {
   const [serviceTypes, setServiceTypes] = useState<ServiceTypeKey[]>([]);
   const [basePrice, setBasePrice] = useState('499');
   const [shortDesc, setShortDesc] = useState('');
-  const [steps, setSteps] = useState('Arrival,Before,After,Sign-off');
+  /** Visit steps in order (empty = the server's default steps). */
+  const [steps, setSteps] = useState<string[]>(['Arrival', 'Before', 'After', 'Sign-off']);
+  /** Saved on/off state (existing services). */
+  const [active, setActive] = useState(true);
+  const [busy, setBusy] = useState<null | 'toggle' | 'copy'>(null);
   const [rating, setRating] = useState('4.8');
   const [realRating, setRealRating] = useState<number | null>(null);
   const [reviewCount, setReviewCount] = useState(0);
@@ -89,6 +96,7 @@ export default function ServiceEditScreen() {
           excluded?: string[];
           notes?: string[];
           coverImage?: WebsiteImage;
+          active?: boolean;
         };
       }>(`/services/${id}`, screenLoadConfig),
       api.get<{ stats: ServiceStats }>(`/services/${id}/stats`, screenLoadConfig),
@@ -101,7 +109,8 @@ export default function ServiceEditScreen() {
     setBasePrice(String(s.basePrice));
     setShortDesc(s.shortDesc);
     setRating(String(s.rating ?? 4.8));
-    setSteps((s.stepTemplate ?? []).join(','));
+    setSteps(s.stepTemplate ?? []);
+    setActive(s.active !== false);
     setOptionsTitle(s.optionsTitle || 'Size of home');
     setOptions((s.options ?? []).map((o) => ({ key: o.key, label: o.label, price: String(o.price), note: o.note ?? '' })));
     setDurationMins(s.durationMins ? String(s.durationMins) : '');
@@ -157,7 +166,7 @@ export default function ServiceEditScreen() {
         basePrice: price,
         rating: ratingNum,
         shortDesc: shortDesc.trim(),
-        stepTemplate: steps.split(',').map((s) => s.trim()).filter(Boolean),
+        stepTemplate: steps.map((step) => step.trim()).filter(Boolean),
         optionsTitle: optionsTitle.trim() || 'Size of home',
         options: filledOptions.map((o) => ({
           ...(o.key ? { key: o.key } : {}),
@@ -189,25 +198,65 @@ export default function ServiceEditScreen() {
   }
 
   function remove() {
-    if (!id) return;
+    if (!id || busy) return;
     void confirmAsync({
       title: 'Deactivate service?',
-      message: 'Customers will no longer see this service.',
+      message: `Customers will no longer see ${name.trim() || 'this service'} in the app or on the website. Existing bookings are not affected; you can restore it any time.`,
       confirmLabel: 'Deactivate',
+      cancelLabel: 'Keep live',
       destructive: true,
     }).then(async (ok) => {
       if (!ok) return;
+      setBusy('toggle');
       try {
-        await api.delete(`/services/${id}`);
+        await api.delete(`/services/${id}`, { skipErrorToast: true });
         haptic('success');
         Toast.show({ type: 'success', text1: 'Service deactivated' });
         adminGoBack(adminRoutes.services);
-      } catch {
+      } catch (err) {
         haptic('error');
-        Toast.show({ type: 'error', text1: 'Could not deactivate service' });
+        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not deactivate service') });
+      } finally {
+        setBusy(null);
       }
     });
   }
+
+  async function restore() {
+    if (!id || busy) return;
+    setBusy('toggle');
+    try {
+      await api.patch(`/services/${id}`, { active: true }, { skipErrorToast: true });
+      haptic('success');
+      setActive(true);
+      Toast.show({ type: 'success', text1: 'Service is live again', text2: 'Customers can book it now.' });
+    } catch (err) {
+      haptic('error');
+      Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not restore service') });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** A switched-off copy ("<name> (copy)") right after this one — opens it to edit. */
+  async function duplicate() {
+    if (!id || busy) return;
+    setBusy('copy');
+    try {
+      const { data } = await api.post<{ service: { id: string; name: string } }>(`/services/${id}/duplicate`, {}, { skipErrorToast: true });
+      haptic('success');
+      Toast.show({ type: 'success', text1: `Created ${data.service.name}`, text2: 'It is switched off — edit it, then restore it to go live.' });
+      appReplace({ pathname: adminRoutes.serviceEdit, params: { id: data.service.id } });
+    } catch (err) {
+      haptic('error');
+      Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not copy the service') });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** Web: Enter in a single-line field saves. */
+  const submitOnEnter = IS_WEB ? { onSubmitEditing: () => void save() } : {};
 
   if (id && loading) {
     return (
@@ -228,13 +277,34 @@ export default function ServiceEditScreen() {
   return (
     <AdminListShell
       title={id ? 'Edit Service' : 'New Service'}
-      subtitle="Catalog item"
+      subtitle={id ? (active ? 'Live · customers can book it' : 'Switched off · hidden from customers') : 'Catalog item'}
       backFallback={adminRoutes.services}
       keyboardAvoid
+      rightAction={id ? <HeaderActionButton icon={Copy} onPress={() => void duplicate()} accessibilityLabel="Duplicate service" /> : undefined}
       stickyFooter={
         <StickyActionBar row>
           {id ? (
-            <Button title="Deactivate" variant="dangerOutline" onPress={remove} fullWidth={false} style={styles.footerSecondary} />
+            active ? (
+              <Button
+                title="Deactivate"
+                variant="dangerOutline"
+                onPress={remove}
+                loading={busy === 'toggle'}
+                disabled={Boolean(busy)}
+                fullWidth={false}
+                style={styles.footerSecondary}
+              />
+            ) : (
+              <Button
+                title="Restore"
+                variant="outline"
+                onPress={() => void restore()}
+                loading={busy === 'toggle'}
+                disabled={Boolean(busy)}
+                fullWidth={false}
+                style={styles.footerSecondary}
+              />
+            )
           ) : null}
           <Button
             title={uploading ? 'Uploading…' : 'Save'}
@@ -264,6 +334,7 @@ export default function ServiceEditScreen() {
                 if (errors.name) setErrors((e) => ({ ...e, name: undefined }));
               }}
               error={errors.name}
+              {...submitOnEnter}
             />
             <Text style={styles.label}>Category</Text>
             <AdminFilterChips
@@ -280,6 +351,7 @@ export default function ServiceEditScreen() {
               }}
               keyboardType="numeric"
               error={errors.basePrice}
+              {...submitOnEnter}
             />
             <IconInput
               label="Public rating"
@@ -306,11 +378,21 @@ export default function ServiceEditScreen() {
                 if (errors.shortDesc) setErrors((e) => ({ ...e, shortDesc: undefined }));
               }}
               error={errors.shortDesc}
+              {...submitOnEnter}
             />
-            <IconInput label="Steps (comma-separated)" value={steps} onChangeText={setSteps} />
           </AdminFormCard>
         </FadeSlideIn>
         <FadeSlideIn delay={stagger(1)} slideFrom={14}>
+          <PremiumSectionHeader
+            title="Visit steps"
+            subtitle="The technician works through these in order and adds photos at each step. Changes apply to new bookings."
+            style={styles.sectionHead}
+          />
+          <AdminFormCard style={styles.form}>
+            <StepsEditor steps={steps} onChange={setSteps} />
+          </AdminFormCard>
+        </FadeSlideIn>
+        <FadeSlideIn delay={stagger(2)} slideFrom={14}>
           <PremiumSectionHeader
             title="Sizes & pricing"
             subtitle="Customers pick one size and the booking is priced from it. Leave empty to use the base price."
@@ -319,33 +401,44 @@ export default function ServiceEditScreen() {
           <AdminFormCard style={styles.form}>
             <IconInput label="Picker heading" value={optionsTitle} onChangeText={setOptionsTitle} placeholder="Size of home" />
             {options.map((o, i) => (
-              <View key={o.key ?? `new-${i}`} style={styles.optionRow}>
-                <View style={styles.optionLabel}>
-                  <IconInput
-                    label={i === 0 ? 'Size' : ' '}
-                    value={o.label}
-                    placeholder="2 BHK"
-                    onChangeText={(t) => setOptions((prev) => prev.map((p, j) => (j === i ? { ...p, label: t } : p)))}
-                  />
+              <View key={o.key ?? `new-${i}`} style={styles.optionBlock}>
+                <View style={styles.optionRow}>
+                  <View style={styles.optionLabel}>
+                    <IconInput
+                      label="Size"
+                      value={o.label}
+                      placeholder="2 BHK"
+                      maxLength={40}
+                      onChangeText={(t) => setOptions((prev) => prev.map((p, j) => (j === i ? { ...p, label: t } : p)))}
+                    />
+                  </View>
+                  <View style={styles.optionPrice}>
+                    <IconInput
+                      label="Price ₹"
+                      value={o.price}
+                      placeholder="899"
+                      keyboardType="numeric"
+                      onChangeText={(t) => setOptions((prev) => prev.map((p, j) => (j === i ? { ...p, price: t } : p)))}
+                    />
+                  </View>
+                  <Pressable
+                    style={({ pressed }) => [styles.optionRemove, pressed && styles.pressed]}
+                    onPress={() => setOptions((prev) => prev.filter((_, j) => j !== i))}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove size ${o.label || i + 1}`}
+                  >
+                    <X size={18} color={colors.error} strokeWidth={2.4} />
+                  </Pressable>
                 </View>
-                <View style={styles.optionPrice}>
-                  <IconInput
-                    label={i === 0 ? 'Price ₹' : ' '}
-                    value={o.price}
-                    placeholder="899"
-                    keyboardType="numeric"
-                    onChangeText={(t) => setOptions((prev) => prev.map((p, j) => (j === i ? { ...p, price: t } : p)))}
-                  />
-                </View>
-                <Pressable
-                  style={({ pressed }) => [styles.optionRemove, pressed && styles.pressed]}
-                  onPress={() => setOptions((prev) => prev.filter((_, j) => j !== i))}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Remove size ${o.label || i + 1}`}
-                >
-                  <X size={18} color={colors.error} strokeWidth={2.4} />
-                </Pressable>
+                <IconInput
+                  label="Note under the size (optional)"
+                  value={o.note}
+                  placeholder="e.g. Up to 1,000 sq ft · 2 bathrooms"
+                  maxLength={80}
+                  hint={o.note.length > 60 ? `${o.note.length}/80` : 'Customers see it on the size picker.'}
+                  onChangeText={(t) => setOptions((prev) => prev.map((p, j) => (j === i ? { ...p, note: t } : p)))}
+                />
               </View>
             ))}
             {errors.options ? <Text style={styles.fieldError}>{errors.options}</Text> : null}
@@ -360,7 +453,7 @@ export default function ServiceEditScreen() {
           </AdminFormCard>
         </FadeSlideIn>
 
-        <FadeSlideIn delay={stagger(2)} slideFrom={14}>
+        <FadeSlideIn delay={stagger(3)} slideFrom={14}>
           <PremiumSectionHeader
             title="Detail page content"
             subtitle="One point per line. Empty boxes hide their section in the app."
@@ -381,7 +474,7 @@ export default function ServiceEditScreen() {
           </AdminFormCard>
         </FadeSlideIn>
 
-        <FadeSlideIn delay={stagger(3)} slideFrom={14}>
+        <FadeSlideIn delay={stagger(4)} slideFrom={14}>
           <PremiumSectionHeader
             title="Website photo"
             subtitle="Optional photo for this service on the website. Without one the pest artwork is used."
@@ -400,7 +493,7 @@ export default function ServiceEditScreen() {
           </AdminFormCard>
         </FadeSlideIn>
 
-        <FadeSlideIn delay={stagger(4)} slideFrom={14}>
+        <FadeSlideIn delay={stagger(5)} slideFrom={14}>
           <PremiumSectionHeader title="Pest control types" style={styles.sectionHead} />
           <AdminFormCard style={styles.form}>
             <PestTypePicker
@@ -414,7 +507,7 @@ export default function ServiceEditScreen() {
           </AdminFormCard>
         </FadeSlideIn>
 
-        <FadeSlideIn delay={stagger(5)} slideFrom={14}>
+        <FadeSlideIn delay={stagger(6)} slideFrom={14}>
           <PremiumSectionHeader title="Icon" style={styles.sectionHead} />
           <AdminFormCard style={styles.form}>
             <ServiceIconPicker value={iconKey} onChange={setIconKey} />
@@ -430,6 +523,12 @@ const styles = StyleSheet.create({
   footerPrimary: { flex: 1.6 },
   sectionHead: { marginTop: spacing.sm, paddingHorizontal: spacing.md, marginBottom: spacing.xs },
   form: { marginBottom: spacing.md },
+  optionBlock: {
+    paddingBottom: spacing.xs,
+    marginBottom: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: ui.border,
+  },
   optionRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   optionLabel: { flex: 1 },
   optionPrice: { width: 104 },

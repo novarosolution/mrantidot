@@ -1269,6 +1269,9 @@ export const DEFAULT_CUSTOMER_UI_COPY: CustomerUiCopy = {
   techNotificationsEnd: 'That’s everything',
   techNotificationsBell: 'Notifications',
   techNotificationsBellUnread: 'Notifications, {count} unread',
+  trackReopened: 'Booking reopened',
+  trackOrderUpdated: 'Booking updated',
+  serviceReviewReplyTitle: 'Reply from Mr Antidot',
 };
 
 function strField(val: unknown, fallback: string): string {
@@ -1734,6 +1737,7 @@ export const CUSTOMER_UI_ADMIN_GROUPS = {
     ['serviceSeeAllReviews', 'Reviews · see all button'],
     ['serviceAllReviewsTitle', 'Reviews · all reviews sheet title'],
     ['serviceStarsA11y', 'Reviews · bar (screen reader)'],
+    ['serviceReviewReplyTitle', 'Reviews · heading above the business reply'],
   ] as const,
   browse: [
     ['browseTitle', 'Title ({type} = pest type)'],
@@ -2053,6 +2057,8 @@ export const CUSTOMER_UI_ADMIN_GROUPS = {
     ['bookingDetailCancelReason', 'Status · your cancel reason'],
     ['bookingPaymentPaid', 'Payment row · paid'],
     ['bookingPaymentRefunded', 'Payment row · refunded'],
+    ['trackReopened', 'Timeline · reopened'],
+    ['trackOrderUpdated', 'Timeline · order updated'],
   ] as const,
   review: [
     ['reviewScreenTitle', 'Screen title'],

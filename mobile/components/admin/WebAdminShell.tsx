@@ -18,6 +18,7 @@ import {
   PanelLeftOpen,
   RefreshCw,
   ScrollText,
+  Search,
   Settings,
   Smartphone,
   Sparkles,
@@ -42,12 +43,15 @@ import {
   type LayoutChangeEvent,
 } from 'react-native';
 import { BrandLogo } from '@/components/BrandLogo';
+import { CommandPalette } from '@/components/admin/search/CommandPalette';
+import { ShortcutsDialog } from '@/components/admin/ShortcutsDialog';
 import { colors, fonts, ui } from '@/constants/theme';
 import { useAppContent } from '@/context/AppContentContext';
 import { useAuth } from '@/context/AuthContext';
 import { api, clearApiCache, screenLoadConfig } from '@/lib/api';
 import { confirmAsync } from '@/lib/confirm';
-import { adminRoutes } from '@/lib/routes';
+import { adminRoutes, appPush } from '@/lib/routes';
+import { isTypingTarget, modKeyLabel, webModalOpen, webTitle } from '@/lib/webKeys';
 import {
   adminRouteName,
   adminScreenTitle,
@@ -579,7 +583,44 @@ function AccountMenu() {
   );
 }
 
-function TopBar({ title, group, onRefresh }: { title: string; group?: string; onRefresh: () => void }) {
+/** Looks like a search box; opens the command palette (also ⌘K / Ctrl+K and "/"). */
+function SearchTrigger({ onPress }: { onPress: () => void }) {
+  const [hovered, setHovered] = useState(false);
+  const { width } = useWindowDimensions();
+  const compact = width < 1180;
+  const mod = modKeyLabel();
+  return (
+    <Pressable
+      ref={webTitle(`Search (${mod}+K or /)`)}
+      onPress={onPress}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      accessibilityRole="button"
+      accessibilityLabel={`Search bookings, customers, services and more. Shortcut ${mod} K`}
+      style={({ pressed }) => [styles.searchTrigger, compact && styles.searchTriggerCompact, hovered && styles.searchTriggerHover, pressed && styles.linkPressed]}
+    >
+      <Search size={16} color={hovered ? colors.forest : ui.textSecondary} strokeWidth={2.3} />
+      <Text style={styles.searchText} numberOfLines={1}>
+        {compact ? 'Search…' : 'Search bookings, customers, phone…'}
+      </Text>
+      <View style={styles.searchKbd}>
+        <Text style={styles.searchKbdText}>{mod === '⌘' ? '⌘K' : 'Ctrl K'}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function TopBar({
+  title,
+  group,
+  onRefresh,
+  onSearch,
+}: {
+  title: string;
+  group?: string;
+  onRefresh: () => void;
+  onSearch: () => void;
+}) {
   const spin = useRef(new Animated.Value(0)).current;
   const refresh = () => {
     spin.setValue(0);
@@ -598,10 +639,108 @@ function TopBar({ title, group, onRefresh }: { title: string; group?: string; on
           {title}
         </Text>
       </View>
+      <SearchTrigger onPress={onSearch} />
       <TopButton icon={RefreshCw} label="Refresh" onPress={refresh} spin={spin} />
       <AccountMenu />
     </View>
   );
+}
+
+/* ─── Keyboard shortcuts (web) ─────────────────────────────────────── */
+
+/** "g" then a letter → section (sidebar keys). */
+const G_TARGETS: Record<string, string> = {
+  d: 'dashboard',
+  b: 'bookings',
+  c: 'customers',
+  t: 'technicians',
+  s: 'services',
+  r: 'reports',
+};
+
+/** Branded keyboard focus ring for every pressable on the admin web (mouse clicks never show it). */
+const FOCUS_STYLE_ID = 'mra-admin-focus-ring';
+const FOCUS_CSS = `
+[role="button"]:focus-visible, [role="link"]:focus-visible, [role="checkbox"]:focus-visible,
+[role="switch"]:focus-visible, [role="tab"]:focus-visible, [role="menuitem"]:focus-visible,
+[role="radio"]:focus-visible, a[href]:focus-visible, button:focus-visible {
+  outline: 2px solid rgba(21, 148, 71, 0.85);
+  outline-offset: 2px;
+}
+[role="dialog"] input:focus-visible, [role="dialog"] textarea:focus-visible { outline: none; }
+`;
+
+function useFocusRing(): void {
+  useEffect(() => {
+    if (typeof document === 'undefined' || document.getElementById(FOCUS_STYLE_ID)) return;
+    const el = document.createElement('style');
+    el.id = FOCUS_STYLE_ID;
+    el.textContent = FOCUS_CSS;
+    document.head.appendChild(el);
+  }, []);
+}
+
+/**
+ * "/" or ⌘K / Ctrl+K search, "g" then d/b/c/t/s/r to jump, "n" new booking, "?" shortcuts. Single keys are
+ * ignored while typing in a field or while a dialog / sheet is open; ⌘K works everywhere.
+ */
+function useAdminShortcuts({
+  pathname,
+  togglePalette,
+  openPalette,
+  openShortcuts,
+}: {
+  pathname: string;
+  togglePalette: () => void;
+  openPalette: () => void;
+  openShortcuts: () => void;
+}): void {
+  const latest = useRef({ pathname, togglePalette, openPalette, openShortcuts });
+  latest.current = { pathname, togglePalette, openPalette, openShortcuts };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    let gAt = 0;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.isComposing) return;
+      const { pathname: path, togglePalette: toggle, openPalette: open, openShortcuts: help } = latest.current;
+      const key = e.key ?? '';
+      const lower = key.length === 1 ? key.toLowerCase() : key;
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && lower === 'k') {
+        e.preventDefault();
+        toggle();
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isTypingTarget(e.target) || webModalOpen()) {
+        gAt = 0;
+        return;
+      }
+      if (gAt && Date.now() - gAt < 1500) {
+        gAt = 0;
+        const item = NAV_ITEMS.find((n) => n.key === G_TARGETS[lower]);
+        if (item) {
+          e.preventDefault();
+          if (path !== webPath(item.href)) openSection(item);
+        }
+        return;
+      }
+      if (key === '/') {
+        e.preventDefault();
+        open();
+      } else if (key === '?') {
+        e.preventDefault();
+        help();
+      } else if (lower === 'g' && !e.shiftKey) {
+        gAt = Date.now();
+      } else if (lower === 'n' && !e.shiftKey) {
+        e.preventDefault();
+        if (path !== '/booking-create') appPush(adminRoutes.bookingCreate);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 }
 
 /**
@@ -621,6 +760,8 @@ export function WebAdminShell({ children }: { children: ReactNode }) {
   const { count: unread, reload: reloadUnread } = useUnreadCount(wide, pathname);
   const activeItem = NAV_ITEMS.find((item) => item.match(pathname));
   const title = adminScreenTitle(adminRouteName(segments));
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   const refresh = useCallback(() => {
     clearApiCache();
@@ -628,17 +769,40 @@ export function WebAdminShell({ children }: { children: ReactNode }) {
     reloadUnread();
   }, [reloadUnread]);
 
+  const openPalette = useCallback(() => {
+    setShortcutsOpen(false);
+    setPaletteOpen(true);
+  }, []);
+  const closePalette = useCallback(() => setPaletteOpen(false), []);
+  const openShortcuts = useCallback(() => {
+    setPaletteOpen(false);
+    setShortcutsOpen(true);
+  }, []);
+
+  useFocusRing();
+  useAdminShortcuts({
+    pathname,
+    togglePalette: () => {
+      setShortcutsOpen(false);
+      setPaletteOpen((open) => !open);
+    },
+    openPalette,
+    openShortcuts,
+  });
+
   return (
     <View style={[styles.root, wide && styles.rootWide]}>
       {wide ? <Sidebar activeKey={activeItem?.key} pathname={pathname} unread={unread} /> : null}
       <View style={wide ? styles.contentWide : styles.fill}>
-        {wide ? <TopBar title={title} group={activeItem?.group} onRefresh={refresh} /> : null}
+        {wide ? <TopBar title={title} group={activeItem?.group} onRefresh={refresh} onSearch={openPalette} /> : null}
         <View style={wide ? [styles.column, { maxWidth: contentMaxWidth }] : styles.fill}>
           <View key={epoch} style={styles.fill}>
             {children}
           </View>
         </View>
       </View>
+      <CommandPalette visible={paletteOpen} onClose={closePalette} openShortcuts={openShortcuts} />
+      <ShortcutsDialog visible={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </View>
   );
 }
@@ -809,6 +973,35 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   topButtonHover: { backgroundColor: ui.surfaceMuted },
+  searchTrigger: {
+    height: 38,
+    width: 340,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    paddingLeft: 12,
+    paddingRight: 6,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: ui.border,
+    backgroundColor: ui.surfaceMuted,
+    marginRight: 4,
+  },
+  searchTriggerCompact: { width: 200 },
+  searchTriggerHover: { borderColor: 'rgba(8,123,53,0.35)', backgroundColor: colors.white },
+  searchText: { flex: 1, minWidth: 0, fontFamily: fonts.body, fontSize: 13.5, color: ui.textTertiary },
+  searchKbd: {
+    height: 24,
+    paddingHorizontal: 7,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderBottomWidth: 2,
+    borderColor: ui.border,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchKbdText: { fontFamily: fonts.bodySemi, fontSize: 11.5, color: ui.textSecondary },
   topButtonText: { fontFamily: fonts.bodySemi, fontSize: 13.5, color: ui.text },
   accountButton: {
     height: 42,

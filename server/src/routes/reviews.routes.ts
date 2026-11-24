@@ -1,7 +1,8 @@
 import '../types/express';
 import { Router } from 'express';
 import { body, param, validationResult } from 'express-validator';
-import { Review } from '../models/Review';
+import { Types } from 'mongoose';
+import { Review, publicReviewReply } from '../models/Review';
 import { Booking } from '../models/Booking';
 import { User } from '../models/User';
 import { requireAuth, requireRole } from '../middleware/auth';
@@ -43,16 +44,20 @@ function runValidation(
   next();
 }
 
-async function recomputeTechnicianRating(technicianId: unknown): Promise<void> {
-  if (!technicianId) return;
+/**
+ * A technician's real rating = average of their visible reviews (0 when none). Run after a review is
+ * added, hidden / shown or deleted. Returns the new rating.
+ */
+export async function recomputeTechnicianRating(technicianId: unknown): Promise<number> {
+  if (!technicianId) return 0;
+  const id = new Types.ObjectId(String(technicianId));
   const agg = await Review.aggregate([
-    { $match: { technicianId, hidden: { $ne: true } } },
+    { $match: { technicianId: id, hidden: { $ne: true } } },
     { $group: { _id: null, avg: { $avg: '$stars' }, count: { $sum: 1 } } },
   ]);
-  const avg = agg[0]?.avg ?? 0;
-  await User.findByIdAndUpdate(technicianId, {
-    rating: Math.round(avg * 10) / 10,
-  });
+  const rating = Math.round((agg[0]?.avg ?? 0) * 10) / 10;
+  await User.findByIdAndUpdate(id, { rating });
+  return rating;
 }
 
 reviewsRouter.post(
@@ -124,7 +129,7 @@ reviewsRouter.get(
       technicianId: req.params.id,
       hidden: { $ne: true },
     }).sort({ createdAt: -1 });
-    res.json({ reviews: reviews.map((r) => formatReview(r)) });
+    res.json({ reviews: reviews.map((r) => ({ ...formatReview(r), reply: publicReviewReply(r.reply) })) });
   }),
 );
 
@@ -155,6 +160,6 @@ reviewsRouter.get(
       ...(role === 'admin' ? {} : { hidden: { $ne: true } }),
     });
     // No review yet is a normal state for this existence check, not an error — 200 + null.
-    res.json({ review: review ? formatReview(review) : null });
+    res.json({ review: review ? { ...formatReview(review), reply: publicReviewReply(review.reply) } : null });
   }),
 );

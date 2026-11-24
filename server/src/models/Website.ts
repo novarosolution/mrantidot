@@ -130,11 +130,47 @@ const toJSON = {
     ret.id = String(ret._id);
     delete ret._id;
     delete ret.__v;
+    delete ret.deletedAt;
+    delete ret.deletedBy;
     return ret;
   },
 };
 
-export interface IBlogPost {
+/* ---------- Soft delete ("Undo" + Recently deleted in the admin) ---------- */
+
+/** Days a deleted blog post / photo / team member / testimonial / message / subscriber can be restored. */
+export const WEBSITE_TRASH_DAYS = 30;
+const TRASH_TTL_SECONDS = WEBSITE_TRASH_DAYS * 24 * 60 * 60;
+
+export interface ISoftDeletable {
+  /** Set when an admin deletes the item: hidden everywhere until restored, removed for good after 30 days. */
+  deletedAt?: Date;
+  deletedBy?: Types.ObjectId;
+}
+
+/**
+ * Query option that also returns deleted items: `Model.findOne(filter).setOptions(WITH_DELETED)`.
+ * A filter that names `deletedAt` itself (e.g. `{ deletedAt: { $ne: null } }` for the trash) needs no option.
+ */
+export const WITH_DELETED = { withDeleted: true } as const;
+
+/**
+ * Adds `deletedAt` / `deletedBy`, hides deleted items from every find / findOne / count / findOneAndUpdate
+ * (admin lists, the public website API, search, data export…) and lets MongoDB's TTL monitor purge them
+ * 30 days after deletion. Plain updateOne / deleteMany are left alone (reorder, newsletter re-subscribe).
+ */
+function softDeletable<T>(schema: Schema<T>): Schema<T> {
+  (schema as unknown as Schema<ISoftDeletable>).add({ deletedAt: { type: Date }, deletedBy: { type: Schema.Types.ObjectId, ref: 'User' } });
+  schema.index({ deletedAt: 1 }, { expireAfterSeconds: TRASH_TTL_SECONDS });
+  schema.pre(['find', 'findOne', 'countDocuments', 'findOneAndUpdate', 'distinct'], function hideDeleted() {
+    if (this.getOptions().withDeleted === true) return;
+    if (Object.prototype.hasOwnProperty.call(this.getFilter(), 'deletedAt')) return;
+    this.where({ deletedAt: null });
+  });
+  return schema;
+}
+
+export interface IBlogPost extends ISoftDeletable {
   title: string;
   slug: string;
   excerpt: string;
@@ -151,7 +187,7 @@ export interface IBlogPost {
 
 export const BlogPost = mongoose.model<IBlogPost>(
   'WebBlogPost',
-  new Schema<IBlogPost>(
+  softDeletable(new Schema<IBlogPost>(
     {
       title: { type: String, required: true, trim: true },
       slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
@@ -167,10 +203,10 @@ export const BlogPost = mongoose.model<IBlogPost>(
       legacyHtml: { type: String },
     },
     { timestamps: true, collection: 'web_blog_posts', toJSON },
-  ),
+  )),
 );
 
-export interface IGalleryItem {
+export interface IGalleryItem extends ISoftDeletable {
   image: IWebsiteImage;
   title: string;
   category: string;
@@ -181,7 +217,7 @@ export interface IGalleryItem {
 
 export const GalleryItem = mongoose.model<IGalleryItem>(
   'WebGalleryItem',
-  new Schema<IGalleryItem>(
+  softDeletable(new Schema<IGalleryItem>(
     {
       image: { type: imageSchema, required: true },
       title: { type: String, default: '', trim: true },
@@ -191,10 +227,10 @@ export const GalleryItem = mongoose.model<IGalleryItem>(
       legacyId,
     },
     { timestamps: true, collection: 'web_gallery', toJSON },
-  ),
+  )),
 );
 
-export interface ITeamMember {
+export interface ITeamMember extends ISoftDeletable {
   name: string;
   slug: string;
   role: string;
@@ -215,7 +251,7 @@ export interface ITeamMember {
 
 export const TeamMember = mongoose.model<ITeamMember>(
   'WebTeamMember',
-  new Schema<ITeamMember>(
+  softDeletable(new Schema<ITeamMember>(
     {
       name: { type: String, required: true, trim: true },
       slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
@@ -240,10 +276,10 @@ export const TeamMember = mongoose.model<ITeamMember>(
       legacyId,
     },
     { timestamps: true, collection: 'web_team', toJSON },
-  ),
+  )),
 );
 
-export interface ITestimonial {
+export interface ITestimonial extends ISoftDeletable {
   name: string;
   role: string;
   quote: string;
@@ -256,7 +292,7 @@ export interface ITestimonial {
 
 export const Testimonial = mongoose.model<ITestimonial>(
   'WebTestimonial',
-  new Schema<ITestimonial>(
+  softDeletable(new Schema<ITestimonial>(
     {
       name: { type: String, required: true, trim: true },
       role: { type: String, default: '', trim: true },
@@ -268,10 +304,10 @@ export const Testimonial = mongoose.model<ITestimonial>(
       legacyId,
     },
     { timestamps: true, collection: 'web_testimonials', toJSON },
-  ),
+  )),
 );
 
-export interface IContactMessage {
+export interface IContactMessage extends ISoftDeletable {
   name: string;
   email: string;
   phone: string;
@@ -284,7 +320,7 @@ export interface IContactMessage {
 
 export const ContactMessage = mongoose.model<IContactMessage>(
   'WebContactMessage',
-  new Schema<IContactMessage>(
+  softDeletable(new Schema<IContactMessage>(
     {
       name: { type: String, required: true, trim: true },
       email: { type: String, default: '', trim: true, lowercase: true },
@@ -295,10 +331,10 @@ export const ContactMessage = mongoose.model<IContactMessage>(
       legacyId,
     },
     { timestamps: true, collection: 'web_contact_messages', toJSON },
-  ),
+  )),
 );
 
-export interface ISubscriber {
+export interface ISubscriber extends ISoftDeletable {
   email: string;
   active: boolean;
   legacyId?: string;
@@ -306,12 +342,12 @@ export interface ISubscriber {
 
 export const Subscriber = mongoose.model<ISubscriber>(
   'WebSubscriber',
-  new Schema<ISubscriber>(
+  softDeletable(new Schema<ISubscriber>(
     {
       email: { type: String, required: true, unique: true, trim: true, lowercase: true },
       active: { type: Boolean, default: true },
       legacyId,
     },
     { timestamps: true, collection: 'web_subscribers', toJSON },
-  ),
+  )),
 );

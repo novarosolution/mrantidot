@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 import { IUser } from '../models/User';
 import { IService } from '../models/Service';
-import { IBooking, type IAdminNote } from '../models/Booking';
+import { IBooking, type IAdminNote, type IBookingAdjustment, type IOrderChange } from '../models/Booking';
 import { IReview } from '../models/Review';
 import { PROPERTY_TYPE_LABELS } from '../constants/propertyTypes';
 import {
@@ -214,6 +214,13 @@ export function formatBookingForRole(
           }
         : undefined,
       technicianEarning: undefined,
+      // Bill lines only (label + amount) — why an admin added them and the order history stay internal.
+      adjustments: (base.adjustments as { id: string; label: string; amount: number }[]).map(({ id, label, amount }) => ({
+        id,
+        label,
+        amount,
+      })),
+      orderHistory: undefined,
       assignmentMode: undefined,
       steps: sanitizeStepsForCustomer(base.steps as unknown[]),
       workOtp: formatWorkOtpForCustomer(booking),
@@ -296,6 +303,31 @@ export function formatBooking(booking: IBooking & { populate?: unknown }) {
       ? { name: doc.visitContact.name, phone: doc.visitContact.phone }
       : undefined,
     amount: doc.amount,
+    // Admin bill lines: + extra charge / − discount (before GST). Customers get label + amount only.
+    adjustments: Array.isArray(doc.adjustments)
+      ? (doc.adjustments as IBookingAdjustment[]).map((a) => ({
+          id: String(a._id),
+          label: a.label,
+          amount: a.amount,
+          reason: a.reason || undefined,
+          byName: a.byName || undefined,
+          at: isoDate(a.at),
+        }))
+      : [],
+    // Admin edits of the order, oldest first (admin view only).
+    orderHistory: Array.isArray(doc.orderHistory)
+      ? (doc.orderHistory as IOrderChange[]).map((h) => ({
+          id: String(h._id),
+          at: isoDate(h.at),
+          by: oid(h.by),
+          byName: h.byName || 'Admin',
+          totalBefore: h.totalBefore,
+          totalAfter: h.totalAfter,
+          changes: Array.isArray(h.changes) ? h.changes : [],
+          note: h.note || undefined,
+          notified: h.notified === true,
+        }))
+      : [],
     technicianEarning:
       typeof doc.technicianEarning === 'number' ? doc.technicianEarning : undefined,
     paymentMethod: doc.paymentMethod,

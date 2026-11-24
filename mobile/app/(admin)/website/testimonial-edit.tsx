@@ -21,6 +21,7 @@ import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { Testimonial, WebsiteImage } from '@/types/api';
 import { adminType, colors, fonts, spacing, ui } from '@/constants/theme';
 import { confirmAsync } from '@/lib/confirm';
+import { deleteWebsiteItem } from '@/lib/websiteTrash';
 
 const RATING_LABELS = ['', 'Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
 
@@ -129,20 +130,12 @@ export default function WebsiteTestimonialEditScreen() {
     if (!id) return;
     void confirmAsync({
       title: 'Delete testimonial?',
-      message: `The quote from ${name || 'this client'} will be removed from the website.`,
+      message: `The quote from ${name || 'this client'} will be taken off the website. You can undo it, or restore it from Recently deleted for 30 days.`,
       confirmLabel: 'Delete',
       destructive: true,
     }).then(async (ok) => {
       if (!ok) return;
-      try {
-        await api.delete(`/website/admin/testimonials/${id}`, { skipErrorToast: true });
-        haptic('success');
-        Toast.show({ type: 'success', text1: 'Testimonial deleted' });
-        adminGoBack(adminRoutes.websiteTestimonials);
-      } catch (err) {
-        haptic('error');
-        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not delete the testimonial') });
-      }
+      if (await deleteWebsiteItem('testimonials', id, 'Could not delete the testimonial')) adminGoBack(adminRoutes.websiteTestimonials);
     });
   }
 

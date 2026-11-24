@@ -7,6 +7,7 @@ import { Chip } from '@/components/ui/Chip';
 import { Input } from '@/components/ui/Input';
 import { api } from '@/lib/api';
 import { haptic } from '@/lib/motion';
+import { appToast } from '@/lib/toast';
 import { CANCEL_REASON_MAX, CANCEL_REASON_MIN } from '@/types/adminOps';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 
@@ -22,6 +23,7 @@ const QUICK_REASONS = [
 /**
  * Admin cancel with a required reason (server: PATCH /bookings/:id/cancel { reason }, ≥ 3 characters).
  * The reason is kept on the booking and in the activity log; the customer and technician are notified.
+ * With `onUndo` the success toast has an "Undo" button (the screen reopens the booking).
  */
 export function AdminCancelSheet({
   visible,
@@ -29,6 +31,7 @@ export function AdminCancelSheet({
   bookingLabel,
   onClose,
   onCancelled,
+  onUndo,
 }: {
   visible: boolean;
   bookingId: string;
@@ -36,6 +39,8 @@ export function AdminCancelSheet({
   bookingLabel?: string;
   onClose: () => void;
   onCancelled: () => void | Promise<void>;
+  /** Offered in the success toast right after cancelling (e.g. reopen the booking). */
+  onUndo?: () => void;
 }) {
   const [reason, setReason] = useState('');
   const [touched, setTouched] = useState(false);
@@ -61,7 +66,18 @@ export function AdminCancelSheet({
     try {
       await api.patch(`/bookings/${bookingId}/cancel`, { reason: trimmed });
       haptic('success');
-      Toast.show({ type: 'success', text1: 'Booking cancelled', text2: 'The customer has been told.' });
+      if (onUndo) {
+        appToast({
+          type: 'success',
+          title: 'Booking cancelled',
+          message: 'The customer has been told.',
+          duration: 8000,
+          actionLabel: 'Undo',
+          onAction: onUndo,
+        });
+      } else {
+        Toast.show({ type: 'success', text1: 'Booking cancelled', text2: 'The customer has been told.' });
+      }
       onClose();
       await onCancelled();
     } catch {
@@ -81,8 +97,8 @@ export function AdminCancelSheet({
       title="Cancel booking?"
       hint={
         bookingLabel
-          ? `${bookingLabel}. This can't be undone — the customer and technician are notified.`
-          : "This can't be undone — the customer and technician are notified."
+          ? `${bookingLabel}. The customer and technician are notified. You can reopen it later if needed.`
+          : 'The customer and technician are notified. You can reopen it later if needed.'
       }
       footer={
         <>

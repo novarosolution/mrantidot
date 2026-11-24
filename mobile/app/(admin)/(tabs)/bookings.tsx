@@ -2,6 +2,10 @@ import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
+import { CircleX, Download, UserRoundPlus } from 'lucide-react-native';
+import { AdminBulkBar, BULK_BAR_SPACE, type BulkAction } from '@/components/admin/AdminBulkBar';
+import { BulkCancelSheet } from '@/components/admin/BulkCancelSheet';
+import { csvRows, shareCsv } from '@/components/admin/csv';
 import { TableText, TableTwoLine, type AdminTableColumn } from '@/components/admin/AdminDataTable';
 import { FilterButton, FilterRow, FilterSummary, SearchPickerSheet, SegmentedToggle } from '@/components/admin/AdminFilterBar';
 import { AdminPagedList, useAdminPagedList } from '@/components/admin/AdminPagedList';
@@ -13,6 +17,7 @@ import {
   resolveDateRange,
   type DateRangeValue,
 } from '@/components/admin/DateRangePicker';
+import { TechnicianPickerSheet } from '@/components/admin/TechnicianPickerSheet';
 import { formatINR } from '@/components/charts/chartFormat';
 import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/AdminActionSheet';
 import { AdminBookingListCard } from '@/components/kit/AdminBookingListCard';
@@ -33,7 +38,7 @@ import {
   bookingServiceName,
   bookingStatusLabel,
 } from '@/lib/booking-helpers';
-import { notify } from '@/lib/confirm';
+import { confirmAsync, notify } from '@/lib/confirm';
 import { haptic } from '@/lib/motion';
 import { paramString } from '@/lib/routeParams';
 import { adminRoutes, appPush } from '@/lib/routes';
@@ -41,9 +46,9 @@ import { paymentLabel } from '@/lib/settingsLabels';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { useUnreadNotifications } from '@/lib/useUnreadNotifications';
-import { assignableTechnicians } from '@/lib/user-helpers';
 import { userInitial } from '@/lib/userInitials';
 import { useWideWebLayout } from '@/lib/webAdmin';
+import { appToast } from '@/lib/toast';
 import type { AdminBookingsPage, AdminCustomersPage, BookingListStatusCounts, ListSort } from '@/types/adminLists';
 import type { Booking, BookingStatus, Service, User } from '@/types/api';
 
@@ -126,6 +131,25 @@ function personOf(value: Booking['customer'] | Booking['technician']): User | nu
   return value && typeof value === 'object' ? value : null;
 }
 
+/** Server reply of POST /bookings/bulk/assign and /bulk/cancel. */
+type BulkResponse = {
+  results: { id: string; ref: string; ok: boolean; error?: string; code?: string }[];
+  succeeded: number;
+  failed: number;
+};
+
+const BULK_LINES = 8;
+
+/** "#MA-1A2B3 — reason" lines for the skipped bookings (first few). */
+function skippedLines(results: BulkResponse['results']): string {
+  const failed = results.filter((r) => !r.ok);
+  const lines = failed.slice(0, BULK_LINES).map((r) => `${/^[a-f0-9]{24}$/i.test(r.id) ? bookingRef(r.id) : r.id} — ${r.error ?? 'Skipped'}`);
+  if (failed.length > BULK_LINES) lines.push(`and ${failed.length - BULK_LINES} more`);
+  return lines.join('\n');
+}
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
 function paymentStatusText(b: Booking): { text: string; color: string } | null {
   if (b.status === 'cancelled') return b.paymentStatus === 'refunded' ? { text: 'Refunded', color: ui.textSecondary } : null;
   if (b.paymentStatus === 'paid') return { text: 'Paid', color: colors.forest };
@@ -199,6 +223,10 @@ export default function AdminBookingsScreen() {
   const [sheet, setSheet] = useState<null | 'technician' | 'service' | 'payment' | 'source' | 'sort' | 'customer'>(null);
   const [assignTarget, setAssignTarget] = useState<Booking | null>(null);
   const countsRef = useRef<BookingListStatusCounts | undefined>(undefined);
+  /* Bulk actions: selected bookings (kept across pages), the open bulk sheet and the running action. */
+  const [selected, setSelected] = useState<Record<string, Booking>>({});
+  const [bulkSheet, setBulkSheet] = useState<null | 'assign' | 'cancel'>(null);
+  const [bulkBusy, setBulkBusy] = useState<string | null>(null);
 
   // A new deep link (e.g. from the dashboard) replaces every filter with the ones it carries.
   const paramsKey = JSON.stringify(paramValues);
@@ -263,6 +291,46 @@ export default function AdminBookingsScreen() {
   });
 
   useStaleFocusRefresh(() => list.refresh(), 3_000);
+
+  // New filters = a new list: start the selection again.
+  useEffect(() => {
+    setSelected({});
+  }, [query]);
+
+  // Keep the selected bookings' details fresh after a reload (status, technician…).
+  useEffect(() => {
+    setSelected((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const b of list.items) {
+        if (next[b.id] && next[b.id] !== b) {
+          next[b.id] = b;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [list.items]);
+
+  const selectedIds = useMemo(() => Object.keys(selected), [selected]);
+  const selectedRows = useMemo(() => Object.values(selected), [selected]);
+
+  const onSelectionChange = useCallback(
+    (ids: string[]) => {
+      setSelected((prev) => {
+        const byId = new Map(list.items.map((b) => [b.id, b]));
+        const next: Record<string, Booking> = {};
+        for (const id of ids) {
+          const row = prev[id] ?? byId.get(id);
+          if (row) next[id] = row;
+        }
+        return next;
+      });
+    },
+    [list.items],
+  );
+
+  const clearSelection = useCallback(() => setSelected({}), []);
 
   // Technicians (assign + filter) and services (filter) — loaded once.
   useEffect(() => {
@@ -347,38 +415,8 @@ export default function AdminBookingsScreen() {
 
   const openBooking = useCallback((id: string) => appPush(adminRoutes.booking(id)), []);
 
-  const assign = useCallback(
-    (booking: Booking) => {
-      if (assignableTechnicians(techs, booking.schedule?.date).length === 0) {
-        notify('No technicians available', 'Everyone is disabled or off duty for this visit.');
-        return;
-      }
-      setAssignTarget(booking);
-    },
-    [techs],
-  );
-
-  const assignOptions = useMemo<ActionSheetOption[]>(() => {
-    if (!assignTarget) return [];
-    return assignableTechnicians(techs, assignTarget.schedule?.date).map((t) => ({
-      key: t.id,
-      label: t.name,
-      subtitle: [t.available === false ? 'Off duty today' : '', t.phone || t.email].filter(Boolean).join(' · ') || undefined,
-      onPress: () => {
-        void (async () => {
-          try {
-            await api.patch(`/bookings/${assignTarget.id}/assign`, { technicianId: t.id });
-            haptic('success');
-            Toast.show({ type: 'success', text1: 'Technician assigned' });
-            await list.refresh();
-          } catch {
-            // interceptor toast
-            haptic('error');
-          }
-        })();
-      },
-    }));
-  }, [assignTarget, techs, list]);
+  // One booking: the fit picker (skills, area, off days, leave, daily cap, slot clashes) assigns it.
+  const assign = useCallback((booking: Booking) => setAssignTarget(booking), []);
 
   const technicianOptions = useMemo<ActionSheetOption[]>(
     () => [
@@ -393,6 +431,138 @@ export default function AdminBookingsScreen() {
     ],
     [techs],
   );
+
+  /** After a bulk request: refresh, keep only the skipped bookings selected, toast + list what was skipped. */
+  const finishBulk = useCallback(
+    async (res: BulkResponse, doneText: string) => {
+      const failedIds = new Set(res.results.filter((r) => !r.ok).map((r) => r.id));
+      setSelected((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => failedIds.has(id))));
+      if (res.succeeded > 0) {
+        haptic('success');
+        appToast.success(doneText, res.failed > 0 ? `${plural(res.failed, 'booking')} skipped` : undefined);
+      } else {
+        haptic('error');
+      }
+      if (res.failed > 0) {
+        notify(
+          res.succeeded > 0 ? `${plural(res.failed, 'booking')} skipped` : 'Nothing changed',
+          `${skippedLines(res.results)}\n\nThey are still selected.`,
+        );
+      }
+      await list.refresh();
+    },
+    [list],
+  );
+
+  const bulkAssignOptions = useMemo<ActionSheetOption[]>(() => {
+    if (bulkSheet !== 'assign') return [];
+    const n = selectedRows.length;
+    const ready = selectedRows.filter((b) => b.status === 'confirmed').length;
+    return techs
+      .filter((t) => t.disabled !== true)
+      .map((t) => ({
+        key: t.id,
+        label: t.name,
+        subtitle: [t.available === false ? 'Off duty today' : 'On duty', t.phone].filter(Boolean).join(' · ') || undefined,
+        onPress: () => {
+          void (async () => {
+            const ok = await confirmAsync({
+              title: `Assign ${t.name}?`,
+              message:
+                ready === n
+                  ? `${t.name} will be assigned to ${plural(n, 'booking')}. Customers and ${t.name} are notified.`
+                  : `${ready} of ${n} selected bookings are confirmed and can be assigned. The others will be skipped.`,
+              confirmLabel: ready === n ? `Assign ${plural(n, 'booking')}` : `Assign ${ready}`,
+            });
+            if (!ok) return;
+            setBulkBusy('Assigning…');
+            try {
+              const { data } = await api.post<BulkResponse>('/bookings/bulk/assign', { ids: selectedIds, technicianId: t.id });
+              await finishBulk(data, `Assigned ${t.name} to ${plural(data.succeeded, 'booking')}`);
+            } catch {
+              // The api interceptor shows the server's message.
+              haptic('error');
+            } finally {
+              setBulkBusy(null);
+            }
+          })();
+        },
+      }));
+  }, [bulkSheet, finishBulk, selectedIds, selectedRows, techs]);
+
+  const cancellable = selectedRows.filter((b) => b.status !== 'completed' && b.status !== 'cancelled').length;
+  const assignable = selectedRows.filter((b) => b.status === 'confirmed').length;
+
+  const submitBulkCancel = useCallback(
+    async (reason: string) => {
+      setBulkBusy('Cancelling…');
+      try {
+        const { data } = await api.post<BulkResponse>('/bookings/bulk/cancel', { ids: selectedIds, reason });
+        setBulkSheet(null);
+        await finishBulk(data, `Cancelled ${plural(data.succeeded, 'booking')}`);
+      } catch {
+        haptic('error');
+      } finally {
+        setBulkBusy(null);
+      }
+    },
+    [finishBulk, selectedIds],
+  );
+
+  const exportSelected = useCallback(async () => {
+    const rows = selectedRows;
+    if (rows.length === 0) return;
+    const content = csvRows(
+      ['Ref', 'Booked on', 'Source', 'Service', 'Option', 'Customer', 'Customer phone', 'Visit', 'Technician', 'Status', 'Payment method', 'Payment status', 'Amount (INR)'],
+      rows.map((b) => [
+        bookingRef(b.id),
+        b.createdAt ? b.createdAt.slice(0, 10) : '',
+        b.source ?? '',
+        bookingServiceName(b),
+        b.option?.label ?? '',
+        bookingCustomerName(b),
+        personOf(b.customer)?.phone ?? '',
+        bookingScheduleDisplay(b),
+        personOf(b.technician)?.name ?? '',
+        bookingStatusLabel(b.status),
+        paymentLabel(b.paymentMethod),
+        b.status === 'cancelled' && b.paymentStatus !== 'refunded' ? '' : paymentStatusText(b)?.text ?? '',
+        b.amount?.total ?? '',
+      ]),
+    );
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const result = await shareCsv(`mrantidot-bookings-${today}-${rows.length}.csv`, content, 'Selected bookings');
+      haptic('success');
+      if (result === 'downloaded') appToast.success(`Exported ${plural(rows.length, 'booking')}`, 'The CSV is in your downloads.');
+    } catch {
+      haptic('error');
+      appToast.error('Could not export the bookings');
+    }
+  }, [selectedRows]);
+
+  const bulkActions: BulkAction[] = [
+    {
+      key: 'assign',
+      label: 'Assign technician',
+      shortLabel: 'Assign',
+      icon: UserRoundPlus,
+      disabled: assignable === 0,
+      hint: 'Only confirmed bookings can get a technician',
+      onPress: () => setBulkSheet('assign'),
+    },
+    {
+      key: 'cancel',
+      label: 'Cancel bookings',
+      shortLabel: 'Cancel',
+      icon: CircleX,
+      tone: 'danger',
+      disabled: cancellable === 0,
+      hint: 'Completed and cancelled bookings cannot be cancelled',
+      onPress: () => setBulkSheet('cancel'),
+    },
+    { key: 'export', label: 'Export CSV', shortLabel: 'Export', icon: Download, onPress: () => void exportSelected() },
+  ];
 
   const serviceOptions = useMemo<ActionSheetOption[]>(
     () => [
@@ -516,7 +686,7 @@ export default function AdminBookingsScreen() {
           );
         },
       },
-      { key: 'status', title: 'Status', width: 158, render: (b) => <StatusPill status={b.status} /> },
+      { key: 'status', title: 'Status', width: 132, render: (b) => <StatusPill status={b.status} /> },
       {
         key: 'payment',
         title: 'Payment',
@@ -645,16 +815,49 @@ export default function AdminBookingsScreen() {
         emptyActionLabel={summaryParts.length > 0 ? 'Clear filters' : undefined}
         onEmptyAction={summaryParts.length > 0 ? clearAll : undefined}
         skeletonVariant="booking"
-        bottomPad={TAB_BAR_SCROLL_PAD}
-        renderCard={(item) => <AdminBookingListCard item={item} onOpen={openBooking} onAssign={assign} />}
+        bottomPad={TAB_BAR_SCROLL_PAD + (selectedIds.length > 0 ? BULK_BAR_SPACE : 0)}
+        selectable
+        selectedIds={selectedIds}
+        onSelectionChange={onSelectionChange}
+        footer={wide && selectedIds.length > 0 ? <View style={{ height: BULK_BAR_SPACE }} /> : undefined}
+        renderCard={(item, _index, selection) => (
+          <AdminBookingListCard item={item} onOpen={openBooking} onAssign={assign} onLongPress={selection?.onLongPress} />
+        )}
       />
 
+      <AdminBulkBar
+        count={selectedIds.length}
+        noun="selected"
+        actions={bulkActions}
+        onClear={clearSelection}
+        busy={bulkBusy !== null}
+        busyLabel={bulkBusy ?? undefined}
+        aboveTabBar={!wide}
+      />
       <AdminActionSheet
+        visible={bulkSheet === 'assign'}
+        title={`Assign ${plural(selectedIds.length, 'booking')}`}
+        message={
+          assignable === selectedIds.length
+            ? 'Pick the technician for every selected booking.'
+            : `${assignable} of ${selectedIds.length} are confirmed and can be assigned; the rest will be skipped.`
+        }
+        options={bulkAssignOptions}
+        onClose={() => setBulkSheet(null)}
+      />
+      <BulkCancelSheet
+        visible={bulkSheet === 'cancel'}
+        count={cancellable}
+        skipped={selectedIds.length - cancellable}
+        onClose={() => setBulkSheet(null)}
+        onSubmit={submitBulkCancel}
+      />
+
+      <TechnicianPickerSheet
         visible={assignTarget !== null}
-        title="Assign technician"
-        message={assignTarget ? bookingServiceName(assignTarget) : undefined}
-        options={assignOptions}
+        bookingId={assignTarget?.id}
         onClose={() => setAssignTarget(null)}
+        onAssigned={() => void list.refresh()}
       />
       <AdminActionSheet
         visible={sheet === 'technician'}

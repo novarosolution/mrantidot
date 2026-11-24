@@ -1600,6 +1600,9 @@ export interface CustomerUiCopy {
   techNotificationsEnd: string;
   techNotificationsBell: string;
   techNotificationsBellUnread: string;
+  trackReopened: string;
+  trackOrderUpdated: string;
+  serviceReviewReplyTitle: string;
 }
 
 export interface AppConfig {
@@ -1731,6 +1734,8 @@ export interface BookingAmount {
   total: number;
   /** GST rate used when the booking was priced (from Business settings; older bookings: 18). */
   gstPercent?: number;
+  /** Net of the admin's extra charges / discounts (before GST); missing = none. */
+  adjustments?: number;
 }
 
 /** Client / admin service invoice with full booking details. */
@@ -1792,6 +1797,8 @@ export interface BookingInvoice {
     photoCount: number;
     capturedAt?: string;
   }>;
+  /** Extra charges (+) and discounts (−) an admin added, before GST (older servers: missing). */
+  adjustments?: Array<{ label: string; amount: number }>;
   amount: BookingAmount;
   text: string;
 }
@@ -1816,7 +1823,9 @@ export type TrackingEventType =
   | 'cancelled'
   | 'admin_override'
   | 'schedule_confirmed'
-  | 'rescheduled';
+  | 'rescheduled'
+  | 'reopened'
+  | 'order_updated';
 
 export interface TrackingEvent {
   at: string;
@@ -1869,6 +1878,34 @@ export interface BookingCancelActor {
   id?: string;
   role: 'customer' | 'admin';
   name?: string;
+}
+
+/**
+ * A line an admin added to the bill: `amount` > 0 extra charge, < 0 discount (before GST). Customers get
+ * `id`, `label` and `amount` only.
+ */
+export interface BookingAdjustment {
+  id: string;
+  label: string;
+  amount: number;
+  reason?: string;
+  byName?: string;
+  at?: string;
+}
+
+/** One admin edit of the order (admin view only). */
+export interface BookingOrderChange {
+  id: string;
+  at?: string;
+  by?: string;
+  byName: string;
+  totalBefore: number;
+  totalAfter: number;
+  /** Readable lines: "Service: A → B", "Coupon FIRST50 removed"… */
+  changes: string[];
+  note?: string;
+  /** The customer was told (the total or the service changed). */
+  notified?: boolean;
 }
 
 export interface Booking {
@@ -1927,6 +1964,10 @@ export interface Booking {
   /** Admin who booked on the customer's behalf (admin view only). */
   createdByAdmin?: { id?: string; name: string };
   source?: BookingSource;
+  /** Extra charges / discounts on the bill (customers: label + amount only). */
+  adjustments?: BookingAdjustment[];
+  /** Admin edits of the order, oldest first (admin view only). */
+  orderHistory?: BookingOrderChange[];
   updatedAt?: string;
 }
 

@@ -1,10 +1,11 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { Bell } from 'lucide-react-native';
+import { Bell, Search } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PremiumAppHeader } from '@/components/kit/PremiumAppHeader';
 import { colors, fonts, ui } from '@/constants/theme';
 import { adminRoutes, appPush } from '@/lib/routes';
 import { useWideWebLayout } from '@/lib/webAdmin';
+import { webTitle } from '@/lib/webKeys';
 
 const ACTION = 44;
 
@@ -16,6 +17,7 @@ export function AdminScreenHeader({
   eyebrow = 'OPERATIONS',
   onBellPress = () => appPush(adminRoutes.notifications),
   onProfilePress = () => appPush(adminRoutes.settings),
+  onSearchPress = () => appPush(adminRoutes.search),
 }: {
   title: string;
   subtitle?: string;
@@ -24,6 +26,8 @@ export function AdminScreenHeader({
   eyebrow?: string;
   onBellPress?: () => void;
   onProfilePress?: () => void;
+  /** Global search (phones; the desktop top bar has the search field). */
+  onSearchPress?: () => void;
 }) {
   const letter = userInitial.slice(0, 1).toUpperCase();
   const badge = unreadCount > 99 ? '99+' : String(unreadCount);
@@ -33,6 +37,18 @@ export function AdminScreenHeader({
   const actions = wideWeb ? undefined : (
     <View style={styles.actions}>
       <Pressable
+        ref={webTitle('Search')}
+        style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
+        onPress={onSearchPress}
+        accessibilityRole="button"
+        accessibilityLabel="Search bookings, customers and more"
+        hitSlop={8}
+      >
+        <Search size={20} color={ui.text} strokeWidth={2} />
+      </Pressable>
+
+      <Pressable
+        ref={webTitle('Notifications')}
         style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
         onPress={onBellPress}
         accessibilityRole="button"
@@ -48,6 +64,7 @@ export function AdminScreenHeader({
       </Pressable>
 
       <Pressable
+        ref={webTitle('Account settings')}
         style={({ pressed }) => [styles.avatarShell, pressed && styles.pressed]}
         onPress={onProfilePress}
         accessibilityRole="button"
@@ -70,7 +87,7 @@ export function AdminScreenHeader({
 }
 
 const styles = StyleSheet.create({
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 2 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 2 },
   actionBtn: {
     width: ACTION,
     height: ACTION,

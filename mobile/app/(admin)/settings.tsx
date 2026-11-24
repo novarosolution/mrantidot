@@ -16,6 +16,7 @@ import { api, getApiErrorMessage } from '@/lib/api';
 import { confirmAsync } from '@/lib/confirm';
 import { haptic, stagger } from '@/lib/motion';
 import { adminRoutes, authRoutes, appPush, appReplace } from '@/lib/routes';
+import { useWideWebLayout } from '@/lib/webAdmin';
 import { colors, fonts, premiumType, spacing } from '@/constants/theme';
 
 export default function AdminSettingsScreen() {
@@ -26,12 +27,19 @@ export default function AdminSettingsScreen() {
   const [city, setCity] = useState(user?.city ?? '');
   const [password, setPassword] = useState('');
   const [saving, setSaving] = useState(false);
+  const wide = useWideWebLayout();
 
   async function saveProfile() {
-    if (!user?.id) return;
+    if (!user?.id || saving) return;
     if (!name.trim() || !email.trim()) {
       haptic('error');
       Toast.show({ type: 'error', text1: 'Name and email are required' });
+      return;
+    }
+    // A short new password used to be skipped without a word — say so instead.
+    if (password.length > 0 && password.length < 8) {
+      haptic('error');
+      Toast.show({ type: 'error', text1: 'Use at least 8 characters for the new password', text2: 'Or leave it empty to keep the current one.' });
       return;
     }
     setSaving(true);
@@ -46,10 +54,11 @@ export default function AdminSettingsScreen() {
       if (password.length >= 8) {
         await api.patch(`/admin/users/${user.id}/password`, { password });
       }
+      const changedPassword = password.length >= 8;
       await refreshMe({ silent: true });
       setPassword('');
       haptic('success');
-      Toast.show({ type: 'success', text1: 'Profile updated' });
+      Toast.show({ type: 'success', text1: changedPassword ? 'Profile and password updated' : 'Profile updated' });
     } catch (err) {
       haptic('error');
       Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not update profile') });
@@ -62,12 +71,13 @@ export default function AdminSettingsScreen() {
     <GlassScreen
       header={
         <AdminLightHeader
-          title="Profile"
-          subtitle="Admin account & security"
+          title="Account settings"
+          subtitle="Your profile, password and sign-out"
           showBack
           backFallback={adminRoutes.team}
         />
       }
+      contentContainerStyle={wide ? styles.deskColumn : undefined}
     >
       <FadeSlideIn delay={stagger(0)} slideFrom={14}>
         <AdminSectionTitle flush title="Your account" hint="Signed-in admin profile" />
@@ -96,12 +106,15 @@ export default function AdminSettingsScreen() {
             onChangeText={setEmail}
             autoCapitalize="none"
           />
-          <IconInput label="City" value={city} onChangeText={setCity} />
+          <IconInput label="City" value={city} onChangeText={setCity} returnKeyType="next" />
           <IconInput
             label="New password"
             value={password}
             onChangeText={setPassword}
             secure
+            placeholder="Leave empty to keep the current one"
+            returnKeyType="done"
+            onSubmitEditing={() => void saveProfile()}
           />
           <Button title="Save" variant="premium" onPress={() => void saveProfile()} loading={saving} style={styles.btnGap} />
           {user?.id ? (
@@ -189,6 +202,8 @@ export default function AdminSettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  /** Desktop: a readable form column instead of fields stretched across the page. */
+  deskColumn: { width: '100%', maxWidth: 760, alignSelf: 'center' },
   accountWrap: { padding: spacing.md },
   sectionTitle: { ...premiumType.sectionTitle, fontSize: 16, marginBottom: spacing.sm },
   logoutCard: {

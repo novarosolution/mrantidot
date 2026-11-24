@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
+  ArchiveRestore,
   GalleryHorizontal,
   Globe,
   Images,
@@ -24,6 +25,7 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import { stagger } from '@/lib/motion';
 import { adminRoutes, appPush, type RouteInput } from '@/lib/routes';
 import { useWebsiteSummary } from '@/lib/useWebsiteSummary';
+import { useWideWebLayout } from '@/lib/webAdmin';
 import type { WebsiteSummary } from '@/types/api';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 
@@ -36,6 +38,9 @@ type HubLink = {
 };
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** Deleted items waiting in Recently deleted (server summary field, newer than WebsiteSummary). */
+const trashCount = (s: WebsiteSummary | null) => (s as (WebsiteSummary & { trash?: number }) | null)?.trash;
 
 const GROUPS: { title: string; hint: string; links: HubLink[] }[] = [
   {
@@ -126,6 +131,21 @@ const GROUPS: { title: string; hint: string; links: HubLink[] }[] = [
       },
     ],
   },
+  {
+    title: 'Recently deleted',
+    hint: 'Bring back anything deleted in the last 30 days',
+    links: [
+      {
+        icon: ArchiveRestore,
+        label: 'Recently deleted',
+        desc: (s) => {
+          const n = trashCount(s);
+          return n ? `${plural(n, 'item')} you can still restore` : 'Deleted posts, photos, people and messages';
+        },
+        href: adminRoutes.websiteTrash,
+      },
+    ],
+  },
 ];
 
 export default function WebsiteHubScreen() {
@@ -134,6 +154,26 @@ export default function WebsiteHubScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const newMessages = summary?.newMessages ?? 0;
   const dash = (n: number | undefined) => (summary ? String(n ?? 0) : '–');
+  // Desktop: the groups sit in two columns instead of one long list.
+  const wide = useWideWebLayout();
+
+  const renderGroup = (group: (typeof GROUPS)[number], i: number) => (
+    <FadeSlideIn key={group.title} delay={stagger(i + 2)} slideFrom={14}>
+      <AdminSectionTitle title={group.title} hint={group.hint} />
+      <AdminHubGroup>
+        {group.links.map((l) => (
+          <AdminHubLink
+            key={l.label}
+            icon={l.icon}
+            label={l.label}
+            desc={l.desc(summary)}
+            badge={l.badge?.(summary)}
+            onPress={() => appPush(l.href)}
+          />
+        ))}
+      </AdminHubGroup>
+    </FadeSlideIn>
+  );
 
   return (
     <AdminListShell title="Website" subtitle="Everything on the public website">
@@ -189,23 +229,15 @@ export default function WebsiteHubScreen() {
           </FadeSlideIn>
         ) : null}
 
-        {GROUPS.map((group, i) => (
-          <FadeSlideIn key={group.title} delay={stagger(i + 2)} slideFrom={14}>
-            <AdminSectionTitle title={group.title} hint={group.hint} />
-            <AdminHubGroup>
-              {group.links.map((l) => (
-                <AdminHubLink
-                  key={l.label}
-                  icon={l.icon}
-                  label={l.label}
-                  desc={l.desc(summary)}
-                  badge={l.badge?.(summary)}
-                  onPress={() => appPush(l.href)}
-                />
-              ))}
-            </AdminHubGroup>
-          </FadeSlideIn>
-        ))}
+        {wide ? (
+          <View style={styles.cols}>
+            {/* Pages & look · Inbox · Recently deleted | Content · Settings */}
+            <View style={styles.col}>{[0, 3, 4].map((i) => renderGroup(GROUPS[i], i))}</View>
+            <View style={styles.col}>{[2, 1].map((i) => renderGroup(GROUPS[i], i))}</View>
+          </View>
+        ) : (
+          GROUPS.map(renderGroup)
+        )}
       </ScrollView>
     </AdminListShell>
   );
@@ -213,6 +245,8 @@ export default function WebsiteHubScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingTop: spacing.sm },
+  cols: { flexDirection: 'row', alignItems: 'flex-start' },
+  col: { flex: 1, minWidth: 0 },
   gutter: { paddingHorizontal: spacing.md },
   alert: {
     flexDirection: 'row',

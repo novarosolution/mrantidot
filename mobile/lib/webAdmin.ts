@@ -262,6 +262,8 @@ const ADMIN_SCREEN_TITLES: Record<string, string> = {
   'website/testimonial-edit': 'Edit testimonial',
   'website/messages': 'Messages',
   'website/subscribers': 'Subscribers',
+  'website/trash': 'Recently deleted',
+  search: 'Search',
 };
 
 /** `Customers · Mr Antidot Admin` — the document title for an admin route name. */

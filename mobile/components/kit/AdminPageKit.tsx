@@ -10,6 +10,7 @@ import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { adminShadow } from '@/components/kit/homeUi';
 import { ADMIN_QUICK_COLS, useAdminGridCellWidth } from '@/lib/adminGrid';
 import { haptic } from '@/lib/motion';
+import { webTitle } from '@/lib/webKeys';
 import { adminSurfaces, adminType, colors, fonts, premium, spacing, ui } from '@/constants/theme';
 
 export function AdminQuickGrid({
@@ -125,7 +126,14 @@ export function AdminSearchField({
         accessibilityLabel={placeholder}
       />
       {value ? (
-        <Pressable onPress={() => onChangeText('')} hitSlop={10} accessibilityLabel="Clear search" style={styles.searchClear}>
+        <Pressable
+          ref={webTitle('Clear search')}
+          onPress={() => onChangeText('')}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Clear search"
+          style={styles.searchClear}
+        >
           <X size={13} color={colors.white} strokeWidth={3} />
         </Pressable>
       ) : null}

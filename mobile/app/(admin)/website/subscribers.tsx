@@ -18,6 +18,7 @@ import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { Subscriber } from '@/types/api';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 import { confirmAsync } from '@/lib/confirm';
+import { deleteWebsiteItem, useWebsiteItemRestored } from '@/lib/websiteTrash';
 import { shareTextFile } from '@/lib/shareFile';
 
 /** Browsers download the list as a text file; phones open the share sheet. */
@@ -91,6 +92,9 @@ export default function WebsiteSubscribersScreen() {
     void runLoad(load, 'Could not load subscribers');
   }, [load, runLoad]);
 
+  // "Undo" on the delete toast (or Recently deleted) brings a subscriber back.
+  useWebsiteItemRestored('subscribers', () => void load().catch(() => undefined));
+
   const activeCount = useMemo(() => subs.filter((s) => s.active).length, [subs]);
   const visible = useMemo(() => {
     const byFilter = filter === 'all' ? subs : subs.filter((s) => (filter === 'active' ? s.active : !s.active));
@@ -113,19 +117,13 @@ export default function WebsiteSubscribersScreen() {
   const onDelete = useCallback((s: Subscriber) => {
     void confirmAsync({
       title: 'Delete subscriber?',
-      message: `${s.email} will be removed from the list for good.`,
+      message: `${s.email} will be removed from the list. You can undo it, or restore it from Recently deleted for 30 days.`,
       confirmLabel: 'Delete',
       destructive: true,
     }).then(async (ok) => {
       if (!ok) return;
-      try {
-        await api.delete(`/website/admin/subscribers/${s.id}`, { skipErrorToast: true });
-        haptic('success');
+      if (await deleteWebsiteItem('subscribers', s.id, 'Could not delete the subscriber')) {
         setSubs((prev) => prev.filter((x) => x.id !== s.id));
-        Toast.show({ type: 'success', text1: 'Subscriber deleted' });
-      } catch (err) {
-        haptic('error');
-        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not delete the subscriber') });
       }
     });
   }, []);

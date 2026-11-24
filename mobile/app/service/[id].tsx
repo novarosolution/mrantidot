@@ -31,7 +31,10 @@ import { earliestSlotLabel } from '@/lib/earliestSlot';
 import { formatDuration, serviceDurationMins, serviceStartPrice } from '@/lib/serviceDisplay';
 import { formatRupeeFull } from '@/components/kit/format';
 import { safeGoBack, customerRoutes, sharedRoutes, appPush } from '@/lib/routes';
-import type { Service, ServiceReview, ServiceStats, ServiceTypeKey } from '@/types/api';
+import type { Service, ServiceStats, ServiceTypeKey } from '@/types/api';
+import type { ServiceReviewWithReply } from '@/types/adminManage';
+
+type ServiceReview = ServiceReviewWithReply;
 import { colors, fonts, radii, typeScale, ui } from '@/constants/theme';
 import { ServiceDetailSkeleton } from '@/components/kit/ScreenSkeletons';
 
@@ -59,7 +62,7 @@ function Band() {
   return <View style={styles.band} />;
 }
 
-function ReviewItem({ review: r, first }: { review: ServiceReview; first: boolean }) {
+function ReviewItem({ review: r, first, replyTitle }: { review: ServiceReview; first: boolean; replyTitle: string }) {
   const text = r.comment?.trim() || (r.tags ?? []).join(', ');
   const when = reviewDate(r.createdAt);
   return (
@@ -75,6 +78,12 @@ function ReviewItem({ review: r, first }: { review: ServiceReview; first: boolea
         </View>
       </View>
       {text ? <Text style={styles.reviewText}>{text}</Text> : null}
+      {r.reply?.text ? (
+        <View style={styles.reply} accessibilityLabel={`${replyTitle}: ${r.reply.text}`}>
+          <Text style={styles.replyTitle}>{replyTitle}</Text>
+          <Text style={styles.replyText}>{r.reply.text}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -532,7 +541,7 @@ export default function ServiceDetailScreen() {
                 {copy.serviceReviewsTitle}
               </Text>
               {reviews.slice(0, 5).map((r, i) => (
-                <ReviewItem key={r.id} review={r} first={i === 0} />
+                <ReviewItem key={r.id} review={r} first={i === 0} replyTitle={copy.serviceReviewReplyTitle} />
               ))}
               {reviews.length > 5 ? (
                 <PressableScale
@@ -597,7 +606,7 @@ export default function ServiceDetailScreen() {
 
       <BottomSheet visible={allReviewsOpen} onClose={() => setAllReviewsOpen(false)} title={copy.serviceAllReviewsTitle}>
         {reviews.map((r, i) => (
-          <ReviewItem key={r.id} review={r} first={i === 0} />
+          <ReviewItem key={r.id} review={r} first={i === 0} replyTitle={copy.serviceReviewReplyTitle} />
         ))}
       </BottomSheet>
 
@@ -831,6 +840,9 @@ const styles = StyleSheet.create({
   },
   reviewStarsText: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.white },
   reviewText: { marginTop: 8, fontFamily: fonts.body, fontSize: 13.5, lineHeight: 20, color: ui.text },
+  reply: { marginTop: 10, padding: 12, borderRadius: radii.thumb, backgroundColor: ui.surfaceMuted, borderLeftWidth: 3, borderLeftColor: ui.brand },
+  replyTitle: { fontFamily: fonts.bodySemi, fontSize: 12, color: ui.brand },
+  replyText: { marginTop: 3, fontFamily: fonts.body, fontSize: 13, lineHeight: 19, color: ui.text },
   shareBlock: { alignItems: 'center', gap: 12 },
   shareText: { fontFamily: fonts.bodyMedium, fontSize: 13, color: ui.textSecondary },
   shareBtnWrap: { alignSelf: 'stretch' },

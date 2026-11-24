@@ -15,6 +15,7 @@ import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import type { BlogPostSummary } from '@/types/api';
+import { useWebsiteItemRestored } from '@/lib/websiteTrash';
 import { colors, spacing } from '@/constants/theme';
 
 type Filter = 'all' | 'published' | 'draft';
@@ -46,6 +47,7 @@ export default function WebsiteBlogScreen() {
 
   // Back from the editor → quietly pick up the saved post.
   useStaleFocusRefresh(() => load().catch(() => undefined), 0);
+  useWebsiteItemRestored('blog', () => void load().catch(() => undefined));
 
   const counts = useMemo(() => {
     let published = 0;

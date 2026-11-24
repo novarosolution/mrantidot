@@ -56,6 +56,16 @@ import { localDateKey } from '../utils/dateKey';
 import { buildBookingListQuery, runBookingList } from '../utils/bookingList';
 import { env } from '../config/env';
 import { bookingRefOf, type ActivityNote } from '../middleware/activityLog';
+import {
+  ORDER_ADJUSTMENT_MAX_LINES,
+  ORDER_HISTORY_KEEP,
+  ORDER_NOTE_MAX,
+  amountWithoutCoupon,
+  notifyOrderUpdated,
+  orderPreviewJson,
+  orderRupee,
+  planOrderEdit,
+} from '../utils/orderEdit';
 
 export const bookingsRouter = Router();
 
@@ -1258,5 +1268,482 @@ bookingsRouter.patch(
     noteActivity(res, { summary, fields: Object.keys(set).concat(Object.keys(unset)) });
     const populated = await loadBooking(String(booking._id));
     res.json({ booking: formatBookingForRole(populated, req.user!.role) });
+  }),
+);
+
+/* ---------- admin: edit the order (service, size, coupon, adjustments…) and reopen a cancelled booking ---------- */
+
+/**
+ * Body of PATCH /:id/order and POST /:id/order/preview — every field optional (left out = unchanged):
+ *   serviceId, optionKey (size; null/'' = none), propertyType, couponCode (null/'' removes it),
+ *   adjustments: [{ id?, label, amount (+ extra charge / − discount, whole rupees), reason? }] — the whole list,
+ *   paymentMethod, note (why — kept in the order history), expectedTotal (the total the admin saw → 409 if stale).
+ * What may change at each stage, the coupon checks and the pricing live in utils/orderEdit.ts (planOrderEdit).
+ */
+const orderEditRules = [
+  body('serviceId').optional().isMongoId().withMessage('Pick a service from the list'),
+  body('optionKey').optional({ values: 'null' }).isString().isLength({ max: 40 }),
+  body('propertyType').optional().isString().isLength({ max: 40 }),
+  body('couponCode')
+    .optional({ values: 'null' })
+    .isString()
+    .isLength({ max: 40 })
+    .withMessage('Coupon codes are at most 40 characters'),
+  body('adjustments')
+    .optional()
+    .isArray({ max: ORDER_ADJUSTMENT_MAX_LINES })
+    .withMessage(`Add at most ${ORDER_ADJUSTMENT_MAX_LINES} extra charges or discounts`),
+  body('paymentMethod').optional().isString().isLength({ max: 40 }),
+  body('note')
+    .optional({ values: 'null' })
+    .isString()
+    .isLength({ max: ORDER_NOTE_MAX + 50 })
+    .withMessage(`Keep the note under ${ORDER_NOTE_MAX} characters`),
+  body('expectedTotal').optional({ values: 'null' }).isNumeric(),
+];
+
+/** Live price check for the "Edit order" sheet: POST (same body as PATCH /:id/order) → { preview }. Saves nothing. */
+bookingsRouter.post(
+  '/:id/order/preview',
+  requireRole('admin'),
+  param('id').isMongoId(),
+  ...orderEditRules,
+  (req, res, next) => runValidation(req, res, next),
+  asyncHandler(async (req, res) => {
+    noteActivity(res, { skip: true });
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) throw new AppError(404, 'Booking not found');
+    const settings = await getBusinessSettings();
+    const plan = await planOrderEdit(booking, req.body ?? {}, settings, { id: req.user!.id, name: 'Admin' });
+    res.json({ preview: orderPreviewJson(plan) });
+  }),
+);
+
+/**
+ * Edit the order: PATCH → { booking, change, notified }. `change` is the new order-history entry (null when
+ * nothing changed). A new coupon is claimed like checkout does and the old one is given back; a new
+ * service before work starts rebuilds the steps; the customer is told when the total or the service changes.
+ */
+bookingsRouter.patch(
+  '/:id/order',
+  requireRole('admin'),
+  param('id').isMongoId(),
+  ...orderEditRules,
+  (req, res, next) => runValidation(req, res, next),
+  asyncHandler(async (req, res) => {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) throw new AppError(404, 'Booking not found');
+    const settings = await getBusinessSettings();
+    const actor = { id: req.user!.id, name: (await userName(req.user!.id)) ?? 'Admin' };
+    const plan = await planOrderEdit(booking, req.body ?? {}, settings, actor);
+
+    if (plan.changes.length === 0) {
+      noteActivity(res, { skip: true });
+      const unchanged = await loadBooking(String(booking._id));
+      res.json({ booking: formatBookingForRole(unchanged, req.user!.role), change: null, notified: false });
+      return;
+    }
+
+    if (plan.couponClaim && !(await reserveOfferUse(plan.couponClaim))) {
+      throw new AppError(400, 'This coupon has reached its usage limit', 'COUPON_INVALID');
+    }
+    const change = {
+      _id: new Types.ObjectId(),
+      at: new Date(),
+      by: new Types.ObjectId(actor.id),
+      byName: actor.name,
+      totalBefore: plan.before.total,
+      totalAfter: plan.amount.total,
+      changes: plan.changes,
+      ...(plan.note ? { note: plan.note } : {}),
+      notified: plan.notifyCustomer,
+    };
+    const push: Record<string, unknown> = { orderHistory: { $each: [change], $slice: -ORDER_HISTORY_KEEP } };
+    if (plan.notifyCustomer) {
+      // Customers see the timeline entry (never the reasons); the history above stays admin-only.
+      push.tracking = { at: change.at, event: 'order_updated', meta: { total: plan.amount.total } };
+    }
+    let result: { matchedCount: number };
+    try {
+      // Matching on updatedAt refuses to overwrite a change another admin saved since this one was read.
+      result = await Booking.updateOne(
+        { _id: booking._id, ...(booking.updatedAt ? { updatedAt: booking.updatedAt } : {}) },
+        {
+          ...(Object.keys(plan.$set).length ? { $set: plan.$set } : {}),
+          ...(Object.keys(plan.$unset).length ? { $unset: plan.$unset } : {}),
+          $push: push,
+        },
+      );
+    } catch (err) {
+      if (plan.couponClaim) await releaseOfferUse(plan.couponClaim);
+      throw err;
+    }
+    if (!result.matchedCount) {
+      if (plan.couponClaim) await releaseOfferUse(plan.couponClaim);
+      throw new AppError(409, 'This booking changed while you were saving. Reload it and try again.', 'ORDER_STALE');
+    }
+    if (plan.couponRelease) await releaseOfferUse(plan.couponRelease);
+
+    const populated = await loadBooking(String(booking._id));
+    let notified = false;
+    if (plan.notifyCustomer) {
+      try {
+        notified = await notifyOrderUpdated(populated);
+      } catch (err) {
+        console.error('[bookings] order update notify failed', err);
+      }
+    }
+    const ref = bookingRefOf(String(booking._id));
+    noteActivity(res, {
+      summary: plan.totalChanged
+        ? `Edited the order of booking ${ref} — total ${orderRupee(plan.before.total)} → ${orderRupee(plan.amount.total)} (${plan.parts.join(', ')})`
+        : `Edited the order of booking ${ref} (${plan.parts.join(', ')})`,
+      fields: plan.fields,
+    });
+    res.json({
+      booking: formatBookingForRole(populated, req.user!.role),
+      change: {
+        id: String(change._id),
+        at: change.at.toISOString(),
+        by: actor.id,
+        byName: change.byName,
+        totalBefore: change.totalBefore,
+        totalAfter: change.totalAfter,
+        changes: change.changes,
+        note: change.note,
+        notified: change.notified,
+      },
+      notified,
+    });
+  }),
+);
+
+/**
+ * Reopen a cancelled booking: POST { dropCoupon? } → { booking, reopened: { status, slotOpen, assigned, couponDropped } }.
+ * Back to pending — or confirmed when auto-confirm is on and the visit time still passes the booking rules
+ * (then auto-assign runs as usual). The cancel details are cleared (the activity log keeps them), any
+ * technician and start code are dropped, and the coupon's use is counted again; when the coupon ran out
+ * meanwhile the answer is 409 COUPON_LIMIT, and `dropCoupon: true` reopens without it. Bookings cancelled
+ * after work had started can't be reopened. The customer gets `reopened.customer`.
+ */
+bookingsRouter.post(
+  '/:id/reopen',
+  requireRole('admin'),
+  param('id').isMongoId(),
+  body('dropCoupon').optional().isBoolean(),
+  (req, res, next) => runValidation(req, res, next),
+  asyncHandler(async (req, res) => {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) throw new AppError(404, 'Booking not found');
+    if (booking.status !== 'cancelled') throw new AppError(400, 'Only a cancelled booking can be reopened.', 'NOT_CANCELLED');
+    if (booking.workStartedAt) {
+      throw new AppError(
+        400,
+        'Work had started on this visit before it was cancelled, so it can’t be reopened. Book a new visit for the customer instead.',
+        'WORK_STARTED',
+      );
+    }
+    const settings = await getBusinessSettings();
+    const ref = bookingRefOf(String(booking._id));
+    const totalBefore = booking.amount?.total ?? 0;
+
+    // The cancel gave the coupon's use back — count it again, unless it ran out meanwhile.
+    const code = booking.couponCode?.trim().toUpperCase();
+    let couponClaimed = false;
+    let couponDropped = false;
+    if (code) {
+      couponClaimed = await reserveOfferUse(code);
+      if (!couponClaimed) {
+        const without = amountWithoutCoupon(booking);
+        if (req.body.dropCoupon !== true && req.body.dropCoupon !== 'true') {
+          throw new AppError(
+            409,
+            `Coupon ${code} has reached its usage limit since this booking was cancelled. Reopen without it? The total becomes ${orderRupee(without.total)} (was ${orderRupee(totalBefore)}).`,
+            'COUPON_LIMIT',
+          );
+        }
+        couponDropped = true;
+        booking.amount = without;
+        booking.couponCode = undefined;
+      }
+    }
+
+    // Booking rules decide the status: a still-open visit time is confirmed straight away when auto-confirm is on.
+    const schedule = booking.schedule;
+    const custom = booking.scheduleMode === 'custom' || schedule?.slot === 'custom';
+    let slotOpen = false;
+    if (schedule?.date) {
+      try {
+        await assertCustomerSchedule(custom ? 'custom' : 'standard', { date: schedule.date, slot: schedule.slot, time: schedule.time }, settings);
+        slotOpen = true;
+      } catch {
+        slotOpen = false;
+      }
+    }
+    const confirmNow = settings.booking.autoConfirm && slotOpen;
+
+    booking.status = confirmNow ? 'confirmed' : 'pending';
+    booking.cancelledAt = undefined;
+    booking.cancelReason = undefined;
+    booking.cancelledBy = undefined;
+    // A cancelled visit loses its technician and codes; auto-assign or the admin picks again.
+    booking.technicianId = undefined;
+    if (booking.workOtp?.start || booking.workOtp?.end) {
+      booking.workOtp.start = undefined;
+      booking.workOtp.end = undefined;
+      booking.markModified('workOtp');
+    }
+    if (booking.otpAttempts) {
+      booking.otpAttempts.start = 0;
+      booking.otpAttempts.end = 0;
+      booking.otpAttempts.startLockedUntil = undefined;
+      booking.otpAttempts.endLockedUntil = undefined;
+      booking.markModified('otpAttempts');
+    }
+    if (confirmNow) {
+      booking.scheduleConfirmedAt = new Date();
+    } else {
+      booking.scheduleConfirmedAt = undefined;
+      booking.scheduleRequest = {
+        date: schedule.date,
+        ...(custom ? { time: schedule.time } : { slot: schedule.slot }),
+        notes: booking.scheduleRequest?.notes,
+      };
+    }
+    appendTracking(booking, 'reopened', { by: 'admin', status: booking.status });
+    if (confirmNow) {
+      const plain = { date: schedule.date, slot: schedule.slot, ...(schedule.time ? { time: schedule.time } : {}) };
+      appendTracking(booking, 'schedule_confirmed', { schedule: plain, auto: true, reopened: true });
+    }
+    try {
+      await booking.save();
+    } catch (err) {
+      if (couponClaimed && code) await releaseOfferUse(code);
+      throw err;
+    }
+
+    try {
+      await notifyUserFromTemplate(booking.customerId, booking, 'reopened', 'customer', 'reopened');
+    } catch (err) {
+      console.error('[bookings] reopen notify failed', err);
+    }
+    let assigned = false;
+    if (confirmNow) {
+      try {
+        assigned = await autoAssignIfEnabled(booking, settings, { prefer: booking.preferredTechnicianId });
+      } catch (err) {
+        console.error('[bookings] auto-assign after reopen failed', err);
+      }
+    }
+
+    const when = formatScheduleSummary(schedule, booking.scheduleMode);
+    noteActivity(res, {
+      summary:
+        `Reopened booking ${ref} — ` +
+        (confirmNow
+          ? `confirmed for ${when}${assigned ? ' (technician auto-assigned)' : ''}`
+          : slotOpen
+            ? 'back to pending'
+            : 'back to pending (the old visit time has passed)') +
+        (couponDropped ? ` · coupon ${code} dropped (usage limit reached), total ${orderRupee(totalBefore)} → ${orderRupee(booking.amount.total)}` : ''),
+      fields: ['status', ...(couponDropped ? ['couponCode', 'amount'] : [])],
+    });
+
+    const populated = await loadBooking(String(booking._id));
+    res.json({
+      booking: formatBookingForRole(populated, req.user!.role),
+      reopened: { status: booking.status, slotOpen, assigned, couponDropped },
+    });
+  }),
+);
+
+/* ---------- admin bulk actions (bookings list): assign or cancel many bookings at once ---------- */
+
+const BULK_MAX = 100;
+
+/** One line per booking sent: done, or why it was skipped (same rules and messages as the single actions). */
+type BulkResult = { id: string; ref: string; ok: boolean; error?: string; code?: string };
+
+/** Unique booking ids in the order sent; anything else is reported back instead of being dropped. */
+function bulkIdList(raw: unknown): { ids: string[]; invalid: BulkResult[] } {
+  const ids: string[] = [];
+  const invalid: BulkResult[] = [];
+  for (const value of Array.isArray(raw) ? raw : []) {
+    const id = typeof value === 'string' ? value.trim() : '';
+    if (!/^[a-f0-9]{24}$/i.test(id)) {
+      invalid.push({ id: String(value).slice(0, 40), ref: '', ok: false, error: 'Not a booking id', code: 'INVALID_ID' });
+    } else if (!ids.includes(id)) {
+      ids.push(id);
+    }
+  }
+  return { ids, invalid };
+}
+
+function bulkFailure(id: string, err: unknown): BulkResult {
+  if (err instanceof AppError) return { id, ref: bookingRefOf(id), ok: false, error: err.message, code: err.code };
+  console.error('[bookings] bulk action failed for', id, err);
+  return { id, ref: bookingRefOf(id), ok: false, error: 'Something went wrong with this booking' };
+}
+
+/** "#A1B2C3, #D4E5F6 and 3 more" for the activity log. */
+function bulkRefList(ids: string[], max = 12): string {
+  const refs = ids.slice(0, max).map((id) => bookingRefOf(id));
+  return ids.length > max ? `${refs.join(', ')} and ${ids.length - max} more` : refs.join(', ');
+}
+
+function bulkResponse(results: BulkResult[]) {
+  const succeeded = results.filter((r) => r.ok).length;
+  return { results, succeeded, failed: results.length - succeeded };
+}
+
+/**
+ * Assign one technician to many bookings: POST { ids: string[] (1–100), technicianId } →
+ * { results: [{ id, ref, ok, error?, code? }], succeeded, failed, technician: { id, name } }.
+ * Each booking gets the checks of PATCH /:id/assign (confirmed only, off duty today, approved leave, same
+ * time slot — earlier bookings in the same request count) and the same start code + "assigned" messages.
+ * Bookings that already have this technician are skipped (no repeat messages).
+ */
+bookingsRouter.post(
+  '/bulk/assign',
+  requireRole('admin'),
+  body('ids').isArray({ min: 1, max: BULK_MAX }).withMessage(`Pick between 1 and ${BULK_MAX} bookings`),
+  body('technicianId').isMongoId().withMessage('Pick a technician'),
+  (req, res, next) => runValidation(req, res, next),
+  asyncHandler(async (req, res) => {
+    const technician = await User.findOne({ _id: req.body.technicianId, role: 'technician' });
+    if (!technician) throw new AppError(404, 'Technician not found');
+    if (technician.disabled === true) throw new AppError(400, 'Technician account is disabled');
+
+    const { ids, invalid } = bulkIdList(req.body.ids);
+    const { LeaveRequest } = await import('../models/LeaveRequest');
+    const results: BulkResult[] = [...invalid];
+    const assigned: string[] = [];
+    const reassigned: string[] = [];
+
+    for (const id of ids) {
+      try {
+        const booking = await Booking.findById(id);
+        if (!booking) throw new AppError(404, 'Booking not found');
+        if (booking.technicianId && String(booking.technicianId) === String(technician._id)) {
+          throw new AppError(400, `Already assigned to ${technician.name}`, 'ALREADY_ASSIGNED');
+        }
+        const visitIsToday = !booking.schedule?.date || booking.schedule.date <= localDateKey();
+        if (technician.available === false && visitIsToday) throw new AppError(400, 'Technician is off duty today');
+        if (booking.status === 'pending') throw new AppError(400, 'Confirm the schedule before assigning a technician');
+        if (booking.status !== 'confirmed') throw new AppError(400, 'Can only assign a technician while the booking is confirmed');
+
+        const visitDate = booking.schedule?.date;
+        if (visitDate) {
+          const onLeave = await LeaveRequest.findOne({
+            technicianId: technician._id,
+            status: 'approved',
+            from: { $lte: visitDate },
+            to: { $gte: visitDate },
+          }).select('_id');
+          if (onLeave) throw new AppError(400, 'Technician is on approved leave for this date');
+          if (booking.schedule?.slot) {
+            const clash = await Booking.findOne({
+              technicianId: technician._id,
+              'schedule.date': visitDate,
+              'schedule.slot': booking.schedule.slot,
+              status: { $in: ['confirmed', 'in_progress', 'awaiting_verification'] },
+              _id: { $ne: booking._id },
+            }).select('_id');
+            if (clash) throw new AppError(400, 'Technician already has a job in this time slot');
+          }
+        }
+
+        const hadTechnician = Boolean(booking.technicianId);
+        booking.technicianId = technician._id;
+        issueStartOtp(booking);
+        appendTracking(booking, 'assigned');
+        await booking.save();
+        (hadTechnician ? reassigned : assigned).push(id);
+        results.push({ id, ref: bookingRefOf(id), ok: true });
+        // Same messages as a single assign; a failed message never undoes the assignment.
+        try {
+          await notifyBookingEvent(booking, 'assigned');
+          await notifyWorkOtpEvent(booking, 'start_otp_ready');
+        } catch (err) {
+          console.error('[bookings] bulk assign notify failed', id, err);
+        }
+      } catch (err) {
+        results.push(bulkFailure(id, err));
+      }
+    }
+
+    const done = [...assigned, ...reassigned];
+    if (done.length === 0) {
+      noteActivity(res, { skip: true });
+    } else {
+      const skipped = results.length - done.length;
+      noteActivity(res, {
+        summary:
+          `Assigned ${technician.name} to ${done.length} booking${done.length === 1 ? '' : 's'} (${bulkRefList(done)})` +
+          (reassigned.length ? ` — ${reassigned.length} reassigned` : '') +
+          (skipped ? ` — ${skipped} skipped` : ''),
+        targetType: 'booking',
+        ...(done.length === 1 ? { targetId: done[0] } : { targetLabel: `${done.length} bookings` }),
+        fields: ['technicianId'],
+      });
+    }
+    res.json({ ...bulkResponse(results), technician: { id: String(technician._id), name: technician.name } });
+  }),
+);
+
+/**
+ * Cancel many bookings with one reason: POST { ids: string[] (1–100), reason (≥ 3 characters) } →
+ * { results: [{ id, ref, ok, error?, code? }], succeeded, failed }. Same rules and messages as
+ * PATCH /:id/cancel for an admin: completed or already cancelled bookings are skipped, coupons are released
+ * and the customer + technician are notified.
+ */
+bookingsRouter.post(
+  '/bulk/cancel',
+  requireRole('admin'),
+  body('ids').isArray({ min: 1, max: BULK_MAX }).withMessage(`Pick between 1 and ${BULK_MAX} bookings`),
+  body('reason').optional().isString(),
+  (req, res, next) => runValidation(req, res, next),
+  asyncHandler(async (req, res) => {
+    const reason = cancelReasonFrom(req.body.reason, 'admin');
+    const { ids, invalid } = bulkIdList(req.body.ids);
+    const results: BulkResult[] = [...invalid];
+    const cancelled: string[] = [];
+
+    for (const id of ids) {
+      try {
+        const booking = await Booking.findById(id);
+        if (!booking) throw new AppError(404, 'Booking not found');
+        if (['completed', 'cancelled'].includes(booking.status)) {
+          throw new AppError(400, 'Cannot cancel a completed or already cancelled booking');
+        }
+        await markCancelled(booking, req.user!, reason);
+        await booking.save();
+        cancelled.push(id);
+        results.push({ id, ref: bookingRefOf(id), ok: true });
+        try {
+          await releaseOfferUse(booking.couponCode);
+          await notifyBookingEvent(booking, 'cancelled');
+        } catch (err) {
+          console.error('[bookings] bulk cancel follow-up failed', id, err);
+        }
+      } catch (err) {
+        results.push(bulkFailure(id, err));
+      }
+    }
+
+    if (cancelled.length === 0) {
+      noteActivity(res, { skip: true });
+    } else {
+      const skipped = results.length - cancelled.length;
+      noteActivity(res, {
+        summary:
+          `Cancelled ${cancelled.length} booking${cancelled.length === 1 ? '' : 's'} (${bulkRefList(cancelled)}) — reason: ${reason}` +
+          (skipped ? ` — ${skipped} skipped` : ''),
+        targetType: 'booking',
+        ...(cancelled.length === 1 ? { targetId: cancelled[0] } : { targetLabel: `${cancelled.length} bookings` }),
+        fields: ['status', 'reason'],
+      });
+    }
+    res.json(bulkResponse(results));
   }),
 );

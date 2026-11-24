@@ -11,9 +11,11 @@ import {
   Subscriber,
   TeamMember,
   Testimonial,
+  WEBSITE_TRASH_DAYS,
+  WITH_DELETED,
   type IWebsiteImage,
 } from '../models/Website';
-import { Review } from '../models/Review';
+import { Review, publicReviewReply } from '../models/Review';
 import { User } from '../models/User';
 import { AppError } from '../utils/AppError';
 import { notifyAdmins } from '../utils/notifications';
@@ -69,7 +71,12 @@ async function uniqueSlug(model: Model<{ slug: string }>, base: string, excludeI
   const root = slugify(base) || 'item';
   let slug = root;
   for (let i = 2; i < 200; i++) {
-    const clash = await model.findOne({ slug, ...(excludeId ? { _id: { $ne: excludeId } } : {}) }).select('_id').lean();
+    // Deleted items keep their link until they are purged (so a restore never clashes).
+    const clash = await model
+      .findOne({ slug, ...(excludeId ? { _id: { $ne: excludeId } } : {}) })
+      .setOptions(WITH_DELETED)
+      .select('_id')
+      .lean();
     if (!clash) return slug;
     slug = `${root}-${i}`;
   }
@@ -183,6 +190,8 @@ websiteRouter.get(
         comment: r.comment,
         customerName: first.get(String(r.customerId)) ?? 'Customer',
         createdAt: r.createdAt,
+        // The business's reply, when there is one ({ text, at }; no admin name).
+        reply: publicReviewReply(r.reply),
       })),
     });
   }),
@@ -234,7 +243,12 @@ websiteRouter.post(
     }
     const email = str(req.body?.email, 120).toLowerCase();
     if (!EMAIL_RE.test(email)) throw new AppError(400, 'Please enter a valid email address');
-    await Subscriber.updateOne({ email }, { $set: { active: true }, $setOnInsert: { email } }, { upsert: true });
+    // Subscribing again also brings back an address an admin deleted.
+    await Subscriber.updateOne(
+      { email },
+      { $set: { active: true }, $unset: { deletedAt: 1, deletedBy: 1 }, $setOnInsert: { email } },
+      { upsert: true },
+    );
     res.status(201).json({ ok: true });
   }),
 );
@@ -283,7 +297,7 @@ admin.post(
 admin.get(
   '/summary',
   asyncHandler(async (_req, res) => {
-    const [newMessages, posts, drafts, gallery, team, testimonials, subscribers] = await Promise.all([
+    const [newMessages, posts, drafts, gallery, team, testimonials, subscribers, trash] = await Promise.all([
       ContactMessage.countDocuments({ status: 'new' }),
       BlogPost.countDocuments({ status: 'published' }),
       BlogPost.countDocuments({ status: 'draft' }),
@@ -291,8 +305,9 @@ admin.get(
       TeamMember.countDocuments({}),
       Testimonial.countDocuments({}),
       Subscriber.countDocuments({ active: true }),
+      trashCount(),
     ]);
-    res.json({ summary: { newMessages, posts, drafts, gallery, team, testimonials, subscribers } });
+    res.json({ summary: { newMessages, posts, drafts, gallery, team, testimonials, subscribers, trash } });
   }),
 );
 
@@ -360,15 +375,6 @@ admin.patch(
   }),
 );
 
-admin.delete(
-  '/blog/:id',
-  asyncHandler(async (req, res) => {
-    await BlogPost.deleteOne({ _id: idParam(req) });
-    revalidateWebsite(['blog']);
-    res.json({ ok: true });
-  }),
-);
-
 /* ---------- admin: gallery, team, testimonials (same list pattern) ---------- */
 
 type Ordered = { sortOrder: number };
@@ -418,14 +424,6 @@ admin.patch(
     await item.save();
     revalidateWebsite(['gallery']);
     res.json({ item: item.toJSON() });
-  }),
-);
-admin.delete(
-  '/gallery/:id',
-  asyncHandler(async (req, res) => {
-    await GalleryItem.deleteOne({ _id: idParam(req) });
-    revalidateWebsite(['gallery']);
-    res.json({ ok: true });
   }),
 );
 reorderRoute('/gallery', GalleryItem as unknown as Model<Ordered>, 'gallery');
@@ -485,14 +483,6 @@ admin.patch(
     res.json({ member: member.toJSON() });
   }),
 );
-admin.delete(
-  '/team/:id',
-  asyncHandler(async (req, res) => {
-    await TeamMember.deleteOne({ _id: idParam(req) });
-    revalidateWebsite(['team']);
-    res.json({ ok: true });
-  }),
-);
 reorderRoute('/team', TeamMember as unknown as Model<Ordered>, 'team');
 
 function testimonialInput(body: Record<string, unknown>) {
@@ -537,14 +527,6 @@ admin.patch(
     res.json({ testimonial: item.toJSON() });
   }),
 );
-admin.delete(
-  '/testimonials/:id',
-  asyncHandler(async (req, res) => {
-    await Testimonial.deleteOne({ _id: idParam(req) });
-    revalidateWebsite(['testimonials']);
-    res.json({ ok: true });
-  }),
-);
 reorderRoute('/testimonials', Testimonial as unknown as Model<Ordered>, 'testimonials');
 
 /* ---------- admin: messages + subscribers ---------- */
@@ -568,13 +550,6 @@ admin.patch(
     res.json({ message: msg.toJSON() });
   }),
 );
-admin.delete(
-  '/messages/:id',
-  asyncHandler(async (req, res) => {
-    await ContactMessage.deleteOne({ _id: idParam(req) });
-    res.json({ ok: true });
-  }),
-);
 
 admin.get(
   '/subscribers',
@@ -591,10 +566,223 @@ admin.patch(
     res.json({ subscriber: sub.toJSON() });
   }),
 );
+
+/* ---------- admin: delete with undo, restore, recently deleted ---------- */
+
+/**
+ * Deletes are soft (models/Website.ts `softDeletable`): the item disappears from the admin lists and the
+ * public website straight away, can be restored from the "Deleted · Undo" toast or Recently deleted, and
+ * MongoDB removes it for good WEBSITE_TRASH_DAYS days later.
+ *
+ *   DELETE /website/admin/:kind/:id           → { ok, item }       (kind: blog, gallery, team, testimonials,
+ *   POST   /website/admin/:kind/:id/restore   → { ok, kind, item }  messages, subscribers)
+ *   GET    /website/admin/trash               → { items, days }
+ *   DELETE /website/admin/trash/:kind/:id     → { ok }   delete one deleted item for good now
+ */
+const TRASH_KINDS = ['blog', 'gallery', 'team', 'testimonials', 'messages', 'subscribers'] as const;
+type TrashKind = (typeof TRASH_KINDS)[number];
+type TrashDoc = Record<string, unknown> & { _id: unknown; deletedAt?: Date | string; deletedBy?: unknown };
+
+const DAY_MS = 86_400_000;
+
+function clip(text: string, max: number): string {
+  const t = text.replace(/\s+/g, ' ').trim();
+  return t.length > max ? `${t.slice(0, max - 1)}…` : t;
+}
+
+function textOf(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function urlOf(value: unknown): string {
+  return value && typeof value === 'object' ? textOf((value as { url?: unknown }).url) : '';
+}
+
+const TRASH: Record<
+  TrashKind,
+  {
+    model: Model<any>;
+    /** "blog post" — in messages and the activity log. */
+    noun: string;
+    /** Website cache tag to refresh (messages and subscribers are not shown on the site). */
+    tag?: string;
+    title: (doc: TrashDoc) => string;
+    subtitle?: (doc: TrashDoc) => string;
+    photo?: (doc: TrashDoc) => string;
+    /** Activity log name — no emails, phone numbers or message text. */
+    logName: (doc: TrashDoc) => string;
+  }
+> = {
+  blog: {
+    model: BlogPost,
+    noun: 'blog post',
+    tag: 'blog',
+    title: (d) => textOf(d.title) || 'Untitled post',
+    subtitle: (d) => [d.status === 'published' ? 'Published' : 'Draft', clip(textOf(d.excerpt), 90)].filter(Boolean).join(' · '),
+    photo: (d) => urlOf(d.cover),
+    logName: (d) => `blog post “${clip(textOf(d.title) || 'Untitled', 80)}”`,
+  },
+  gallery: {
+    model: GalleryItem,
+    noun: 'gallery photo',
+    tag: 'gallery',
+    title: (d) => textOf(d.title) || textOf((d.image as { alt?: unknown } | undefined)?.alt) || 'Gallery photo',
+    subtitle: (d) => textOf(d.category),
+    photo: (d) => urlOf(d.image),
+    logName: (d) => {
+      const name = textOf(d.title) || textOf((d.image as { alt?: unknown } | undefined)?.alt);
+      return name ? `gallery photo “${clip(name, 80)}”` : 'a gallery photo';
+    },
+  },
+  team: {
+    model: TeamMember,
+    noun: 'team member',
+    tag: 'team',
+    title: (d) => textOf(d.name) || 'Team member',
+    subtitle: (d) => textOf(d.role),
+    photo: (d) => urlOf(d.photo),
+    logName: (d) => `team member ${clip(textOf(d.name) || 'without a name', 80)}`,
+  },
+  testimonials: {
+    model: Testimonial,
+    noun: 'testimonial',
+    tag: 'testimonials',
+    title: (d) => textOf(d.name) || 'Testimonial',
+    subtitle: (d) => clip(textOf(d.quote), 90),
+    photo: (d) => urlOf(d.photo),
+    logName: (d) => `the testimonial from ${clip(textOf(d.name) || 'a client', 80)}`,
+  },
+  messages: {
+    model: ContactMessage,
+    noun: 'message',
+    title: (d) => textOf(d.name) || 'Website message',
+    subtitle: (d) => clip(textOf(d.message), 90),
+    logName: (d) => `the website message from ${clip(textOf(d.name).split(' ')[0] || 'a visitor', 40)}`,
+  },
+  subscribers: {
+    model: Subscriber,
+    noun: 'subscriber',
+    title: (d) => textOf(d.email) || 'Subscriber',
+    subtitle: (d) => (d.active === false ? 'Unsubscribed' : 'Subscribed'),
+    logName: () => 'a newsletter subscriber',
+  },
+};
+
+function trashKindParam(req: Request): TrashKind {
+  const kind = String(req.params.kind ?? '');
+  if (!(TRASH_KINDS as readonly string[]).includes(kind)) throw new AppError(400, 'Unknown item type');
+  return kind as TrashKind;
+}
+
+function dateOf(value: unknown): Date {
+  const d = value instanceof Date ? value : new Date(String(value ?? ''));
+  return Number.isNaN(d.getTime()) ? new Date() : d;
+}
+
+function trashItem(kind: TrashKind, doc: TrashDoc) {
+  const cfg = TRASH[kind];
+  const deletedAt = dateOf(doc.deletedAt);
+  return {
+    kind,
+    id: String(doc._id),
+    title: cfg.title(doc),
+    subtitle: cfg.subtitle?.(doc) || undefined,
+    photoUrl: cfg.photo?.(doc) || undefined,
+    deletedAt: deletedAt.toISOString(),
+    /** When MongoDB removes it for good. */
+    purgeAt: new Date(deletedAt.getTime() + WEBSITE_TRASH_DAYS * DAY_MS).toISOString(),
+    deletedById: doc.deletedBy ? String(doc.deletedBy) : undefined,
+  };
+}
+
+/** Deleted items across every kind (for the hub's "Recently deleted" count). */
+async function trashCount(): Promise<number> {
+  const counts = await Promise.all(TRASH_KINDS.map((kind) => TRASH[kind].model.countDocuments({ deletedAt: { $ne: null } })));
+  return counts.reduce((sum, n) => sum + n, 0);
+}
+
+function activity(res: Response, summary: string, targetLabel?: string): void {
+  res.locals.activity = { summary, ...(targetLabel ? { targetLabel } : {}) };
+}
+
+for (const kind of TRASH_KINDS) {
+  const cfg = TRASH[kind];
+
+  admin.delete(
+    `/${kind}/:id`,
+    asyncHandler(async (req, res) => {
+      const id = idParam(req);
+      const doc = await cfg.model
+        .findOneAndUpdate({ _id: id, deletedAt: null }, { $set: { deletedAt: new Date(), deletedBy: req.user!.id } }, { new: true })
+        .select('-body -legacyHtml')
+        .lean<TrashDoc>();
+      if (!doc) throw new AppError(404, `This ${cfg.noun} was not found. It may already be deleted.`);
+      if (cfg.tag) revalidateWebsite([cfg.tag]);
+      activity(res, `Deleted ${cfg.logName(doc)} — can be restored for ${WEBSITE_TRASH_DAYS} days`, kind === 'subscribers' || kind === 'messages' ? undefined : cfg.title(doc));
+      res.json({ ok: true, item: trashItem(kind, doc) });
+    }),
+  );
+
+  admin.post(
+    `/${kind}/:id/restore`,
+    asyncHandler(async (req, res) => {
+      const id = idParam(req);
+      const doc = await cfg.model.findOneAndUpdate(
+        { _id: id, deletedAt: { $ne: null } },
+        { $unset: { deletedAt: 1, deletedBy: 1 } },
+        { new: true },
+      );
+      if (!doc) {
+        // Pressed Undo twice, or restored from another screen: it is already back.
+        const live = await cfg.model.findById(id);
+        if (!live) throw new AppError(404, `This ${cfg.noun} can't be restored any more.`);
+        res.locals.activity = { skip: true };
+        res.json({ ok: true, kind, item: kind === 'blog' ? blogSummary(live) : live.toJSON(), alreadyRestored: true });
+        return;
+      }
+      if (cfg.tag) revalidateWebsite([cfg.tag]);
+      const plain = doc.toObject() as TrashDoc;
+      activity(res, `Restored ${cfg.logName(plain)}`, kind === 'subscribers' || kind === 'messages' ? undefined : cfg.title(plain));
+      res.json({ ok: true, kind, item: kind === 'blog' ? blogSummary(doc) : doc.toJSON() });
+    }),
+  );
+}
+
+admin.get(
+  '/trash',
+  asyncHandler(async (_req, res) => {
+    const lists = await Promise.all(
+      TRASH_KINDS.map(async (kind) => {
+        const docs = await TRASH[kind].model
+          .find({ deletedAt: { $ne: null } })
+          .select('-body -legacyHtml')
+          .sort({ deletedAt: -1 })
+          .limit(300)
+          .lean<TrashDoc[]>();
+        return docs.map((doc) => trashItem(kind, doc));
+      }),
+    );
+    const items = lists.flat().sort((a, b) => (a.deletedAt < b.deletedAt ? 1 : a.deletedAt > b.deletedAt ? -1 : 0));
+    const ids = [...new Set(items.map((i) => i.deletedById).filter((x): x is string => Boolean(x)))];
+    const people = ids.length ? await User.find({ _id: { $in: ids } }).select('name').lean() : [];
+    const names = new Map(people.map((u) => [String(u._id), u.name ?? '']));
+    res.json({
+      days: WEBSITE_TRASH_DAYS,
+      items: items.map(({ deletedById, ...item }) => ({ ...item, deletedBy: deletedById ? names.get(deletedById) || undefined : undefined })),
+    });
+  }),
+);
+
 admin.delete(
-  '/subscribers/:id',
+  '/trash/:kind/:id',
   asyncHandler(async (req, res) => {
-    await Subscriber.deleteOne({ _id: idParam(req) });
+    const kind = trashKindParam(req);
+    const cfg = TRASH[kind];
+    const id = idParam(req);
+    const doc = await cfg.model.findOne({ _id: id, deletedAt: { $ne: null } }).select('-body -legacyHtml').lean<TrashDoc>();
+    if (!doc) throw new AppError(404, 'This item is not in Recently deleted any more.');
+    await cfg.model.deleteOne({ _id: id, deletedAt: { $ne: null } });
+    activity(res, `Permanently deleted ${cfg.logName(doc)}`);
     res.json({ ok: true });
   }),
 );

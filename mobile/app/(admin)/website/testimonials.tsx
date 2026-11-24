@@ -24,6 +24,7 @@ import { useReorderMode } from '@/lib/useReorderMode';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import type { Testimonial } from '@/types/api';
+import { useWebsiteItemRestored } from '@/lib/websiteTrash';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 export default function WebsiteTestimonialsScreen() {
@@ -47,6 +48,9 @@ export default function WebsiteTestimonialsScreen() {
   useStaleFocusRefresh(() => {
     if (!order.reordering) return load().catch(() => undefined);
   }, 0);
+  useWebsiteItemRestored('testimonials', () => {
+    if (!order.reordering) void load().catch(() => undefined);
+  });
 
   const shown = useMemo(() => quotes.filter((m) => m.active).length, [quotes]);
   const open = useCallback(

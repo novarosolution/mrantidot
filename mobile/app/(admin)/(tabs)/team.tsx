@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { ArrowUpDown, BriefcaseBusiness, Globe, Megaphone, ScrollText, UserPlus, UserRoundPlus } from 'lucide-react-native';
+import { ArrowUpDown, BriefcaseBusiness, CalendarPlus, Globe, Megaphone, ScrollText, UserPlus, UserRoundPlus } from 'lucide-react-native';
 import { AdminHubGroup, AdminHubLink } from '@/components/kit/AdminHubLink';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -14,6 +14,7 @@ import { stagger } from '@/lib/motion';
 import { useUnreadNotifications } from '@/lib/useUnreadNotifications';
 import { useWebsiteSummary } from '@/lib/useWebsiteSummary';
 import { userInitial } from '@/lib/userInitials';
+import { useWideWebLayout } from '@/lib/webAdmin';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 import type { LucideIcon } from 'lucide-react-native';
 import type { ImageSourcePropType } from 'react-native';
@@ -194,14 +195,40 @@ export default function TeamHubScreen() {
   const { unreadCount } = useUnreadNotifications();
   const { summary: websiteSummary } = useWebsiteSummary();
   const initial = userInitial(user?.name);
+  // Desktop: the sidebar calls this page "All tools", and the groups sit in two columns.
+  const wide = useWideWebLayout();
+
+  const renderSection = (section: (typeof SECTIONS)[number], i: number) => (
+    <FadeSlideIn key={section.title} delay={stagger(i + 1)} slideFrom={14}>
+      <AdminSectionTitle title={section.title} hint={section.hint} />
+      <AdminHubGroup>
+        {section.links.map((l) => (
+          <AdminHubLink
+            key={l.label}
+            icon={l.icon}
+            label={l.label}
+            desc={l.desc}
+            badge={
+              l.href === adminRoutes.notifications
+                ? unreadCount
+                : l.href === adminRoutes.website
+                  ? websiteSummary?.newMessages
+                  : undefined
+            }
+            onPress={() => appPush(l.href)}
+          />
+        ))}
+      </AdminHubGroup>
+    </FadeSlideIn>
+  );
 
   return (
     <AdminTabScreen
       header={
         <AdminScreenHeader
-          title="Manage"
+          title={wide ? 'All tools' : 'Manage'}
           subtitle="Content, people & operations"
-          eyebrow="CONTROL"
+          eyebrow={wide ? 'ALL TOOLS' : 'CONTROL'}
           userInitial={initial}
           unreadCount={unreadCount}
         />
@@ -209,6 +236,7 @@ export default function TeamHubScreen() {
     >
       <FadeSlideIn delay={stagger(0)} slideFrom={14}>
         <View style={styles.addRow}>
+          {wide ? <AddTile icon={CalendarPlus} label="New booking" onPress={() => appPush(adminRoutes.bookingCreate)} /> : null}
           <AddTile
             icon={UserPlus}
             label="Add technician"
@@ -226,29 +254,14 @@ export default function TeamHubScreen() {
         </View>
       </FadeSlideIn>
 
-      {SECTIONS.map((section, i) => (
-        <FadeSlideIn key={section.title} delay={stagger(i + 1)} slideFrom={14}>
-          <AdminSectionTitle title={section.title} hint={section.hint} />
-          <AdminHubGroup>
-            {section.links.map((l) => (
-              <AdminHubLink
-                key={l.label}
-                icon={l.icon}
-                label={l.label}
-                desc={l.desc}
-                badge={
-                  l.href === adminRoutes.notifications
-                    ? unreadCount
-                    : l.href === adminRoutes.website
-                      ? websiteSummary?.newMessages
-                      : undefined
-                }
-                onPress={() => appPush(l.href)}
-              />
-            ))}
-          </AdminHubGroup>
-        </FadeSlideIn>
-      ))}
+      {wide ? (
+        <View style={styles.cols}>
+          <View style={styles.col}>{[0, 2].map((i) => renderSection(SECTIONS[i], i))}</View>
+          <View style={styles.col}>{[1, 3].map((i) => renderSection(SECTIONS[i], i))}</View>
+        </View>
+      ) : (
+        SECTIONS.map(renderSection)
+      )}
     </AdminTabScreen>
   );
 }
@@ -273,6 +286,8 @@ function AddTile({ icon: Icon, label, onPress }: { icon: LucideIcon; label: stri
 }
 
 const styles = StyleSheet.create({
+  cols: { flexDirection: 'row', alignItems: 'flex-start' },
+  col: { flex: 1, minWidth: 0 },
   addRow: { flexDirection: 'row', gap: 10, paddingHorizontal: spacing.md, marginTop: spacing.xs },
   addCell: { flex: 1 },
   addTile: {

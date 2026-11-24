@@ -24,6 +24,9 @@ type ToastVariant = 'success' | 'error' | 'info' | 'warning' | 'offline';
 
 type ToastExtraProps = {
   duration?: number;
+  /** Optional text button next to the close button ("Undo"); pressing it runs `onAction` and hides the toast. */
+  actionLabel?: string;
+  onAction?: () => void;
 };
 
 type CopyKey = 'toastLabelSuccess' | 'toastLabelError' | 'toastLabelInfo' | 'toastLabelWarning' | 'toastLabelOffline';
@@ -101,6 +104,8 @@ function PremiumToastCard({
   duration,
   onPress,
   onHide,
+  actionLabel,
+  onAction,
 }: {
   variant: ToastVariant;
   title?: string;
@@ -108,6 +113,8 @@ function PremiumToastCard({
   duration: number;
   onPress?: () => void;
   onHide?: () => void;
+  actionLabel?: string;
+  onAction?: () => void;
 }) {
   const meta = VARIANT_META[variant];
   const label = toastCopy[meta.labelKey];
@@ -193,6 +200,23 @@ function PremiumToastCard({
                 </Text>
               ) : null}
             </View>
+            {actionLabel && onAction ? (
+              <Pressable
+                hitSlop={8}
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  onAction();
+                  onHide?.();
+                }}
+                style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}
+                accessibilityRole="button"
+                accessibilityLabel={actionLabel}
+              >
+                <Text style={[styles.actionText, { color: meta.badgeColor }]} numberOfLines={1}>
+                  {actionLabel}
+                </Text>
+              </Pressable>
+            ) : null}
             <Pressable
               hitSlop={10}
               onPress={(e) => {
@@ -224,6 +248,8 @@ function makeRenderer(variant: ToastVariant) {
         duration={duration}
         onPress={params.onPress}
         onHide={params.hide}
+        actionLabel={params.props?.actionLabel}
+        onAction={params.props?.onAction}
       />
     );
   };
@@ -264,6 +290,9 @@ export type AppToastOptions = {
   type?: AppToastType;
   duration?: number;
   onPress?: () => void;
+  /** Text button on the toast, e.g. "Undo" — give the toast a longer `duration` (~8 s) with it. */
+  actionLabel?: string;
+  onAction?: () => void;
 };
 
 /** Preferred in-app toast helper — consistent timing, position, and premium styling. */
@@ -273,6 +302,8 @@ export function appToast({
   type = 'success',
   duration,
   onPress,
+  actionLabel,
+  onAction,
 }: AppToastOptions): void {
   const visibilityTime = duration ?? TOAST_DEFAULTS.visibilityTimeFor(type);
   Toast.show({
@@ -284,7 +315,7 @@ export function appToast({
     autoHide: true,
     swipeable: true,
     onPress,
-    props: { duration: visibilityTime } satisfies ToastExtraProps,
+    props: { duration: visibilityTime, actionLabel, onAction } satisfies ToastExtraProps,
   });
 }
 
@@ -370,6 +401,19 @@ const styles = StyleSheet.create({
     color: colors.muted,
     marginTop: 3,
   },
+  action: {
+    height: 30,
+    paddingHorizontal: 12,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(180,220,165,0.75)',
+    marginTop: 1,
+  },
+  actionPressed: { opacity: 0.7 },
+  actionText: { fontFamily: fonts.bodyBold, fontSize: 13, letterSpacing: 0.1 },
   dismiss: {
     width: 28,
     height: 28,

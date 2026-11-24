@@ -206,9 +206,9 @@ export default function AdminReportsScreen() {
 
   const header = (
     <AdminScreenHeader
-      title="Analytics"
+      title="Reports"
       subtitle={stats ? `${formatRangeLabel({ from: stats.range.from, to: stats.range.to })} · revenue, pipeline & team` : 'Revenue, pipeline & team'}
-      eyebrow="INSIGHTS"
+      eyebrow="REPORTS"
       userInitial={userInitial(user?.name)}
       unreadCount={unreadCount}
     />

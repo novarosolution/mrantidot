@@ -22,34 +22,45 @@ import { adminRoutes, appPush } from '@/lib/routes';
 import { paramString } from '@/lib/routeParams';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { isAccountDisabled } from '@/lib/user-helpers';
-import type { Booking, SavedAddress, User } from '@/types/api';
+import type { Booking } from '@/types/api';
 import { colors, fonts, premium, spacing, surfaces, ui } from '@/constants/theme';
 import { stagger } from '@/lib/motion';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { formatRupeeFull } from '@/components/kit/format';
+import { AdminCustomerAddresses } from '@/components/admin/AdminCustomerAddresses';
+import { AdminCustomerNotes } from '@/components/admin/AdminCustomerNotes';
+import { AdminCustomerTags } from '@/components/admin/AdminCustomerTags';
+import type { AdminCustomerProfile, AdminSavedAddress, CustomerNote } from '@/types/adminManage';
+
+type StatusTag = 'active' | 'inactive' | 'vip';
 
 export default function AdminCustomerDetailScreen() {
   const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
   const { loading, error, runLoad, reload } = useScreenLoad();
-  const [customer, setCustomer] = useState<User | null>(null);
+  const [customer, setCustomer] = useState<AdminCustomerProfile | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [totalSpend, setTotalSpend] = useState(0);
+  const [statusTag, setStatusTag] = useState<StatusTag>('inactive');
+  /** Internal notes, newest first (admins only). */
+  const [notes, setNotes] = useState<CustomerNote[]>([]);
   /** Saved addresses (null while loading; [] when none or they could not be loaded). */
-  const [addresses, setAddresses] = useState<SavedAddress[] | null>(null);
+  const [addresses, setAddresses] = useState<AdminSavedAddress[] | null>(null);
   const entrance = useListEntrance(!loading);
 
   const load = useCallback(async () => {
     if (!id) throw new Error('Customer not found');
-    const { data } = await api.get<{ customer: User; bookings: Booking[]; totalSpend: number }>(
+    const { data } = await api.get<{ customer: AdminCustomerProfile; bookings: Booking[]; totalSpend: number; statusTag: StatusTag }>(
       `/admin/customers/${id}`,
       screenLoadConfig,
     );
     setCustomer(data.customer);
+    setNotes(data.customer.adminNotes ?? []);
     setBookings(data.bookings);
     setTotalSpend(data.totalSpend);
+    setStatusTag(data.statusTag);
     // Addresses are extra — a failure here never blocks the profile.
     api
-      .get<{ addresses: SavedAddress[] }>(`/admin/customers/${id}/addresses`, screenLoadConfig)
+      .get<{ addresses: AdminSavedAddress[] }>(`/admin/customers/${id}/addresses`, screenLoadConfig)
       .then((res) => setAddresses(res.data.addresses))
       .catch(() => setAddresses((prev) => prev ?? []));
   }, [id]);
@@ -87,6 +98,14 @@ export default function AdminCustomerDetailScreen() {
             <Text style={[styles.statusBadge, isDisabled && styles.statusDisabled]}>
               {isDisabled ? 'Account disabled' : 'Active account'}
             </Text>
+            {statusTag === 'vip' ? (
+              <Text style={[styles.statusBadge, styles.statusVip]}>{customer.vipOverride === 'vip' ? 'VIP · set by you' : 'VIP'}</Text>
+            ) : null}
+            {(customer.tags ?? []).map((t) => (
+              <Text key={t} style={[styles.statusBadge, styles.statusTagChip]}>
+                {t}
+              </Text>
+            ))}
           </View>
 
           <View style={styles.statsRow}>
@@ -179,32 +198,23 @@ export default function AdminCustomerDetailScreen() {
             ) : null}
           </View>
 
-          <View style={styles.addressBlock}>
-            <Text style={styles.addressTitle}>Saved addresses</Text>
-            {addresses === null ? (
-              <Text style={styles.addressEmpty}>Loading…</Text>
-            ) : addresses.length === 0 ? (
-              <Text style={styles.addressEmpty}>No saved addresses yet.</Text>
-            ) : (
-              addresses.map((a) => (
-                <View key={a.id} style={styles.addressRow}>
-                  <PremiumIcon icon={AppIcons.ui.mapPin} variant="plain" size="xs" color={colors.forest} />
-                  <View style={styles.addressText}>
-                    <Text style={styles.addressLabel} numberOfLines={1}>
-                      {a.label || 'Address'}
-                      {a.isDefault ? '  ·  Default' : ''}
-                    </Text>
-                    <Text style={styles.addressLine} selectable>
-                      {[a.line1, a.city, a.pincode].filter(Boolean).join(', ')}
-                    </Text>
-                  </View>
-                </View>
-              ))
-            )}
-          </View>
+          <AdminCustomerAddresses customerId={customer.id} customerName={customer.name} addresses={addresses} onChange={setAddresses} />
         </View>
       </FadeSlideIn>
       <FadeSlideIn delay={stagger(1)} slideFrom={14}>
+        <AdminCustomerTags
+          customerId={customer.id}
+          tags={customer.tags ?? []}
+          vipOverride={customer.vipOverride ?? null}
+          statusTag={statusTag}
+          onChange={(next) => {
+            setCustomer((c) => (c ? { ...c, tags: next.customer.tags, vipOverride: next.customer.vipOverride } : c));
+            setStatusTag(next.statusTag);
+          }}
+        />
+        <AdminCustomerNotes customerId={customer.id} notes={notes} onChange={setNotes} />
+      </FadeSlideIn>
+      <FadeSlideIn delay={stagger(2)} slideFrom={14}>
         <AdminSectionTitle flush title="Booking history" hint={`${bookings.length} total visits`} />
       </FadeSlideIn>
     </>
@@ -244,7 +254,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     ...ui.shadow,
   },
-  statusRow: { marginBottom: spacing.sm },
+  statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.sm },
+  statusVip: { color: colors.amberInk, backgroundColor: colors.amberBg },
+  statusTagChip: { color: ui.textSecondary, backgroundColor: ui.surfaceMuted },
   statusBadge: {
     alignSelf: 'flex-start',
     fontFamily: fonts.bodySemi,
@@ -288,17 +300,4 @@ const styles = StyleSheet.create({
   actionText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
   actionPrimary: { backgroundColor: colors.forest, borderColor: colors.forest },
   actionTextPrimary: { color: colors.white },
-  addressBlock: {
-    marginTop: spacing.md,
-    paddingTop: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: ui.border,
-    gap: 10,
-  },
-  addressTitle: { fontFamily: fonts.bodySemi, fontSize: 12, color: ui.textSecondary },
-  addressEmpty: { fontFamily: fonts.body, fontSize: 13, color: colors.muted },
-  addressRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  addressText: { flex: 1, minWidth: 0 },
-  addressLabel: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink },
-  addressLine: { fontFamily: fonts.body, fontSize: 12.5, lineHeight: 18, color: colors.muted, marginTop: 1 },
 });

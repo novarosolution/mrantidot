@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
+import { EMPTY_COVERAGE, TechnicianCoverageEditor, type CoverageDraft } from '@/components/admin/TechnicianCoverageEditor';
 import { useAuth } from '@/context/AuthContext';
 import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
 import { haptic, stagger } from '@/lib/motion';
@@ -19,6 +20,8 @@ import { technicianRealRating } from '@/lib/ratings';
 import { paramString } from '@/lib/routeParams';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { User, UserRole } from '@/types/api';
+import type { TechnicianUser } from '@/types/adminManage';
+import { IS_WEB } from '@/lib/webAdmin';
 import { colors, fonts, spacing } from '@/constants/theme';
 import { confirmAsync } from '@/lib/confirm';
 
@@ -81,6 +84,8 @@ export default function UserEditScreen() {
   const [payMode, setPayMode] = useState<'percent' | 'flat'>('percent');
   const [payPercent, setPayPercent] = useState('100');
   const [payFlat, setPayFlat] = useState('0');
+  /** Skills, area, weekly days off and daily cap (technicians) — utils/technicianFit.ts on the server. */
+  const [coverage, setCoverage] = useState<CoverageDraft>(EMPTY_COVERAGE);
   const [protectedAccount, setProtectedAccount] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<
@@ -90,7 +95,7 @@ export default function UserEditScreen() {
 
   const load = useCallback(async () => {
     if (!id) return;
-    const { data } = await api.get<{ user: User }>(`/admin/users/${id}`, screenLoadConfig);
+    const { data } = await api.get<{ user: TechnicianUser }>(`/admin/users/${id}`, screenLoadConfig);
     const u = data.user;
     setRole(u.role);
     setLoadedRole(u.role);
@@ -105,6 +110,13 @@ export default function UserEditScreen() {
     setPayMode(u.payMode === 'flat' ? 'flat' : 'percent');
     setPayPercent(u.payPercent != null ? String(u.payPercent) : '100');
     setPayFlat(u.payFlat != null ? String(u.payFlat) : '0');
+    setCoverage({
+      skills: u.skills ?? [],
+      serviceCities: u.serviceCities ?? [],
+      servicePincodes: u.servicePincodes ?? [],
+      offDays: u.offDays ?? [],
+      maxJobsPerDay: u.maxJobsPerDay ?? null,
+    });
     setProtectedAccount(u.protected === true);
   }, [id]);
 
@@ -168,7 +180,7 @@ export default function UserEditScreen() {
     setSaving(true);
     try {
       if (id) {
-        const body: Record<string, string | boolean | number | null> = {
+        const body: Record<string, string | boolean | number | null | string[] | number[]> = {
           name: name.trim(),
           phone: phone.trim(),
           email: email.trim(),
@@ -204,6 +216,7 @@ export default function UserEditScreen() {
             }
             body.payFlat = Math.round(flat);
           }
+          Object.assign(body, coverage);
         }
         else if (active) body.available = true;
         await api.patch(`/admin/users/${id}`, body);
@@ -212,7 +225,7 @@ export default function UserEditScreen() {
         }
         if (id === me?.id) await refreshMe({ silent: true });
       } else {
-        const createBody: Record<string, string | number> = {
+        const createBody: Record<string, string | number | null | string[] | number[]> = {
           role,
           name: name.trim(),
           phone: phone.trim(),
@@ -229,6 +242,7 @@ export default function UserEditScreen() {
             const flat = parseFloat(payFlat);
             createBody.payFlat = Number.isNaN(flat) ? 0 : Math.max(0, Math.round(flat));
           }
+          Object.assign(createBody, coverage);
         }
         await api.post('/admin/users', createBody);
       }
@@ -263,6 +277,9 @@ export default function UserEditScreen() {
       }
     });
   }
+
+  /** Web: Enter in a single-line field saves (native keeps return = next line / done). */
+  const submitOnEnter = IS_WEB && !adminLocked ? { onSubmitEditing: () => void save() } : {};
 
   const title = id ? 'Edit user' : `Add ${role}`;
   const subtitle = id ? `Role: ${role}` : 'New account';
@@ -358,6 +375,7 @@ export default function UserEditScreen() {
                 if (errors.name) setErrors((e) => ({ ...e, name: undefined }));
               }}
               error={errors.name}
+              {...submitOnEnter}
             />
             <IconInput
               label="Phone"
@@ -368,6 +386,7 @@ export default function UserEditScreen() {
               }}
               keyboardType="phone-pad"
               error={errors.phone}
+              {...submitOnEnter}
             />
             <IconInput
               label="Email"
@@ -378,8 +397,9 @@ export default function UserEditScreen() {
               }}
               autoCapitalize="none"
               error={errors.email}
+              {...submitOnEnter}
             />
-            <IconInput label="City" value={city} onChangeText={setCity} />
+            <IconInput label="City" value={city} onChangeText={setCity} {...submitOnEnter} />
             {adminLocked ? null : (
               <IconInput
                 label={id ? 'New password (optional)' : 'Password'}
@@ -479,6 +499,19 @@ export default function UserEditScreen() {
                   ? `Tech earns ${payPercent || '0'}% of each completed job total`
                   : `Tech earns ₹${payFlat || '0'} per completed job`}
               </Text>
+            </AdminFormCard>
+          </FadeSlideIn>
+        ) : null}
+
+        {role === 'technician' ? (
+          <FadeSlideIn delay={stagger(2)} slideFrom={14}>
+            <AdminFormCard>
+              <Text style={styles.sectionTitle}>Coverage</Text>
+              <Text style={styles.sectionHint}>
+                What they treat, where and when they work. Auto-assign follows these rules; the assign list shows
+                why someone is a poor fit.
+              </Text>
+              <TechnicianCoverageEditor value={coverage} onChange={(patch) => setCoverage((c) => ({ ...c, ...patch }))} />
             </AdminFormCard>
           </FadeSlideIn>
         ) : null}

@@ -33,6 +33,8 @@ type Copy = Pick<
   | 'trackAdminOverride'
   | 'trackScheduleConfirmed'
   | 'trackRescheduled'
+  | 'trackReopened'
+  | 'trackOrderUpdated'
 >;
 
 export function bookingServiceName(booking: Booking, copy?: Pick<Copy, 'bookingServiceFallback'>): string {
@@ -171,6 +173,8 @@ const TRACKING_LABELS: Record<string, string> = {
   admin_override: 'Admin marked complete',
   schedule_confirmed: 'Visit time confirmed',
   rescheduled: 'Visit rescheduled',
+  reopened: 'Booking reopened',
+  order_updated: 'Booking updated',
 };
 
 export function trackingEventLabel(event: string, copy?: Copy): string {
@@ -186,6 +190,8 @@ export function trackingEventLabel(event: string, copy?: Copy): string {
       admin_override: copy.trackAdminOverride,
       schedule_confirmed: copy.trackScheduleConfirmed,
       rescheduled: copy.trackRescheduled,
+      reopened: copy.trackReopened,
+      order_updated: copy.trackOrderUpdated,
     };
     if (map[event]) return map[event];
   }

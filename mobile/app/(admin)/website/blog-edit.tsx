@@ -24,6 +24,7 @@ import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { BlogPost, BlogPostInput, BlogPostStatus, WebsiteImage } from '@/types/api';
 import { adminType, colors, fonts, spacing, ui } from '@/constants/theme';
 import { confirmAsync } from '@/lib/confirm';
+import { deleteWebsiteItem } from '@/lib/websiteTrash';
 
 type Errors = Partial<Record<'title' | 'body' | 'cover', string>>;
 
@@ -241,20 +242,12 @@ export default function WebsiteBlogEditScreen() {
     if (!id) return;
     void confirmAsync({
       title: 'Delete this post?',
-      message: `“${title || 'Untitled'}” will be removed from the website. This cannot be undone.`,
+      message: `“${title || 'Untitled'}” will be taken off the website. You can undo it, or restore it from Recently deleted for 30 days.`,
       confirmLabel: 'Delete',
       destructive: true,
     }).then(async (ok) => {
       if (!ok) return;
-      try {
-        await api.delete(`/website/admin/blog/${id}`, { skipErrorToast: true });
-        haptic('success');
-        Toast.show({ type: 'success', text1: 'Post deleted' });
-        adminGoBack(adminRoutes.websiteBlog);
-      } catch (err) {
-        haptic('error');
-        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not delete the post') });
-      }
+      if (await deleteWebsiteItem('blog', id, 'Could not delete the post')) adminGoBack(adminRoutes.websiteBlog);
     });
   }
 

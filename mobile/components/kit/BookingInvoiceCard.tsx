@@ -320,6 +320,14 @@ export function BookingInvoiceCard({
               {invoice.amount.coupon > 0 ? (
                 <ChargeRow label={copy.invoiceChargeCoupon} value={`−${rupee(invoice.amount.coupon)}`} accent />
               ) : null}
+              {(invoice.adjustments ?? []).map((line, i) => (
+                <ChargeRow
+                  key={`${line.label}-${i}`}
+                  label={line.label}
+                  value={line.amount < 0 ? `−${rupee(Math.abs(line.amount))}` : rupee(line.amount)}
+                  accent={line.amount < 0}
+                />
+              ))}
               <ChargeRow label={taxLabel} value={rupee(invoice.amount.gst)} />
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>{totalLabel}</Text>
@@ -443,7 +451,7 @@ function Fact({
 function ChargeRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <View style={styles.chargeRow}>
-      <Text style={styles.chargeLabel}>{label}</Text>
+      <Text style={[styles.chargeLabel, styles.chargeLabelFlex]}>{label}</Text>
       <Text style={[styles.chargeValue, accent && styles.chargeAccent]}>{value}</Text>
     </View>
   );
@@ -728,8 +736,11 @@ const styles = StyleSheet.create({
   chargeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 12,
   },
   chargeLabel: { fontFamily: fonts.body, fontSize: 13.5, color: colors.muted },
+  /** Long admin-written lines wrap instead of pushing the amount off the edge. */
+  chargeLabelFlex: { flex: 1, minWidth: 0 },
   chargeValue: { fontFamily: fonts.bodySemi, fontSize: 13.5, color: colors.ink },
   chargeAccent: { color: colors.green },
   totalRow: {

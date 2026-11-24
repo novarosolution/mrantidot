@@ -156,6 +156,10 @@ export const adminRoutes = {
   websiteTestimonialEdit: '/(admin)/website/testimonial-edit',
   websiteMessages: '/(admin)/website/messages',
   websiteSubscribers: '/(admin)/website/subscribers',
+  /** Deleted website items (restore within 30 days). */
+  websiteTrash: '/(admin)/website/trash',
+  /** Global search (phones; the desktop web opens the command palette instead). */
+  search: '/(admin)/search',
 } as const;
 
 export type AdminRoute = (typeof adminRoutes)[keyof typeof adminRoutes] | ReturnType<

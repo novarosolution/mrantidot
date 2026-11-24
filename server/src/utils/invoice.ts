@@ -91,14 +91,23 @@ export type BookingInvoice = {
     photoCount: number;
     capturedAt?: string;
   }>;
+  /** Extra charges (+) and discounts (−) an admin added, in order — before GST. */
+  adjustments: Array<{ label: string; amount: number }>;
   amount: {
     base: number;
     gst: number;
     coupon: number;
+    /** Net of `adjustments` (0 when there are none). */
+    adjustments: number;
     total: number;
   };
   text: string;
 };
+
+/** "-₹200" / "₹500" for a charge line. */
+function signedRupee(n: number): string {
+  return n < 0 ? `-${rupee(Math.abs(n))}` : rupee(n);
+}
 
 const DEFAULT_FOOTER = 'Thank you for choosing trusted pest control & home care.';
 
@@ -161,6 +170,9 @@ function buildInvoiceText(invoice: Omit<BookingInvoice, 'text'>): string {
   if (invoice.amount.coupon > 0) {
     lines.push(`Coupon discount -${rupee(invoice.amount.coupon)}`);
   }
+  for (const line of invoice.adjustments) {
+    lines.push(`${line.label.padEnd(15)} ${signedRupee(line.amount)}`);
+  }
   lines.push(
     `${invoice.tax.label.padEnd(15)} ${rupee(invoice.amount.gst)}`,
     `TOTAL           ${rupee(invoice.amount.total)}`,
@@ -210,10 +222,14 @@ export async function buildBookingInvoice(booking: IBooking): Promise<BookingInv
     };
   });
 
+  const adjustments = (booking.adjustments ?? [])
+    .filter((a) => a && typeof a.amount === 'number' && a.amount !== 0)
+    .map((a) => ({ label: a.label, amount: a.amount }));
   const amount = {
     base: booking.amount?.base ?? 0,
     gst: booking.amount?.gst ?? 0,
     coupon: booking.amount?.coupon ?? 0,
+    adjustments: booking.amount?.adjustments ?? adjustments.reduce((sum, a) => sum + a.amount, 0),
     total: booking.amount?.total ?? 0,
   };
 
@@ -278,6 +294,7 @@ export async function buildBookingInvoice(booking: IBooking): Promise<BookingInv
       basePrice: service?.basePrice,
     },
     steps,
+    adjustments,
     amount,
   };
 

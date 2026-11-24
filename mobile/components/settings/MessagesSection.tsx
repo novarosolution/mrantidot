@@ -27,10 +27,16 @@ const EVENTS: { event: string; title: string; when: string }[] = [
   { event: 'reschedule_requested', title: 'Reschedule requested', when: 'A customer moves a visit and it waits for you' },
   { event: 'rescheduled', title: 'Visit rescheduled', when: 'A visit gets a new confirmed time' },
   { event: 'cancelled', title: 'Booking cancelled', when: 'A booking is cancelled' },
+  { event: 'order_updated', title: 'Order updated', when: 'You change the service or the total of a booking ({total} = new total)' },
+  { event: 'reopened', title: 'Booking reopened', when: 'You reopen a cancelled booking' },
   // Technician time off (not part of a visit).
   { event: 'leave_requested', title: 'Leave requested', when: 'A technician asks for time off' },
   { event: 'leave_approved', title: 'Leave approved', when: 'You approve a leave request' },
   { event: 'leave_rejected', title: 'Leave not approved', when: 'You turn down a leave request' },
+  { event: 'leave_added', title: 'Leave added', when: 'You add leave for a technician yourself ({note} = your note)' },
+  { event: 'leave_cancelled', title: 'Leave cancelled', when: 'You cancel a technician’s approved leave' },
+  // Reviews.
+  { event: 'review_replied', title: 'Review reply', when: 'You first reply to a customer’s review ({note} = your reply)' },
 ];
 
 const AUDIENCES: { key: Audience; label: string }[] = [
@@ -48,6 +54,7 @@ const SAMPLE: Record<string, string> = {
   name: 'Ravi',
   type: 'Casual',
   note: 'Back on Thursday.',
+  total: '₹1,770',
 };
 
 /** Same rule as the server's fillTemplate: unknown placeholders become empty. */

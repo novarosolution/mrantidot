@@ -7,6 +7,8 @@ import { AppIcons } from '@/constants/appIcons';
 import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
 import { PressableScale } from '@/components/ui/PressableScale';
 import type { Offer } from '@/types/api';
+import type { OfferStats } from '@/types/adminManage';
+import { formatINR } from '@/components/charts/chartFormat';
 import { adminType, colors, customerType, spacing, ui } from '@/constants/theme';
 
 function formatExpiry(iso?: string) {
@@ -28,11 +30,12 @@ export const AdminOfferCard = memo(function AdminOfferCard({
   onEdit,
   onToggle,
 }: {
-  offer: Offer;
+  offer: Offer & { stats?: OfferStats };
   onPress: () => void;
   onEdit: () => void;
   onToggle: () => void;
 }) {
+  const stats = offer.stats;
   const inactive = !offer.active;
   const expired = offer.expiresAt ? new Date(offer.expiresAt) < new Date() : false;
   const maxed = offer.maxUses != null && offer.useCount != null && offer.useCount >= offer.maxUses;
@@ -148,6 +151,11 @@ export const AdminOfferCard = memo(function AdminOfferCard({
                 </Text>
               ) : null}
             </View>
+            {stats && stats.uses + stats.cancelled > 0 ? (
+              <Text style={styles.stats} numberOfLines={1}>
+                {formatINR(stats.discountGiven)} given · {formatINR(stats.revenue)} revenue
+              </Text>
+            ) : null}
           </View>
         </PressableScale>
 
@@ -241,6 +249,7 @@ const styles = StyleSheet.create({
   chipTextWarn: { color: colors.error },
   chipTextOff: { color: colors.muted },
   meta: { ...adminType.listMeta },
+  stats: { ...adminType.listMeta, marginTop: 6, color: colors.forest },
   actions: { alignItems: 'flex-end', gap: 10, marginLeft: 8 },
   editBtn: {
     width: 36,

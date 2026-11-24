@@ -1,11 +1,6 @@
 import type { User } from '@/types/api';
-import { localDateKey } from '@/lib/dates';
 
-/** Technicians eligible for a visit; today's off-duty status only blocks today's (or overdue) visits. */
-export function assignableTechnicians(techs: User[], visitDate?: string): User[] {
-  const visitIsToday = !visitDate || visitDate <= localDateKey();
-  return techs.filter((t) => t.disabled !== true && (!visitIsToday || t.available !== false));
-}
+// Assigning a technician: see components/admin/TechnicianPickerSheet.tsx (server-side fit rules).
 
 /** Whether a user account is disabled for sign-in. */
 export function isAccountDisabled(user: Pick<User, 'available' | 'disabled' | 'role'>): boolean {

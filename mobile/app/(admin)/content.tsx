@@ -17,7 +17,7 @@ import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { Button } from '@/components/ui/Button';
 import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
+import { AdminChipsSkeleton, AdminFormSkeleton } from '@/components/kit/AdminSkeletons';
 import { HERO_SLIDE_H, HomeHeroCarousel, promoHeroSlide } from '@/components/kit/HomeHeroCarousel';
 import { PremiumAurora } from '@/components/kit/PremiumAurora';
 import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
@@ -150,6 +150,7 @@ export default function AdminContentScreen() {
   const [activeTab, setActiveTab] = useState(CONTENT_TABS[0].key);
   const [screenQuery, setScreenQuery] = useState('');
   const [webQuery, setWebQuery] = useState('');
+  const [bookingQuery, setBookingQuery] = useState('');
   /** Version stamps of the loaded documents — sent back so a save never silently overwrites another admin's. */
   const [homeVersion, setHomeVersion] = useState<string | undefined>(undefined);
   const [appVersion, setAppVersion] = useState<string | undefined>(undefined);
@@ -396,6 +397,35 @@ export default function AdminContentScreen() {
     );
   }
 
+  /** Booking tab with a search: every matching field (label, current or default text), grouped by section. */
+  function renderBookingSearchResults(query: string) {
+    const q = query.trim().toLowerCase();
+    const groups = BOOKING_TAB_SECTIONS.map(([groupKey, title]) => ({
+      groupKey,
+      title,
+      fields: BOOKING_COPY_ADMIN_GROUPS[groupKey].filter(([key, label]) =>
+        [label, appConfig.booking?.[key] ?? '', DEFAULT_BOOKING_COPY[key]].some((text) => text.toLowerCase().includes(q)),
+      ),
+    })).filter((g) => g.fields.length > 0);
+    if (groups.length === 0) {
+      return <Text style={styles.searchEmpty}>No field matches “{query.trim()}”.</Text>;
+    }
+    return groups.map(({ groupKey, title, fields }) => (
+      <AdminFormCard key={groupKey}>
+        <Text style={styles.searchGroup}>{title}</Text>
+        {fields.map(([key, label]) => (
+          <IconInput
+            key={key}
+            label={label}
+            multiline={/Subtitle|Hint|Note|Message|Guidance|Toast/.test(key)}
+            value={appConfig.booking?.[key] ?? DEFAULT_BOOKING_COPY[key]}
+            onChangeText={(value) => patchBookingField(key, value)}
+          />
+        ))}
+      </AdminFormCard>
+    ));
+  }
+
   function renderCustomerUiField(key: CustomerUiFieldKey, label: string) {
     return (
       <IconInput
@@ -463,7 +493,16 @@ export default function AdminContentScreen() {
     patchHome({ categoryChips: homeConfig.categoryChips.filter((_, i) => i !== index) });
   }
 
-  if (loading) return <Spinner fullScreen />;
+  if (loading) {
+    return (
+      <AdminListShell title="App content" subtitle="Loading every customer-facing string…">
+        <View style={styles.skeletonTabs}>
+          <AdminChipsSkeleton count={6} />
+        </View>
+        <AdminFormSkeleton preview cards={[3, 2]} />
+      </AdminListShell>
+    );
+  }
 
   if (error) {
     return (
@@ -820,26 +859,39 @@ export default function AdminContentScreen() {
         {activeTab === 'booking' ? (
           <>
             <AdminSectionTitle title="Booking & schedule" hint="Tap a section to expand and edit fields" />
-            <AdminFormCard>
-              <Text style={styles.previewLabel}>Customer preview</Text>
-              <PendingScheduleCard
-                variant="customer"
-                title={appConfig.booking?.pendingCustomerTitle ?? DEFAULT_BOOKING_COPY.pendingCustomerTitle}
-                scheduleLabel="Sat, 7 Jun · 10:00 AM – 12:00 PM"
-                hint={appConfig.booking?.pendingCustomerHint ?? DEFAULT_BOOKING_COPY.pendingCustomerHint}
-                modeLabel={appConfig.booking?.standardModeLabel ?? DEFAULT_BOOKING_COPY.standardModeLabel}
+            <View style={styles.searchWrap}>
+              <AdminSearchField
+                value={bookingQuery}
+                onChangeText={setBookingQuery}
+                placeholder="Find a label, e.g. “reschedule” or “code”"
               />
-            </AdminFormCard>
+            </View>
+            {bookingQuery.trim() ? (
+              renderBookingSearchResults(bookingQuery)
+            ) : (
+              <>
+                <AdminFormCard>
+                  <Text style={styles.previewLabel}>Customer preview</Text>
+                  <PendingScheduleCard
+                    variant="customer"
+                    title={appConfig.booking?.pendingCustomerTitle ?? DEFAULT_BOOKING_COPY.pendingCustomerTitle}
+                    scheduleLabel="Sat, 7 Jun · 10:00 AM – 12:00 PM"
+                    hint={appConfig.booking?.pendingCustomerHint ?? DEFAULT_BOOKING_COPY.pendingCustomerHint}
+                    modeLabel={appConfig.booking?.standardModeLabel ?? DEFAULT_BOOKING_COPY.standardModeLabel}
+                  />
+                </AdminFormCard>
 
-            {renderBookingFields('wizard', 'Book wizard', BOOKING_COPY_ADMIN_GROUPS.wizard)}
-            {renderBookingFields('list', 'My bookings list', BOOKING_COPY_ADMIN_GROUPS.list)}
-            {renderBookingFields('success', 'Booking success screen', BOOKING_COPY_ADMIN_GROUPS.success)}
-            {renderBookingFields('pending', 'Customer pending booking', BOOKING_COPY_ADMIN_GROUPS.pending)}
-            {renderBookingFields('detail', 'Booking detail screen', BOOKING_COPY_ADMIN_GROUPS.detail)}
-            {renderBookingFields('trackingSteps', 'Tracking timeline steps', BOOKING_COPY_ADMIN_GROUPS.trackingSteps)}
-            {renderBookingFields('statusGuidance', 'Status messages (customer)', BOOKING_COPY_ADMIN_GROUPS.statusGuidance)}
-            {renderBookingFields('admin', 'Admin schedule actions', BOOKING_COPY_ADMIN_GROUPS.admin)}
-            {renderBookingFields('tech', 'Technician app', BOOKING_COPY_ADMIN_GROUPS.tech)}
+                {renderBookingFields('wizard', 'Book wizard', BOOKING_COPY_ADMIN_GROUPS.wizard)}
+                {renderBookingFields('list', 'My bookings list', BOOKING_COPY_ADMIN_GROUPS.list)}
+                {renderBookingFields('success', 'Booking success screen', BOOKING_COPY_ADMIN_GROUPS.success)}
+                {renderBookingFields('pending', 'Customer pending booking', BOOKING_COPY_ADMIN_GROUPS.pending)}
+                {renderBookingFields('detail', 'Booking detail screen', BOOKING_COPY_ADMIN_GROUPS.detail)}
+                {renderBookingFields('trackingSteps', 'Tracking timeline steps', BOOKING_COPY_ADMIN_GROUPS.trackingSteps)}
+                {renderBookingFields('statusGuidance', 'Status messages (customer)', BOOKING_COPY_ADMIN_GROUPS.statusGuidance)}
+                {renderBookingFields('admin', 'Admin schedule actions', BOOKING_COPY_ADMIN_GROUPS.admin)}
+                {renderBookingFields('tech', 'Technician app', BOOKING_COPY_ADMIN_GROUPS.tech)}
+              </>
+            )}
           </>
         ) : null}
 
@@ -1088,7 +1140,21 @@ function PromoPreview({ promo }: { promo: HomePromo }) {
   );
 }
 
+/** The Booking tab's sections (same order as on screen) — used by its label search. */
+const BOOKING_TAB_SECTIONS: ReadonlyArray<readonly [keyof typeof BOOKING_COPY_ADMIN_GROUPS, string]> = [
+  ['wizard', 'Book wizard'],
+  ['list', 'My bookings list'],
+  ['success', 'Booking success screen'],
+  ['pending', 'Customer pending booking'],
+  ['detail', 'Booking detail screen'],
+  ['trackingSteps', 'Tracking timeline steps'],
+  ['statusGuidance', 'Status messages (customer)'],
+  ['admin', 'Admin schedule actions'],
+  ['tech', 'Technician app'],
+];
+
 const styles = StyleSheet.create({
+  skeletonTabs: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
   scroll: { flex: 1 },
   /** Cards and section titles carry their own 16pt gutter — no extra container padding. */
   scrollContent: { paddingTop: spacing.xs, paddingBottom: ADMIN_STICKY_FOOTER_PAD },

@@ -20,8 +20,14 @@ import { adminRoutes, appPush } from '@/lib/routes';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { useWideWebLayout } from '@/lib/webAdmin';
-import type { AdminTechnicianRow, AdminTechniciansPage, ListSort } from '@/types/adminLists';
+import { useBusinessSettings } from '@/lib/businessSettings';
+import { WEEK, areaLabel, capLabel, offDaysLabel, skillsLabel } from '@/lib/coverage';
+import { pestLabel } from '@/lib/settingsLabels';
+import type { AdminTechniciansPage, ListSort } from '@/types/adminLists';
 import type { User } from '@/types/api';
+import type { TechnicianListRow } from '@/types/adminManage';
+
+type AdminTechnicianRow = TechnicianListRow;
 
 type TechFilter = 'all' | 'available' | 'off_duty' | 'on_leave' | 'disabled';
 
@@ -50,13 +56,28 @@ function editTech(id: string) {
   appPush({ pathname: adminRoutes.userEdit, params: { id, returnTo: adminRoutes.technicians } });
 }
 
+/** Compact coverage line for cards: "Termite, Ant · Off Sun · Max 3/day". */
+function coverageLine(t: AdminTechnicianRow, settings: ReturnType<typeof useBusinessSettings>): string {
+  const parts = [skillsLabel(t.skills, settings)];
+  if ((t.serviceCities ?? []).length || (t.servicePincodes ?? []).length) parts.push(areaLabel(t, 1));
+  if ((t.offDays ?? []).length) parts.push(offDaysLabel(t.offDays));
+  if (t.maxJobsPerDay) parts.push(`Max ${t.maxJobsPerDay}/day`);
+  return parts.join(' · ');
+}
+
 export default function AdminTechniciansScreen() {
   const wide = useWideWebLayout();
+  const settings = useBusinessSettings();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
   const [status, setStatus] = useState<TechFilter>('all');
   const [sort, setSort] = useState<ListSort>({ key: 'name', order: 'asc' });
   const [sortOpen, setSortOpen] = useState(false);
+  /** Coverage filters: can treat this pest type / covers this city / works on this weekday. */
+  const [skill, setSkill] = useState('');
+  const [city, setCity] = useState('');
+  const [worksOn, setWorksOn] = useState<number | null>(null);
+  const [filterSheet, setFilterSheet] = useState<null | 'skill' | 'city' | 'day'>(null);
 
   const query = useMemo(
     () => ({
@@ -64,8 +85,11 @@ export default function AdminTechniciansScreen() {
       q: debouncedSearch.trim() || undefined,
       sort: sort.key,
       order: sort.order,
+      skill: skill || undefined,
+      city: city || undefined,
+      worksOn: worksOn ?? undefined,
     }),
-    [status, debouncedSearch, sort],
+    [status, debouncedSearch, sort, skill, city, worksOn],
   );
 
   const fetchPage = useCallback(
@@ -126,6 +150,19 @@ export default function AdminTechniciansScreen() {
         },
       },
       {
+        key: 'coverage',
+        title: 'Coverage',
+        flex: 1.2,
+        minWidth: 190,
+        render: (t) => (
+          <TableTwoLine
+            title={skillsLabel(t.skills, settings)}
+            sub={[areaLabel(t, 1), offDaysLabel(t.offDays), t.maxJobsPerDay ? capLabel(t.maxJobsPerDay) : ''].filter(Boolean).join(' · ')}
+            strong={false}
+          />
+        ),
+      },
+      {
         key: 'active',
         title: 'Active jobs',
         width: 104,
@@ -181,7 +218,7 @@ export default function AdminTechniciansScreen() {
         ),
       },
     ],
-    [],
+    [settings],
   );
 
   const sortOptions: ActionSheetOption[] = SORTS.map((o) => ({
@@ -191,6 +228,37 @@ export default function AdminTechniciansScreen() {
     onPress: () => setSort(o.sort),
   }));
   const sortLabel = SORTS.find((o) => o.sort.key === sort.key && o.sort.order === sort.order)?.label;
+
+  const skillOptions: ActionSheetOption[] = [
+    { key: 'any', label: 'Any skill', onPress: () => setSkill('') },
+    ...settings.lists.pestTypes
+      .filter((p) => p.active || p.key === skill)
+      .map((p) => ({
+        key: p.key,
+        label: p.label,
+        subtitle: p.key === skill ? 'Current' : 'Has this skill, or handles every type',
+        onPress: () => setSkill(p.key),
+      })),
+  ];
+  const cityOptions: ActionSheetOption[] = [
+    { key: 'any', label: 'Any city', onPress: () => setCity('') },
+    ...settings.serviceArea.cities.map((c) => ({
+      key: c,
+      label: c,
+      subtitle: c === city ? 'Current' : 'Covers this city, or works anywhere',
+      onPress: () => setCity(c),
+    })),
+  ];
+  const dayOptions: ActionSheetOption[] = [
+    { key: 'any', label: 'Any day', onPress: () => setWorksOn(null) },
+    ...WEEK.map((w) => ({
+      key: String(w.day),
+      label: w.long,
+      subtitle: w.day === worksOn ? 'Current' : 'Not a weekly day off',
+      onPress: () => setWorksOn(w.day),
+    })),
+  ];
+  const coverageFiltered = Boolean(skill || city || worksOn !== null);
 
   const header = (
     <View style={styles.header}>
@@ -211,11 +279,19 @@ export default function AdminTechniciansScreen() {
         selected={status}
         onSelect={(k) => setStatus(k as TechFilter)}
       />
-      {!wide ? (
-        <FilterRow>
-          <FilterButton label="Sort" value={sortLabel} onPress={() => setSortOpen(true)} />
-        </FilterRow>
-      ) : null}
+      <FilterRow>
+        <FilterButton label="Skill" value={skill ? pestLabel(skill, settings) : null} onPress={() => setFilterSheet('skill')} onClear={() => setSkill('')} />
+        {settings.serviceArea.cities.length ? (
+          <FilterButton label="City" value={city || null} onPress={() => setFilterSheet('city')} onClear={() => setCity('')} />
+        ) : null}
+        <FilterButton
+          label="Works on"
+          value={worksOn !== null ? WEEK.find((w) => w.day === worksOn)?.long ?? null : null}
+          onPress={() => setFilterSheet('day')}
+          onClear={() => setWorksOn(null)}
+        />
+        {!wide ? <FilterButton label="Sort" value={sortLabel} onPress={() => setSortOpen(true)} /> : null}
+      </FilterRow>
     </View>
   );
 
@@ -248,9 +324,21 @@ export default function AdminTechniciansScreen() {
         onRowPress={open}
         rowLabel={(t) => `${t.name}, ${techStatus(t).label}. Open profile`}
         noun="technicians"
-        emptyTitle={debouncedSearch.trim() || status !== 'all' ? 'No matches' : 'No technicians'}
+        emptyTitle={debouncedSearch.trim() || status !== 'all' || coverageFiltered ? 'No matches' : 'No technicians'}
         emptyMessage={
-          debouncedSearch.trim() || status !== 'all' ? 'Try another filter or search' : 'Add a technician to build your field team'
+          debouncedSearch.trim() || status !== 'all' || coverageFiltered
+            ? 'Try another filter or search'
+            : 'Add a technician to build your field team'
+        }
+        emptyActionLabel={coverageFiltered ? 'Clear coverage filters' : undefined}
+        onEmptyAction={
+          coverageFiltered
+            ? () => {
+                setSkill('');
+                setCity('');
+                setWorksOn(null);
+              }
+            : undefined
         }
         skeletonVariant="technician"
         renderCard={(item) => {
@@ -279,6 +367,9 @@ export default function AdminTechniciansScreen() {
                   </View>
                   <Text style={styles.meta} numberOfLines={1}>
                     {item.city ?? 'Field'} · {item.phone ?? item.email}
+                  </Text>
+                  <Text style={styles.coverage} numberOfLines={1}>
+                    {coverageLine(item, settings)}
                   </Text>
                   {item.lastJobDate || item.activeJobs ? (
                     <Text style={styles.jobHint} numberOfLines={1}>
@@ -337,6 +428,9 @@ export default function AdminTechniciansScreen() {
         }}
       />
       <AdminActionSheet visible={sortOpen} title="Sort technicians" options={sortOptions} onClose={() => setSortOpen(false)} />
+      <AdminActionSheet visible={filterSheet === 'skill'} title="Can treat" options={skillOptions} onClose={() => setFilterSheet(null)} />
+      <AdminActionSheet visible={filterSheet === 'city'} title="Covers city" options={cityOptions} onClose={() => setFilterSheet(null)} />
+      <AdminActionSheet visible={filterSheet === 'day'} title="Works on" options={dayOptions} onClose={() => setFilterSheet(null)} />
     </AdminListShell>
   );
 }
@@ -388,6 +482,7 @@ const styles = StyleSheet.create({
   name: { flexShrink: 1, fontFamily: fonts.displayExtra, fontSize: 15.5, color: ui.text, letterSpacing: -0.2 },
   meta: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: ui.textSecondary, marginTop: 2 },
   jobHint: { fontFamily: fonts.bodySemi, fontSize: 11.5, color: ui.brand, marginTop: 2 },
+  coverage: { fontFamily: fonts.body, fontSize: 11.5, color: ui.textSecondary, marginTop: 2 },
   stats: {
     flexDirection: 'row',
     alignItems: 'center',

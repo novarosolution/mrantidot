@@ -18,6 +18,8 @@ const EVENT_ICONS: Record<string, LucideIcon> = {
   admin_override: AppIcons.ui.check,
   schedule_confirmed: AppIcons.ui.calendarCheck,
   rescheduled: AppIcons.ui.calendarClock,
+  reopened: AppIcons.ui.refresh,
+  order_updated: AppIcons.ui.rupee,
 };
 
 function formatTime(iso: string): string {

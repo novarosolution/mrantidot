@@ -1,5 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Copy } from 'lucide-react-native';
+import Toast from 'react-native-toast-message';
 import { TableText, TableTwoLine, type AdminTableColumn } from '@/components/admin/AdminDataTable';
 import { FilterButton, FilterRow } from '@/components/admin/AdminFilterBar';
 import { AdminPagedList, useAdminPagedList } from '@/components/admin/AdminPagedList';
@@ -12,16 +14,20 @@ import { AdminFilterChips, AdminSearchField, AdminStatStrip } from '@/components
 import { formatDayKey } from '@/components/kit/format';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
-import { api, screenLoadConfig } from '@/lib/api';
+import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
-import { notify } from '@/lib/confirm';
+import { confirmAsync } from '@/lib/confirm';
+import { formatTimeAgo } from '@/lib/time-ago';
+import { webTitle } from '@/lib/webKeys';
 import { haptic } from '@/lib/motion';
 import { adminRoutes, appPush } from '@/lib/routes';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { useWideWebLayout } from '@/lib/webAdmin';
 import type { AdminOffersPage, ListSort } from '@/types/adminLists';
-import type { Offer } from '@/types/api';
+import type { OfferWithStats } from '@/types/adminManage';
+
+type Offer = OfferWithStats;
 
 type OfferFilter = 'all' | 'active' | 'inactive' | 'expired';
 
@@ -90,21 +96,50 @@ export default function AdminOffersScreen() {
   useStaleFocusRefresh(() => list.refresh(), 30_000);
   const counts = list.extra;
 
+  /** Switching off asks first (customers lose the code at checkout); switching on is instant. */
   const toggleActive = useCallback(
     async (o: Offer) => {
       const next = !o.active;
+      if (!next) {
+        const ok = await confirmAsync({
+          title: `Turn off ${o.code}?`,
+          message: 'Customers can’t apply it at checkout until you turn it back on. Bookings that already used it keep their discount.',
+          confirmLabel: 'Turn off',
+          cancelLabel: 'Keep on',
+          destructive: true,
+        });
+        if (!ok) return;
+      }
       list.updateItems((items) => items.map((x) => (x.id === o.id ? { ...x, active: next } : x)));
       try {
-        await api.patch(`/admin/offers/${o.id}`, { active: next });
+        await api.patch(`/admin/offers/${o.id}`, { active: next }, { skipErrorToast: true });
         haptic('success');
-      } catch {
+        Toast.show({
+          type: next && isExpired(o) ? 'info' : 'success',
+          text1: next ? `${o.code} is on` : `${o.code} is off`,
+          text2: next && isExpired(o) ? 'It has expired — extend the expiry so customers can use it.' : undefined,
+        });
+      } catch (err) {
         list.updateItems((items) => items.map((x) => (x.id === o.id ? { ...x, active: o.active } : x)));
         haptic('error');
-        notify('Error', 'Could not update offer');
+        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not update the offer') });
       }
     },
     [list],
   );
+
+  /** A switched-off copy with a new code — opens it to edit. */
+  const duplicate = useCallback(async (o: Offer) => {
+    try {
+      const { data } = await api.post<{ offer: Offer }>(`/admin/offers/${o.id}/duplicate`, {}, { skipErrorToast: true });
+      haptic('success');
+      Toast.show({ type: 'success', text1: `Copied as ${data.offer.code}`, text2: 'It is switched off — check it, then turn it on.' });
+      appPush({ pathname: adminRoutes.offerEdit, params: { id: data.offer.id } });
+    } catch (err) {
+      haptic('error');
+      Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not copy the offer') });
+    }
+  }, []);
 
   const columns = useMemo<AdminTableColumn<Offer>[]>(
     () => [
@@ -133,15 +168,39 @@ export default function AdminOffersScreen() {
       },
       {
         key: 'uses',
-        title: 'Uses',
-        width: 96,
+        title: 'Used',
+        width: 116,
         align: 'right',
         sortable: true,
         render: (o) => (
-          <TableText strong>
-            {formatIndianNumber(o.useCount ?? 0)}
-            {o.maxUses ? <Text style={styles.max}> / {formatIndianNumber(o.maxUses)}</Text> : null}
-          </TableText>
+          <TableTwoLine
+            title={
+              <Text style={styles.used}>
+                {formatIndianNumber(o.stats?.uses ?? o.useCount ?? 0)}
+                {o.maxUses ? <Text style={styles.max}> / {formatIndianNumber(o.maxUses)}</Text> : null}
+              </Text>
+            }
+            sub={o.stats?.lastUsedAt ? `Last ${formatTimeAgo(o.stats.lastUsedAt)}` : 'Not used yet'}
+          />
+        ),
+      },
+      {
+        key: 'given',
+        title: 'Discount given',
+        width: 124,
+        align: 'right',
+        render: (o) => <TableText muted={!o.stats?.discountGiven}>{formatINR(o.stats?.discountGiven ?? 0)}</TableText>,
+      },
+      {
+        key: 'revenue',
+        title: 'Revenue',
+        width: 116,
+        align: 'right',
+        render: (o) => (
+          <TableTwoLine
+            title={formatINR(o.stats?.revenue ?? 0)}
+            sub={o.stats?.completed ? `${o.stats.completed} completed` : undefined}
+          />
         ),
       },
       {
@@ -155,7 +214,7 @@ export default function AdminOffersScreen() {
       {
         key: 'state',
         title: 'Status',
-        width: 172,
+        width: 214,
         render: (o) => {
           const st = offerState(o);
           return (
@@ -170,12 +229,22 @@ export default function AdminOffersScreen() {
               >
                 <Text style={styles.toggleText}>{o.active ? 'Turn off' : 'Turn on'}</Text>
               </Pressable>
+              <Pressable
+                ref={webTitle(`Duplicate ${o.code}`)}
+                onPress={() => void duplicate(o)}
+                hitSlop={6}
+                style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel={`Duplicate ${o.code}`}
+              >
+                <Copy size={14} color={colors.forest} strokeWidth={2.3} />
+              </Pressable>
             </View>
           );
         },
       },
     ],
-    [toggleActive],
+    [toggleActive, duplicate],
   );
 
   const sortOptions: ActionSheetOption[] = SORTS.map((o) => ({
@@ -215,7 +284,7 @@ export default function AdminOffersScreen() {
           <FilterButton label="Sort" value={sortLabel} onPress={() => setSortOpen(true)} />
         </FilterRow>
       ) : null}
-      <Text style={styles.hint}>Active = switched on and not past its expiry date.</Text>
+      <Text style={styles.hint}>Active = switched on and not past its expiry date. Usage counts bookings with the code (cancelled ones left out).</Text>
     </View>
   );
 
@@ -262,6 +331,17 @@ const styles = StyleSheet.create({
   hint: { fontFamily: fonts.body, fontSize: 12, color: ui.textTertiary, marginBottom: spacing.sm },
   code: { fontFamily: fonts.bodyBold, fontSize: 13.5, letterSpacing: 0.6, color: ui.text },
   max: { fontFamily: fonts.body, color: ui.textTertiary },
+  used: { fontFamily: fonts.bodyBold, fontSize: 13.5, color: ui.text },
+  iconBtn: {
+    width: 30,
+    height: 28,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: ui.border,
+    backgroundColor: colors.white,
+  },
   stateCell: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   toggle: {
     paddingHorizontal: 10,

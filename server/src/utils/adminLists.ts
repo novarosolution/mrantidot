@@ -2,10 +2,10 @@ import { Types } from 'mongoose';
 import { Booking, type IBooking } from '../models/Booking';
 import { LeaveRequest } from '../models/LeaveRequest';
 import { Offer } from '../models/Offer';
-import { Review } from '../models/Review';
+import { Review, adminReviewReply } from '../models/Review';
 import { Service } from '../models/Service';
 import { formatAttendance } from '../models/TechnicianAttendance';
-import { User, sanitizeUser, type IUser } from '../models/User';
+import { User, adminUserJson, sanitizeUser, type IUser, type VipOverride } from '../models/User';
 import { AppError } from './AppError';
 import { getAdminConfig } from './adminUser';
 import {
@@ -41,6 +41,8 @@ import { buildJobVisitsForBookings, computeJobVisitAnalytics } from './jobVisit'
 import { normalizePhone } from './phone';
 import { buildAttendanceTrend, buildJobsTrend, TECH_PIPELINE_STATUSES } from './technicianAnalytics';
 import { formatPaySummary, payConfigFromUser, resolveTechEarning, type TechPayConfig } from './techPay';
+import { offerStatsFor } from './offerStats';
+import { technicianCoverageFilter } from './technicianFit';
 
 /**
  * Admin list endpoints (GET /admin/users, /technicians, /customers, /offers, /reviews, /payroll and the
@@ -56,8 +58,8 @@ const NUMBER_TYPES = ['double', 'int', 'long', 'decimal'];
 
 /** The same JSON `sanitizeUser` gives, for `.lean()` documents. */
 function leanUserJson(doc: Record<string, unknown>): Record<string, unknown> {
-  const { _id, __v: _v, passwordHash: _p, ...rest } = doc;
-  return { ...rest, id: String(_id) };
+  const { _id, __v: _v, passwordHash: _p, adminNotes, ...rest } = doc;
+  return { ...rest, id: String(_id), noteCount: Array.isArray(adminNotes) ? adminNotes.length : 0 };
 }
 
 function isEnvAdminLike(user: { role?: unknown; phone?: unknown }): boolean {
@@ -156,6 +158,9 @@ export async function listTechnicians(query: Query) {
   const base: Record<string, unknown> = { role: 'technician' };
   const search = personSearch(query.q);
   if (search) Object.assign(base, search);
+  // Coverage filters: `skill`, `city`, `worksOn` (0–6).
+  const coverage = technicianCoverageFilter(query);
+  if (coverage) Object.assign(base, coverage);
 
   const filter: Record<string, unknown> = { ...base };
   if (query.available === 'true') {
@@ -431,9 +436,19 @@ export async function technicianBookings(idRaw: unknown, query: Query) {
 
 type CustomerTag = 'active' | 'inactive' | 'vip';
 
-/** VIP rule from Business settings → Customers (a threshold of 0 is switched off). */
-export function customerTag(bookingCount: number, totalSpend: number, vip: { vipSpend: number; vipBookings: number }): CustomerTag {
+/**
+ * VIP rule from Business settings → Customers (a threshold of 0 is switched off). The admin's override on the
+ * customer wins: `vip` always VIP, `not_vip` never.
+ */
+export function customerTag(
+  bookingCount: number,
+  totalSpend: number,
+  vip: { vipSpend: number; vipBookings: number },
+  override?: VipOverride | null,
+): CustomerTag {
+  if (override === 'vip') return 'vip';
   if (bookingCount === 0) return 'inactive';
+  if (override === 'not_vip') return 'active';
   const bySpend = vip.vipSpend > 0 && totalSpend >= vip.vipSpend;
   const byCount = vip.vipBookings > 0 && bookingCount >= vip.vipBookings;
   return bySpend || byCount ? 'vip' : 'active';
@@ -443,7 +458,7 @@ const CUSTOMER_STATUSES = ['all', 'active', 'inactive', 'vip', 'disabled', 'new'
 
 /**
  * GET /admin/customers — `status` = active | inactive | vip | disabled | new (joined in the last 7 days),
- * `vip=1` (same as status=vip), `q` (name, phone, email, city),
+ * `vip=1` (same as status=vip), `q` (name, phone, email, city, tags), `tag` (exact tag, any case),
  * `sort` = name (default) | created | spend | bookings | last.
  * `summary` covers every customer; `counts` are per status for the current search.
  */
@@ -472,6 +487,8 @@ export async function listCustomers(query: Query) {
   const weekAgo = Date.now() - 7 * 86_400_000;
   const rx = searchRegex(query.q);
   const digits = phoneDigits(query.q);
+  // `tag`: customers carrying this tag (any case).
+  const tagFilter = typeof query.tag === 'string' && query.tag.trim() ? query.tag.trim().toLowerCase() : '';
 
   type Row = {
     json: Record<string, unknown>;
@@ -490,13 +507,16 @@ export async function listCustomers(query: Query) {
     const s = stats.get(String(c._id));
     const bookingCount = s?.bookingCount ?? 0;
     const totalSpend = s?.totalSpend ?? 0;
-    const tag = customerTag(bookingCount, totalSpend, vipRule);
+    const override = c.vipOverride === 'vip' || c.vipOverride === 'not_vip' ? c.vipOverride : null;
+    const tag = customerTag(bookingCount, totalSpend, vipRule, override);
     const created = c.createdAt instanceof Date ? c.createdAt.getTime() : 0;
-    const text = [c.name, c.email, c.city].filter((x): x is string => typeof x === 'string');
+    const tags = Array.isArray(c.tags) ? (c.tags as unknown[]).filter((t): t is string => typeof t === 'string') : [];
+    const text = [c.name, c.email, c.city, ...tags].filter((x): x is string => typeof x === 'string');
     const matches =
-      !rx ||
-      text.some((t) => rx.test(t)) ||
-      Boolean(digits && typeof c.phone === 'string' && c.phone.includes(digits));
+      (!rx ||
+        text.some((t) => rx.test(t)) ||
+        Boolean(digits && typeof c.phone === 'string' && c.phone.includes(digits))) &&
+      (!tagFilter || tags.some((t) => t.toLowerCase() === tagFilter));
     return {
       json: {
         ...leanUserJson(c),
@@ -504,6 +524,8 @@ export async function listCustomers(query: Query) {
         totalSpend,
         lastBookingAt: s?.lastBookingAt,
         statusTag: tag,
+        tags,
+        vipOverride: override,
       },
       name: typeof c.name === 'string' ? c.name.toLowerCase() : '',
       createdAt: created,
@@ -586,11 +608,12 @@ export async function customerDetail(idRaw: unknown) {
   const totalSpend = bookings.reduce((sum, b) => sum + (b.status === 'completed' ? (b.amount?.total ?? 0) : 0), 0);
 
   return {
-    customer: sanitizeUser(customer as IUser),
+    // Includes the admin-only notes (newest first), tags and VIP override.
+    customer: adminUserJson(customer as IUser),
     bookings: bookings.map((b) => formatBooking(b)),
     totalSpend,
     bookingCount: bookings.length,
-    statusTag: customerTag(bookings.length, totalSpend, settings.customers),
+    statusTag: customerTag(bookings.length, totalSpend, settings.customers, customer.vipOverride),
     lastBookingAt: bookings[0]?.createdAt,
   };
 }
@@ -642,8 +665,10 @@ export async function listOffers(query: Query) {
     Offer.countDocuments({ $and: [base, conditions.expired] }),
   ]);
 
+  // Usage per code from the bookings that carry it (utils/offerStats.ts).
+  const stats = await offerStatsFor(offers.map((o) => o.code));
   return {
-    offers: offers.map((o) => o.toJSON()),
+    offers: offers.map((o) => ({ ...o.toJSON(), stats: stats.get(o.code.toUpperCase()) })),
     ...pageMeta(total, paging),
     counts: { all, active, inactive, expired },
   };
@@ -655,7 +680,7 @@ export async function listOffers(query: Query) {
 
 /**
  * GET /admin/reviews — `rating` (1–5 or a comma list), `visibility` = visible | hidden, `technicianId`,
- * `q` (comment / tags), `from` / `to` (created), `sort` = created (default) | stars.
+ * `q` (comment / tags / reply), `replied` = yes | no, `from` / `to` (created), `sort` = created (default) | stars.
  * `summary` (average, count, hidden, star breakdown) covers every review matching the filters except
  * `rating`, so the breakdown stays a full distribution you can tap to filter.
  */
@@ -669,10 +694,16 @@ export async function listReviews(query: Query) {
   const techId = optionalObjectId(query.technicianId, 'technicianId');
   if (techId) base.technicianId = techId;
   const rx = searchRegex(query.q);
-  if (rx) base.$or = [{ comment: rx }, { tags: rx }];
+  if (rx) base.$or = [{ comment: rx }, { tags: rx }, { 'reply.text': rx }];
   const { from, to } = parseDateRange(query);
   const created = dateFieldRange(from, to);
   if (created) base.createdAt = created;
+  // `replied` = yes (has a reply) | no (waiting for one).
+  if (query.replied === 'yes') base['reply.text'] = { $exists: true, $ne: '' };
+  else if (query.replied === 'no') base.$and = [{ $or: [{ reply: null }, { 'reply.text': { $exists: false } }] }];
+  else if (query.replied !== undefined && query.replied !== '' && query.replied !== 'all') {
+    throw new AppError(400, 'replied must be yes or no');
+  }
 
   const filter: Record<string, unknown> = { ...base };
   if (typeof query.rating === 'string' && query.rating && query.rating !== 'all') {
@@ -723,6 +754,7 @@ export async function listReviews(query: Query) {
       const customer = booking ? personName.get(String(booking.customerId)) : undefined;
       return {
         ...formatReview(r),
+        reply: adminReviewReply(r.reply),
         customerName: customer?.split(' ')[0] || 'Customer',
         customerFullName: customer,
         serviceName: booking ? (serviceName.get(String(booking.serviceId)) ?? 'Service') : 'Service',

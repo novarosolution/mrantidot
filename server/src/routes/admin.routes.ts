@@ -5,7 +5,7 @@ import { requireAuth, requireRole } from '../middleware/auth';
 import { asyncHandler } from '../middleware/error';
 import { User, sanitizeUser, type IUser } from '../models/User';
 import { Offer } from '../models/Offer';
-import { Review } from '../models/Review';
+import { Review, adminReviewReply } from '../models/Review';
 import { formatReview } from '../utils/format';
 import { AppError } from '../utils/AppError';
 import { getAdminConfig } from '../utils/adminUser';
@@ -21,6 +21,11 @@ import {
   streamExportJson,
 } from '../utils/adminExport';
 import { revalidateWebsite } from '../utils/websiteRevalidate';
+import { getBusinessSettings } from '../utils/businessSettings';
+import { offerStatsFor, recentOfferBookings } from '../utils/offerStats';
+import { cleanTechnicianCoverage, COVERAGE_FIELDS } from '../utils/technicianFit';
+import { adminManageRouter, customerAddresses } from './adminManage.routes';
+import { recomputeTechnicianRating } from './reviews.routes';
 import {
   customerDetail,
   listCustomers,
@@ -36,6 +41,9 @@ import {
 export const adminRouter = Router();
 
 adminRouter.use(requireAuth, requireRole('admin'));
+
+// Notes, tags, addresses, review replies, offer copy / delete, technician fit — routes/adminManage.routes.ts.
+adminRouter.use(adminManageRouter);
 
 /**
  * Business data export (no passwords / live OTPs, no row cap — rows are streamed):
@@ -120,6 +128,8 @@ adminRouter.post(
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
     if (req.body.role === 'admin') await assertPrimaryAdmin(req.user!.id);
+    const coverage =
+      req.body.role === 'technician' ? cleanTechnicianCoverage(req.body as Record<string, unknown>, undefined, await getBusinessSettings()) : {};
     const phone = normalizePhone(req.body.phone);
     const existing = await User.findOne({ $or: [{ phone }, { email: req.body.email }] });
     if (existing) {
@@ -148,6 +158,7 @@ adminRouter.post(
               req.body.payFlat !== undefined
                 ? Math.max(0, Math.round(Number(req.body.payFlat)))
                 : 0,
+            ...coverage,
           }
         : {}),
     });
@@ -236,6 +247,10 @@ adminRouter.patch(
       user.displayRating = v === null || v === '' ? null : Number(v);
     }
     if (user.role === 'technician' || req.body.role === 'technician') {
+      if (COVERAGE_FIELDS.some((f) => req.body[f] !== undefined)) {
+        const coverage = cleanTechnicianCoverage(req.body as Record<string, unknown>, user, await getBusinessSettings());
+        Object.assign(user, coverage);
+      }
       if (req.body.payMode === 'percent' || req.body.payMode === 'flat') {
         user.payMode = req.body.payMode;
       }
@@ -352,15 +367,26 @@ adminRouter.put(
 
     const status =
       req.body.status === 'present' ? 'came' : req.body.status === 'leave' ? 'leave' : 'not_came';
+    const word = req.body.status === 'present' ? 'present' : req.body.status === 'leave' ? 'on leave' : 'absent';
+    res.locals.activity = {
+      summary: `Marked ${technician.name} ${word} on ${req.params.date}`,
+      targetLabel: technician.name,
+      fields: ['attendance'],
+    };
     res.json({ attendance: formatAttendance(record), date: req.params.date, status });
   }),
 );
 
-/** Team payroll for a month or any range, optional per-job breakdown — utils/adminLists.ts (payroll). */
+/**
+ * Team payroll for a month or any range, optional per-job breakdown — utils/adminLists.ts (payroll). Each
+ * row also has adjustments / paid / due for the range (utils/payrollLedger.ts; payouts and adjustments
+ * are managed by routes/payroll.routes.ts).
+ */
 adminRouter.get(
   '/payroll',
   asyncHandler(async (req, res) => {
-    res.json(await payroll(req.query as Record<string, unknown>));
+    const { withPayrollLedger } = await import('../utils/payrollLedger');
+    res.json(await withPayrollLedger(await payroll(req.query as Record<string, unknown>)));
   }),
 );
 
@@ -420,7 +446,9 @@ adminRouter.get(
     if (!offer) {
       throw new AppError(404, 'Offer not found');
     }
-    res.json({ offer: offer.toJSON() });
+    // Usage from the bookings that carry the code (utils/offerStats.ts) and the latest of them.
+    const [stats, recent] = await Promise.all([offerStatsFor([offer.code]), recentOfferBookings(offer.code, 5)]);
+    res.json({ offer: offer.toJSON(), stats: stats.get(offer.code), recent });
   }),
 );
 
@@ -436,8 +464,10 @@ adminRouter.post(
   body('minOrderAmount').optional({ nullable: true }).isFloat({ min: 0 }),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
+    const code = String(req.body.code).toUpperCase().trim();
+    if (await Offer.exists({ code })) throw new AppError(409, `${code} already exists — pick another code`, 'CONFLICT');
     const offer = await Offer.create({
-      code: String(req.body.code).toUpperCase().trim(),
+      code,
       discount: req.body.discount,
       discountType: req.body.discountType ?? 'fixed',
       description: req.body.description.trim(),
@@ -446,6 +476,7 @@ adminRouter.post(
       maxUses: req.body.maxUses ?? undefined,
       minOrderAmount: req.body.minOrderAmount ?? undefined,
     });
+    res.locals.activity = { summary: `Created offer ${offer.code}`, targetId: String(offer._id), targetLabel: offer.code };
     revalidateWebsite(['offers']);
     res.status(201).json({ offer: offer.toJSON() });
   }),
@@ -488,6 +519,11 @@ adminRouter.patch(
     if (!offer) {
       throw new AppError(404, 'Offer not found');
     }
+    const onlyActive = typeof req.body.active === 'boolean' && Object.keys(req.body).length === 1;
+    res.locals.activity = {
+      summary: onlyActive ? `Switched offer ${offer.code} ${offer.active ? 'on' : 'off'}` : `Updated offer ${offer.code}`,
+      targetLabel: offer.code,
+    };
     revalidateWebsite(['offers']);
     res.json({ offer: offer.toJSON() });
   }),
@@ -502,6 +538,7 @@ adminRouter.delete(
     if (!offer) {
       throw new AppError(404, 'Offer not found');
     }
+    res.locals.activity = { summary: `Switched offer ${offer.code} off`, targetLabel: offer.code, fields: ['active'] };
     revalidateWebsite(['offers']);
     res.json({ offer: offer.toJSON() });
   }),
@@ -530,15 +567,13 @@ adminRouter.patch(
       throw new AppError(404, 'Review not found');
     }
 
-    const agg = await Review.aggregate([
-      { $match: { technicianId: review.technicianId, hidden: { $ne: true } } },
-      { $group: { _id: null, avg: { $avg: '$stars' } } },
-    ]);
-    await User.findByIdAndUpdate(review.technicianId, {
-      rating: Math.round((agg[0]?.avg ?? 0) * 10) / 10,
-    });
-
-    res.json({ review: formatReview(review) });
+    await recomputeTechnicianRating(review.technicianId);
+    revalidateWebsite(['testimonials']);
+    res.locals.activity = {
+      summary: `${review.hidden ? 'Hid' : 'Showed'} a ${review.stars}★ review (booking #${String(review.bookingId).slice(-6).toUpperCase()})`,
+      fields: ['hidden'],
+    };
+    res.json({ review: { ...formatReview(review), reply: adminReviewReply(review.reply) } });
   }),
 );
 
@@ -583,6 +618,7 @@ const ACCOUNT_FIELDS = [
   'payMode',
   'payPercent',
   'payFlat',
+  ...COVERAGE_FIELDS,
 ] as const;
 
 type AccountSnapshot = Record<(typeof ACCOUNT_FIELDS)[number], unknown>;
@@ -613,9 +649,8 @@ adminRouter.get(
   asyncHandler(async (req, res) => {
     const customer = await User.findOne({ _id: req.params.id, role: 'customer' }).select('_id');
     if (!customer) throw new AppError(404, 'Customer not found');
-    const { SavedAddress } = await import('../models/SavedAddress');
-    const addresses = await SavedAddress.find({ customerId: customer._id }).sort({ isDefault: -1, createdAt: -1 });
-    res.json({ addresses: addresses.map((a) => a.toJSON()) });
+    // Default first; `inServiceArea` false when Business settings → Service area doesn't cover it.
+    res.json({ addresses: await customerAddresses(customer._id) });
   }),
 );
 

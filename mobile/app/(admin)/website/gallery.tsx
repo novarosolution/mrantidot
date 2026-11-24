@@ -36,6 +36,7 @@ import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { GalleryItem, WebsiteImage } from '@/types/api';
 import { adminType, colors, fonts, spacing, ui } from '@/constants/theme';
 import { confirmAsync } from '@/lib/confirm';
+import { deleteWebsiteItem, useWebsiteItemRestored } from '@/lib/websiteTrash';
 import { adminContentWidth } from '@/lib/webAdmin';
 
 const GAP = 10;
@@ -172,20 +173,12 @@ function GallerySheet({
     const id = state.item.id;
     void confirmAsync({
       title: 'Delete this photo?',
-      message: 'It will be removed from the website gallery.',
+      message: 'It will be taken off the website gallery. You can undo it, or restore it from Recently deleted for 30 days.',
       confirmLabel: 'Delete',
       destructive: true,
     }).then(async (ok) => {
       if (!ok) return;
-      try {
-        await api.delete(`/website/admin/gallery/${id}`, { skipErrorToast: true });
-        haptic('success');
-        Toast.show({ type: 'success', text1: 'Photo deleted' });
-        onDeleted(id);
-      } catch (err) {
-        haptic('error');
-        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not delete the photo') });
-      }
+      if (await deleteWebsiteItem('gallery', id, 'Could not delete the photo')) onDeleted(id);
     });
   };
 
@@ -267,6 +260,9 @@ export default function WebsiteGalleryScreen() {
   useEffect(() => {
     void runLoad(load, 'Could not load the gallery');
   }, [load, runLoad]);
+
+  // "Undo" on the delete toast (or Recently deleted) brings a photo back.
+  useWebsiteItemRestored('gallery', () => void load().catch(() => undefined));
 
   const categories = useMemo(
     () => [...new Set(items.map((i) => i.category.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
