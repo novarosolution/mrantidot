@@ -21,13 +21,13 @@ export default function HelpScreen() {
   // Only channels the admin has filled in get a tile.
   const channels: Channel[] = [];
   if (phone) {
-    channels.push({ key: 'phone', icon: AppIcons.ui.phone, label: ui.helpPhoneLabel, value: phone, onPress: () => callPhone(phone) });
+    channels.push({ key: 'phone', icon: AppIcons.ui.phone, label: ui.helpPhoneLabel, value: phone, onPress: () => callPhone(phone, ui) });
   }
   if (whatsapp) {
-    channels.push({ key: 'whatsapp', icon: AppIcons.ui.message, label: ui.helpWhatsappLabel, value: whatsapp, onPress: () => openWhatsApp(whatsapp) });
+    channels.push({ key: 'whatsapp', icon: AppIcons.ui.message, label: ui.helpWhatsappLabel, value: whatsapp, onPress: () => openWhatsApp(whatsapp, ui) });
   }
   if (email) {
-    channels.push({ key: 'email', icon: AppIcons.ui.mail, label: ui.helpEmailLabel, value: email, onPress: () => sendEmail(email) });
+    channels.push({ key: 'email', icon: AppIcons.ui.mail, label: ui.helpEmailLabel, value: email, onPress: () => sendEmail(email, ui) });
   }
 
   return (

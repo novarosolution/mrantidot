@@ -89,12 +89,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...ui.shadow,
   },
-  brand: { fontFamily: fonts.displayExtra, fontSize: 18, letterSpacing: -0.3, color: ui.text },
+  brand: { fontFamily: fonts.displayExtra, fontSize: 16, letterSpacing: -0.3, color: ui.text },
   headline: { alignItems: 'center', marginTop: 26, paddingHorizontal: 24 },
   script: {
     fontFamily: fonts.script,
-    fontSize: 46,
-    lineHeight: 56,
+    fontSize: 38,
+    lineHeight: 48,
     color: ui.text,
     textAlign: 'center',
     // Dancing Script's swashes overhang the line box; a little padding stops them clipping.
@@ -102,9 +102,9 @@ const styles = StyleSheet.create({
   },
   bold: {
     fontFamily: fonts.displayExtra,
-    fontSize: 38,
-    lineHeight: 44,
-    letterSpacing: -1.2,
+    fontSize: 30,
+    lineHeight: 36,
+    letterSpacing: -0.9,
     color: ui.text,
     textAlign: 'center',
   },

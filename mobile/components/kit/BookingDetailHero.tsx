@@ -125,7 +125,11 @@ export function BookingDetailHero({
         </View>
       </View>
 
-      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+      {hint ? (
+        <View style={[styles.hintBox, { backgroundColor: visual.bg }]}>
+          <Text style={[styles.hint, { color: visual.ink }]}>{hint}</Text>
+        </View>
+      ) : null}
 
       {pct != null && progress ? (
         <View style={styles.progressBlock}>
@@ -190,17 +194,16 @@ const styles = StyleSheet.create({
   statusTitle: {
     marginTop: 2,
     fontFamily: fonts.displayExtra,
-    fontSize: 20,
-    lineHeight: 26,
-    letterSpacing: -0.45,
+    fontSize: 19,
+    lineHeight: 25,
+    letterSpacing: -0.4,
     color: ui.text,
   },
+  hintBox: { marginTop: 14, paddingHorizontal: 14, paddingVertical: 11, borderRadius: radii.control },
   hint: {
-    marginTop: 12,
-    fontFamily: fonts.body,
-    fontSize: 13.5,
-    lineHeight: 20,
-    color: ui.textSecondary,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    lineHeight: 19,
   },
   progressBlock: { marginTop: 14 },
   progressTrack: {
@@ -225,12 +228,12 @@ const styles = StyleSheet.create({
   serviceText: { flex: 1, minWidth: 0 },
   serviceName: {
     fontFamily: fonts.display,
-    fontSize: 15.5,
+    fontSize: 15,
     lineHeight: 20,
     letterSpacing: -0.2,
     color: ui.text,
   },
-  serviceMeta: { marginTop: 3, fontFamily: fonts.bodyMedium, fontSize: 12.5, color: ui.textSecondary },
+  serviceMeta: { marginTop: 3, fontFamily: fonts.bodyMedium, fontSize: 12, color: ui.textSecondary },
   amountCol: { alignItems: 'flex-end' },
   amountLabel: { fontFamily: fonts.bodySemi, fontSize: 10.5, letterSpacing: 0.6, color: ui.textTertiary },
   amount: { marginTop: 1, fontFamily: fonts.displayExtra, fontSize: 17, color: ui.text },

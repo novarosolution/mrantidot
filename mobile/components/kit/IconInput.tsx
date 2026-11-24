@@ -100,12 +100,12 @@ export const IconInput = forwardRef<
 IconInput.displayName = 'IconInput';
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: spacing.md },
+  wrap: { marginBottom: 14 },
   label: {
     fontFamily: fonts.bodySemi,
     fontSize: formField.labelSize,
     color: ui.text,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   row: {
     flexDirection: 'row',

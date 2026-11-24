@@ -7,6 +7,7 @@ import { TechPriorityBanner } from '@/components/kit/TechPriorityBanner';
 import { TechScreen, TechScreenGutter, TechScreenList, techScreenStyles } from '@/components/kit/TechScreenKit';
 import { TechConfirmSheet } from '@/components/tech/TechConfirmSheet';
 import { TechDutyCard, type DutyAction } from '@/components/tech/TechDutyCard';
+import { TechBellButton } from '@/components/tech/TechBellButton';
 import { TechDutyPill } from '@/components/tech/TechDutyPill';
 import { TechEarningsCard } from '@/components/tech/TechEarningsCard';
 import { TechInlineNotice } from '@/components/tech/TechInlineNotice';
@@ -164,7 +165,12 @@ export default function TechJobsScreen() {
       eyebrow={copy.techJobsEyebrow}
       title={booking.techJobsTitle}
       subtitle={fillCopy(copy.techJobsGreeting, { name: firstName, date: dateLabel })}
-      right={duty ? <View style={styles.pillWrap}><TechDutyPill state={duty} /></View> : null}
+      right={
+        <View style={styles.headerRight}>
+          {duty ? <TechDutyPill state={duty} /> : null}
+          <TechBellButton />
+        </View>
+      }
     />
   );
 
@@ -355,7 +361,8 @@ export default function TechJobsScreen() {
 }
 
 const styles = StyleSheet.create({
-  pillWrap: { marginTop: 4 },
+  /** Duty pill + inbox bell, centred on each other. */
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerGutter: { marginTop: 10 },
   blockGap: { marginBottom: spacing.sm },
   flex: { flex: 1 },

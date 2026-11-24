@@ -1,25 +1,44 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChevronRight, Pencil, Phone } from 'lucide-react-native';
-import { AdminEntrance, AdminListShell, adminListShellStyles, useListEntrance } from '@/components/kit/AdminListShell';
+import { TableText, TableTwoLine, type AdminTableColumn } from '@/components/admin/AdminDataTable';
+import { FilterButton, FilterRow } from '@/components/admin/AdminFilterBar';
+import { AdminPagedList, useAdminPagedList } from '@/components/admin/AdminPagedList';
+import { formatIndianNumber } from '@/components/charts/chartFormat';
+import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/AdminActionSheet';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
-import { AdminSearchField, AdminStatStrip } from '@/components/kit/AdminPageKit';
+import { AdminListShell } from '@/components/kit/AdminListShell';
+import { AdminFilterChips, AdminSearchField, AdminStatStrip } from '@/components/kit/AdminPageKit';
 import { formatDayKey, initials } from '@/components/kit/format';
-import { AdminListSkeleton } from '@/components/kit/AdminSkeletons';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
-import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
+import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
 import { api, screenLoadConfig } from '@/lib/api';
-import { ADMIN_LIST_PERF } from '@/lib/listConfig';
+import { CACHE_TTL } from '@/lib/apiCache';
+import { technicianDisplayRating, technicianRealRating } from '@/lib/ratings';
 import { adminRoutes, appPush } from '@/lib/routes';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
-import { technicianDisplayRating, technicianRealRating } from '@/lib/ratings';
-import { useScreenLoad } from '@/lib/useScreenLoad';
-import type { AdminTechnician, User } from '@/types/api';
-import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
+import { useWideWebLayout } from '@/lib/webAdmin';
+import type { AdminTechnicianRow, AdminTechniciansPage, ListSort } from '@/types/adminLists';
+import type { User } from '@/types/api';
+
+type TechFilter = 'all' | 'available' | 'off_duty' | 'on_leave' | 'disabled';
+
+const FILTERS: { key: TechFilter; label: string; count: keyof AdminTechniciansPage['counts'] }[] = [
+  { key: 'all', label: 'All', count: 'all' },
+  { key: 'available', label: 'Available', count: 'available' },
+  { key: 'off_duty', label: 'Off duty', count: 'offDuty' },
+  { key: 'on_leave', label: 'On leave today', count: 'onLeave' },
+  { key: 'disabled', label: 'Disabled', count: 'disabled' },
+];
+
+const SORTS: { key: string; label: string; sort: ListSort }[] = [
+  { key: 'name', label: 'Name A–Z', sort: { key: 'name', order: 'asc' } },
+  { key: 'jobs', label: 'Most jobs done', sort: { key: 'jobs', order: 'desc' } },
+  { key: 'rating', label: 'Highest rating', sort: { key: 'rating', order: 'desc' } },
+  { key: 'joined', label: 'Newest first', sort: { key: 'joined', order: 'desc' } },
+];
 
 function techStatus(u: User): { label: string; tone: BadgeTone } {
   if (u.disabled === true) return { label: 'Disabled', tone: 'danger' };
@@ -27,58 +46,182 @@ function techStatus(u: User): { label: string; tone: BadgeTone } {
   return { label: 'Available', tone: 'success' };
 }
 
+function editTech(id: string) {
+  appPush({ pathname: adminRoutes.userEdit, params: { id, returnTo: adminRoutes.technicians } });
+}
+
 export default function AdminTechniciansScreen() {
-  const [techs, setTechs] = useState<AdminTechnician[]>([]);
+  const wide = useWideWebLayout();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
-  const { loading, error, refreshing, runLoad, reload, refresh } = useScreenLoad();
-  const entrance = useListEntrance(!loading);
+  const [status, setStatus] = useState<TechFilter>('all');
+  const [sort, setSort] = useState<ListSort>({ key: 'name', order: 'asc' });
+  const [sortOpen, setSortOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    const { data } = await api.get<{ technicians: AdminTechnician[] }>('/admin/technicians', screenLoadConfig);
-    setTechs(data.technicians);
-  }, []);
+  const query = useMemo(
+    () => ({
+      status: status === 'all' ? undefined : status,
+      q: debouncedSearch.trim() || undefined,
+      sort: sort.key,
+      order: sort.order,
+    }),
+    [status, debouncedSearch, sort],
+  );
 
-  useEffect(() => {
-    void runLoad(load, 'Could not load technicians');
-  }, [load, runLoad]);
+  const fetchPage = useCallback(
+    async (page: number, limit: number, opts: { skipCache: boolean }) => {
+      const { data } = await api.get<AdminTechniciansPage>('/admin/technicians', {
+        ...screenLoadConfig,
+        params: { ...query, page, limit },
+        ...(opts.skipCache ? { skipCache: true } : { cacheTtlMs: CACHE_TTL.adminLists }),
+      });
+      return { items: data.technicians, meta: data, extra: data.counts };
+    },
+    [query],
+  );
 
-  useStaleFocusRefresh(() => load().catch(() => undefined), 3_000);
+  const list = useAdminPagedList<AdminTechnicianRow, AdminTechniciansPage['counts']>({
+    fetchPage,
+    deps: [query],
+    keyOf: (t) => t.id,
+    errorMessage: 'Could not load technicians',
+  });
 
-  const visibleTechnicians = useMemo(() => {
-    const q = debouncedSearch.trim().toLowerCase();
-    if (!q) return techs;
-    return techs.filter(
-      (t) =>
-        t.name.toLowerCase().includes(q) ||
-        (t.phone ?? '').includes(q) ||
-        t.email.toLowerCase().includes(q) ||
-        (t.city ?? '').toLowerCase().includes(q),
-    );
-  }, [techs, debouncedSearch]);
+  useStaleFocusRefresh(() => list.refresh(), 3_000);
 
-  const availableCount = useMemo(() => techs.filter((t) => t.available !== false && !t.disabled).length, [techs]);
-  const offDutyCount = useMemo(() => techs.filter((t) => t.available === false && !t.disabled).length, [techs]);
-  const disabledCount = useMemo(() => techs.filter((t) => t.disabled).length, [techs]);
+  const counts = list.extra;
+  const open = useCallback((t: AdminTechnicianRow) => appPush(adminRoutes.technician(t.id)), []);
 
-  if (loading) {
-    return (
-      <AdminListShell title="Technicians" subtitle="Roster & availability" backFallback={adminRoutes.team}>
-        <AdminListSkeleton variant="technician" strip search rows={3} />
-      </AdminListShell>
-    );
-  }
+  const columns = useMemo<AdminTableColumn<AdminTechnicianRow>[]>(
+    () => [
+      {
+        key: 'name',
+        title: 'Technician',
+        flex: 1.6,
+        minWidth: 200,
+        sortable: true,
+        defaultOrder: 'asc',
+        render: (t) => (
+          <View style={styles.personCell}>
+            <View style={styles.avatarSm}>
+              <Text style={styles.initSm}>{initials(t.name)}</Text>
+            </View>
+            <TableTwoLine title={t.name} sub={[t.city, t.email].filter(Boolean).join(' · ')} />
+          </View>
+        ),
+      },
+      { key: 'phone', title: 'Phone', width: 132, render: (t) => <TableText>{t.phone || '—'}</TableText> },
+      {
+        key: 'status',
+        title: 'Status',
+        width: 168,
+        render: (t) => {
+          const st = techStatus(t);
+          return (
+            <View style={styles.badges}>
+              <StatusBadge label={st.label} tone={st.tone} />
+              {t.onLeaveToday ? <StatusBadge label="On leave" tone="info" /> : null}
+            </View>
+          );
+        },
+      },
+      {
+        key: 'active',
+        title: 'Active jobs',
+        width: 104,
+        align: 'right',
+        render: (t) => <TableText strong>{formatIndianNumber(t.activeJobs ?? 0)}</TableText>,
+      },
+      {
+        key: 'jobs',
+        title: 'Jobs done',
+        width: 104,
+        align: 'right',
+        sortable: true,
+        render: (t) => <TableText strong>{formatIndianNumber(t.completedJobs ?? t.jobsDone ?? 0)}</TableText>,
+      },
+      {
+        key: 'rating',
+        title: 'Rating',
+        width: 118,
+        sortable: true,
+        render: (t) => {
+          const shown = technicianDisplayRating(t);
+          const real = technicianRealRating(t);
+          return (
+            <TableTwoLine
+              title={shown > 0 ? `★ ${shown.toFixed(1)}` : '—'}
+              sub={real != null ? `Reviews ${real.toFixed(1)}` : 'No reviews'}
+              strong
+            />
+          );
+        },
+      },
+      {
+        key: 'last',
+        title: 'Last job',
+        width: 112,
+        render: (t) => <TableText muted>{t.lastJobDate ? formatDayKey(t.lastJobDate) : '—'}</TableText>,
+      },
+      {
+        key: 'edit',
+        title: '',
+        width: 64,
+        align: 'right',
+        render: (t) => (
+          <Pressable
+            onPress={() => editTech(t.id)}
+            hitSlop={6}
+            style={({ pressed }) => [styles.iconBtn, pressed && styles.actionPressed]}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${t.name}`}
+          >
+            <Pencil size={15} color={ui.brand} strokeWidth={2.2} />
+          </Pressable>
+        ),
+      },
+    ],
+    [],
+  );
 
-  if (error) {
-    return (
-      <AdminListShell title="Technicians" subtitle="Error" backFallback={adminRoutes.team}>
-        <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
-      </AdminListShell>
-    );
-  }
+  const sortOptions: ActionSheetOption[] = SORTS.map((o) => ({
+    key: o.key,
+    label: o.label,
+    subtitle: o.sort.key === sort.key && o.sort.order === sort.order ? 'Current' : undefined,
+    onPress: () => setSort(o.sort),
+  }));
+  const sortLabel = SORTS.find((o) => o.sort.key === sort.key && o.sort.order === sort.order)?.label;
+
+  const header = (
+    <View style={styles.header}>
+      {counts ? (
+        <AdminStatStrip
+          flush
+          items={[
+            { label: 'Team', value: counts.all },
+            { label: 'Available', value: counts.available, color: colors.green },
+            { label: 'On leave', value: counts.onLeave },
+            { label: 'Disabled', value: counts.disabled, color: counts.disabled ? colors.error : colors.forest },
+          ]}
+        />
+      ) : null}
+      <AdminSearchField value={search} onChangeText={setSearch} placeholder="Search name, phone, email, city" />
+      <AdminFilterChips
+        chips={FILTERS.map((f) => ({ key: f.key, label: counts ? `${f.label} ${counts[f.count]}` : f.label }))}
+        selected={status}
+        onSelect={(k) => setStatus(k as TechFilter)}
+      />
+      {!wide ? (
+        <FilterRow>
+          <FilterButton label="Sort" value={sortLabel} onPress={() => setSortOpen(true)} />
+        </FilterRow>
+      ) : null}
+    </View>
+  );
 
   const addBtn = (
     <AdminAddButton
+      label="Add technician"
       onPress={() =>
         appPush({
           pathname: adminRoutes.userEdit,
@@ -88,141 +231,139 @@ export default function AdminTechniciansScreen() {
     />
   );
 
-  const listHeader = (
-    <FadeSlideIn slideFrom={14}>
-      <AdminStatStrip
-        flush
-        items={[
-          { label: 'Team', value: techs.length },
-          { label: 'Available', value: availableCount, color: colors.green },
-          { label: 'Off duty', value: offDutyCount },
-          { label: 'Disabled', value: disabledCount, color: disabledCount ? colors.error : colors.forest },
-        ]}
-      />
-      <View style={styles.searchWrap}>
-        <AdminSearchField value={search} onChangeText={setSearch} placeholder="Search name, phone, city" />
-      </View>
-    </FadeSlideIn>
-  );
-
   return (
     <AdminListShell
       title="Technicians"
-      subtitle={`${availableCount} available · ${techs.length} total`}
+      subtitle={counts ? `${counts.available} available · ${counts.all} total` : 'Roster & availability'}
       rightAction={addBtn}
       backFallback={adminRoutes.team}
     >
-      <FlatList
-        data={visibleTechnicians}
+      <AdminPagedList
+        list={list}
+        columns={columns}
         keyExtractor={(t) => t.id}
-        {...ADMIN_LIST_PERF}
-        ListHeaderComponent={listHeader}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />
+        header={header}
+        sort={sort}
+        onSortChange={setSort}
+        onRowPress={open}
+        rowLabel={(t) => `${t.name}, ${techStatus(t).label}. Open profile`}
+        noun="technicians"
+        emptyTitle={debouncedSearch.trim() || status !== 'all' ? 'No matches' : 'No technicians'}
+        emptyMessage={
+          debouncedSearch.trim() || status !== 'all' ? 'Try another filter or search' : 'Add a technician to build your field team'
         }
-        contentContainerStyle={visibleTechnicians.length === 0 ? adminListShellStyles.empty : adminListShellStyles.list}
-        ListEmptyComponent={
-          <EmptyState
-            title={debouncedSearch.trim() ? 'No matches' : 'No technicians'}
-            message={debouncedSearch.trim() ? 'Try another name, phone or city' : 'Add a technician to build your field team'}
-          />
-        }
-        renderItem={({ item, index }) => {
+        skeletonVariant="technician"
+        renderCard={(item) => {
           const st = techStatus(item);
           const shown = technicianDisplayRating(item);
           const real = technicianRealRating(item);
           return (
-            <AdminEntrance index={index + 1} play={entrance(index)}>
-              <View style={styles.card}>
-                <PressableScale
-                  style={styles.head}
-                  scaleTo={0.98}
-                  onPress={() => appPush(adminRoutes.technician(item.id))}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${item.name}, ${st.label}. Open profile`}
-                >
-                  <View style={styles.avatar}>
-                    <Text style={styles.init}>{initials(item.name)}</Text>
-                  </View>
-                  <View style={styles.flex}>
-                    <View style={styles.nameRow}>
-                      <Text style={styles.name} numberOfLines={1}>
-                        {item.name}
-                      </Text>
-                      <StatusBadge label={st.label} tone={st.tone} />
-                    </View>
-                    <Text style={styles.meta} numberOfLines={1}>
-                      {item.city ?? 'Field'} · {item.phone ?? item.email}
-                    </Text>
-                    {item.lastJobDate || item.activeJobs ? (
-                      <Text style={styles.jobHint} numberOfLines={1}>
-                        {item.activeJobs ? `${item.activeJobs} active` : null}
-                        {item.activeJobs && item.lastJobDate ? ' · ' : null}
-                        {item.lastJobDate ? `Last job ${formatDayKey(item.lastJobDate)}` : null}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <ChevronRight size={18} color={ui.textTertiary} strokeWidth={2.2} />
-                </PressableScale>
-
-                <View style={styles.stats}>
-                  <View style={styles.stat}>
-                    <Text style={styles.statVal} numberOfLines={1}>
-                      {shown > 0 ? `★ ${shown.toFixed(1)}` : '—'}
-                    </Text>
-                    <Text style={styles.statLabel}>Shown rating</Text>
-                  </View>
-                  <View style={styles.statDivider} />
-                  <View style={styles.stat}>
-                    <Text style={styles.statVal}>{real != null ? real.toFixed(1) : '—'}</Text>
-                    <Text style={styles.statLabel}>Reviews avg</Text>
-                  </View>
-                  <View style={styles.statDivider} />
-                  <View style={styles.stat}>
-                    <Text style={styles.statVal}>{item.completedJobs ?? item.jobsDone ?? 0}</Text>
-                    <Text style={styles.statLabel}>Jobs done</Text>
-                  </View>
+            <View style={styles.card}>
+              <PressableScale
+                style={styles.head}
+                scaleTo={0.98}
+                onPress={() => open(item)}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.name}, ${st.label}. Open profile`}
+              >
+                <View style={styles.avatar}>
+                  <Text style={styles.init}>{initials(item.name)}</Text>
                 </View>
-
-                <View style={styles.actions}>
-                  {item.phone ? (
-                    <Pressable
-                      style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}
-                      onPress={() => void Linking.openURL(`tel:${item.phone}`)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Call ${item.name}`}
-                    >
-                      <Phone size={15} color={ui.brand} strokeWidth={2.2} />
-                      <Text style={styles.actionText}>Call</Text>
-                    </Pressable>
+                <View style={styles.flex}>
+                  <View style={styles.nameRow}>
+                    <Text style={styles.name} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    <StatusBadge label={st.label} tone={st.tone} />
+                    {item.onLeaveToday ? <StatusBadge label="On leave" tone="info" /> : null}
+                  </View>
+                  <Text style={styles.meta} numberOfLines={1}>
+                    {item.city ?? 'Field'} · {item.phone ?? item.email}
+                  </Text>
+                  {item.lastJobDate || item.activeJobs ? (
+                    <Text style={styles.jobHint} numberOfLines={1}>
+                      {item.activeJobs ? `${item.activeJobs} active` : null}
+                      {item.activeJobs && item.lastJobDate ? ' · ' : null}
+                      {item.lastJobDate ? `Last job ${formatDayKey(item.lastJobDate)}` : null}
+                    </Text>
                   ) : null}
-                  <Pressable
-                    style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}
-                    onPress={() =>
-                      appPush({
-                        pathname: adminRoutes.userEdit,
-                        params: { id: item.id, returnTo: adminRoutes.technicians },
-                      })
-                    }
-                    accessibilityRole="button"
-                    accessibilityLabel={`Edit ${item.name}`}
-                  >
-                    <Pencil size={15} color={ui.brand} strokeWidth={2.2} />
-                    <Text style={styles.actionText}>Edit</Text>
-                  </Pressable>
+                </View>
+                <ChevronRight size={18} color={ui.textTertiary} strokeWidth={2.2} />
+              </PressableScale>
+
+              <View style={styles.stats}>
+                <View style={styles.stat}>
+                  <Text style={styles.statVal} numberOfLines={1}>
+                    {shown > 0 ? `★ ${shown.toFixed(1)}` : '—'}
+                  </Text>
+                  <Text style={styles.statLabel}>Shown rating</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.stat}>
+                  <Text style={styles.statVal}>{real != null ? real.toFixed(1) : '—'}</Text>
+                  <Text style={styles.statLabel}>Reviews avg</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.stat}>
+                  <Text style={styles.statVal}>{item.completedJobs ?? item.jobsDone ?? 0}</Text>
+                  <Text style={styles.statLabel}>Jobs done</Text>
                 </View>
               </View>
-            </AdminEntrance>
+
+              <View style={styles.actions}>
+                {item.phone ? (
+                  <Pressable
+                    style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}
+                    onPress={() => void Linking.openURL(`tel:${item.phone}`)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Call ${item.name}`}
+                  >
+                    <Phone size={15} color={ui.brand} strokeWidth={2.2} />
+                    <Text style={styles.actionText}>Call</Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}
+                  onPress={() => editTech(item.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Edit ${item.name}`}
+                >
+                  <Pencil size={15} color={ui.brand} strokeWidth={2.2} />
+                  <Text style={styles.actionText}>Edit</Text>
+                </Pressable>
+              </View>
+            </View>
           );
         }}
       />
+      <AdminActionSheet visible={sortOpen} title="Sort technicians" options={sortOptions} onClose={() => setSortOpen(false)} />
     </AdminListShell>
   );
 }
 
 const styles = StyleSheet.create({
-  searchWrap: { marginBottom: spacing.xs },
+  header: { paddingTop: spacing.xs },
+  personCell: { flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 0, maxWidth: '100%' },
+  avatarSm: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.forest,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  initSm: { fontFamily: fonts.displayExtra, fontSize: 12, color: colors.white },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  iconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: ui.border,
+    backgroundColor: colors.white,
+  },
   card: {
     marginBottom: spacing.sm,
     padding: 14,

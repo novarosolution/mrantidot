@@ -152,8 +152,8 @@ const styles = StyleSheet.create({
   name: {
     marginTop: 3,
     fontFamily: fonts.displayExtra,
-    fontSize: 16.5,
-    lineHeight: 21,
+    fontSize: 15,
+    lineHeight: 20,
     letterSpacing: -0.3,
     color: ui.text,
   },

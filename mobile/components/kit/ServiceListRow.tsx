@@ -64,14 +64,18 @@ export const ServiceListRow = memo(function ServiceListRow({
       accessibilityLabel={fillCopy(copy.serviceRowA11y, { service: service.name, price })}
     >
       <View style={styles.info}>
-        {badge ? <Text style={styles.badge}>{badge}</Text> : null}
+        {badge ? (
+          <View style={styles.badgePill}>
+            <Text style={styles.badge}>{badge}</Text>
+          </View>
+        ) : null}
         <Text style={styles.name} numberOfLines={2}>
           {service.name}
         </Text>
         <View style={styles.ratingRow}>
           {rating > 0 ? (
             <>
-              <Star size={12} color={ui.star} fill={ui.star} strokeWidth={1.5} />
+              <Star size={12} color={colors.amber} fill={colors.amber} strokeWidth={1.5} />
               <Text style={styles.rating}>{rating.toFixed(1)}</Text>
               {reviews > 0 ? <Text style={styles.reviews}>({reviews})</Text> : null}
               <Text style={styles.reviews}>·</Text>
@@ -79,8 +83,9 @@ export const ServiceListRow = memo(function ServiceListRow({
           ) : null}
           <Text style={styles.reviews}>{serviceDurationLabel(service)}</Text>
         </View>
-        <Text style={styles.price}>
-          {copy.serviceStartsAtLabel} {price}
+        <Text style={styles.priceRow}>
+          <Text style={styles.priceLabel}>{copy.serviceStartsAtLabel} </Text>
+          <Text style={styles.price}>{price}</Text>
         </Text>
         {bullets.length > 0 ? (
           <View style={styles.bullets}>
@@ -139,41 +144,51 @@ const styles = StyleSheet.create({
   },
   bulletRow: { flexDirection: 'row', gap: 6 },
   bulletDot: { fontFamily: fonts.bodyBold, fontSize: 13, lineHeight: 18, color: ui.textTertiary },
-  bulletText: { flex: 1, fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: ui.textSecondary },
-  viewDetails: { marginTop: 10, fontFamily: fonts.bodyBold, fontSize: 13.5, color: ui.brand },
+  bulletText: { flex: 1, fontFamily: fonts.body, fontSize: 12.5, lineHeight: 18, color: ui.textSecondary },
+  viewDetails: { marginTop: 10, fontFamily: fonts.bodyBold, fontSize: 13, color: ui.brand },
+  badgePill: {
+    alignSelf: 'flex-start',
+    marginBottom: 6,
+    paddingHorizontal: 8,
+    height: 20,
+    borderRadius: radii.pill,
+    backgroundColor: ui.brandSoft,
+    justifyContent: 'center',
+  },
   badge: {
-    marginBottom: 4,
     fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 0.5,
+    fontSize: 10,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
     color: ui.brand,
   },
-  name: { ...typeScale.rowTitleLg, color: ui.text },
+  name: { ...typeScale.rowTitleLg, fontSize: 15.5, lineHeight: 21, color: ui.text },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
-  rating: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: ui.text },
-  reviews: { fontFamily: fonts.body, fontSize: 12.5, color: ui.textSecondary },
-  price: { ...typeScale.bodyStrong, fontFamily: fonts.bodyBold, marginTop: 6, color: ui.text },
+  rating: { fontFamily: fonts.bodyBold, fontSize: 12, color: ui.text },
+  reviews: { fontFamily: fonts.body, fontSize: 12, color: ui.textSecondary },
+  priceRow: { marginTop: 8 },
+  priceLabel: { fontFamily: fonts.bodyMedium, fontSize: 12, color: ui.textSecondary },
+  price: { fontFamily: fonts.displayExtra, fontSize: 16, letterSpacing: -0.3, color: ui.text },
   desc: {
     marginTop: 8,
     fontFamily: fonts.body,
-    fontSize: 12.5,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 17,
     color: ui.textSecondary,
   },
   media: { width: THUMB, alignItems: 'center' },
   book: {
-    marginTop: -16,
-    minWidth: 84,
-    height: 38,
+    marginTop: -15,
+    minWidth: 80,
+    height: 34,
     paddingHorizontal: 16,
     borderRadius: radii.pill,
-    borderWidth: 2,
-    borderColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: ui.brand,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: ui.brand,
+    backgroundColor: colors.white,
     ...ui.shadowFloat,
   },
-  bookText: { fontFamily: fonts.bodyBold, fontSize: 13.5, color: colors.white },
+  bookText: { fontFamily: fonts.bodyBold, fontSize: 13, color: ui.brand },
 });

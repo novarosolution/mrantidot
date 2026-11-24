@@ -63,9 +63,15 @@ const styles = StyleSheet.create({
   },
   titleCompact: {
     ...customerType.sectionTitleCompact,
+    fontSize: 17,
+    lineHeight: 23,
   },
+  /** Grey secondary line — the shared caption style has no colour of its own. */
   subtitle: {
     ...customerType.sectionSubtitle,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: colors.muted,
   },
   link: { ...customerType.sectionLink },
   action: { flexDirection: 'row', alignItems: 'center', gap: 4 },

@@ -27,6 +27,10 @@ const EVENTS: { event: string; title: string; when: string }[] = [
   { event: 'reschedule_requested', title: 'Reschedule requested', when: 'A customer moves a visit and it waits for you' },
   { event: 'rescheduled', title: 'Visit rescheduled', when: 'A visit gets a new confirmed time' },
   { event: 'cancelled', title: 'Booking cancelled', when: 'A booking is cancelled' },
+  // Technician time off (not part of a visit).
+  { event: 'leave_requested', title: 'Leave requested', when: 'A technician asks for time off' },
+  { event: 'leave_approved', title: 'Leave approved', when: 'You approve a leave request' },
+  { event: 'leave_rejected', title: 'Leave not approved', when: 'You turn down a leave request' },
 ];
 
 const AUDIENCES: { key: Audience; label: string }[] = [
@@ -35,12 +39,15 @@ const AUDIENCES: { key: Audience; label: string }[] = [
   { key: 'admin', label: 'Admins' },
 ];
 
-/** Example values for the preview — the real ones come from the booking. */
+/** Example values for the preview — the real ones come from the booking (or, for leave, the request). */
 const SAMPLE: Record<string, string> = {
   service: 'Termite treatment',
   ref: '#4F2A9C',
   date: 'Tue, 24 Nov',
   time: '10 AM – 12 PM',
+  name: 'Ravi',
+  type: 'Casual',
+  note: 'Back on Thursday.',
 };
 
 /** Same rule as the server's fillTemplate: unknown placeholders become empty. */

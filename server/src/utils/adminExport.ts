@@ -164,11 +164,11 @@ export const EXPORT_DATASETS: Dataset[] = [
     label: 'Bookings',
     group: 'operations',
     headers: [
-      'ref', 'bookingId', 'createdAt', 'visitDate', 'visitSlot', 'visitTime', 'status', 'customerName', 'customerPhone',
-      'customerEmail', 'technicianName', 'technicianPhone', 'service', 'sizeOption', 'propertyType', 'address',
-      'paymentMethod', 'paymentStatus', 'paidAt', 'paidVia', 'baseAmount', 'gstPercent', 'gst', 'coupon',
-      'couponCode', 'total', 'technicianEarning', 'workStartedAt', 'workCompletedAt', 'rescheduleCount',
-      'cancelReason',
+      'ref', 'bookingId', 'createdAt', 'source', 'bookedByAdmin', 'visitDate', 'visitSlot', 'visitTime', 'status',
+      'customerName', 'customerPhone', 'customerEmail', 'technicianName', 'technicianPhone', 'service', 'sizeOption',
+      'propertyType', 'address', 'paymentMethod', 'paymentStatus', 'paidAt', 'paidVia', 'paymentRef', 'baseAmount',
+      'gstPercent', 'gst', 'coupon', 'couponCode', 'total', 'technicianEarning', 'workStartedAt', 'workCompletedAt',
+      'rescheduleCount', 'cancelReason', 'cancelledAt',
     ],
     count: (range) => Booking.countDocuments(bookingFilter(range)),
     cursor: (range) =>
@@ -191,6 +191,8 @@ export const EXPORT_DATASETS: Dataset[] = [
         ref: refOf(d._id),
         bookingId: idOf(d._id),
         createdAt: d.createdAt,
+        source: d.source ?? '',
+        bookedByAdmin: (d.createdByAdmin as Doc | undefined)?.name ?? '',
         visitDate: schedule.date,
         visitSlot: schedule.slot,
         visitTime: schedule.time,
@@ -208,6 +210,7 @@ export const EXPORT_DATASETS: Dataset[] = [
         paymentStatus: d.paymentStatus ?? 'unpaid',
         paidAt: d.paidAt,
         paidVia: d.paidVia,
+        paymentRef: d.paymentRef,
         baseAmount: amount.base,
         gstPercent: amount.gstPercent ?? 18,
         gst: amount.gst,
@@ -219,6 +222,7 @@ export const EXPORT_DATASETS: Dataset[] = [
         workCompletedAt: d.workCompletedAt,
         rescheduleCount: d.rescheduleCount ?? 0,
         cancelReason: d.cancelReason,
+        cancelledAt: d.cancelledAt,
       };
     },
     json: (d) => d,
@@ -562,7 +566,7 @@ export async function streamExportCsv(res: Response, datasetKey: unknown, range:
   res.setHeader('Cache-Control', 'no-store');
   const out = streamWriter(res);
   try {
-    await out.write(`﻿${headers.join(',')}\n`);
+    await out.write(`\uFEFF${headers.join(',')}\n`);
     for await (const doc of dataset.cursor(range)) {
       const values = row(doc, labels);
       await out.write(`${headers.map((h) => csvEscape(values[h])).join(',')}\n`);

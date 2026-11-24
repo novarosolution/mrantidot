@@ -9,6 +9,7 @@ import { getReducedMotion, useAmbientLoop } from '@/lib/a11yPrefs';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { useAuth } from '@/context/AuthContext';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { getCustomerTrackingSteps, useBookingCopy } from '@/lib/schedule-copy';
 import { bookingDetailPath, customerRoutes, appReplace } from '@/lib/routes';
 import { colors, fonts, premium, radii, spacing, typeScale, ui } from '@/constants/theme';
@@ -221,16 +222,20 @@ export function BookingSuccessScreen({
   schedule,
   total,
   paymentLabel,
+  forName,
 }: {
   bookingId: string;
   serviceName: string;
   schedule: string;
   total: number;
   paymentLabel?: string;
+  /** Set when the visit is for someone other than the booker. */
+  forName?: string;
 }) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const bookingCopy = useBookingCopy();
+  const labels = useCustomerUiCopy();
 
   // The check draws in ~350 ms — land the success haptic with it.
   useEffect(() => {
@@ -295,6 +300,7 @@ export function BookingSuccessScreen({
               <SummaryRow label={bookingCopy.successLabelReference} value={refLabel} />
               <SummaryRow label={bookingCopy.successLabelService} value={serviceName} />
               <SummaryRow label={bookingCopy.successLabelVisit} value={schedule} />
+              {forName ? <SummaryRow label={labels.bookingVisitContactTitle} value={forName} /> : null}
               {paymentLabel ? <SummaryRow label={bookingCopy.successLabelPayment} value={paymentLabel} /> : null}
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>{bookingCopy.successLabelTotal}</Text>

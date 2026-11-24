@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 8,
   },
-  value: { fontFamily: fonts.displayExtra, fontSize: 24, letterSpacing: -0.6 },
+  value: { fontFamily: fonts.displayExtra, fontSize: 22, letterSpacing: -0.6 },
   unit: { marginTop: 1, fontFamily: fonts.bodyBold, fontSize: 11, letterSpacing: 1.2 },
   perforation: {
     width: 0,
@@ -148,8 +148,8 @@ const styles = StyleSheet.create({
     opacity: 0.35,
   },
   body: { flex: 1, minWidth: 0, paddingHorizontal: 14, paddingVertical: 12, justifyContent: 'center' },
-  code: { fontFamily: fonts.displayExtra, fontSize: 16, letterSpacing: 1, color: ui.text },
-  desc: { marginTop: 3, fontFamily: fonts.body, fontSize: 12.5, lineHeight: 17, color: ui.textSecondary },
+  code: { fontFamily: fonts.displayExtra, fontSize: 15, letterSpacing: 1, color: ui.text },
+  desc: { marginTop: 3, fontFamily: fonts.body, fontSize: 12, lineHeight: 17, color: ui.textSecondary },
   copyPill: {
     alignSelf: 'flex-start',
     flexDirection: 'row',

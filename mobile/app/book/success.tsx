@@ -12,6 +12,7 @@ export default function BookSuccessRoute() {
     schedule?: string | string[];
     total?: string | string[];
     payment?: string | string[];
+    forName?: string | string[];
   }>();
 
   const bookingId = paramString(params.bookingId)?.trim();
@@ -19,6 +20,7 @@ export default function BookSuccessRoute() {
   const schedule = paramString(params.schedule)?.trim() || copy.bookingScheduleTbd;
   const total = Number(paramString(params.total) ?? 0);
   const paymentLabel = paramString(params.payment)?.trim() || undefined;
+  const forName = paramString(params.forName)?.trim() || undefined;
 
   if (!bookingId) return <Redirect href={appHref(customerRoutes.bookings)} />;
 
@@ -29,6 +31,7 @@ export default function BookSuccessRoute() {
       schedule={schedule}
       total={Number.isFinite(total) ? total : 0}
       paymentLabel={paymentLabel}
+      forName={forName}
     />
   );
 }

@@ -13,6 +13,7 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import { AppIcons } from '@/constants/appIcons';
 import { useAuth } from '@/context/AuthContext';
 import { api, getApiErrorMessage } from '@/lib/api';
+import { confirmAsync } from '@/lib/confirm';
 import { haptic, stagger } from '@/lib/motion';
 import { adminRoutes, authRoutes, appPush, appReplace } from '@/lib/routes';
 import { colors, fonts, premiumType, spacing } from '@/constants/theme';
@@ -152,11 +153,21 @@ export default function AdminSettingsScreen() {
       <FadeSlideIn delay={stagger(4)} slideFrom={14}>
         <PressableScale
           onPress={async () => {
+            const ok = await confirmAsync({
+              title: 'Sign out?',
+              message: 'You will need your phone and password to sign in again.',
+              confirmLabel: 'Sign out',
+              cancelLabel: 'Stay signed in',
+              destructive: true,
+            });
+            if (!ok) return;
+            haptic('tap');
             await logout();
             appReplace(authRoutes.login);
           }}
           accessibilityRole="button"
           accessibilityLabel="Sign out"
+          accessibilityHint="Asks before signing you out"
         >
           <GlassPanel padded={false}>
             <View style={styles.logoutCard}>

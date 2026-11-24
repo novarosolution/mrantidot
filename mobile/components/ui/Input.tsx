@@ -64,12 +64,12 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
 Input.displayName = 'Input';
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: spacing.md },
+  wrap: { marginBottom: 14 },
   label: {
     ...premiumType.label,
     fontSize: formField.labelSize,
     color: colors.ink,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   fieldWrap: {
     backgroundColor: formField.bg,

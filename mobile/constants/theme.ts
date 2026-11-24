@@ -316,8 +316,8 @@ export const customerType = {
   } as TextStyle,
   sectionTitle: {
     ...premiumType.sectionTitle,
-    fontSize: 19,
-    lineHeight: 25,
+    fontSize: 18,
+    lineHeight: 24,
     letterSpacing: -0.5,
   } as TextStyle,
   sectionTitleCompact: {
@@ -328,9 +328,10 @@ export const customerType = {
   } as TextStyle,
   sectionSubtitle: {
     ...premiumType.caption,
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 12.5,
+    lineHeight: 18,
     marginTop: 2,
+    color: colors.muted,
   } as TextStyle,
   sectionLink: {
     ...premiumType.buttonAlt,
@@ -540,15 +541,16 @@ export const adminType = {
   } as TextStyle,
   sectionTitle: {
     ...premiumType.sectionTitle,
-    fontSize: 19,
-    lineHeight: 25,
+    fontSize: 18,
+    lineHeight: 24,
     letterSpacing: -0.42,
   } as TextStyle,
   sectionHint: {
     ...premiumType.caption,
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 12.5,
+    lineHeight: 18,
     marginTop: 3,
+    color: colors.muted,
   } as TextStyle,
   sectionLink: {
     ...premiumType.buttonAlt,
@@ -745,26 +747,26 @@ const t = (style: TextStyle): TextStyle => style;
  */
 export const typeScale = {
   /** Big page title on a hero / tab screen. */
-  display: t({ fontFamily: fonts.display, fontSize: 26, lineHeight: 32, letterSpacing: -0.6 }),
+  display: t({ fontFamily: fonts.display, fontSize: 24, lineHeight: 30, letterSpacing: -0.55 }),
   /** Pushed-screen title, sheet hero titles, success headline. */
-  title: t({ fontFamily: fonts.display, fontSize: 22, lineHeight: 28, letterSpacing: -0.45 }),
+  title: t({ fontFamily: fonts.display, fontSize: 21, lineHeight: 27, letterSpacing: -0.45 }),
   /** Section heading inside a page or sheet. */
-  section: t({ fontFamily: fonts.display, fontSize: 18, lineHeight: 24, letterSpacing: -0.35 }),
+  section: t({ fontFamily: fonts.display, fontSize: 17, lineHeight: 23, letterSpacing: -0.35 }),
   /** Card / list-row title. */
-  rowTitle: t({ fontFamily: fonts.bodySemi, fontSize: 15, lineHeight: 21, letterSpacing: -0.2 }),
+  rowTitle: t({ fontFamily: fonts.bodySemi, fontSize: 14.5, lineHeight: 20, letterSpacing: -0.2 }),
   /** Prominent row title (service name, booking card). */
-  rowTitleLg: t({ fontFamily: fonts.bodyBold, fontSize: 16, lineHeight: 22, letterSpacing: -0.25 }),
-  body: t({ fontFamily: fonts.body, fontSize: 14, lineHeight: 20, letterSpacing: -0.05 }),
-  bodyStrong: t({ fontFamily: fonts.bodySemi, fontSize: 14, lineHeight: 20, letterSpacing: -0.05 }),
-  caption: t({ fontFamily: fonts.body, fontSize: 13, lineHeight: 18 }),
-  captionStrong: t({ fontFamily: fonts.bodySemi, fontSize: 13, lineHeight: 18 }),
+  rowTitleLg: t({ fontFamily: fonts.bodyBold, fontSize: 15.5, lineHeight: 21, letterSpacing: -0.25 }),
+  body: t({ fontFamily: fonts.body, fontSize: 13.5, lineHeight: 19, letterSpacing: -0.05 }),
+  bodyStrong: t({ fontFamily: fonts.bodySemi, fontSize: 13.5, lineHeight: 19, letterSpacing: -0.05 }),
+  caption: t({ fontFamily: fonts.body, fontSize: 12.5, lineHeight: 17 }),
+  captionStrong: t({ fontFamily: fonts.bodySemi, fontSize: 12.5, lineHeight: 17 }),
   /** Small uppercase kicker / field label. */
   label: t({ fontFamily: fonts.bodySemi, fontSize: 12, lineHeight: 16, letterSpacing: 0.6, textTransform: 'uppercase' }),
   /** Pills, badges, tab labels. */
   micro: t({ fontFamily: fonts.bodySemi, fontSize: 11, lineHeight: 14, letterSpacing: 0.2 }),
   price: t({ fontFamily: fonts.bodyBold, fontSize: 16, lineHeight: 22, letterSpacing: -0.2 }),
   priceLg: t({ fontFamily: fonts.display, fontSize: 22, lineHeight: 28, letterSpacing: -0.4 }),
-  button: t({ fontFamily: fonts.bodyBold, fontSize: 15, lineHeight: 20 }),
+  button: t({ fontFamily: fonts.bodyBold, fontSize: 14.5, lineHeight: 20 }),
 } as const;
 
 /** Consistent top padding for gradient hero headers so they bleed under the status bar with uniform breathing room. */
@@ -855,8 +857,8 @@ export const premium = {
 
 /** Shared form control sizing — used by Input, IconInput, Button. */
 export const formField = {
-  height: 54,
-  minHeight: 54,
+  height: 50,
+  minHeight: 50,
   radius: radii.control,
   borderWidth: 1.5,
   /** Idle fields are a soft grey fill with no visible outline (same as the auth fields). */
@@ -865,7 +867,7 @@ export const formField = {
   bg: ui.surfaceMuted,
   bgMuted: ui.surfaceMuted,
   bgFocus: '#FFFFFF',
-  labelSize: 13,
+  labelSize: 12.5,
   inputSize: 15,
 };
 

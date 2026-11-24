@@ -411,6 +411,20 @@ export interface ICustomerUiCopy {
   cartEdit: string;
   cartAdd: string;
   cartContactMissing: string;
+  cartForTitle: string;
+  cartForMe: string;
+  cartForOther: string;
+  cartForOtherHint: string;
+  cartForName: string;
+  cartForNamePlaceholder: string;
+  cartForPhone: string;
+  cartForPhonePlaceholder: string;
+  cartForRowSub: string;
+  cartForErrName: string;
+  cartForErrPhone: string;
+  bookingVisitContactTitle: string;
+  bookingVisitContactSub: string;
+  bookingForChip: string;
   cartPropertyMissing: string;
   cartPropertyLabel: string;
   cartPropertyHint: string;
@@ -1408,6 +1422,74 @@ export interface ICustomerUiCopy {
   homeClosingA11y: string;
   trustNoteTitle: string;
   homeTopLocationA11y: string;
+  guideIntroTitle: string;
+  guideIntroBody: string;
+  guideStep1Title: string;
+  guideStep1Body: string;
+  guideStep2Title: string;
+  guideStep2Body: string;
+  guideStep3Title: string;
+  guideStep3Body: string;
+  guideStep4Title: string;
+  guideStep4Body: string;
+  guideStep5Title: string;
+  guideStep5Body: string;
+  guideTimeKicker: string;
+  guideTimeHeading: string;
+  guideTimeSub: string;
+  guideStandardTitle: string;
+  guideStandardBody: string;
+  guideCustomTitle: string;
+  guideCustomBody: string;
+  guideStart: string;
+  otpSendFailed: string;
+  otpSendFailedSub: string;
+  otpInvalidCode: string;
+  otpFailed: string;
+  otpEnterDigits: string;
+  otpSentTo: string;
+  bookingFactCustomer: string;
+  bookingFactCustomerContact: string;
+  bookingFactJob: string;
+  profileNameFallback: string;
+  contactOpenFailed: string;
+  contactOpenFailedSub: string;
+  cartProgressAddress: string;
+  cartProgressTime: string;
+  cartProgressProperty: string;
+  cartProgressPayment: string;
+  cartProgressDoneA11y: string;
+  notifLinkService: string;
+  notifLinkOffers: string;
+  notifLinkUrl: string;
+  notifLoadingMoreA11y: string;
+  bookingDetailCancelTooLateTitle: string;
+  bookingDetailCallUs: string;
+  bookingDetailCancelFailed: string;
+  bookingDetailCancelledByYou: string;
+  bookingDetailCancelledByTeam: string;
+  bookingDetailCancelReason: string;
+  bookingPaymentPaid: string;
+  bookingPaymentRefunded: string;
+  techNotificationsTitle: string;
+  techNotificationsUnread: string;
+  techNotificationsCaughtUp: string;
+  techNotificationsLoadError: string;
+  techNotificationsEmptyTitle: string;
+  techNotificationsEmptyText: string;
+  techNotificationsReadAll: string;
+  techNotificationsClearRead: string;
+  techNotificationsClearTitle: string;
+  techNotificationsClearText: string;
+  techNotificationsClearConfirm: string;
+  techNotificationsCleared: string;
+  techNotificationsUpdateError: string;
+  techNotificationsDeleteA11y: string;
+  techNotificationsLinkError: string;
+  techNotificationsShowing: string;
+  techNotificationsEnd: string;
+  techNotificationsBell: string;
+  techNotificationsBellUnread: string;
 }
 
 export interface IAppConfig {
@@ -1931,6 +2013,20 @@ export const DEFAULT_CUSTOMER_UI_COPY: ICustomerUiCopy = {
   cartEdit: 'Edit',
   cartAdd: 'Add',
   cartContactMissing: 'Add your contact details',
+  cartForTitle: 'Who is this booking for?',
+  cartForMe: 'Myself',
+  cartForOther: 'Someone else',
+  cartForOtherHint: 'They will be at the property. Our technician calls them on the visit day; updates and start/end codes stay in your account.',
+  cartForName: 'Their name',
+  cartForNamePlaceholder: 'e.g. Meera Shah',
+  cartForPhone: 'Their mobile number',
+  cartForPhonePlaceholder: '10-digit mobile number',
+  cartForRowSub: 'Booking for someone else',
+  cartForErrName: 'Enter their name',
+  cartForErrPhone: 'Enter a valid 10-digit mobile number',
+  bookingVisitContactTitle: 'Visit contact',
+  bookingVisitContactSub: 'Our technician will call this person on the visit day',
+  bookingForChip: 'For {name}',
   cartPropertyMissing: 'Select property type',
   cartPropertyLabel: 'Property type',
   cartPropertyHint: 'Helps the technician bring the right treatment',
@@ -2928,6 +3024,74 @@ export const DEFAULT_CUSTOMER_UI_COPY: ICustomerUiCopy = {
   homeClosingA11y: 'A {brand} technician being welcomed at a customer’s front door',
   trustNoteTitle: 'Every booking is protected',
   homeTopLocationA11y: '{title}. Service location: {place}. Tap to refresh',
+  guideIntroTitle: 'Book in 5 easy steps',
+  guideIntroBody: 'Follow this quick guide — pick a service, book your time, and confirm.',
+  guideStep1Title: 'Pick a service',
+  guideStep1Body: 'Browse pest types on Home or Services, then open the service you need.',
+  guideStep2Title: 'Choose date & book time',
+  guideStep2Body: 'Pick a visit day, then choose how you want to book the time (see options below).',
+  guideStep3Title: 'Add property details',
+  guideStep3Body: 'Tell us your property type so the technician brings the right treatment.',
+  guideStep4Title: 'Add your address',
+  guideStep4Body: 'GPS or saved place, then house/flat, optional landmark, and save as Home / Other.',
+  guideStep5Title: 'Pay & confirm',
+  guideStep5Body: 'Apply a coupon if you have one, choose payment, and place the booking.',
+  guideTimeKicker: 'BOOK TIME OPTIONS',
+  guideTimeHeading: 'How do you want to schedule?',
+  guideTimeSub: 'On the date & time step you can use either option — both work day or night.',
+  guideStandardTitle: 'Standard window',
+  guideStandardBody: '2-hour slots — pick a ready-made visit window.',
+  guideCustomTitle: 'Custom time',
+  guideCustomBody: 'Set the exact time that works best for you.',
+  guideStart: 'Start booking',
+  otpSendFailed: 'Could not send code',
+  otpSendFailedSub: 'Try password sign-in instead',
+  otpInvalidCode: 'Invalid code',
+  otpFailed: 'OTP failed',
+  otpEnterDigits: 'Enter {count}-digit code',
+  otpSentTo: 'Sent to {phone}',
+  bookingFactCustomer: 'Customer',
+  bookingFactCustomerContact: 'Customer contact',
+  bookingFactJob: 'Job',
+  profileNameFallback: 'Your account',
+  contactOpenFailed: 'Could not open link',
+  contactOpenFailedSub: 'Please try again from your phone app',
+  cartProgressAddress: 'Address',
+  cartProgressTime: 'Time',
+  cartProgressProperty: 'Property',
+  cartProgressPayment: 'Payment',
+  cartProgressDoneA11y: '{step}, done',
+  notifLinkService: 'View service',
+  notifLinkOffers: 'View offers',
+  notifLinkUrl: 'Open link',
+  notifLoadingMoreA11y: 'Loading older notifications',
+  bookingDetailCancelTooLateTitle: 'Too late to cancel in the app',
+  bookingDetailCallUs: 'Call us',
+  bookingDetailCancelFailed: 'Could not cancel the booking',
+  bookingDetailCancelledByYou: 'You cancelled this booking. You can book again anytime.',
+  bookingDetailCancelledByTeam: '{brand} cancelled this booking. You can book again anytime.',
+  bookingDetailCancelReason: 'Reason: {reason}',
+  bookingPaymentPaid: 'Paid',
+  bookingPaymentRefunded: 'Refunded',
+  techNotificationsTitle: 'Notifications',
+  techNotificationsUnread: '{count} unread',
+  techNotificationsCaughtUp: 'All caught up',
+  techNotificationsLoadError: 'Couldn’t load notifications',
+  techNotificationsEmptyTitle: 'No notifications yet',
+  techNotificationsEmptyText: 'Job updates and messages from the office will show up here.',
+  techNotificationsReadAll: 'Read all',
+  techNotificationsClearRead: 'Clear read',
+  techNotificationsClearTitle: 'Clear read notifications?',
+  techNotificationsClearText: 'Everything you’ve already read will be deleted. Unread notifications stay.',
+  techNotificationsClearConfirm: 'Clear',
+  techNotificationsCleared: 'Read notifications cleared',
+  techNotificationsUpdateError: 'Couldn’t update your notifications',
+  techNotificationsDeleteA11y: 'Delete notification: {title}',
+  techNotificationsLinkError: 'Couldn’t open the link',
+  techNotificationsShowing: 'Showing {shown} of {total}',
+  techNotificationsEnd: 'That’s everything',
+  techNotificationsBell: 'Notifications',
+  techNotificationsBellUnread: 'Notifications, {count} unread',
 };
 
 export const DEFAULT_APP_CONFIG: IAppConfig = {

@@ -26,6 +26,12 @@
       "port": 8081
     },
     {
+      "name": "api-server",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:server"],
+      "port": 4001
+    },
+    {
       "name": "web-next",
       "runtimeExecutable": "npm",
       "runtimeArgs": [

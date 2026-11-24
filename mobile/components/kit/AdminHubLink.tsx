@@ -112,8 +112,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   body: { flex: 1, minWidth: 0 },
-  label: { ...adminType.hubLabel, fontSize: 15, color: ui.text },
-  desc: { ...adminType.hubDesc, fontSize: 12.5, marginTop: 1, color: ui.textSecondary },
+  label: { ...adminType.hubLabel, fontSize: 14.5, color: ui.text },
+  desc: { ...adminType.hubDesc, fontSize: 12, marginTop: 1, color: ui.textSecondary },
   badge: {
     minWidth: 22,
     height: 22,

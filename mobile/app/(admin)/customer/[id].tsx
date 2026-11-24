@@ -22,7 +22,7 @@ import { adminRoutes, appPush } from '@/lib/routes';
 import { paramString } from '@/lib/routeParams';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { isAccountDisabled } from '@/lib/user-helpers';
-import type { Booking, User } from '@/types/api';
+import type { Booking, SavedAddress, User } from '@/types/api';
 import { colors, fonts, premium, spacing, surfaces, ui } from '@/constants/theme';
 import { stagger } from '@/lib/motion';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
@@ -34,6 +34,8 @@ export default function AdminCustomerDetailScreen() {
   const [customer, setCustomer] = useState<User | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [totalSpend, setTotalSpend] = useState(0);
+  /** Saved addresses (null while loading; [] when none or they could not be loaded). */
+  const [addresses, setAddresses] = useState<SavedAddress[] | null>(null);
   const entrance = useListEntrance(!loading);
 
   const load = useCallback(async () => {
@@ -45,6 +47,11 @@ export default function AdminCustomerDetailScreen() {
     setCustomer(data.customer);
     setBookings(data.bookings);
     setTotalSpend(data.totalSpend);
+    // Addresses are extra — a failure here never blocks the profile.
+    api
+      .get<{ addresses: SavedAddress[] }>(`/admin/customers/${id}/addresses`, screenLoadConfig)
+      .then((res) => setAddresses(res.data.addresses))
+      .catch(() => setAddresses((prev) => prev ?? []));
   }, [id]);
 
   useEffect(() => {
@@ -152,13 +159,48 @@ export default function AdminCustomerDetailScreen() {
             </PressableScale>
             <PressableScale
               style={styles.actionBtn}
-              onPress={() => appPush(adminRoutes.bookings)}
+              onPress={() => appPush(adminRoutes.bookingsFiltered({ customerId: customer.id }))}
               accessibilityRole="button"
-              accessibilityLabel="Open bookings"
+              accessibilityLabel={`Open ${customer.name}'s bookings`}
             >
               <PremiumIcon icon={AppIcons.ui.calendar} variant="plain" size="sm" color={colors.forest} />
               <Text style={styles.actionText}>Bookings</Text>
             </PressableScale>
+            {!isDisabled ? (
+              <PressableScale
+                style={[styles.actionBtn, styles.actionPrimary]}
+                onPress={() => appPush(adminRoutes.bookingCreateFor(customer.id))}
+                accessibilityRole="button"
+                accessibilityLabel={`Book a visit for ${customer.name}`}
+              >
+                <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size="sm" color={colors.white} />
+                <Text style={[styles.actionText, styles.actionTextPrimary]}>Book visit</Text>
+              </PressableScale>
+            ) : null}
+          </View>
+
+          <View style={styles.addressBlock}>
+            <Text style={styles.addressTitle}>Saved addresses</Text>
+            {addresses === null ? (
+              <Text style={styles.addressEmpty}>Loading…</Text>
+            ) : addresses.length === 0 ? (
+              <Text style={styles.addressEmpty}>No saved addresses yet.</Text>
+            ) : (
+              addresses.map((a) => (
+                <View key={a.id} style={styles.addressRow}>
+                  <PremiumIcon icon={AppIcons.ui.mapPin} variant="plain" size="xs" color={colors.forest} />
+                  <View style={styles.addressText}>
+                    <Text style={styles.addressLabel} numberOfLines={1}>
+                      {a.label || 'Address'}
+                      {a.isDefault ? '  ·  Default' : ''}
+                    </Text>
+                    <Text style={styles.addressLine} selectable>
+                      {[a.line1, a.city, a.pincode].filter(Boolean).join(', ')}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            )}
           </View>
         </View>
       </FadeSlideIn>
@@ -244,4 +286,19 @@ const styles = StyleSheet.create({
     borderColor: ui.border,
   },
   actionText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
+  actionPrimary: { backgroundColor: colors.forest, borderColor: colors.forest },
+  actionTextPrimary: { color: colors.white },
+  addressBlock: {
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: ui.border,
+    gap: 10,
+  },
+  addressTitle: { fontFamily: fonts.bodySemi, fontSize: 12, color: ui.textSecondary },
+  addressEmpty: { fontFamily: fonts.body, fontSize: 13, color: colors.muted },
+  addressRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  addressText: { flex: 1, minWidth: 0 },
+  addressLabel: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink },
+  addressLine: { fontFamily: fonts.body, fontSize: 12.5, lineHeight: 18, color: colors.muted, marginTop: 1 },
 });

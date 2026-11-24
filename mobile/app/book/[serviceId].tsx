@@ -2,26 +2,29 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, LayoutAnimation, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BadgePercent, Building2, Camera, ChevronDown, Clock3, CreditCard, House, Pencil, Phone, Plus, ReceiptText } from 'lucide-react-native';
+import { BadgePercent, Building2, Camera, ChevronDown, Clock3, CreditCard, House, Pencil, Phone, Plus, ReceiptText, Users } from 'lucide-react-native';
 import { paramString } from '@/lib/routeParams';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
 import { EMPTY_ADDRESS_FORM, addressFormValid, composeAddressLine, composeStreetLine } from '@/components/kit/AddressDetailsForm';
 import { AddressPhotoGrid } from '@/components/kit/AddressPhotoGrid';
 import { BookBillSummary } from '@/components/kit/BookFlowKit';
+import { BookProgress } from '@/components/kit/BookProgress';
 import {
   CartAddressSheet,
+  CartContactSheet,
   CartCouponSheet,
   CartSlotSheet,
   EMPTY_CART_ADDRESS,
   scheduleProblem,
   scheduleTime,
   type CartAddress,
+  type CartContact,
   type CartSchedule,
 } from '@/components/kit/CartSheets';
 import { ListActionRow, ListGroup } from '@/components/kit/ListGroup';
 import { PropertyTypePicker } from '@/components/kit/PropertyTypePicker';
 import { BookPaymentPicker } from '@/components/kit/BookPaymentPicker';
-import { PestImage } from '@/components/kit/ServiceThumb';
+import { ServiceThumb } from '@/components/kit/ServiceThumb';
 import { formatRupeeFull } from '@/components/kit/format';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
@@ -55,14 +58,13 @@ import {
   isSlotBookable,
   localDateKey,
 } from '@/lib/dates';
-import type { Offer, PaymentMethodRecord, PropertyTypeKey, SavedAddress, Service, ServiceTypeKey } from '@/types/api';
+import type { Offer, PaymentMethodRecord, PropertyTypeKey, SavedAddress, Service } from '@/types/api';
 import { isPropertyTypeKey, propertyTypeLabel } from '@/constants/propertyTypes';
-import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import { colors, radii, spacing, typeScale, ui } from '@/constants/theme';
 import { CartSkeleton } from '@/components/kit/ScreenSkeletons';
 import { firstOpenSlot } from '@/components/kit/ScheduleSlotPicker';
 
-type Sheet = 'slot' | 'address' | 'property' | 'payment' | 'coupon' | 'photos' | null;
+type Sheet = 'slot' | 'address' | 'property' | 'payment' | 'coupon' | 'photos' | 'contact' | null;
 type Step = 'address' | 'slot' | 'property' | 'payment';
 
 function initialSchedule(): CartSchedule {
@@ -99,6 +101,8 @@ export default function BookCartScreen() {
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [address, setAddress] = useState<CartAddress>(EMPTY_CART_ADDRESS);
   const [propertyType, setPropertyType] = useState<PropertyTypeKey | null>(null);
+  /** null = booking for myself; otherwise the person the technician should call at the property. */
+  const [contact, setContact] = useState<CartContact>(null);
   const [coupon, setCoupon] = useState(couponParam ?? '');
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodRecord[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
@@ -304,6 +308,7 @@ export default function BookCartScreen() {
         scheduleMode: schedule.mode,
         scheduleRequest,
         propertyType,
+        ...(contact ? { visitContact: contact } : {}),
         ...(option ? { optionKey: option.key } : {}),
         ...(addressId ? { addressId } : { address: typedAddress.trim() }),
         paymentMethod,
@@ -319,6 +324,7 @@ export default function BookCartScreen() {
           schedule: scheduleSummary,
           total: String(data.booking.amount?.total ?? pricing.total),
           payment: paymentLabel(paymentMethod, settings),
+          ...(contact ? { forName: contact.name } : {}),
         },
       });
     } catch (err) {
@@ -362,8 +368,6 @@ export default function BookCartScreen() {
     );
   }
 
-  const type = (service.serviceTypes?.[0] ?? 'general') as ServiceTypeKey;
-  const meta = SERVICE_TYPE_META[type] ?? SERVICE_TYPE_META.general;
   const duration = formatDuration(serviceDurationMins(service));
   const activeOffers = offers.filter((o) => o.active);
   const contactLine = [user?.name?.trim(), formatPhoneDisplay(user?.phone)].filter(Boolean).join(', ');
@@ -375,13 +379,23 @@ export default function BookCartScreen() {
         {header}
 
         <ScrollView style={styles.flex} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {/* The service in the cart, with its size and a way back to change it. */}
           <FadeSlideIn delay={stagger(0)}>
+            <BookProgress
+              steps={[
+                { key: 'address', label: copy.cartProgressAddress, done: addressReady, onPress: () => openStep('address') },
+                { key: 'slot', label: copy.cartProgressTime, done: slotConfirmed, onPress: () => openStep('slot') },
+                { key: 'property', label: copy.cartProgressProperty, done: Boolean(propertyType), onPress: () => openStep('property') },
+                { key: 'payment', label: copy.cartProgressPayment, done: paymentOffered, onPress: () => openStep('payment') },
+              ]}
+            />
+          </FadeSlideIn>
+
+          {/* The service in the cart, with its size and a way back to change it. */}
+          <FadeSlideIn delay={stagger(1)}>
             <View style={styles.card}>
               <View style={styles.item}>
-                <View style={[styles.itemArt, { backgroundColor: meta.bg }]}>
-                  <PestImage source={meta.image} size={52} />
-                </View>
+                {/* Same picture as the catalog row and booking cards (the admin's icon, or the cover photo). */}
+                <ServiceThumb service={service} width={64} radius={radii.control} iconSize={52} />
                 <View style={styles.flex}>
                   <Text style={styles.itemName} numberOfLines={2}>
                     {service.name}
@@ -435,10 +449,11 @@ export default function BookCartScreen() {
           <FadeSlideIn delay={stagger(2)}>
             <ListGroup dividerInset={50}>
               <ListActionRow
-                icon={Phone}
-                title={contactLine || copy.cartContactMissing}
+                icon={contact ? Users : Phone}
+                title={contact ? `${contact.name}, ${formatPhoneDisplay(contact.phone)}` : contactLine || copy.cartContactMissing}
+                sub={contact ? copy.cartForRowSub : copy.cartForMe}
                 action={copy.cartChange}
-                onPress={() => appPush(customerRoutes.settings)}
+                onPress={() => setSheet('contact')}
               />
               <ListActionRow
                 icon={Building2}
@@ -534,9 +549,20 @@ export default function BookCartScreen() {
               <Pencil size={15} color={ui.textSecondary} strokeWidth={2} />
             </PressableScale>
           ) : null}
-          <Animated.View style={{ transform: [{ translateX: ctaShake }] }}>
-            <Button title={nextStep.label} variant="premium" onPress={nextStep.run} loading={loading} />
-          </Animated.View>
+          {/* Total rides beside the button, so the price never scrolls out of sight. */}
+          <View style={styles.ctaRow}>
+            <View style={styles.ctaTotal}>
+              <Text style={styles.ctaTotalValue} numberOfLines={1}>
+                {formatRupeeFull(pricing.total)}
+              </Text>
+              <Text style={styles.ctaTotalSub} numberOfLines={1}>
+                {pricing.coupon > 0 ? fillCopy(copy.cartSavedNote, { amount: formatRupeeFull(pricing.coupon) }) : copy.cartGstNote}
+              </Text>
+            </View>
+            <Animated.View style={[styles.ctaButton, { transform: [{ translateX: ctaShake }] }]}>
+              <Button title={nextStep.label} variant="premium" onPress={nextStep.run} loading={loading} />
+            </Animated.View>
+          </View>
           <Text style={styles.terms}>
             {copy.cartTermsLine.split(/(\{terms\}|\{privacy\})/).map((part, i) =>
               part === '{terms}' ? (
@@ -563,6 +589,16 @@ export default function BookCartScreen() {
         onCommit={(next) => {
           setSchedule(next);
           setSlotConfirmed(true);
+          setSheet(null);
+        }}
+      />
+
+      <CartContactSheet
+        visible={sheet === 'contact'}
+        onClose={() => setSheet(null)}
+        value={contact}
+        onCommit={(next) => {
+          setContact(next);
           setSheet(null);
         }}
       />
@@ -643,7 +679,6 @@ const styles = StyleSheet.create({
     ...ui.shadow,
   },
   item: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
-  itemArt: { width: 64, height: 64, borderRadius: radii.control, alignItems: 'center', justifyContent: 'center' },
   itemName: { ...typeScale.rowTitleLg, color: ui.text },
   itemMeta: { ...typeScale.caption, marginTop: 3, color: ui.textSecondary },
   itemPrice: { ...typeScale.price, color: ui.text },
@@ -677,6 +712,11 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: ui.border,
   },
+  ctaRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingTop: 4 },
+  ctaTotal: { minWidth: 92 },
+  ctaTotalValue: { ...typeScale.price, fontSize: 22, lineHeight: 28, color: ui.text },
+  ctaTotalSub: { ...typeScale.caption, fontSize: 12, marginTop: 1, color: ui.textSecondary },
+  ctaButton: { flex: 1 },
   bottomRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
   bottomText: { ...typeScale.caption, flex: 1, color: ui.textSecondary },
   bottomStrong: { fontFamily: typeScale.button.fontFamily, color: ui.text },

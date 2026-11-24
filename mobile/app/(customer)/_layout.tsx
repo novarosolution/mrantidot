@@ -51,6 +51,9 @@ function CustomerLayout() {
 
   return (
     <Tabs
+      // Account screens (settings, addresses, FAQ…) are hidden tabs: "back" must return to the screen
+      // the customer came from (usually Profile), not jump to the first tab.
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.forest,

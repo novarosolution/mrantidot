@@ -4,11 +4,17 @@ import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { adminShadow } from '@/components/kit/homeUi';
 import { formatDelta, isMeaningfulDelta } from '@/lib/display';
-import { ADMIN_KPI_COLS, adminGridCellWidth } from '@/lib/adminGrid';
+import { ADMIN_KPI_COLS, adminGridCellWidth, useAdminGridCellWidth } from '@/lib/adminGrid';
 import { adminType, colors, fonts, ui } from '@/constants/theme';
 
+/** Measured once when called — prefer `useKpiCardWidth()` in components. */
 export function kpiCardWidth() {
   return adminGridCellWidth(ADMIN_KPI_COLS);
+}
+
+/** KPI tile width for the 2-up (4-up on desktop) grid; follows resizes and the sidebar collapsing. */
+export function useKpiCardWidth(): number {
+  return useAdminGridCellWidth(ADMIN_KPI_COLS);
 }
 
 export function KpiCard({
@@ -34,7 +40,8 @@ export function KpiCard({
   /** Frosted glass surface for mint / glass screens (default on). */
   glass?: boolean;
 }) {
-  const cardWidth = width ?? kpiCardWidth();
+  const autoWidth = useKpiCardWidth();
+  const cardWidth = width ?? autoWidth;
 
   const inner = (
     <View style={styles.content}>

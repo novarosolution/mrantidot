@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react-native';
+import { Plus, User, Users } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { AddressCard } from '@/components/kit/AddressCard';
@@ -138,7 +138,7 @@ export function CartAddressSheet({
     <BottomSheet
       visible={visible}
       onClose={onClose}
-      title={copy.cartAddressTitle}
+      title={creating ? copy.cartStepAddress : copy.cartAddressTitle}
       footer={
         <>
           {areaProblem ? (
@@ -340,6 +340,129 @@ export function CartSlotSheet({
   );
 }
 
+/* ─── Who is this for ──────────────────────────────────────────────── */
+
+/** `null` = the account holder; otherwise the person at the property that the technician should call. */
+export type CartContact = { name: string; phone: string } | null;
+
+/** Digits only, without a +91 / leading 0 — the form the API stores. */
+export function cleanContactPhone(input: string): string {
+  const digits = input.replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
+  if (digits.length === 11 && digits.startsWith('0')) return digits.slice(1);
+  return digits;
+}
+
+export function CartContactSheet({
+  visible,
+  onClose,
+  value,
+  onCommit,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  value: CartContact;
+  onCommit: (contact: CartContact) => void;
+}) {
+  const copy = useCustomerUiCopy();
+  const [other, setOther] = useState(value != null);
+  const [name, setName] = useState(value?.name ?? '');
+  const [phone, setPhone] = useState(value?.phone ?? '');
+  const [tried, setTried] = useState(false);
+  const { x, nudge } = useNudge();
+
+  useEffect(() => {
+    if (!visible) return;
+    setOther(value != null);
+    setName(value?.name ?? '');
+    setPhone(value?.phone ?? '');
+    setTried(false);
+  }, [visible]);
+
+  const nameOk = name.replace(/\s+/g, ' ').trim().length >= 2;
+  const phoneOk = /^[0-9]{10}$/.test(cleanContactPhone(phone));
+
+  function done() {
+    if (!other) {
+      onCommit(null);
+      return;
+    }
+    if (!nameOk || !phoneOk) {
+      setTried(true);
+      nudge();
+      return;
+    }
+    haptic('success');
+    onCommit({ name: name.replace(/\s+/g, ' ').trim(), phone: cleanContactPhone(phone) });
+  }
+
+  return (
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      title={copy.cartForTitle}
+      footer={<Button title={copy.cartDone} variant="premium" onPress={done} />}
+    >
+      <View style={styles.forRow}>
+        {[
+          { key: 'me', on: !other, label: copy.cartForMe, Icon: User },
+          { key: 'other', on: other, label: copy.cartForOther, Icon: Users },
+        ].map(({ key, on, label, Icon }) => (
+          <PressableScale
+            key={key}
+            containerStyle={styles.forTileWrap}
+            style={[styles.forTile, on && styles.forTileOn]}
+            onPress={() => {
+              if (on) return;
+              haptic('select');
+              setOther(key === 'other');
+              setTried(false);
+            }}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={label}
+          >
+            <Icon size={20} color={on ? ui.brand : ui.textSecondary} strokeWidth={2.1} />
+            <Text style={[styles.forLabel, on && styles.forLabelOn]}>{label}</Text>
+          </PressableScale>
+        ))}
+      </View>
+
+      {other ? (
+        <Animated.View style={{ transform: [{ translateX: x }] }}>
+          <Input
+            label={copy.cartForName}
+            value={name}
+            onChangeText={(t) => {
+              setName(t);
+              setTried(false);
+            }}
+            placeholder={copy.cartForNamePlaceholder}
+            autoCapitalize="words"
+            autoComplete="name"
+            maxLength={60}
+            error={tried && !nameOk ? copy.cartForErrName : undefined}
+          />
+          <Input
+            label={copy.cartForPhone}
+            value={phone}
+            onChangeText={(t) => {
+              setPhone(t);
+              setTried(false);
+            }}
+            placeholder={copy.cartForPhonePlaceholder}
+            keyboardType="phone-pad"
+            autoComplete="tel"
+            maxLength={14}
+            error={tried && !phoneOk ? copy.cartForErrPhone : undefined}
+            hint={copy.cartForOtherHint}
+          />
+        </Animated.View>
+      ) : null}
+    </BottomSheet>
+  );
+}
+
 /* ─── Coupon ───────────────────────────────────────────────────────── */
 
 export function CartCouponSheet({
@@ -421,6 +544,22 @@ export function CartCouponSheet({
 }
 
 const styles = StyleSheet.create({
+  forRow: { flexDirection: 'row', gap: 10, marginBottom: 18 },
+  forTileWrap: { flex: 1 },
+  forTile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: ui.border,
+    backgroundColor: colors.white,
+  },
+  forTileOn: { borderColor: ui.brand, borderWidth: 1.5, backgroundColor: ui.brandSoft },
+  forLabel: { ...typeScale.bodyStrong, color: ui.textSecondary },
+  forLabelOn: { color: ui.brand },
   gap: { marginTop: 16 },
   bottomGap: { marginBottom: 14 },
   addAnother: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, minHeight: 44 },

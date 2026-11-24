@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { Bell, ChevronRight, Mail, MapPin, Phone, Settings } from 'lucide-react-native';
+import { Bell, Mail, MapPin, Pencil, Phone, Settings, UserRound } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
@@ -50,6 +50,7 @@ export function CustomerProfileHero({
   title?: string;
   subtitle?: string;
   name: string;
+  /** First letter of the name; empty shows a person icon. */
   initial: string;
   memberSince?: string;
   city?: string;
@@ -69,13 +70,20 @@ export function CustomerProfileHero({
     <View style={styles.wrap}>
       <FocusStatusBar style="dark" />
       <LinearGradient
-        colors={[HOME_HEADER_TOP, HOME_HEADER_BOTTOM]}
+        colors={[HOME_HEADER_TOP, HOME_HEADER_BOTTOM, ui.canvas]}
+        locations={[0, 0.55, 1]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       />
       <PremiumAurora tone="light" base={false} topFade />
+      {/* Melt the wash into the page canvas so it doesn't end on a hard edge under the card. */}
+      <LinearGradient
+        colors={['rgba(247,249,247,0)', ui.canvas]}
+        style={styles.washFade}
+        pointerEvents="none"
+      />
 
       <View style={styles.topRow}>
         <Text style={styles.title} accessibilityRole="header">
@@ -127,7 +135,11 @@ export function CustomerProfileHero({
               end={{ x: 1, y: 1 }}
               style={styles.avatar}
             >
-              <Text style={styles.avatarText}>{initial}</Text>
+              {initial ? (
+                <Text style={styles.avatarText}>{initial}</Text>
+              ) : (
+                <UserRound size={26} color={colors.white} strokeWidth={2.2} />
+              )}
             </LinearGradient>
           </View>
           <View style={styles.identityBody}>
@@ -144,7 +156,9 @@ export function CustomerProfileHero({
               <Text style={styles.addDetails}>{copy.profileAddDetails}</Text>
             )}
           </View>
-          <ChevronRight size={20} color={ui.textTertiary} strokeWidth={2.2} />
+          <View style={styles.editBtn}>
+            <Pencil size={13} color={ui.brand} strokeWidth={2.4} />
+          </View>
         </PressableScale>
 
         {stats && stats.length > 0 ? (
@@ -183,9 +197,9 @@ export function CustomerProfileHero({
 }
 
 const styles = StyleSheet.create({
-  wrap: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 18, overflow: 'hidden' },
+  wrap: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 28, overflow: 'hidden' },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
-  title: { ...typeScale.display, flex: 1, color: ui.text },
+  title: { ...typeScale.display, fontSize: 24, lineHeight: 30, flex: 1, color: ui.text },
   iconBtn: {
     width: 44,
     height: 44,
@@ -211,6 +225,7 @@ const styles = StyleSheet.create({
   },
   badgeText: { fontFamily: fonts.bodyBold, fontSize: 9.5, color: colors.white },
   pressed: { opacity: 0.75 },
+  washFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 44 },
 
   card: {
     borderRadius: radii.card,
@@ -222,16 +237,29 @@ const styles = StyleSheet.create({
   identity: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },
   avatarRing: {
     padding: 3,
-    borderRadius: 36,
+    borderRadius: 38,
     backgroundColor: ui.brandSoft,
+    borderWidth: 1,
+    borderColor: 'rgba(21,148,71,0.18)',
   },
-  avatar: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontFamily: fonts.displayExtra, fontSize: 24, color: colors.white },
+  avatar: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontFamily: fonts.displayExtra, fontSize: 25, color: colors.white },
+  editBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: ui.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   identityBody: { flex: 1, minWidth: 0 },
-  name: { ...typeScale.section, fontSize: 19, lineHeight: 24, color: ui.text },
+  name: { ...typeScale.section, fontSize: 18, lineHeight: 24, marginRight: 34, color: ui.text },
   details: { marginTop: 5, gap: 3 },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  detailText: { flexShrink: 1, fontFamily: fonts.bodyMedium, fontSize: 13, color: ui.textSecondary },
+  detailText: { flexShrink: 1, fontFamily: fonts.bodyMedium, fontSize: 12.5, color: ui.textSecondary },
   addDetails: { marginTop: 4, fontFamily: fonts.bodySemi, fontSize: 13, color: ui.brand },
 
   statsRow: {
@@ -243,6 +271,6 @@ const styles = StyleSheet.create({
   stat: { alignItems: 'center', paddingVertical: 14, gap: 3 },
   statBorder: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: ui.border },
   statTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  statVal: { fontFamily: fonts.displayExtra, fontSize: 19, letterSpacing: -0.4, color: ui.text },
-  statLb: { fontFamily: fonts.bodyMedium, fontSize: 12, color: ui.textSecondary },
+  statVal: { fontFamily: fonts.displayExtra, fontSize: 18, letterSpacing: -0.4, color: ui.text },
+  statLb: { fontFamily: fonts.bodyMedium, fontSize: 11.5, color: ui.textSecondary },
 });

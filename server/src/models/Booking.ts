@@ -124,6 +124,12 @@ export interface IBooking extends Document {
   /** Size/package the customer picked — label and price locked at booking time. */
   option?: { key: string; label: string; price: number };
   address: string;
+  /**
+   * Who will be at the property when the visit is for someone other than the account holder
+   * (a parent, a tenant, a friend…). Technicians call this person; the booker keeps the booking,
+   * updates and start/end codes in their own account.
+   */
+  visitContact?: { name: string; phone: string };
   amount: {
     base: number;
     gst: number;
@@ -298,6 +304,16 @@ const bookingSchema = new Schema<IBooking>(
       required: false,
     },
     address: { type: String, required: true },
+    visitContact: {
+      type: new Schema(
+        {
+          name: { type: String, required: true, trim: true, minlength: 2, maxlength: 60 },
+          phone: { type: String, required: true, trim: true, match: /^[0-9]{10}$/ },
+        },
+        { _id: false },
+      ),
+      required: false,
+    },
     amount: { type: amountSchema, required: true },
     technicianEarning: { type: Number, min: 0 },
     paymentMethod: {

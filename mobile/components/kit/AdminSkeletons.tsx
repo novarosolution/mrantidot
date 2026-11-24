@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { ADMIN_KPI_COLS, adminGridCellWidth } from '@/lib/adminGrid';
+import { ADMIN_KPI_COLS, useAdminGridCellWidth } from '@/lib/adminGrid';
 import { colors, premium, spacing, ui } from '@/constants/theme';
 
 /**
@@ -168,7 +168,7 @@ export function AdminListSkeleton({
 }
 
 function KpiGridSkeleton() {
-  const w = adminGridCellWidth(ADMIN_KPI_COLS);
+  const w = useAdminGridCellWidth(ADMIN_KPI_COLS);
   return (
     <View style={styles.grid}>
       {[0, 1, 2, 3].map((i) => (
@@ -182,25 +182,29 @@ function KpiGridSkeleton() {
   );
 }
 
-/** Dashboard tab — quick actions, KPI grid, status chips and recent bookings. */
+/** A chart card: title bar then the plot area. */
+function ChartCardSkeleton({ height = 170 }: { height?: number }) {
+  return (
+    <View style={styles.gutter}>
+      <Card>
+        <Skeleton width="38%" height={15} radius={6} />
+        <Skeleton width="56%" height={11} radius={5} style={styles.mt8} />
+        <Skeleton width="100%" height={height} radius={14} style={styles.mt16} />
+      </Card>
+    </View>
+  );
+}
+
+/** Dashboard tab — range chips, KPI tiles, revenue chart, status + services cards, today's schedule. */
 export function AdminDashboardSkeleton() {
-  const tile = adminGridCellWidth(4);
   return (
     <View style={styles.page} {...loadingA11y}>
-      <AdminSectionSkeleton />
-      <View style={styles.grid}>
-        {[0, 1, 2, 3].map((i) => (
-          <Card key={i} style={[styles.quickTile, { width: tile }]}>
-            <Skeleton width={46} height={46} radius={14} />
-            <Skeleton width="70%" height={10} radius={5} style={styles.mt12} />
-          </Card>
-        ))}
+      <View style={[styles.gutter, styles.mt12]}>
+        <AdminChipsSkeleton count={5} />
       </View>
-      <AdminSectionSkeleton />
       <KpiGridSkeleton />
-      <View style={styles.gutter}>
-        <AdminChipsSkeleton count={4} />
-      </View>
+      <AdminSectionSkeleton />
+      <ChartCardSkeleton />
       <AdminSectionSkeleton />
       <View style={[styles.gutter, styles.stack]}>
         <AdminRowSkeleton variant="booking" />
@@ -210,33 +214,25 @@ export function AdminDashboardSkeleton() {
   );
 }
 
-/** Reports tab — period card, KPI grid and a couple of chart cards. */
+/** Reports tab — range card, KPI tiles and a couple of chart cards. */
 export function AdminReportsSkeleton() {
   return (
     <View style={styles.page} {...loadingA11y}>
-      <View style={styles.gutter}>
+      <View style={[styles.gutter, styles.mt12]}>
         <Card>
           <Skeleton width={52} height={10} radius={5} />
           <Skeleton width="54%" height={16} radius={6} style={styles.mt8} />
           <View style={styles.mt12}>
-            <AdminChipsSkeleton count={4} />
+            <AdminChipsSkeleton count={5} />
           </View>
         </Card>
       </View>
       <AdminSectionSkeleton />
       <KpiGridSkeleton />
       <AdminSectionSkeleton />
-      <View style={styles.gutter}>
-        <Card>
-          <Skeleton width="100%" height={150} radius={14} />
-        </Card>
-      </View>
+      <ChartCardSkeleton />
       <AdminSectionSkeleton />
-      <View style={styles.gutter}>
-        <Card>
-          <Skeleton width="100%" height={110} radius={14} />
-        </Card>
-      </View>
+      <ChartCardSkeleton height={120} />
     </View>
   );
 }

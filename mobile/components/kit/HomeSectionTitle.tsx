@@ -56,12 +56,12 @@ const styles = StyleSheet.create({
   },
   titleBlock: { flex: 1, minWidth: 0, gap: 4 },
   /** Home feed headings use the large title step (22) in the softer semibold face. */
-  title: { ...typeScale.title, fontFamily: fonts.displaySemi, color: ui.text },
-  subtitle: { ...typeScale.body, color: ui.textSecondary },
+  title: { ...typeScale.section, fontSize: 19, lineHeight: 25, letterSpacing: -0.4, fontFamily: fonts.displaySemi, color: ui.text },
+  subtitle: { ...typeScale.caption, color: ui.textSecondary },
   action: { paddingTop: 4, maxWidth: '36%', minHeight: 32 },
   actionLabel: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 15,
+    fontFamily: fonts.bodySemi,
+    fontSize: 13.5,
     color: ui.brand,
   },
 });

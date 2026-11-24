@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import axios from 'axios';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
+import type { NativeStackNavigationProp } from 'expo-router';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import Toast from 'react-native-toast-message';
@@ -10,6 +12,7 @@ import { AdminSectionTabs, type AdminSectionTab } from '@/components/kit/AdminSe
 import { PendingScheduleCard } from '@/components/kit/PendingScheduleCard';
 import { IconInput } from '@/components/kit/IconInput';
 import { StringListEditor } from '@/components/kit/StringListEditor';
+import { MarkdownEditor } from '@/components/kit/MarkdownEditor';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { Button } from '@/components/ui/Button';
 import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
@@ -17,7 +20,9 @@ import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Spinner } from '@/components/ui/Spinner';
 import { HERO_SLIDE_H, HomeHeroCarousel, promoHeroSlide } from '@/components/kit/HomeHeroCarousel';
 import { PremiumAurora } from '@/components/kit/PremiumAurora';
-import { api, screenLoadConfig } from '@/lib/api';
+import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
+import { chooseAsync, confirmAsync } from '@/lib/confirm';
+import { haptic } from '@/lib/motion';
 import { useAppContent } from '@/context/AppContentContext';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { useScreenLoad } from '@/lib/useScreenLoad';
@@ -145,21 +150,45 @@ export default function AdminContentScreen() {
   const [activeTab, setActiveTab] = useState(CONTENT_TABS[0].key);
   const [screenQuery, setScreenQuery] = useState('');
   const [webQuery, setWebQuery] = useState('');
+  /** Version stamps of the loaded documents — sent back so a save never silently overwrites another admin's. */
+  const [homeVersion, setHomeVersion] = useState<string | undefined>(undefined);
+  const [appVersion, setAppVersion] = useState<string | undefined>(undefined);
+  /** JSON of what the server has — differs from the form while there are unsaved edits. */
+  const [savedHome, setSavedHome] = useState<string | null>(null);
+  const [savedApp, setSavedApp] = useState<string | null>(null);
+  const navigation = useNavigation<NativeStackNavigationProp<Record<string, object | undefined>>>();
+
+  /** Puts a home document from the server into the form and marks it as saved. */
+  const applyHome = useCallback((data: { promo: HomePromo; homeConfig: HomeConfig; updatedAt?: string }) => {
+    const nextPromo = data.promo ?? DEFAULT_PROMO;
+    const nextConfig = mergeHomeConfig(data.homeConfig);
+    setPromo(nextPromo);
+    setHomeConfig(nextConfig);
+    setSavedHome(JSON.stringify({ promo: nextPromo, homeConfig: nextConfig }));
+    setHomeVersion(data.updatedAt);
+  }, []);
+
+  /** Same for the app document. */
+  const applyApp = useCallback((data: { app: AppConfig; updatedAt?: string }) => {
+    const next = mergeAppConfig(data.app);
+    setAppConfig(next);
+    setSavedApp(JSON.stringify(next));
+    setAppVersion(data.updatedAt);
+  }, []);
 
   const load = useCallback(async () => {
     const [homeRes, appRes, svcRes] = await Promise.all([
-      api.get<{ promo: HomePromo; homeConfig: HomeConfig }>('/content/admin/home', screenLoadConfig),
-      api.get<{ app: AppConfig }>('/content/admin/app', screenLoadConfig),
+      api.get<{ promo: HomePromo; homeConfig: HomeConfig; updatedAt?: string }>('/content/admin/home', screenLoadConfig),
+      api.get<{ app: AppConfig; updatedAt?: string }>('/content/admin/app', screenLoadConfig),
       api.get<{ services: Service[] }>('/services', {
         ...screenLoadConfig,
         params: { includeInactive: '1' },
       }),
     ]);
-    setPromo(homeRes.data.promo ?? DEFAULT_PROMO);
-    setHomeConfig(mergeHomeConfig(homeRes.data.homeConfig));
-    setAppConfig(mergeAppConfig(appRes.data.app));
+    applyHome(homeRes.data);
+    applyApp(appRes.data);
     setServices(svcRes.data.services);
-  }, []);
+  }, [applyHome, applyApp]);
 
   useEffect(() => {
     void runLoad(load, 'Could not load content');
@@ -171,25 +200,153 @@ export default function AdminContentScreen() {
     }
   }, [tabParam]);
 
-  async function save() {
+  /* ---------- unsaved changes ---------- */
+  const homeSnapshot = useMemo(() => JSON.stringify({ promo, homeConfig }), [promo, homeConfig]);
+  const appSnapshot = useMemo(() => JSON.stringify(appConfig), [appConfig]);
+  const homeDirty = savedHome !== null && homeSnapshot !== savedHome;
+  const appDirty = savedApp !== null && appSnapshot !== savedApp;
+  const dirty = homeDirty || appDirty;
+
+  const guard = useRef({ dirty: false, saving: false });
+  guard.current = { dirty, saving };
+
+  useEffect(() => {
+    return navigation.addListener('beforeRemove', (e) => {
+      if (!guard.current.dirty || guard.current.saving) return;
+      e.preventDefault();
+      void confirmAsync({
+        title: 'Discard your changes?',
+        message: 'Your app content changes are not saved yet.',
+        confirmLabel: 'Discard',
+        cancelLabel: 'Keep editing',
+        destructive: true,
+      }).then((ok) => {
+        if (!ok) return;
+        guard.current.dirty = false;
+        navigation.dispatch(e.data.action);
+      });
+    });
+  }, [navigation]);
+
+  // A swipe-back can't be stopped half way on iOS — switch it off while there are unsaved changes.
+  useEffect(() => {
+    navigation.setOptions({ gestureEnabled: !dirty });
+  }, [navigation, dirty]);
+
+  // Browser admin: closing or reloading the tab.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !dirty || typeof window === 'undefined') return;
+    const onUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onUnload);
+    return () => window.removeEventListener('beforeunload', onUnload);
+  }, [dirty]);
+
+  const onAbout = useCallback((aboutMarkdown: string) => setAppConfig((a) => ({ ...a, aboutMarkdown })), []);
+  const onTerms = useCallback(
+    (termsMarkdown: string) => setAppConfig((a) => ({ ...a, legal: { ...a.legal, termsMarkdown } })),
+    [],
+  );
+  const onPrivacy = useCallback(
+    (privacyMarkdown: string) => setAppConfig((a) => ({ ...a, legal: { ...a.legal, privacyMarkdown } })),
+    [],
+  );
+
+  /* ---------- saving ---------- */
+  type Part = 'home' | 'app';
+
+  /**
+   * Saves the changed documents. Each carries the version it was loaded at; a 409 means another admin
+   * saved meanwhile, and the admin chooses to load their version or save over it (`force`).
+   */
+  async function save(force: Part[] = []) {
+    if (saving) return;
+    const parts: Part[] = force.length > 0 ? force : [...(homeDirty ? (['home'] as const) : []), ...(appDirty ? (['app'] as const) : [])];
+    if (parts.length === 0) {
+      Toast.show({ type: 'info', text1: 'No changes to save' });
+      return;
+    }
     setSaving(true);
+    guard.current.saving = true;
+    const conflicts: Part[] = [];
+    let failed = false;
     try {
-      const [homeRes, appRes] = await Promise.all([
-        api.patch<{ promo: HomePromo; homeConfig: HomeConfig }>('/content/admin/home', {
-          ...promo,
-          homeConfig,
-        }),
-        api.patch<{ app: AppConfig }>('/content/admin/app', appConfig),
-      ]);
-      setPromo(homeRes.data.promo ?? DEFAULT_PROMO);
-      setHomeConfig(mergeHomeConfig(homeRes.data.homeConfig));
-      setAppConfig(mergeAppConfig(appRes.data.app));
-      await refreshAppContent();
-      Toast.show({ type: 'success', text1: 'Content saved' });
-    } catch {
-      // interceptor handles toast
+      const results = await Promise.allSettled(
+        parts.map((part) =>
+          part === 'home'
+            ? api
+                .patch<{ promo: HomePromo; homeConfig: HomeConfig; updatedAt?: string }>(
+                  '/content/admin/home',
+                  { ...promo, homeConfig, ...(force.includes('home') ? {} : { updatedAt: homeVersion }) },
+                  { skipErrorToast: true },
+                )
+                .then((res) => applyHome(res.data))
+            : api
+                .patch<{ app: AppConfig; updatedAt?: string }>(
+                  '/content/admin/app',
+                  { ...appConfig, ...(force.includes('app') ? {} : { updatedAt: appVersion }) },
+                  { skipErrorToast: true },
+                )
+                .then((res) => applyApp(res.data)),
+        ),
+      );
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled') return;
+        if (axios.isAxiosError(r.reason) && r.reason.response?.status === 409) {
+          conflicts.push(parts[i]);
+        } else {
+          failed = true;
+          Toast.show({ type: 'error', text1: 'Could not save', text2: getApiErrorMessage(r.reason, 'Please try again') });
+        }
+      });
+      if (results.some((r) => r.status === 'fulfilled')) await refreshAppContent();
+      if (conflicts.length === 0 && !failed) {
+        haptic('success');
+        Toast.show({ type: 'success', text1: 'Content saved' });
+      } else if (failed) {
+        haptic('error');
+      }
     } finally {
       setSaving(false);
+      guard.current.saving = false;
+    }
+    if (conflicts.length > 0) await resolveConflict(conflicts);
+  }
+
+  async function resolveConflict(parts: Part[]) {
+    haptic('warning');
+    const what =
+      parts.length === 2 ? 'the home screen and app content' : parts[0] === 'home' ? 'the home screen content' : 'the app content';
+    const choice = await chooseAsync({
+      title: 'Someone else saved meanwhile',
+      message: `Another admin saved ${what} after you opened this screen. Load their version (your unsaved edits there are lost), or save yours over theirs.`,
+      options: [
+        { label: 'Load their version', value: 'reload' },
+        { label: 'Save mine anyway', value: 'overwrite', destructive: true },
+      ],
+      cancelLabel: 'Keep editing',
+    });
+    if (choice === 'reload') {
+      try {
+        await Promise.all(
+          parts.map((part) =>
+            part === 'home'
+              ? api
+                  .get<{ promo: HomePromo; homeConfig: HomeConfig; updatedAt?: string }>('/content/admin/home', screenLoadConfig)
+                  .then((res) => applyHome(res.data))
+              : api
+                  .get<{ app: AppConfig; updatedAt?: string }>('/content/admin/app', screenLoadConfig)
+                  .then((res) => applyApp(res.data)),
+          ),
+        );
+        Toast.show({ type: 'info', text1: 'Loaded the latest version' });
+      } catch (err) {
+        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not load the latest content') });
+      }
+    } else if (choice === 'overwrite') {
+      await save(parts);
     }
   }
 
@@ -319,11 +476,17 @@ export default function AdminContentScreen() {
   return (
     <AdminListShell
       title="App content"
-      subtitle="Manage every customer-facing string"
+      subtitle={dirty ? 'Unsaved changes' : 'Manage every customer-facing string'}
       keyboardAvoid
       stickyFooter={
         <StickyActionBar>
-          <Button title="Save all changes" variant="premium" onPress={save} loading={saving} />
+          <Button
+            title={dirty ? 'Save changes' : 'All changes saved'}
+            variant="premium"
+            onPress={() => void save()}
+            loading={saving}
+            disabled={!dirty || saving}
+          />
         </StickyActionBar>
       }
     >
@@ -762,25 +925,26 @@ export default function AdminContentScreen() {
           <>
             <AdminSectionTitle title="Legal & help" />
             <AdminFormCard>
-              <IconInput
-                label="About (markdown)"
-                multiline
+              <MarkdownEditor
+                label="About"
                 value={appConfig.aboutMarkdown}
-                onChangeText={(aboutMarkdown) => setAppConfig((a) => ({ ...a, aboutMarkdown }))}
+                onChangeText={onAbout}
+                placeholder="Who you are and what you do…"
+                minHeight={160}
               />
-              <IconInput
-                label="Terms of Service (markdown)"
-                multiline
+              <MarkdownEditor
+                label="Terms of Service"
                 value={appConfig.legal.termsMarkdown}
-                onChangeText={(termsMarkdown) => setAppConfig((a) => ({ ...a, legal: { ...a.legal, termsMarkdown } }))}
+                onChangeText={onTerms}
+                placeholder="Write your terms — use ## for headings"
+                minHeight={220}
               />
-              <IconInput
-                label="Privacy Policy (markdown)"
-                multiline
+              <MarkdownEditor
+                label="Privacy Policy"
                 value={appConfig.legal.privacyMarkdown}
-                onChangeText={(privacyMarkdown) =>
-                  setAppConfig((a) => ({ ...a, legal: { ...a.legal, privacyMarkdown } }))
-                }
+                onChangeText={onPrivacy}
+                placeholder="Write your privacy policy — use ## for headings"
+                minHeight={220}
               />
               <View style={styles.blockHead}>
                 <Text style={styles.blockTitle}>FAQ</Text>

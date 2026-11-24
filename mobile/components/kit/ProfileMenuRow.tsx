@@ -17,7 +17,10 @@ export function ProfileMenuRow({
   badge,
 }: {
   icon?: LucideIcon;
-  /** Generated mint-tile image — preferred when available. */
+  /**
+   * Generated mint-tile image. The JPG tiles are framed differently (white ring, inset, full-bleed), so
+   * lists that mix several look uneven — prefer `icon`, which draws every row on the same mint tile.
+   */
   image?: ImageSourcePropType;
   label: string;
   description?: string;
@@ -39,7 +42,8 @@ export function ProfileMenuRow({
       {image ? (
         <Image source={image} style={styles.imageIcon} resizeMode="cover" />
       ) : Icon ? (
-        <PremiumIcon icon={Icon} variant="mint" size="md" color={tint} bg={iconBg} boxSize={40} />
+        // RealIcons sit inside a padded 24-unit box, so 22 reads like the ~19 pt glyphs of the other lists.
+        <PremiumIcon icon={Icon} variant="mint" size={22} color={tint} bg={iconBg} boxSize={40} />
       ) : null}
       <View style={styles.textCol}>
         <View style={styles.labelRow}>
@@ -67,17 +71,17 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 13,
+    paddingVertical: 11,
     paddingHorizontal: spacing.md,
     gap: 12,
-    minHeight: 60,
+    minHeight: 58,
     backgroundColor: colors.white,
   },
   imageIcon: { width: 40, height: 40, borderRadius: radii.thumb },
   border: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: ui.border },
   textCol: { flex: 1, minWidth: 0 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  label: { ...typeScale.rowTitle, color: ui.text },
+  label: { ...typeScale.rowTitle, fontSize: 14.5, lineHeight: 20, color: ui.text },
   badge: {
     minWidth: 20,
     height: 20,
@@ -91,8 +95,8 @@ const styles = StyleSheet.create({
   desc: {
     marginTop: 2,
     fontFamily: fonts.body,
-    fontSize: 12.5,
-    lineHeight: 17,
+    fontSize: 12,
+    lineHeight: 16,
     color: ui.textSecondary,
   },
 });

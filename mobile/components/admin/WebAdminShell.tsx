@@ -53,8 +53,8 @@ import {
   adminScreenTitle,
   setSidebarCollapsed,
   useSidebarCollapsed,
+  useWebContentMaxWidth,
   useWideWebLayout,
-  WEB_CONTENT_MAX_WIDTH,
   WEB_SIDEBAR_COLLAPSED_WIDTH,
   WEB_SIDEBAR_WIDTH,
   WEB_TOPBAR_HEIGHT,
@@ -167,7 +167,8 @@ function useUnreadCount(enabled: boolean, pathname: string) {
     if (!force && now - lastFetch.current < 15_000) return;
     lastFetch.current = now;
     try {
-      const { data } = await api.get<{ unreadCount?: number }>('/notifications', screenLoadConfig);
+      // limit=0: counts only, no notification rows.
+      const { data } = await api.get<{ unreadCount?: number }>('/notifications', { ...screenLoadConfig, params: { limit: 0 } });
       setCount(typeof data?.unreadCount === 'number' ? data.unreadCount : 0);
     } catch {
       // Keep the last count; a real 401 signs out through the API client.
@@ -612,6 +613,8 @@ function TopBar({ title, group, onRefresh }: { title: string; group?: string; on
  */
 export function WebAdminShell({ children }: { children: ReactNode }) {
   const wide = useWideWebLayout();
+  // 1080 px, or 1360 px while a table screen that called useWebWideContent() is focused.
+  const contentMaxWidth = useWebContentMaxWidth();
   const pathname = usePathname() || '/';
   const segments = useSegments() as string[];
   const [epoch, setEpoch] = useState(0);
@@ -630,7 +633,7 @@ export function WebAdminShell({ children }: { children: ReactNode }) {
       {wide ? <Sidebar activeKey={activeItem?.key} pathname={pathname} unread={unread} /> : null}
       <View style={wide ? styles.contentWide : styles.fill}>
         {wide ? <TopBar title={title} group={activeItem?.group} onRefresh={refresh} /> : null}
-        <View style={wide ? styles.column : styles.fill}>
+        <View style={wide ? [styles.column, { maxWidth: contentMaxWidth }] : styles.fill}>
           <View key={epoch} style={styles.fill}>
             {children}
           </View>
@@ -648,7 +651,7 @@ const styles = StyleSheet.create({
   column: {
     flex: 1,
     width: '100%',
-    maxWidth: WEB_CONTENT_MAX_WIDTH,
+    // maxWidth comes from useWebContentMaxWidth() (inline above).
     alignSelf: 'center',
     // No side borders: screens size their grids to exactly this width (adminContentWidth).
     overflow: 'hidden',

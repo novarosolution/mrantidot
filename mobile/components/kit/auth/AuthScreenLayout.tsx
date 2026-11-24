@@ -201,7 +201,7 @@ export const authScreenStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   field: { marginBottom: 16 },
   labelRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 },
-  fieldLabel: { fontFamily: fonts.bodySemi, fontSize: 13.5, color: ui.text },
+  fieldLabel: { fontFamily: fonts.bodySemi, fontSize: 13, color: ui.text },
   fieldLabelFocused: { color: ui.brand },
   optional: { fontFamily: fonts.bodyMedium, fontSize: 12, color: ui.textTertiary },
   fieldCard: {
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    height: 56,
+    height: 52,
     borderRadius: 16,
     backgroundColor: ui.brand,
     shadowColor: ui.brand,
@@ -247,5 +247,5 @@ const styles = StyleSheet.create({
   },
   primaryPressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
   primaryBusy: { opacity: 0.85 },
-  primaryText: { fontFamily: fonts.bodyBold, fontSize: 16, letterSpacing: 0.1, color: colors.white },
+  primaryText: { fontFamily: fonts.bodyBold, fontSize: 15, letterSpacing: 0.1, color: colors.white },
 });

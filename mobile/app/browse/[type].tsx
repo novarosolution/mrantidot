@@ -2,7 +2,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Star } from 'lucide-react-native';
+import { Check, Star } from 'lucide-react-native';
 import { safeGoBack, customerRoutes, sharedRoutes, appPush } from '@/lib/routes';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
 import { ListGroup, ListNavRow } from '@/components/kit/ListGroup';
@@ -127,27 +127,37 @@ export default function ServicesByTypeScreen() {
                   <View style={styles.flex}>
                     {proof ? (
                       <View style={styles.proofRow}>
-                        <Star size={13} color={ui.star} fill={ui.star} strokeWidth={1.5} />
-                        <Text style={styles.proof}>{proof}</Text>
+                        <Star size={12} color={colors.amber} fill={colors.amber} strokeWidth={1.5} />
+                        <Text style={styles.proof} numberOfLines={1}>
+                          {proof}
+                        </Text>
                       </View>
                     ) : null}
                     {from != null ? (
-                      <Text style={styles.from}>
-                        {copy.serviceStartsAtLabel} <Text style={styles.fromStrong}>{formatRupeeFull(from)}</Text>
-                      </Text>
+                      <>
+                        <Text style={styles.fromLabel}>{copy.serviceStartsAtLabel}</Text>
+                        <Text style={styles.fromPrice}>{formatRupeeFull(from)}</Text>
+                      </>
                     ) : null}
                   </View>
-                  {earliest ? (
-                    <View style={styles.earliest}>
-                      <View style={styles.earliestHead}>
-                        <View style={styles.dot} />
-                        <Text style={styles.earliestLabel}>{copy.serviceEarliestLabel}</Text>
-                      </View>
-                      <Text style={styles.earliestValue}>{earliest}</Text>
-                    </View>
-                  ) : null}
                 </View>
-                {badges.length > 0 ? <Text style={styles.badges}>{badges.join('  ·  ')}</Text> : null}
+                {earliest ? (
+                  <View style={styles.earliest}>
+                    <View style={styles.dot} />
+                    <Text style={styles.earliestLabel}>{copy.serviceEarliestLabel}</Text>
+                    <Text style={styles.earliestValue}>{earliest}</Text>
+                  </View>
+                ) : null}
+                {badges.length > 0 ? (
+                  <View style={styles.badgeRow}>
+                    {badges.map((b) => (
+                      <View key={b} style={styles.badge}>
+                        <Check size={12} color={ui.brand} strokeWidth={3} />
+                        <Text style={styles.badgeText}>{b}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
 
                 {/* Quick picks — one tile per treatment, like the reference's sub-category grid. */}
                 {services.length > 1 ? (
@@ -229,34 +239,53 @@ const styles = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
   white: { backgroundColor: colors.white, paddingHorizontal: spacing.md, paddingVertical: 18 },
   band: { height: 8, backgroundColor: ui.canvas },
-  summary: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  art: { width: 72, height: 72, borderRadius: radii.control, alignItems: 'center', justifyContent: 'center' },
-  proofRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  proof: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 13.5,
-    color: ui.text,
+  summary: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  art: { width: 88, height: 88, borderRadius: radii.card, alignItems: 'center', justifyContent: 'center' },
+  proofRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 5,
+    paddingHorizontal: 9,
+    height: 26,
+    borderRadius: radii.pill,
+    backgroundColor: '#FFF7E2',
   },
-  from: { marginTop: 5, fontFamily: fonts.bodyMedium, fontSize: 13.5, color: ui.textSecondary },
-  fromStrong: { fontFamily: fonts.bodyBold, color: ui.text },
+  proof: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: ui.text },
+  fromLabel: { marginTop: 10, fontFamily: fonts.bodyMedium, fontSize: 12, color: ui.textSecondary },
+  fromPrice: { marginTop: 1, fontFamily: fonts.displayExtra, fontSize: 24, lineHeight: 30, letterSpacing: -0.6, color: ui.text },
   earliest: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: radii.thumb,
-    borderWidth: 1,
-    borderColor: ui.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginTop: 16,
+    paddingHorizontal: 14,
+    height: 42,
+    borderRadius: radii.control,
+    backgroundColor: ui.brandSoft,
   },
-  earliestHead: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: ui.brand },
-  earliestLabel: { fontFamily: fonts.bodyBold, fontSize: 11.5, color: ui.brand },
-  earliestValue: { marginTop: 2, fontFamily: fonts.bodySemi, fontSize: 12.5, color: ui.text },
-  badges: { marginTop: 14, fontFamily: fonts.bodyMedium, fontSize: 12.5, color: ui.textSecondary },
-  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 18 },
+  earliestLabel: { fontFamily: fonts.bodyBold, fontSize: 12, color: ui.brand },
+  earliestValue: { flex: 1, textAlign: 'right', fontFamily: fonts.bodySemi, fontSize: 13, color: ui.text },
+  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    height: 28,
+    borderRadius: radii.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: ui.border,
+    backgroundColor: colors.white,
+  },
+  badgeText: { fontFamily: fonts.bodyMedium, fontSize: 12, color: ui.textSecondary },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 20 },
   tile: { width: '30.5%' },
   tileInner: { alignItems: 'center', gap: 8 },
   tileArt: { width: '100%', aspectRatio: 1.15, borderRadius: radii.control, alignItems: 'center', justifyContent: 'center' },
-  tileText: { textAlign: 'center', fontFamily: fonts.bodyMedium, fontSize: 12.5, lineHeight: 16, color: ui.text },
+  tileText: { textAlign: 'center', fontFamily: fonts.bodyMedium, fontSize: 12, lineHeight: 16, color: ui.text },
   section: { backgroundColor: colors.white, paddingTop: 20 },
-  sectionTitle: { ...typeScale.section, marginHorizontal: spacing.md, color: ui.text },
+  sectionTitle: { ...typeScale.section, fontSize: 17, lineHeight: 23, marginHorizontal: spacing.md, color: ui.text },
   footer: { padding: spacing.md, gap: spacing.md },
 });

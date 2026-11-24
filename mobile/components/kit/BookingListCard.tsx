@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { PressableScale } from '@/components/ui/PressableScale';
-import { Calendar, ChevronRight, MapPin } from 'lucide-react-native';
+import { Calendar, ChevronRight, MapPin, Users } from 'lucide-react-native';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import { StatusPill } from '@/components/ui/StatusPill';
 import {
@@ -14,6 +14,7 @@ import {
 } from '@/lib/booking-helpers';
 import type { Booking } from '@/types/api';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { fillCopy } from '@/constants/customerUiCopy';
 import { formatRupeeFull } from '@/components/kit/format';
 import { colors, fonts, radii, statusColors, typeScale, ui } from '@/constants/theme';
 
@@ -66,7 +67,7 @@ export const BookingListCard = memo(function BookingListCard({
       <View style={styles.inner}>
         <View style={styles.top}>
           <View style={styles.iconWrap}>
-            <ServiceIcon iconKey={iconKey} size={28} variant="premium" boxSize={52} />
+            <ServiceIcon iconKey={iconKey} size={36} variant="premium" boxSize={56} />
             {isLive ? <View style={styles.liveDot} /> : null}
           </View>
 
@@ -92,6 +93,15 @@ export const BookingListCard = memo(function BookingListCard({
                 {when}
               </Text>
             </View>
+
+            {booking.visitContact ? (
+              <View style={styles.forChip}>
+                <Users size={11} color={ui.brand} strokeWidth={2.4} />
+                <Text style={styles.forChipText} numberOfLines={1}>
+                  {fillCopy(labels.bookingForChip, { name: booking.visitContact.name })}
+                </Text>
+              </View>
+            ) : null}
 
             {!compact && booking.address ? (
               <View style={styles.metaRow}>
@@ -220,6 +230,18 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: ui.textSecondary,
   },
+  forChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 5,
+    marginTop: 8,
+    paddingHorizontal: 9,
+    height: 24,
+    borderRadius: 999,
+    backgroundColor: ui.brandSoft,
+  },
+  forChipText: { fontFamily: fonts.bodySemi, fontSize: 11.5, color: ui.brand },
   progressTrack: {
     height: 4,
     borderRadius: 2,

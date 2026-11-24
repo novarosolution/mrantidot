@@ -59,6 +59,11 @@ export interface User {
   payFlat?: number;
   /** Primary env-configured admin; role cannot be changed */
   protected?: boolean;
+  /**
+   * Signed-in admin only (login / `/auth/me`): true for the primary admin, the one account that may
+   * create, promote, edit or disable admins and reset another admin's password.
+   */
+  isPrimaryAdmin?: boolean;
   createdAt?: string;
 }
 
@@ -516,6 +521,20 @@ export interface CustomerUiCopy {
   cartEdit: string;
   cartAdd: string;
   cartContactMissing: string;
+  cartForTitle: string;
+  cartForMe: string;
+  cartForOther: string;
+  cartForOtherHint: string;
+  cartForName: string;
+  cartForNamePlaceholder: string;
+  cartForPhone: string;
+  cartForPhonePlaceholder: string;
+  cartForRowSub: string;
+  cartForErrName: string;
+  cartForErrPhone: string;
+  bookingVisitContactTitle: string;
+  bookingVisitContactSub: string;
+  bookingForChip: string;
   cartPropertyMissing: string;
   cartPropertyLabel: string;
   cartPropertyHint: string;
@@ -1513,6 +1532,74 @@ export interface CustomerUiCopy {
   homeClosingA11y: string;
   trustNoteTitle: string;
   homeTopLocationA11y: string;
+  guideIntroTitle: string;
+  guideIntroBody: string;
+  guideStep1Title: string;
+  guideStep1Body: string;
+  guideStep2Title: string;
+  guideStep2Body: string;
+  guideStep3Title: string;
+  guideStep3Body: string;
+  guideStep4Title: string;
+  guideStep4Body: string;
+  guideStep5Title: string;
+  guideStep5Body: string;
+  guideTimeKicker: string;
+  guideTimeHeading: string;
+  guideTimeSub: string;
+  guideStandardTitle: string;
+  guideStandardBody: string;
+  guideCustomTitle: string;
+  guideCustomBody: string;
+  guideStart: string;
+  otpSendFailed: string;
+  otpSendFailedSub: string;
+  otpInvalidCode: string;
+  otpFailed: string;
+  otpEnterDigits: string;
+  otpSentTo: string;
+  bookingFactCustomer: string;
+  bookingFactCustomerContact: string;
+  bookingFactJob: string;
+  profileNameFallback: string;
+  contactOpenFailed: string;
+  contactOpenFailedSub: string;
+  cartProgressAddress: string;
+  cartProgressTime: string;
+  cartProgressProperty: string;
+  cartProgressPayment: string;
+  cartProgressDoneA11y: string;
+  notifLinkService: string;
+  notifLinkOffers: string;
+  notifLinkUrl: string;
+  notifLoadingMoreA11y: string;
+  bookingDetailCancelTooLateTitle: string;
+  bookingDetailCallUs: string;
+  bookingDetailCancelFailed: string;
+  bookingDetailCancelledByYou: string;
+  bookingDetailCancelledByTeam: string;
+  bookingDetailCancelReason: string;
+  bookingPaymentPaid: string;
+  bookingPaymentRefunded: string;
+  techNotificationsTitle: string;
+  techNotificationsUnread: string;
+  techNotificationsCaughtUp: string;
+  techNotificationsLoadError: string;
+  techNotificationsEmptyTitle: string;
+  techNotificationsEmptyText: string;
+  techNotificationsReadAll: string;
+  techNotificationsClearRead: string;
+  techNotificationsClearTitle: string;
+  techNotificationsClearText: string;
+  techNotificationsClearConfirm: string;
+  techNotificationsCleared: string;
+  techNotificationsUpdateError: string;
+  techNotificationsDeleteA11y: string;
+  techNotificationsLinkError: string;
+  techNotificationsShowing: string;
+  techNotificationsEnd: string;
+  techNotificationsBell: string;
+  techNotificationsBellUnread: string;
 }
 
 export interface AppConfig {
@@ -1579,14 +1666,36 @@ export interface PaymentMethodRecord {
   isDefault: boolean;
 }
 
+/** Where a notification opens (admin broadcasts): a service page, the offers screen, or an https page. */
+export interface NotificationLink {
+  kind: 'service' | 'offers' | 'url';
+  serviceId?: string;
+  url?: string;
+  /** Display name saved at send time (service name, web host). */
+  label?: string;
+}
+
 export interface AppNotification {
   id: string;
   title: string;
   body: string;
+  /** e.g. booking events, `broadcast` for admin notices. */
   type: string;
   read: boolean;
   bookingId?: string;
+  link?: NotificationLink;
+  /** Set on notifications sent by an admin broadcast. */
+  broadcastId?: string;
   createdAt?: string;
+}
+
+/** `GET /notifications` — newest first; pass `nextCursor` back as `before` / `beforeId` for older ones. */
+export interface NotificationsPage {
+  notifications: AppNotification[];
+  unreadCount: number;
+  total?: number;
+  hasMore?: boolean;
+  nextCursor?: { before: string; beforeId: string } | null;
 }
 
 export type OfferDiscountType = 'fixed' | 'percent';
@@ -1740,6 +1849,28 @@ export interface BookingSchedule {
   time?: string;
 }
 
+/** Admin-tracked payment state (missing on older bookings = unpaid). */
+export type BookingPaymentStatus = 'unpaid' | 'paid' | 'refunded';
+
+/** Where a booking was made: customer app, public website, or an admin on the customer's behalf. */
+export type BookingSource = 'app' | 'website' | 'admin';
+
+/** Internal note on a booking — admin view only. */
+export interface BookingAdminNote {
+  id: string;
+  text: string;
+  by?: string;
+  byName: string;
+  at?: string;
+}
+
+/** Who cancelled. Customers and technicians only get `role`. */
+export interface BookingCancelActor {
+  id?: string;
+  role: 'customer' | 'admin';
+  name?: string;
+}
+
 export interface Booking {
   id: string;
   status: BookingStatus;
@@ -1752,6 +1883,8 @@ export interface Booking {
   /** Size/package picked at booking — label and price locked then. */
   option?: { key: string; label: string; price: number };
   address: string;
+  /** Person at the property when the visit is booked for someone other than the account holder. */
+  visitContact?: { name: string; phone: string };
   amount: BookingAmount;
   paymentMethod: string;
   assignmentMode?: AssignmentMode;
@@ -1777,6 +1910,24 @@ export interface Booking {
   rescheduleCount?: number;
   /** Technician the customer asked for (a preference only; the admin or auto-assign decides). */
   preferredTechnicianId?: string;
+  /** Admin-tracked payment (technicians get the status only). */
+  paymentStatus?: BookingPaymentStatus;
+  paidAt?: string;
+  /** Payment method key from Business settings → Payments, or 'cash'. */
+  paidVia?: string;
+  /** Transaction / receipt reference typed by the admin. */
+  paymentRef?: string;
+  refundedAt?: string;
+  /** Admin view: always; customers only see their own reason. */
+  cancelReason?: string;
+  cancelledAt?: string;
+  cancelledBy?: BookingCancelActor;
+  /** Internal admin notes, oldest first (admin view only). */
+  adminNotes?: BookingAdminNote[];
+  /** Admin who booked on the customer's behalf (admin view only). */
+  createdByAdmin?: { id?: string; name: string };
+  source?: BookingSource;
+  updatedAt?: string;
 }
 
 export interface Review {

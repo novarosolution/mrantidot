@@ -1,7 +1,7 @@
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { adminGoBack, adminRoutes, appPush } from '@/lib/routes';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { adminRoutes, appPush } from '@/lib/routes';
 import { paramString } from '@/lib/routeParams';
 import {
   Image,
@@ -20,8 +20,12 @@ import { AdminProcessTracker } from '@/components/kit/AdminProcessTracker';
 import { PendingScheduleCard } from '@/components/kit/PendingScheduleCard';
 import { ScheduleEditorForm } from '@/components/kit/ScheduleEditorForm';
 import { BookingFactsCard } from '@/components/kit/BookingFactsCard';
-import { BookingPriceBreakdown } from '@/components/kit/BookingPriceBreakdown';
+import { BookingVisitContactCard } from '@/components/kit/BookingVisitContactCard';
 import { BookingInvoiceCard } from '@/components/kit/BookingInvoiceCard';
+import { AdminCancelSheet } from '@/components/admin/AdminCancelSheet';
+import { AdminBookingNotes } from '@/components/admin/AdminBookingNotes';
+import { AdminBookingPayment } from '@/components/admin/AdminBookingPayment';
+import { PhotoViewer } from '@/components/ui/PhotoViewer';
 import { BookingStatusBanner } from '@/components/kit/BookingStatusBanner';
 import { BookingTrackingTimeline } from '@/components/kit/BookingTrackingTimeline';
 import { JobProgressCard } from '@/components/kit/JobProgressCard';
@@ -62,6 +66,22 @@ import type { Booking, ScheduleMode, User, WorkOtpAdminView } from '@/types/api'
 import { colors, fonts, spacing, surfaces, ui } from '@/constants/theme';
 import { notify } from '@/lib/confirm';
 
+/** "Asha (admin)", "the customer"… — who cancelled, for the cancelled card. */
+function cancelActorLabel(actor: Booking['cancelledBy']): string {
+  if (!actor) return 'unknown';
+  if (actor.role === 'admin') return actor.name ? `${actor.name} (admin)` : 'an admin';
+  return actor.name ? `${actor.name} (customer)` : 'the customer';
+}
+
+/** Where the booking came from, for the timeline card. */
+function bookingOriginLabel(b: Booking): string | null {
+  if (b.createdByAdmin?.name) return `Booked by ${b.createdByAdmin.name} for the customer`;
+  if (b.source === 'admin') return 'Booked by an admin for the customer';
+  if (b.source === 'website') return 'Booked on the website';
+  if (b.source === 'app') return 'Booked in the app';
+  return null;
+}
+
 export default function AdminBookingDetailScreen() {
   const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
   const bookingCopy = useBookingCopy();
@@ -80,6 +100,14 @@ export default function AdminBookingDetailScreen() {
   const [rescheduleAddress, setRescheduleAddress] = useState('');
   const [assignOpen, setAssignOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  /** Index into `allPhotos` for the full-screen viewer (null = closed). */
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+
+  // Every step photo in step order, for swiping through them in the viewer.
+  const allPhotos = useMemo(
+    () => (booking?.steps ?? []).flatMap((step) => stepPhotoUrls(step).map((url) => mediaUrl(url))),
+    [booking?.steps],
+  );
 
   const load = useCallback(async () => {
     if (!id) {
@@ -274,26 +302,6 @@ export default function AdminBookingDetailScreen() {
     }
   }
 
-  const cancelOptions: ActionSheetOption[] = [
-    {
-      key: 'cancel',
-      label: 'Cancel booking',
-      subtitle: 'The customer will be notified',
-      destructive: true,
-      onPress: () =>
-        safeAsync(
-          async () => {
-            await api.patch(`/bookings/${id}/cancel`);
-            haptic('success');
-            Toast.show({ type: 'success', text1: 'Booking cancelled' });
-            adminGoBack(adminRoutes.bookings);
-          },
-          undefined,
-          () => haptic('error'),
-        ),
-    },
-  ];
-
   if (loadError) {
     return (
       <AdminListShell title="Booking" subtitle="Error" backFallback={adminRoutes.bookings}>
@@ -318,6 +326,12 @@ export default function AdminBookingDetailScreen() {
   }
 
   const steps = booking.steps ?? [];
+  // Where each step's photos begin in `allPhotos` (the viewer swipes across every step).
+  const stepPhotoStart: number[] = [];
+  steps.reduce((offset, step) => {
+    stepPhotoStart.push(offset);
+    return offset + stepPhotoUrls(step).length;
+  }, 0);
   const doneCount = bookingStepsDone(booking);
   const terminal = isTerminalBookingStatus(booking.status);
   const adminOtp = booking.workOtp as WorkOtpAdminView | undefined;
@@ -431,6 +445,23 @@ export default function AdminBookingDetailScreen() {
           />
         </FadeSlideIn>
 
+        {booking.status === 'cancelled' && (booking.cancelReason || booking.cancelledBy || booking.cancelledAt) ? (
+          <FadeSlideIn delay={stagger(1)} slideFrom={14}>
+            <Card variant="glass" style={styles.cancelCard}>
+              <Text style={styles.cancelTitle}>
+                {`Cancelled by ${cancelActorLabel(booking.cancelledBy)}${booking.cancelledAt ? ` · ${formatWhen(booking.cancelledAt)}` : ''}`}
+              </Text>
+              {booking.cancelReason ? (
+                <Text style={styles.cancelReason} selectable>
+                  Reason: {booking.cancelReason}
+                </Text>
+              ) : (
+                <Text style={styles.cancelReason}>No reason given.</Text>
+              )}
+            </Card>
+          </FadeSlideIn>
+        ) : null}
+
         <FadeSlideIn delay={stagger(1)} slideFrom={14}>
           <AdminProcessTracker
             status={booking.status}
@@ -442,6 +473,17 @@ export default function AdminBookingDetailScreen() {
             )}
           />
         </FadeSlideIn>
+
+        {booking.visitContact ? (
+          <FadeSlideIn delay={stagger(2)} slideFrom={14}>
+            <BookingVisitContactCard
+              name={booking.visitContact.name}
+              phone={booking.visitContact.phone}
+              title="Visit contact"
+              subtitle="Booked for someone else — call this person for the visit"
+            />
+          </FadeSlideIn>
+        ) : null}
 
         {isSchedulePending(booking) ? (
           <FadeSlideIn delay={stagger(2)} slideFrom={14}>
@@ -477,7 +519,13 @@ export default function AdminBookingDetailScreen() {
                 loading={busy === 'confirm'}
                 style={{ marginTop: spacing.md }}
               />
-              <AdminBookingActions booking={booking} onUpdated={load} busy={busy} setBusy={setBusy} />
+              <AdminBookingActions
+                booking={booking}
+                onUpdated={load}
+                busy={busy}
+                setBusy={setBusy}
+                onCancel={() => setCancelOpen(true)}
+              />
             </Card>
           </FadeSlideIn>
         ) : null}
@@ -494,6 +542,7 @@ export default function AdminBookingDetailScreen() {
                     ? 'Pick the best technician. '
                     : ''}
                 Customer: {bookingCustomerName(booking)}
+                {booking.visitContact ? ` · Visit contact: ${booking.visitContact.name}, ${booking.visitContact.phone}` : ''}
               </Text>
               {customerId ? (
                 <Pressable
@@ -511,6 +560,7 @@ export default function AdminBookingDetailScreen() {
                 busy={busy}
                 setBusy={setBusy}
                 onAssign={assignTech}
+                onCancel={() => setCancelOpen(true)}
               />
             </Card>
           </FadeSlideIn>
@@ -527,7 +577,13 @@ export default function AdminBookingDetailScreen() {
                 <Text style={styles.opsHint}>
                   Technician verified the start code. {doneCount} of {steps.length} treatment steps captured.
                 </Text>
-                <AdminBookingActions booking={booking} onUpdated={load} busy={busy} setBusy={setBusy} />
+                <AdminBookingActions
+                booking={booking}
+                onUpdated={load}
+                busy={busy}
+                setBusy={setBusy}
+                onCancel={() => setCancelOpen(true)}
+              />
               </Card>
             </FadeSlideIn>
           </>
@@ -540,15 +596,28 @@ export default function AdminBookingDetailScreen() {
               <Text style={styles.infoBody}>
                 Treatment steps are done. Reveal or regenerate the end code, or force-complete if needed.
               </Text>
-              <AdminBookingActions booking={booking} onUpdated={load} busy={busy} setBusy={setBusy} />
+              <AdminBookingActions
+                booking={booking}
+                onUpdated={load}
+                busy={busy}
+                setBusy={setBusy}
+                onCancel={() => setCancelOpen(true)}
+              />
             </Card>
           </FadeSlideIn>
         )}
+
+        <FadeSlideIn delay={stagger(5)} slideFrom={14}>
+          <AdminBookingNotes booking={booking} onBookingChange={setBooking} />
+        </FadeSlideIn>
 
         {(booking.createdAt || booking.scheduleConfirmedAt) ? (
           <FadeSlideIn delay={stagger(5)} slideFrom={14}>
             <Card variant="premium" style={styles.timelineCard}>
               <Text style={styles.section}>Timeline</Text>
+              {bookingOriginLabel(booking) ? (
+                <Text style={[styles.opsHint, styles.originLine]}>{bookingOriginLabel(booking)}</Text>
+              ) : null}
               {booking.createdAt ? (
                 <Text style={styles.opsHint}>Requested: {formatWhen(booking.createdAt)}</Text>
               ) : null}
@@ -564,18 +633,7 @@ export default function AdminBookingDetailScreen() {
         ) : null}
 
         <FadeSlideIn delay={stagger(5)} slideFrom={14}>
-          <Card variant="premium" style={styles.priceCard}>
-            <Text style={styles.section}>Payment</Text>
-            <BookingPriceBreakdown
-              amount={booking.amount}
-              serviceName={bookingServiceName(booking)}
-              serviceDesc={
-                booking.service && typeof booking.service === 'object'
-                  ? booking.service.shortDesc
-                  : undefined
-              }
-            />
-          </Card>
+          <AdminBookingPayment booking={booking} onBookingChange={setBooking} />
         </FadeSlideIn>
 
         {booking.status !== 'cancelled' ? (
@@ -605,28 +663,35 @@ export default function AdminBookingDetailScreen() {
         {(isVerificationPhase(booking.status) || doneCount > 0) && (
           <FadeSlideIn delay={stagger(6)} slideFrom={14}>
             <Text style={styles.section}>Step photos</Text>
+            {allPhotos.length > 0 ? <Text style={styles.photoHint}>Tap a photo to view it full screen.</Text> : null}
             <View style={styles.grid}>
               {steps.map((step, i) => {
                 const photos = stepPhotoUrls(step);
+                const start = stepPhotoStart[i] ?? 0;
                 return (
                   <Card key={`${step.title}-${i}`} variant="premium" style={styles.photoCard}>
-                    <View style={styles.thumb}>
-                      {photos[0] ? (
-                        <>
-                          <Image source={{ uri: mediaUrl(photos[0]) }} style={styles.img} />
-                          <View style={styles.ok}>
-                            <PremiumIcon icon={AppIcons.ui.check} variant="plain" size="xs" color={colors.white} strokeWidth={3} />
+                    {photos[0] ? (
+                      <Pressable
+                        onPress={() => setViewerIndex(start)}
+                        style={({ pressed }) => [styles.thumb, pressed && styles.thumbPressed]}
+                        accessibilityRole="imagebutton"
+                        accessibilityLabel={`View photo for ${step.title}`}
+                      >
+                        <Image source={{ uri: mediaUrl(photos[0]) }} style={styles.img} />
+                        <View style={styles.ok}>
+                          <PremiumIcon icon={AppIcons.ui.check} variant="plain" size="xs" color={colors.white} strokeWidth={3} />
+                        </View>
+                        {photos.length > 1 ? (
+                          <View style={styles.countBadge}>
+                            <Text style={styles.countBadgeText}>{photos.length}</Text>
                           </View>
-                          {photos.length > 1 ? (
-                            <View style={styles.countBadge}>
-                              <Text style={styles.countBadgeText}>{photos.length}</Text>
-                            </View>
-                          ) : null}
-                        </>
-                      ) : (
+                        ) : null}
+                      </Pressable>
+                    ) : (
+                      <View style={styles.thumb}>
                         <Text style={styles.pending}>Pending</Text>
-                      )}
-                    </View>
+                      </View>
+                    )}
                     <Text style={styles.stepTitle} numberOfLines={2}>
                       {step.title}
                     </Text>
@@ -644,11 +709,15 @@ export default function AdminBookingDetailScreen() {
                         contentContainerStyle={styles.stepPhotoRow}
                       >
                         {photos.map((url, pi) => (
-                          <Image
+                          <Pressable
                             key={`${url}-${pi}`}
-                            source={{ uri: mediaUrl(url) }}
-                            style={styles.stepPhotoThumb}
-                          />
+                            onPress={() => setViewerIndex(start + pi)}
+                            style={({ pressed }) => pressed && styles.thumbPressed}
+                            accessibilityRole="imagebutton"
+                            accessibilityLabel={`View photo ${pi + 1} of ${photos.length} for ${step.title}`}
+                          >
+                            <Image source={{ uri: mediaUrl(url) }} style={styles.stepPhotoThumb} />
+                          </Pressable>
                         ))}
                       </ScrollView>
                     ) : null}
@@ -668,13 +737,15 @@ export default function AdminBookingDetailScreen() {
         onClose={() => setAssignOpen(false)}
       />
 
-      <AdminActionSheet
+      <AdminCancelSheet
         visible={cancelOpen}
-        title="Cancel booking?"
-        message="This cannot be undone."
-        options={cancelOptions}
+        bookingId={booking.id}
+        bookingLabel={`${bookingRef(booking.id)} · ${bookingServiceName(booking)}`}
         onClose={() => setCancelOpen(false)}
+        onCancelled={() => load().catch(() => undefined)}
       />
+
+      <PhotoViewer photos={allPhotos} index={viewerIndex} onClose={() => setViewerIndex(null)} />
 
       <AdminBottomSheet
         visible={confirmOpen}
@@ -748,7 +819,6 @@ export default function AdminBookingDetailScreen() {
 const styles = StyleSheet.create({
   section: { fontFamily: fonts.display, fontSize: 14, marginBottom: spacing.sm, color: colors.ink },
   timelineCard: { marginTop: spacing.sm, padding: spacing.md },
-  priceCard: { marginTop: spacing.md, padding: spacing.md },
   opsCard: { marginTop: spacing.md, padding: spacing.md },
   opsHint: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, lineHeight: 20 },
   link: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.secondaryDark, marginTop: spacing.sm },
@@ -762,16 +832,28 @@ const styles = StyleSheet.create({
   },
   infoTitle: { fontFamily: fonts.display, fontSize: 14, color: colors.forest },
   infoBody: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 6, lineHeight: 18 },
+  cancelCard: {
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    backgroundColor: colors.errorBg,
+    borderWidth: 1,
+    borderColor: 'rgba(179,63,40,0.18)',
+  },
+  cancelTitle: { fontFamily: fonts.display, fontSize: 14, color: colors.error },
+  cancelReason: { fontFamily: fonts.body, fontSize: 13, color: colors.ink, marginTop: 6, lineHeight: 19 },
+  originLine: { marginBottom: 4, color: colors.ink },
+  photoHint: { fontFamily: fonts.body, fontSize: 12, color: ui.textSecondary, marginTop: -4, marginBottom: spacing.sm },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  photoCard: { width: '100%', padding: 8 },
+  photoCard: { width: '48%', flexGrow: 1, padding: 8 },
   thumb: {
-    height: 96,
+    aspectRatio: 4 / 3,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: colors.forest,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  thumbPressed: { opacity: 0.85 },
   img: { width: '100%', height: '100%' },
   ok: {
     position: 'absolute',
@@ -800,7 +882,7 @@ const styles = StyleSheet.create({
   },
   countBadgeText: { fontFamily: fonts.bodyBold, fontSize: 11, color: colors.white },
   stepPhotoRow: { gap: 8, marginTop: 8 },
-  stepPhotoThumb: { width: 72, height: 72, borderRadius: 10, backgroundColor: colors.soft },
+  stepPhotoThumb: { width: 56, height: 56, borderRadius: 10, backgroundColor: colors.soft },
   pending: { fontFamily: fonts.body, color: colors.white, fontSize: 12 },
   stepTitle: { fontFamily: fonts.display, fontSize: 11.5, marginTop: 8, color: ui.text },
   stepMeta: { fontFamily: fonts.body, fontSize: 10, color: ui.textSecondary },

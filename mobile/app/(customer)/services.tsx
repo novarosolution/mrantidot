@@ -50,7 +50,7 @@ type SortKey = 'popular' | 'rating' | 'price';
 const SORT_KEYS: SortKey[] = ['popular', 'rating', 'price'];
 
 const H_PAD = 16;
-const PEST_TILE = 72;
+const PEST_TILE = 68;
 
 /** List rows: the filter bar (sticky) first, then services — or one empty-state row. */
 type Row = { kind: 'filters' } | { kind: 'service'; service: Service; index: number } | { kind: 'empty' };
@@ -235,7 +235,7 @@ export default function ServicesListScreen() {
   const searchBar = (
     <View style={styles.searchWrap}>
       <View style={styles.searchField}>
-        <Search size={19} color={ui.textSecondary} strokeWidth={2} />
+        <Search size={18} color={ui.textSecondary} strokeWidth={2.1} />
         <TextInput
           {...textInputDefaults}
           value={q}
@@ -442,8 +442,8 @@ const styles = StyleSheet.create({
 
   hero: { paddingHorizontal: H_PAD, paddingTop: 12, paddingBottom: 18, overflow: 'hidden' },
   heroFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 34 },
-  heroTitle: { ...typeScale.display, color: ui.text },
-  heroSub: { ...typeScale.body, marginTop: 4, color: ui.textSecondary },
+  heroTitle: { ...typeScale.display, fontSize: 24, lineHeight: 30, color: ui.text },
+  heroSub: { ...typeScale.caption, marginTop: 3, color: ui.textSecondary },
 
   searchWrap: { paddingHorizontal: H_PAD },
   /** Grey field — same as the home search band. */
@@ -451,16 +451,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    height: 50,
+    height: 46,
     paddingHorizontal: 14,
-    borderRadius: radii.control,
+    borderRadius: radii.pill,
     backgroundColor: SEARCH_BAND,
+    borderWidth: 1,
+    borderColor: 'rgba(17,26,21,0.06)',
   },
   searchInput: {
     flex: 1,
     minWidth: 0,
     fontFamily: fonts.bodyMedium,
-    fontSize: 15.5,
+    fontSize: 15,
     color: ui.text,
     paddingVertical: 0,
   },
@@ -473,7 +475,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  pestScroll: { marginTop: 20, flexGrow: 0 },
+  pestScroll: { marginTop: 18, flexGrow: 0 },
   pestRow: { paddingHorizontal: H_PAD, gap: 12 },
   pestItem: { width: PEST_TILE },
   pestItemInner: { alignItems: 'center' },
@@ -489,14 +491,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pestTileOn: { borderColor: ui.brand, backgroundColor: ui.brandSoft },
-  pestLabel: { marginTop: 7, fontFamily: fonts.bodyMedium, fontSize: 12.5, color: ui.text },
+  pestTileOn: { borderColor: ui.brand, backgroundColor: ui.brandSoft, ...ui.shadow },
+  pestLabel: { marginTop: 7, fontFamily: fonts.bodyMedium, fontSize: 12, color: ui.textSecondary },
   pestLabelOn: { fontFamily: fonts.bodyBold, color: ui.brand },
 
   stickyBar: {
     backgroundColor: colors.white,
-    paddingTop: 16,
-    paddingBottom: 10,
+    paddingTop: 18,
+    paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: ui.border,
   },
@@ -507,21 +509,21 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: H_PAD,
   },
-  count: { ...typeScale.section, color: ui.text },
+  count: { ...typeScale.section, fontSize: 16, lineHeight: 22, color: ui.text },
   pills: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    height: 40,
-    paddingHorizontal: 14,
+    height: 36,
+    paddingHorizontal: 13,
     borderRadius: radii.pill,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.border,
   },
   pillOn: { backgroundColor: ui.brandSoft, borderColor: ui.brand },
-  pillText: { ...typeScale.captionStrong, flexShrink: 1, color: ui.text },
+  pillText: { ...typeScale.captionStrong, fontSize: 12.5, flexShrink: 1, color: ui.text },
   pillTextOn: { color: ui.brand },
 
   trust: { marginHorizontal: H_PAD, marginTop: 8 },

@@ -75,9 +75,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: fonts.displayExtra,
-    fontSize: 28,
-    lineHeight: 34,
-    letterSpacing: -0.6,
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: -0.55,
     color: ui.text,
   },
   sub: {

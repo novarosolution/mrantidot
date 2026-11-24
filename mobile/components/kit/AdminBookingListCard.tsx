@@ -34,6 +34,15 @@ export const AdminBookingListCard = memo(function AdminBookingListCard({
   const isPending = item.status === 'pending';
   const isCustom = item.scheduleMode === 'custom' || item.schedule?.slot === 'custom';
   const scheduleLabel = bookingScheduleDisplay(item);
+  // Payment tracking (admin): show where money is still due, or settled.
+  const payment =
+    item.paymentStatus === 'paid'
+      ? { label: 'Paid', color: colors.forest }
+      : item.paymentStatus === 'refunded'
+        ? { label: 'Refunded', color: colors.muted }
+        : item.status === 'completed'
+          ? { label: 'Unpaid', color: colors.warning }
+          : null;
 
   return (
     <View style={styles.shell}>
@@ -59,6 +68,7 @@ export const AdminBookingListCard = memo(function AdminBookingListCard({
               </Text>
               <Text style={styles.meta} numberOfLines={1}>
                 {bookingCustomerName(item)}
+                {item.visitContact ? ` → ${item.visitContact.name}` : ''}
                 {tech ? ` · ${bookingTechnicianName(item)}` : ''}
               </Text>
               <View style={styles.scheduleRow}>
@@ -73,9 +83,16 @@ export const AdminBookingListCard = memo(function AdminBookingListCard({
                 {isPending ? <Text style={styles.pendingBadge}>Confirm</Text> : null}
               </View>
             </View>
-            <Text style={styles.price} numberOfLines={1}>
-              {item.amount?.total != null ? formatRupeeFull(item.amount.total) : '—'}
-            </Text>
+            <View style={styles.priceCol}>
+              <Text style={styles.price} numberOfLines={1}>
+                {item.amount?.total != null ? formatRupeeFull(item.amount.total) : '—'}
+              </Text>
+              {payment ? (
+                <Text style={[styles.payStatus, { color: payment.color }]} numberOfLines={1}>
+                  {payment.label}
+                </Text>
+              ) : null}
+            </View>
           </View>
         </PressableScale>
         {canAssign ? (
@@ -121,7 +138,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: 'hidden',
   },
+  priceCol: { alignItems: 'flex-end', gap: 2 },
   price: { ...adminType.listPrice, color: colors.forest },
+  payStatus: { fontFamily: fonts.bodySemi, fontSize: 11.5 },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -63,7 +63,7 @@ export function BookingsNextHighlight({
 
         <View style={styles.main}>
           <View style={styles.icon}>
-            <ServiceIcon iconKey={bookingServiceIconKey(booking)} size={28} color={colors.white} />
+            <ServiceIcon iconKey={bookingServiceIconKey(booking)} size={40} color={colors.white} />
           </View>
           <View style={styles.body}>
             <Text style={styles.name} numberOfLines={2}>

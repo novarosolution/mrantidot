@@ -6,19 +6,25 @@ import type { Booking, BookingStatus } from '@/types/api';
 import { spacing } from '@/constants/theme';
 import { confirmAsync } from '@/lib/confirm';
 
-/** Admin controls to advance, complete, or cancel any live booking stage. */
+/**
+ * Admin controls to advance, complete, or cancel any live booking stage.
+ * Cancelling needs a reason, so it opens the screen's cancel sheet (`onCancel`); without it the button is hidden.
+ */
 export function AdminBookingActions({
   booking,
   onUpdated,
   busy,
   setBusy,
   onAssign,
+  onCancel,
 }: {
   booking: Booking;
   onUpdated: () => Promise<void>;
   busy: string | null;
   setBusy: (v: string | null) => void;
   onAssign?: () => void;
+  /** Opens the cancel-with-reason sheet. */
+  onCancel?: () => void;
 }) {
   async function setStatus(status: BookingStatus) {
     setBusy(status);
@@ -41,21 +47,6 @@ export function AdminBookingActions({
       await api.patch(`/bookings/${booking.id}/complete`);
       haptic('success');
       Toast.show({ type: 'success', text1: 'Booking completed' });
-      await onUpdated();
-    } catch {
-      // error toast shown by the api interceptor
-      haptic('error');
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function cancelBooking() {
-    setBusy('cancel');
-    try {
-      await api.patch(`/bookings/${booking.id}/cancel`);
-      haptic('success');
-      Toast.show({ type: 'success', text1: 'Booking cancelled' });
       await onUpdated();
     } catch {
       // error toast shown by the api interceptor
@@ -132,22 +123,12 @@ export function AdminBookingActions({
     });
   }
 
-  if (!['completed', 'cancelled'].includes(booking.status)) {
+  if (onCancel && !['completed', 'cancelled'].includes(booking.status)) {
     actions.push({
       title: 'Cancel booking',
       key: 'cancel',
       variant: 'secondary',
-      onPress: () => {
-        void confirmAsync({
-          title: 'Cancel this booking?',
-          message: 'Customer and technician will be notified.',
-          confirmLabel: 'Cancel booking',
-          cancelLabel: 'Keep',
-          destructive: true,
-        }).then((ok) => {
-          if (ok) void cancelBooking();
-        });
-      },
+      onPress: onCancel,
     });
   }
 
@@ -161,7 +142,7 @@ export function AdminBookingActions({
           title={a.title}
           variant={a.variant ?? 'sky'}
           onPress={a.onPress}
-          loading={busy === a.key || busy === 'complete' || busy === 'cancel'}
+          loading={busy === a.key || busy === 'complete'}
           style={{ marginTop: spacing.sm }}
         />
       ))}

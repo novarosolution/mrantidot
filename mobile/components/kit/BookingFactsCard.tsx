@@ -80,8 +80,8 @@ export function BookingFactsCard({
 
   const personLabel = showCustomerRow
     ? forTechnician
-      ? 'Customer contact'
-      : 'Customer'
+      ? copy.bookingFactCustomerContact
+      : copy.bookingFactCustomer
     : showTechnicianRow
       ? bookingCopy.factLabelTechnician
       : null;
@@ -90,6 +90,11 @@ export function BookingFactsCard({
     : showTechnicianRow
       ? bookingTechnicianName(booking)
       : null;
+  const scheduleText = bookingScheduleDisplay(booking, copy);
+  // "UPI / Card · Paid" once the admin marks the visit paid (or refunded).
+  const paymentState =
+    booking.paymentStatus === 'paid' ? copy.bookingPaymentPaid : booking.paymentStatus === 'refunded' ? copy.bookingPaymentRefunded : null;
+  const paymentText = [paymentMethodLabel(booking.paymentMethod), paymentState].filter(Boolean).join(' · ');
 
   const body = (
     <>
@@ -112,7 +117,7 @@ export function BookingFactsCard({
       {!hideSchedule ? (
         <FactRow
           label={bookingCopy.factLabelWhen}
-          value={bookingScheduleDisplay(booking, copy)}
+          value={scheduleText}
           subtitle={
             audience !== 'customer' && isSchedulePending(booking)
               ? bookingCopy.pendingFactsSubtitle
@@ -130,7 +135,7 @@ export function BookingFactsCard({
         />
       ) : null}
       <FactRow label={bookingCopy.factLabelWhere} value={booking.address} />
-      {forTechnician && jobDetails ? <FactRow label="Job" value={jobDetails} /> : null}
+      {forTechnician && jobDetails ? <FactRow label={copy.bookingFactJob} value={jobDetails} /> : null}
 
       {person && personName && personLabel ? (
         <View style={styles.personRow}>
@@ -147,7 +152,7 @@ export function BookingFactsCard({
               accessibilityLabel={fillCopy(copy.bookingCallLabel, { name: personName })}
               onPress={() => {
                 if (onCallPhone) onCallPhone(person.phone!);
-                else callPhone(person.phone!);
+                else callPhone(person.phone!, copy);
               }}
             >
               <PremiumIcon icon={AppIcons.ui.phone} variant="plain" size={16} color={colors.forest} />
@@ -159,14 +164,14 @@ export function BookingFactsCard({
       {showPayment && !embedded ? (
         <>
           <View style={styles.divider} />
-          <FactRow label={bookingCopy.factLabelPayment} value={paymentMethodLabel(booking.paymentMethod)} />
+          <FactRow label={bookingCopy.factLabelPayment} value={paymentText} />
           {booking.couponCode ? <FactRow label={bookingCopy.factLabelCoupon} value={booking.couponCode} /> : null}
         </>
       ) : null}
 
       {showPayment && embedded ? (
         <>
-          <FactRow label={bookingCopy.factLabelPayment} value={paymentMethodLabel(booking.paymentMethod)} />
+          <FactRow label={bookingCopy.factLabelPayment} value={paymentText} />
           {booking.couponCode ? <FactRow label={bookingCopy.factLabelCoupon} value={booking.couponCode} /> : null}
         </>
       ) : null}

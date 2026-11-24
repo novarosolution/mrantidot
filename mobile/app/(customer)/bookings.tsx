@@ -124,7 +124,6 @@ export default function MyBookingsScreen() {
     : total === 0
       ? labels.bookingsEmptySub
       : fillCopy(labels.bookingsCountSub, { active: counts.active, total });
-  const shownCount = filter === 'active' && nextActive ? listData.length + 1 : listData.length;
 
   async function onRefresh() {
     setRefreshing(true);
@@ -140,12 +139,15 @@ export default function MyBookingsScreen() {
   const hero = (
     <View style={styles.header}>
       <PremiumAurora tone="light" base={false} topFade />
+      <View style={styles.headerTop}>
       <View style={styles.heroLeft}>
-        <Text style={styles.kicker}>{labels.bookingsKicker}</Text>
+        <View style={styles.kickerRow}>
+          <View style={styles.kickerDot} />
+          <Text style={styles.kicker}>{labels.bookingsKicker}</Text>
+        </View>
         <Text style={styles.heroTitle} accessibilityRole="header">
           {bookingCopy.listScreenTitle}
         </Text>
-        <Text style={styles.heroSub}>{subtitle}</Text>
       </View>
       <View style={styles.heroActions}>
         <PressableScale
@@ -169,6 +171,8 @@ export default function MyBookingsScreen() {
           <Text style={styles.bookBtnText}>{labels.bookingsBookButton}</Text>
         </PressableScale>
       </View>
+      </View>
+      <Text style={styles.heroSub}>{subtitle}</Text>
     </View>
   );
 
@@ -191,11 +195,12 @@ export default function MyBookingsScreen() {
             />
           </FadeSlideIn>
         ) : null}
-        {shownCount > 0 ? (
+        {/* Only a heading when there are rows under it — the pinned "next visit" card is its own block. */}
+        {listData.length > 0 ? (
           <View style={styles.sectionPad}>
             <Text style={styles.sectionTitle}>{sectionLabel(filter, labels)}</Text>
             <Text style={styles.sectionCount}>
-              {shownCount === 1 ? labels.bookingsCountOne : fillCopy(labels.bookingsCountMany, { count: shownCount })}
+              {listData.length === 1 ? labels.bookingsCountOne : fillCopy(labels.bookingsCountMany, { count: listData.length })}
             </Text>
           </View>
         ) : null}
@@ -271,37 +276,35 @@ const styles = StyleSheet.create({
 
   headerBlock: { marginBottom: 2 },
   header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
     paddingHorizontal: spacing.md,
     paddingTop: 10,
-    paddingBottom: 18,
+    paddingBottom: 16,
     backgroundColor: colors.white,
     borderBottomWidth: 1,
     borderBottomColor: ui.hairline,
     marginBottom: 14,
     overflow: 'hidden',
   },
+  headerTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   heroLeft: { flex: 1, minWidth: 0 },
+  kickerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
+  kickerDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: ui.brandBright },
   kicker: {
     fontFamily: fonts.bodyBold,
     fontSize: 10.5,
     letterSpacing: 1.1,
     color: ui.brand,
-    marginBottom: 4,
   },
-  heroTitle: { ...typeScale.display, color: ui.text },
-  heroSub: { ...typeScale.caption, marginTop: 4, lineHeight: 19, color: ui.textSecondary },
+  heroTitle: { ...typeScale.display, fontSize: 24, lineHeight: 30, color: ui.text },
+  heroSub: { ...typeScale.caption, marginTop: 8, lineHeight: 18, color: ui.textSecondary },
   heroActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 18,
   },
   guideBtn: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -313,9 +316,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    height: 44,
-    paddingLeft: 14,
-    paddingRight: 16,
+    height: 40,
+    paddingLeft: 12,
+    paddingRight: 15,
     borderRadius: radii.pill,
     backgroundColor: ui.brand,
     shadowColor: colors.forest,
@@ -324,7 +327,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
-  bookBtnText: { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.white },
+  bookBtnText: { fontFamily: fonts.bodyBold, fontSize: 13.5, color: colors.white },
 
   sectionPad: {
     paddingHorizontal: spacing.md,
@@ -334,7 +337,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 10,
   },
-  sectionTitle: { ...typeScale.section, color: ui.text },
+  sectionTitle: { ...typeScale.section, fontSize: 17, lineHeight: 23, color: ui.text },
   sectionCount: {
     fontFamily: fonts.bodySemi,
     fontSize: 12.5,

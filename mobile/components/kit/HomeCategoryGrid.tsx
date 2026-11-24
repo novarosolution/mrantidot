@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Animated, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useReducedMotion } from '@/lib/a11yPrefs';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { PestImage } from '@/components/kit/ServiceThumb';
@@ -97,6 +98,60 @@ function CategoryTile({ typeKey, size, popular }: { typeKey: ServiceTypeKey; siz
   );
 }
 
+/** How long each coupon stays on the Offers tile before the next one slides in. */
+const OFFER_ROTATE_MS = 3000;
+
+/**
+ * The Offers tile's face: cycles through the live coupon values every 3 s (fade + small lift),
+ * with dots underneath when there is more than one. A single coupon just sits still.
+ */
+function RotatingOffer({ values, unit }: { values: string[]; unit: string }) {
+  const reduced = useReducedMotion();
+  const [index, setIndex] = useState(0);
+  const anim = useRef(new Animated.Value(1)).current;
+  const count = values.length;
+
+  useEffect(() => {
+    if (count < 2) return;
+    const id = setInterval(() => {
+      if (reduced) {
+        setIndex((i) => (i + 1) % count);
+        return;
+      }
+      Animated.timing(anim, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+        setIndex((i) => (i + 1) % count);
+        Animated.timing(anim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+      });
+    }, OFFER_ROTATE_MS);
+    return () => clearInterval(id);
+  }, [count, reduced, anim]);
+
+  const shown = values[index % Math.max(count, 1)] ?? '';
+  return (
+    <View style={styles.offerWrap}>
+      <Animated.View
+        style={{
+          alignItems: 'center',
+          opacity: anim,
+          transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }],
+        }}
+      >
+        <Text style={styles.offerValue} numberOfLines={1} adjustsFontSizeToFit>
+          {shown}
+        </Text>
+        <Text style={styles.offerUnit}>{unit}</Text>
+      </Animated.View>
+      {count > 1 ? (
+        <View style={styles.offerDots}>
+          {values.map((_, i) => (
+            <View key={i} style={[styles.offerDot, i === index % count && styles.offerDotOn]} />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 /** Nine dots (3 × 3) — the "see everything" tile. */
 function DotsGlyph({ size }: { size: number }) {
   const dot = Math.max(6, Math.round(size * 0.085));
@@ -134,7 +189,7 @@ export function HomeCategoryGrid({
   allLabel?: string;
   onAll?: () => void;
   /** Live coupon shown as the first tile (value like "₹100"). */
-  offerTile?: { value: string; label: string; onPress: () => void } | null;
+  offerTile?: { values: string[]; label: string; onPress: () => void } | null;
   moreTitle?: string;
 }) {
   const copy = useCustomerUiCopy();
@@ -152,10 +207,7 @@ export function HomeCategoryGrid({
         {offerTile ? (
           <FadeSlideIn delay={stagger(n++)} slideFrom={12}>
             <Tile size={size} label={offerTile.label} onPress={offerTile.onPress}>
-              <Text style={styles.offerValue} numberOfLines={1} adjustsFontSizeToFit>
-                {offerTile.value}
-              </Text>
-              <Text style={styles.offerUnit}>{copy.offerOff}</Text>
+              <RotatingOffer values={offerTile.values} unit={copy.offerOff} />
             </Tile>
           </FadeSlideIn>
         ) : null}
@@ -174,8 +226,8 @@ export function HomeCategoryGrid({
       </View>
 
       {moreTypes.length > 0 ? (
-        <View style={styles.more}>
-          <Text style={styles.moreTitle}>{moreTitle}</Text>
+        <View style={moreTitle ? styles.more : styles.moreContinued}>
+          {moreTitle ? <Text style={styles.moreTitle}>{moreTitle}</Text> : null}
           <View style={styles.grid}>
             {moreTypes.map((key) => (
               <CategoryTile key={key} typeKey={key} size={size} popular={false} />
@@ -214,6 +266,8 @@ const styles = StyleSheet.create({
   tile: {
     borderRadius: 16,
     backgroundColor: TILE_BG,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(17,26,21,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -234,15 +288,21 @@ const styles = StyleSheet.create({
   pillText: { fontFamily: fonts.bodySemi, fontSize: 11, color: ui.brand },
   label: {
     marginTop: 8,
-    fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 19,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12.5,
+    lineHeight: 17,
     textAlign: 'center',
     color: ui.text,
   },
-  offerValue: { fontFamily: fonts.displayExtra, fontSize: 23, lineHeight: 27, letterSpacing: -0.5, color: ui.brand },
-  offerUnit: { fontFamily: fonts.bodyBold, fontSize: 12, letterSpacing: 1.6, color: ui.brand },
+  offerValue: { fontFamily: fonts.displayExtra, fontSize: 22, lineHeight: 26, letterSpacing: -0.5, color: ui.brand },
+  offerUnit: { fontFamily: fonts.bodyBold, fontSize: 11, letterSpacing: 1.6, color: ui.brand },
+  offerWrap: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  offerDots: { flexDirection: 'row', gap: 4, marginTop: 8 },
+  offerDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: 'rgba(8,123,53,0.25)' },
+  offerDotOn: { width: 14, backgroundColor: ui.brand },
   more: { marginTop: 28 },
+  /** No heading → the second group just continues the grid at the same row rhythm. */
+  moreContinued: { marginTop: 16 },
   moreTitle: {
     paddingHorizontal: H_PAD,
     marginBottom: 14,

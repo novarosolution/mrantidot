@@ -69,9 +69,15 @@ function sanitizeStepsForCustomer(
   });
 }
 
+/**
+ * Who a technician calls for the visit: the person at the property when the booking is for someone else,
+ * otherwise the account holder. `bookedForOther` lets the app label it ("On-site contact").
+ */
 function customerContactForTech(
   customer: ReturnType<typeof formatUser> | string | undefined,
-): { name: string; phone?: string } | undefined {
+  visitContact?: { name: string; phone: string },
+): { name: string; phone?: string; bookedForOther?: boolean } | undefined {
+  if (visitContact?.name) return { name: visitContact.name, phone: visitContact.phone, bookedForOther: true };
   if (!customer || typeof customer !== 'object') return undefined;
   return { name: customer.name, phone: customer.phone };
 }
@@ -128,6 +134,7 @@ function formatBookingForTechnician(
 ): Record<string, unknown> {
   const customer = customerContactForTech(
     base.customer as ReturnType<typeof formatUser> | string | undefined,
+    base.visitContact as { name: string; phone: string } | undefined,
   );
   const status = String(base.status ?? '');
   const amount = base.amount as { total?: number } | undefined;
@@ -284,6 +291,10 @@ export function formatBooking(booking: IBooking & { populate?: unknown }) {
     // Size/package picked at booking (label + price locked then).
     option: doc.option?.label ? { key: doc.option.key, label: doc.option.label, price: doc.option.price } : undefined,
     address: doc.address,
+    // Set only when the visit is for someone other than the account holder.
+    visitContact: doc.visitContact?.name
+      ? { name: doc.visitContact.name, phone: doc.visitContact.phone }
+      : undefined,
     amount: doc.amount,
     technicianEarning:
       typeof doc.technicianEarning === 'number' ? doc.technicianEarning : undefined,

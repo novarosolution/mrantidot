@@ -2,13 +2,8 @@ import '../types/express';
 import { Router } from 'express';
 import { Booking } from '../models/Booking';
 import { User } from '../models/User';
-import { Review } from '../models/Review';
-import { Offer } from '../models/Offer';
-import { Service } from '../models/Service';
-import { TechnicianAttendance } from '../models/TechnicianAttendance';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { asyncHandler } from '../middleware/error';
-import { formatBooking } from '../utils/format';
 import {
   buildAttendanceCalendar,
   computeAttendanceAnalytics,
@@ -16,7 +11,6 @@ import {
   loadAttendanceForRange,
   monthRange,
   parseMonthParam,
-  periodAttendanceRange,
   todayDateKey,
 } from '../utils/attendance';
 import {
@@ -25,383 +19,21 @@ import {
 } from '../utils/jobVisit';
 import { technicianPublicRating } from '../utils/ratings';
 import { formatPaySummary, payConfigFromUser, resolveTechEarning } from '../utils/techPay';
+import { adminDashboard, teamAttendance } from '../utils/adminDashboard';
 
 export const statsRouter = Router();
 
-type Period = 'week' | 'month' | 'quarter' | 'year';
-
-function periodStart(period: Period): Date {
-  const now = new Date();
-  const d = new Date(now);
-  if (period === 'week') d.setDate(d.getDate() - 7);
-  else if (period === 'month') d.setMonth(d.getMonth() - 1);
-  else if (period === 'quarter') d.setMonth(d.getMonth() - 3);
-  else d.setFullYear(d.getFullYear() - 1);
-  return d;
-}
-
-function previousPeriodStart(period: Period): Date {
-  const start = periodStart(period);
-  const prev = new Date(start);
-  if (period === 'week') prev.setDate(prev.getDate() - 7);
-  else if (period === 'month') prev.setMonth(prev.getMonth() - 1);
-  else if (period === 'quarter') prev.setMonth(prev.getMonth() - 3);
-  else prev.setFullYear(prev.getFullYear() - 1);
-  return prev;
-}
-
-function pctDelta(current: number, previous: number): string {
-  if (previous === 0) return current > 0 ? '—' : '0%';
-  const pct = Math.round(((current - previous) / previous) * 100);
-  const sign = pct >= 0 ? '+' : '';
-  return `${sign}${pct}%`;
-}
-
-async function revenueInRange(from: Date, to: Date): Promise<number> {
-  const agg = await Booking.aggregate([
-    { $match: { status: 'completed', updatedAt: { $gte: from, $lt: to } } },
-    { $group: { _id: null, revenue: { $sum: '$amount.total' } } },
-  ]);
-  return agg[0]?.revenue ?? 0;
-}
-
-async function bookingsInRange(from: Date, to: Date): Promise<number> {
-  return Booking.countDocuments({ createdAt: { $gte: from, $lt: to } });
-}
-
-async function customersInRange(from: Date, to: Date): Promise<number> {
-  return User.countDocuments({ role: 'customer', createdAt: { $gte: from, $lt: to } });
-}
-
-async function pendingInRange(from: Date, to: Date): Promise<number> {
-  return Booking.countDocuments({
-    status: 'pending',
-    createdAt: { $gte: from, $lt: to },
-  });
-}
-
-const PIPELINE_STATUSES = [
-  'pending',
-  'confirmed',
-  'in_progress',
-  'awaiting_verification',
-  'completed',
-  'cancelled',
-] as const;
-
-async function revenueByMonthBuckets(): Promise<{ label: string; amount: number }[]> {
-  const buckets: { label: string; amount: number }[] = [];
-  const now = new Date();
-  for (let i = 6; i >= 0; i--) {
-    const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-    const agg = await Booking.aggregate([
-      { $match: { status: 'completed', updatedAt: { $gte: start, $lt: end } } },
-      { $group: { _id: null, revenue: { $sum: '$amount.total' } } },
-    ]);
-    const label = start.toLocaleString('en', { month: 'short' });
-    buckets.push({ label, amount: agg[0]?.revenue ?? 0 });
-  }
-  return buckets;
-}
-
-async function bookingsTrendBuckets(days = 7): Promise<{ label: string; count: number }[]> {
-  const buckets: { label: string; count: number }[] = [];
-  const now = new Date();
-  for (let i = days - 1; i >= 0; i--) {
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
-    start.setDate(start.getDate() - i);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
-    const count = await Booking.countDocuments({ createdAt: { $gte: start, $lt: end } });
-    const label = i === 0 ? 'Today' : start.toLocaleString('en', { weekday: 'short' });
-    buckets.push({ label, count });
-  }
-  return buckets;
-}
-
+/**
+ * Dashboard + reports for one range — see utils/adminDashboard.ts for the definitions.
+ *   ?from=YYYY-MM-DD&to=YYYY-MM-DD  (IST, at most ~10 years; daily points up to 62 days, then monthly)
+ *   ?period=week|month|quarter|year  older app builds: rolling range ending today (default: last 30 days)
+ */
 statsRouter.get(
   '/admin',
   requireAuth,
   requireRole('admin'),
   asyncHandler(async (req, res) => {
-    const period = (typeof req.query.period === 'string' ? req.query.period : 'month') as Period;
-    const valid: Period[] = ['week', 'month', 'quarter', 'year'];
-    const p = valid.includes(period) ? period : 'month';
-
-    const rangeStart = periodStart(p);
-    const prevStart = previousPeriodStart(p);
-    const now = new Date();
-
-    const [
-      totalBookings,
-      statusAgg,
-      revenueAgg,
-      customers,
-      technicians,
-      topServices,
-      recent,
-      periodRevenue,
-      prevRevenue,
-      periodBookings,
-      prevBookings,
-      periodCustomers,
-      prevCustomers,
-      revenueByMonth,
-      pendingRecent,
-      periodPending,
-      prevPending,
-      periodStatusAgg,
-      reviewAgg,
-      periodReviewCount,
-      offerCounts,
-      offerUsesAgg,
-      serviceCounts,
-      topTechnicians,
-      topCustomers,
-      paymentSplitAgg,
-      couponBookings,
-      bookingsTrend,
-    ] = await Promise.all([
-      Booking.countDocuments(),
-      Booking.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
-      Booking.aggregate([
-        { $match: { status: 'completed' } },
-        { $group: { _id: null, revenue: { $sum: '$amount.total' } } },
-      ]),
-      User.countDocuments({ role: 'customer' }),
-      User.countDocuments({ role: 'technician' }),
-      Booking.aggregate([
-        { $match: { createdAt: { $gte: rangeStart, $lt: now } } },
-        { $group: { _id: '$serviceId', count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-        { $limit: 5 },
-        {
-          $lookup: {
-            from: 'services',
-            localField: '_id',
-            foreignField: '_id',
-            as: 'service',
-          },
-        },
-        { $unwind: '$service' },
-        {
-          $project: {
-            serviceId: '$_id',
-            name: '$service.name',
-            count: 1,
-          },
-        },
-      ]),
-      Booking.find()
-        .sort({ createdAt: -1 })
-        .limit(5)
-        .populate('serviceId')
-        .populate('customerId', '-passwordHash')
-        .populate('technicianId', '-passwordHash'),
-      revenueInRange(rangeStart, now),
-      revenueInRange(prevStart, rangeStart),
-      bookingsInRange(rangeStart, now),
-      bookingsInRange(prevStart, rangeStart),
-      customersInRange(rangeStart, now),
-      customersInRange(prevStart, rangeStart),
-      revenueByMonthBuckets(),
-      Booking.find({ status: 'pending' })
-        .sort({ createdAt: -1 })
-        .limit(10)
-        .populate('serviceId')
-        .populate('customerId', '-passwordHash')
-        .populate('technicianId', '-passwordHash'),
-      pendingInRange(rangeStart, now),
-      pendingInRange(prevStart, rangeStart),
-      Booking.aggregate([
-        { $match: { createdAt: { $gte: rangeStart, $lt: now } } },
-        { $group: { _id: '$status', count: { $sum: 1 } } },
-      ]),
-      Review.aggregate([
-        { $match: { hidden: { $ne: true } } },
-        { $group: { _id: null, total: { $sum: 1 }, avg: { $avg: '$stars' } } },
-      ]),
-      Review.countDocuments({ hidden: { $ne: true }, createdAt: { $gte: rangeStart, $lt: now } }),
-      Promise.all([Offer.countDocuments(), Offer.countDocuments({ active: true })]),
-      Offer.aggregate([{ $group: { _id: null, uses: { $sum: '$useCount' } } }]),
-      Promise.all([Service.countDocuments(), Service.countDocuments({ active: true })]),
-      Booking.aggregate([
-        {
-          $match: {
-            status: 'completed',
-            updatedAt: { $gte: rangeStart, $lt: now },
-            technicianId: { $exists: true, $ne: null },
-          },
-        },
-        {
-          $group: {
-            _id: '$technicianId',
-            jobs: { $sum: 1 },
-            revenue: { $sum: '$amount.total' },
-          },
-        },
-        { $sort: { jobs: -1 } },
-        { $limit: 5 },
-        {
-          $lookup: {
-            from: 'users',
-            localField: '_id',
-            foreignField: '_id',
-            as: 'tech',
-          },
-        },
-        { $unwind: '$tech' },
-        {
-          $project: {
-            id: '$_id',
-            name: '$tech.name',
-            jobs: 1,
-            revenue: 1,
-          },
-        },
-      ]),
-      Booking.aggregate([
-        { $match: { createdAt: { $gte: rangeStart, $lt: now } } },
-        {
-          $group: {
-            _id: '$customerId',
-            bookings: { $sum: 1 },
-            spend: { $sum: '$amount.total' },
-          },
-        },
-        { $sort: { spend: -1 } },
-        { $limit: 5 },
-        {
-          $lookup: {
-            from: 'users',
-            localField: '_id',
-            foreignField: '_id',
-            as: 'customer',
-          },
-        },
-        { $unwind: '$customer' },
-        {
-          $project: {
-            id: '$_id',
-            name: '$customer.name',
-            bookings: 1,
-            spend: 1,
-          },
-        },
-      ]),
-      Booking.aggregate([
-        { $match: { createdAt: { $gte: rangeStart, $lt: now } } },
-        { $group: { _id: '$paymentMethod', count: { $sum: 1 } } },
-      ]),
-      Booking.countDocuments({
-        createdAt: { $gte: rangeStart, $lt: now },
-        couponCode: { $exists: true, $nin: [null, ''] },
-      }),
-      bookingsTrendBuckets(7),
-    ]);
-
-    const byStatus: Record<string, number> = {};
-    for (const row of statusAgg) {
-      byStatus[row._id as string] = row.count as number;
-    }
-
-    const periodByStatus: Record<string, number> = {};
-    for (const row of periodStatusAgg) {
-      periodByStatus[row._id as string] = row.count as number;
-    }
-
-    const statusBreakdown = PIPELINE_STATUSES.map((status) => ({
-      status,
-      count: byStatus[status] ?? 0,
-      periodCount: periodByStatus[status] ?? 0,
-    }));
-
-    const activeJobs = (byStatus.in_progress ?? 0) + (byStatus.confirmed ?? 0) + (byStatus.pending ?? 0);
-    const prevActiveJobs = await Booking.countDocuments({
-      status: { $in: ['pending', 'confirmed', 'in_progress'] },
-      updatedAt: { $gte: prevStart, $lt: rangeStart },
-    });
-
-    const periodCompleted = periodByStatus.completed ?? 0;
-    const periodCancelled = periodByStatus.cancelled ?? 0;
-    const completionRate =
-      periodBookings > 0 ? Math.round((periodCompleted / periodBookings) * 100) : 0;
-    const cancellationRate =
-      periodBookings > 0 ? Math.round((periodCancelled / periodBookings) * 100) : 0;
-    const avgOrderValue = Math.round(periodRevenue / Math.max(1, periodCompleted));
-
-    const paymentSplit: Record<string, number> = {};
-    for (const row of paymentSplitAgg) {
-      paymentSplit[row._id as string] = row.count as number;
-    }
-
-    const [totalOffers, activeOffers] = offerCounts;
-    const [totalServices, activeServices] = serviceCounts;
-
-    res.json({
-      totalBookings,
-      byStatus,
-      statusBreakdown,
-      periodPending,
-      revenueCompleted: revenueAgg[0]?.revenue ?? 0,
-      periodRevenue,
-      periodBookings,
-      customers,
-      technicians,
-      topServices,
-      recentBookings: recent.map((b) => formatBooking(b)),
-      pendingBookings: pendingRecent.map((b) => formatBooking(b)),
-      revenueByMonth,
-      deltas: {
-        revenue: pctDelta(periodRevenue, prevRevenue),
-        bookings: pctDelta(periodBookings, prevBookings),
-        activeJobs: pctDelta(activeJobs, prevActiveJobs),
-        customers: pctDelta(periodCustomers, prevCustomers),
-        pending: pctDelta(periodPending, prevPending),
-      },
-      period: p,
-      analytics: {
-        reviews: {
-          total: reviewAgg[0]?.total ?? 0,
-          averageRating: Math.round((reviewAgg[0]?.avg ?? 0) * 10) / 10,
-          periodCount: periodReviewCount,
-        },
-        offers: {
-          total: totalOffers,
-          active: activeOffers,
-          totalRedemptions: offerUsesAgg[0]?.uses ?? 0,
-        },
-        catalog: {
-          totalServices,
-          activeServices,
-        },
-        performance: {
-          completionRate,
-          cancellationRate,
-          avgOrderValue,
-          couponBookings,
-        },
-        paymentSplit: {
-          upi_card: paymentSplit.upi_card ?? 0,
-          pay_after: paymentSplit.pay_after ?? 0,
-        },
-        topTechnicians: topTechnicians.map((t) => ({
-          id: String(t.id),
-          name: t.name as string,
-          jobs: t.jobs as number,
-          revenue: t.revenue as number,
-        })),
-        topCustomers: topCustomers.map((c) => ({
-          id: String(c.id),
-          name: c.name as string,
-          bookings: c.bookings as number,
-          spend: c.spend as number,
-        })),
-        bookingsTrend,
-      },
-    });
+    res.json(await adminDashboard(req.query as Record<string, unknown>));
   }),
 );
 
@@ -486,68 +118,12 @@ statsRouter.get(
   }),
 );
 
+/** Team attendance for a range (`from` / `to`, at most 366 days, or legacy `period`) with per-technician rows. */
 statsRouter.get(
   '/admin/team-attendance',
   requireAuth,
   requireRole('admin'),
   asyncHandler(async (req, res) => {
-    const period = (typeof req.query.period === 'string' ? req.query.period : 'month') as Period;
-    const valid: Period[] = ['week', 'month', 'quarter', 'year'];
-    const p = valid.includes(period) ? period : 'month';
-
-    const { from, to, month } = periodAttendanceRange(p);
-    const today = todayDateKey();
-
-    const technicians = await User.find({
-      role: 'technician',
-      disabled: { $ne: true },
-    }).sort({ name: 1 });
-
-    const techIds = technicians.map((t) => t._id);
-    const allRecords = await TechnicianAttendance.find({
-      technicianId: { $in: techIds },
-      date: { $gte: from, $lte: to },
-    });
-
-    let checkedInToday = 0;
-    let totalPresent = 0;
-    let totalAbsent = 0;
-    const lowAttendance: Array<{ id: string; name: string; rate: number }> = [];
-
-    for (const tech of technicians) {
-      const techRecords = allRecords.filter(
-        (r) => r.technicianId.toString() === tech._id.toString(),
-      );
-      const cal = buildAttendanceCalendar(techRecords, from, to, today);
-      const stats = computeAttendanceAnalytics(cal, today);
-
-      const todayRecord = techRecords.find((r) => r.date === today);
-      if (todayRecord?.status === 'present') checkedInToday += 1;
-
-      totalPresent += stats.daysPresent;
-      totalAbsent += stats.daysAbsent;
-
-      if (stats.daysPresent + stats.daysAbsent >= 3 && stats.attendanceRate < 80) {
-        lowAttendance.push({
-          id: tech._id.toString(),
-          name: tech.name,
-          rate: stats.attendanceRate,
-        });
-      }
-    }
-
-    const avgRate =
-      totalPresent + totalAbsent > 0
-        ? Math.round((totalPresent / (totalPresent + totalAbsent)) * 100)
-        : 0;
-
-    res.json({
-      period: p,
-      month,
-      totalTechnicians: technicians.length,
-      checkedInToday,
-      averageAttendanceRate: avgRate,
-      lowAttendance: lowAttendance.sort((a, b) => a.rate - b.rate),
-    });
+    res.json(await teamAttendance(req.query as Record<string, unknown>));
   }),
 );

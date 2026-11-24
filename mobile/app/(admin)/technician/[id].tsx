@@ -240,8 +240,14 @@ export default function AdminTechnicianDetailScreen() {
           params: { id: technician.id, returnTo: adminRoutes.technician(technician.id) },
         })
       }
-      onPending={() => appPush(adminRoutes.bookingsFiltered({ status: 'pending' }))}
-      onAssign={() => appPush(adminRoutes.bookings)}
+      // This technician's jobs that are not started yet.
+      onPending={() =>
+        appPush(adminRoutes.bookingsFiltered({ technicianId: technician.id, status: 'pending,confirmed' }))
+      }
+      // Open jobs with no technician yet — assign one of them to this technician.
+      onAssign={() =>
+        appPush(adminRoutes.bookingsFiltered({ technicianId: 'unassigned', status: 'pending,confirmed' }))
+      }
     />
   );
 

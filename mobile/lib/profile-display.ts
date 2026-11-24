@@ -20,10 +20,15 @@ export function isProfileIncomplete(user: Pick<StoredUser, 'name' | 'email'> | n
   return false;
 }
 
-export function displayUserName(user: Pick<StoredUser, 'name'> | null | undefined): string {
+/** False while the account still has the sign-up placeholder name (or none). */
+export function hasDisplayName(user: Pick<StoredUser, 'name'> | null | undefined): boolean {
   const name = user?.name?.trim();
-  if (!name || name.toLowerCase() === 'customer') return 'Your account';
-  return name;
+  return Boolean(name) && name!.toLowerCase() !== 'customer';
+}
+
+/** The customer's name, or `fallback` (admin copy `profileNameFallback` on customer screens). */
+export function displayUserName(user: Pick<StoredUser, 'name'> | null | undefined, fallback = 'Your account'): string {
+  return hasDisplayName(user) ? user!.name!.trim() : fallback;
 }
 
 export function homeGreetingName(user: Pick<StoredUser, 'name'> | null | undefined): string {

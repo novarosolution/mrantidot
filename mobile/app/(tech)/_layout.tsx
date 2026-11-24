@@ -26,6 +26,9 @@ function TechLayout() {
 
   return (
     <Tabs
+      // Inbox, leave, analytics and job detail are hidden tabs: "back" must return to the screen the
+      // technician came from (inbox → job → back lands on the inbox), not jump to the first tab.
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
         lazy: true,
@@ -60,6 +63,7 @@ function TechLayout() {
       />
       <Tabs.Screen name="analytics" options={{ href: null }} />
       <Tabs.Screen name="leave" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
       <Tabs.Screen name="job/[id]" options={{ href: null, tabBarStyle: { display: 'none' } }} />
     </Tabs>
   );

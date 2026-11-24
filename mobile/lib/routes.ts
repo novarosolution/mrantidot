@@ -64,6 +64,7 @@ export const techRoutes = {
   job: (id: string) => `/(tech)/job/${id}` as const,
   analytics: '/(tech)/analytics',
   leave: '/(tech)/leave',
+  notifications: '/(tech)/notifications',
 } as const;
 
 /* ─── Shared (catalog / book / review) ─────────────────────────────────── */

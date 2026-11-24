@@ -40,6 +40,10 @@ function NativeLoginScreen() {
   const ui = useCustomerUiCopy();
 
   const passwordRef = useRef<TextInput>(null);
+  // The keyboard's Go key can land in the same JS batch as the last keystrokes (fast typing, password
+  // autofill, a busy JS thread), before React re-renders with them. Submit reads the text from here so it
+  // never validates stale, empty state.
+  const latest = useRef({ identifier: '', password: '' });
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -55,8 +59,8 @@ function NativeLoginScreen() {
 
   const handleLogin = useCallback(async () => {
     if (loading) return;
-    const id = identifier.trim();
-    const pass = password.trim();
+    const id = latest.current.identifier.trim();
+    const pass = latest.current.password.trim();
     let valid = true;
 
     if (!id) {
@@ -94,7 +98,7 @@ function NativeLoginScreen() {
     } finally {
       setLoading(false);
     }
-  }, [identifier, loading, login, password, ui]);
+  }, [loading, login, ui]);
 
   return (
     <AuthLoginShell
@@ -109,6 +113,7 @@ function NativeLoginScreen() {
           label={ui.authFieldIdentifier}
           value={identifier}
           onChangeText={(text) => {
+            latest.current.identifier = text;
             setIdentifier(text);
             if (identifierError) setIdentifierError(undefined);
           }}
@@ -127,6 +132,7 @@ function NativeLoginScreen() {
           label={ui.authFieldPassword}
           value={password}
           onChangeText={(text) => {
+            latest.current.password = text;
             setPassword(text);
             if (passwordError) setPasswordError(undefined);
           }}

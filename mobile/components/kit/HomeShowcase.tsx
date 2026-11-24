@@ -218,7 +218,7 @@ export function FeatureBanner({
         {service.name}
       </Text>
       {service.shortDesc ? (
-        <Text style={styles.featSub} numberOfLines={2}>
+        <Text style={styles.featSub} numberOfLines={1}>
           {service.shortDesc}
         </Text>
       ) : null}
@@ -261,23 +261,23 @@ const styles = StyleSheet.create({
   },
   spotArt: { position: 'absolute', right: -4, bottom: -2, width: 158, height: 158 },
   spotText: { width: '62%', padding: 18, justifyContent: 'center' },
-  spotKicker: { fontFamily: fonts.body, fontSize: 13.5, color: ui.textSecondary },
+  spotKicker: { fontFamily: fonts.body, fontSize: 12.5, color: ui.textSecondary },
   spotTitle: {
     marginTop: 3,
     fontFamily: fonts.displaySemi,
-    fontSize: 21,
-    lineHeight: 26,
-    letterSpacing: -0.45,
+    fontSize: 19,
+    lineHeight: 24,
+    letterSpacing: -0.4,
     color: ui.text,
   },
-  spotPrice: { marginTop: 6, fontFamily: fonts.body, fontSize: 14, color: ui.text },
+  spotPrice: { marginTop: 6, fontFamily: fonts.body, fontSize: 13, color: ui.text },
   spotPriceBold: { fontFamily: fonts.bodySemi },
   spotCtaWrap: { alignSelf: 'flex-start', marginTop: 12 },
   spotCta: { height: 38, paddingHorizontal: 18, borderRadius: 10, backgroundColor: ui.text, justifyContent: 'center' },
-  spotCtaText: { fontFamily: fonts.bodySemi, fontSize: 14.5, color: colors.white },
+  spotCtaText: { fontFamily: fonts.bodySemi, fontSize: 13.5, color: colors.white },
 
   newRow: { paddingHorizontal: 16, gap: 16 },
-  newLabel: { marginTop: 8, fontFamily: fonts.body, fontSize: 14, lineHeight: 19, color: ui.text },
+  newLabel: { marginTop: 8, fontFamily: fonts.bodyMedium, fontSize: 13, lineHeight: 18, color: ui.text },
 
   curRow: { paddingHorizontal: 16, gap: 12 },
   curWrap: { width: 152 },
@@ -285,11 +285,11 @@ const styles = StyleSheet.create({
   curArt: { position: 'absolute', top: 22, alignSelf: 'center', width: 130, height: 130 },
   curShade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 130 },
   curText: { position: 'absolute', left: 14, right: 12, bottom: 16 },
-  curScript: { fontFamily: fonts.serifItalic, fontSize: 26, lineHeight: 28, color: 'rgba(255,255,255,0.95)' },
-  curBig: { fontFamily: fonts.bodySemi, fontSize: 21, lineHeight: 27, letterSpacing: 0.8, color: colors.white },
+  curScript: { fontFamily: fonts.serifItalic, fontSize: 24, lineHeight: 26, color: 'rgba(255,255,255,0.95)' },
+  curBig: { fontFamily: fonts.bodySemi, fontSize: 18, lineHeight: 24, letterSpacing: 0.8, color: colors.white },
 
   featWrap: { marginHorizontal: 16 },
-  feat: { height: 460, borderRadius: 20, overflow: 'hidden', alignItems: 'center', paddingTop: 24 },
+  feat: { height: 360, borderRadius: 24, overflow: 'hidden', alignItems: 'center', paddingTop: 20 },
   featBeam: {
     position: 'absolute',
     width: 520,
@@ -307,15 +307,15 @@ const styles = StyleSheet.create({
     borderColor: ui.text,
     justifyContent: 'center',
   },
-  featTagText: { fontFamily: fonts.bodyMedium, fontSize: 13.5, color: ui.text },
+  featTagText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: ui.text },
   featTitle: {
     marginTop: 12,
     paddingHorizontal: 22,
     textAlign: 'center',
     fontFamily: fonts.bodyMedium,
-    fontSize: 34,
-    lineHeight: 40,
-    letterSpacing: -1,
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: -0.6,
     color: ui.text,
   },
   featSub: {
@@ -323,11 +323,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     textAlign: 'center',
     fontFamily: fonts.body,
-    fontSize: 15,
-    lineHeight: 21,
+    fontSize: 13,
+    lineHeight: 18,
     color: ui.textSecondary,
   },
-  featArt: { flex: 1, width: '78%', marginBottom: 80 },
+  featArt: { flex: 1, width: '62%', marginBottom: 76 },
   featBar: {
     position: 'absolute',
     left: 0,
@@ -340,8 +340,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   featBarText: { flex: 1, minWidth: 0 },
-  featBarName: { fontFamily: fonts.body, fontSize: 13.5, color: 'rgba(255,255,255,0.75)' },
-  featBarPrice: { marginTop: 1, fontFamily: fonts.displaySemi, fontSize: 24, letterSpacing: -0.5, color: colors.white },
+  featBarName: { fontFamily: fonts.body, fontSize: 12.5, color: 'rgba(255,255,255,0.75)' },
+  featBarPrice: { marginTop: 1, fontFamily: fonts.displaySemi, fontSize: 21, letterSpacing: -0.5, color: colors.white },
   featCta: { height: 44, paddingHorizontal: 22, borderRadius: 10, backgroundColor: colors.white, justifyContent: 'center' },
-  featCtaText: { fontFamily: fonts.bodySemi, fontSize: 15, color: ui.text },
+  featCtaText: { fontFamily: fonts.bodySemi, fontSize: 14, color: ui.text },
 });

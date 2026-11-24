@@ -30,6 +30,7 @@ import {
  *   customerId, serviceId
  *   paymentStatus   unpaid (also matches bookings saved before the field existed) | paid | refunded
  *   paymentMethod   upi_card | pay_after
+ *   source          app | website | admin | unknown (bookings saved before the source was recorded)
  *   from, to        YYYY-MM-DD business days (IST); `dateField` = visit (default) | created | completed
  *   q               ref (#MA-1A2B3), customer / technician name or phone, service name
  *   sort            visit | created (default) | amount | updated;  order = asc | desc (default desc)
@@ -54,6 +55,7 @@ export const BOOKING_STATUS_GROUPS: Record<string, readonly string[]> = {
 
 const PAYMENT_STATUSES = ['unpaid', 'paid', 'refunded'] as const;
 const PAYMENT_METHODS = ['upi_card', 'pay_after'] as const;
+const SOURCES = ['app', 'website', 'admin', 'unknown'] as const;
 
 type Query = Record<string, unknown>;
 
@@ -156,6 +158,13 @@ export async function buildBookingListQuery(
         throw new AppError(400, `Unknown payment method "${query.paymentMethod}"`);
       }
       base.paymentMethod = query.paymentMethod;
+    }
+
+    if (typeof query.source === 'string' && query.source && query.source !== 'all') {
+      if (!(SOURCES as readonly string[]).includes(query.source)) {
+        throw new AppError(400, 'source must be app, website, admin or unknown');
+      }
+      base.source = query.source === 'unknown' ? null : query.source;
     }
 
     const { from, to } = parseDateRange(query, { maxDays: 3700 });

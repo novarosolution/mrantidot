@@ -147,62 +147,6 @@ export function ReportsRankList({
   );
 }
 
-/** Tallest bar in the 7-day chart. Bars are sized in points so count + label never push them past the card. */
-const TREND_BAR_MAX = 72;
-const TREND_BAR_MIN = 8;
-
-/** 7-day booking volume mini chart. */
-export function BookingsTrendChart({
-  data,
-  title = 'Bookings this week',
-  flush = false,
-  hideTitle = false,
-}: {
-  data: { label: string; count: number }[];
-  title?: string;
-  flush?: boolean;
-  /** Keep only the "7 days" chip when a section heading already names the chart. */
-  hideTitle?: boolean;
-}) {
-  const buckets = data.length > 0 ? data : [{ label: '-', count: 0 }];
-  const max = Math.max(...buckets.map((b) => b.count), 1);
-
-  return (
-    <View style={flush ? styles.chartFlush : styles.chartCard}>
-      <View style={[styles.chartHead, hideTitle && styles.chartHeadEnd]}>
-        {hideTitle ? null : (
-          <Text style={styles.chartTitle} numberOfLines={1}>
-            {title}
-          </Text>
-        )}
-        <View style={styles.chartChip}>
-          <Text style={styles.chartChipText}>7 days</Text>
-        </View>
-      </View>
-      <View style={styles.bars}>
-        {buckets.map((b, i) => {
-          const h = Math.max(TREND_BAR_MIN, Math.round((b.count / max) * TREND_BAR_MAX));
-          const isLast = i === buckets.length - 1;
-          return (
-            <View key={`${b.label}-${i}`} style={styles.col}>
-              <Text style={styles.barCount}>{b.count > 0 ? b.count : ''}</Text>
-              <LinearGradient
-                colors={isLast ? [colors.limeBright, colors.green] : [colors.forest, colors.green]}
-                style={[styles.bar, { height: h }]}
-                start={{ x: 0, y: 1 }}
-                end={{ x: 0, y: 0 }}
-              />
-              <Text style={styles.barLabel} numberOfLines={1}>
-                {b.label}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
 export type ReportsInsightItem = {
   key: string;
   label: string;
@@ -343,7 +287,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...adminShadow.card,
   },
-  rankGold: { height: 3, marginHorizontal: -spacing.md, marginTop: -spacing.sm - 4, marginBottom: spacing.sm },
   rankFlush: {},
   rankRow: { marginBottom: spacing.sm + 2 },
   pressed: { opacity: 0.88 },
@@ -355,28 +298,6 @@ const styles = StyleSheet.create({
   rankSub: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 1 },
   rankTrack: { height: 8, backgroundColor: ui.hairline, borderRadius: 5, overflow: 'hidden' },
   rankFill: { height: '100%', borderRadius: 5 },
-  chartCard: {
-    borderRadius: premium.radiusCard,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
-    padding: spacing.md,
-    paddingTop: spacing.sm + 4,
-    overflow: 'hidden',
-    ...adminShadow.card,
-  },
-  chartGold: { height: 3, marginHorizontal: -spacing.md, marginTop: -spacing.sm - 4, marginBottom: spacing.sm },
-  chartFlush: {},
-  chartHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm, gap: 8 },
-  chartHeadEnd: { justifyContent: 'flex-end' },
-  chartTitle: { flex: 1, fontFamily: fonts.display, fontSize: 15, color: colors.ink },
-  chartChip: { backgroundColor: colors.mint, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: surfaces.glassBorderStrong },
-  chartChipText: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.forest },
-  bars: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingTop: 8, gap: 6 },
-  col: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
-  barCount: { fontFamily: fonts.bodySemi, fontSize: 9, color: colors.muted, marginBottom: 4, minHeight: 12 },
-  bar: { width: '70%', borderTopLeftRadius: 6, borderTopRightRadius: 6, minHeight: 8 },
-  barLabel: { fontFamily: fonts.bodySemi, fontSize: 9, color: colors.muted, marginTop: 6 },
   insightGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   /** Desktop browser: 4 tiles per row instead of 2 (insight + manage grids). */
   tileWide: { width: '22%' },
@@ -441,7 +362,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...adminShadow.tile,
   },
-  manageGold: { position: 'absolute', top: 0, left: 12, right: 12, height: 2, borderRadius: 1 },
   manageLabel: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink, marginTop: 8 },
   manageDesc: { fontFamily: fonts.body, fontSize: 10, color: colors.muted, marginTop: 3, lineHeight: 14 },
 });

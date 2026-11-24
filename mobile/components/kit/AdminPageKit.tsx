@@ -8,7 +8,7 @@ import { AppIcons } from '@/constants/appIcons';
 import { AdminGoldBar } from '@/components/kit/AdminScreenKit';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { adminShadow } from '@/components/kit/homeUi';
-import { ADMIN_QUICK_COLS, adminGridCellWidth } from '@/lib/adminGrid';
+import { ADMIN_QUICK_COLS, useAdminGridCellWidth } from '@/lib/adminGrid';
 import { haptic } from '@/lib/motion';
 import { adminSurfaces, adminType, colors, fonts, premium, spacing, ui } from '@/constants/theme';
 
@@ -20,7 +20,8 @@ export function AdminQuickGrid({
   onPress: (key: string) => void;
 }) {
   const cols = items.length === 4 ? 4 : ADMIN_QUICK_COLS;
-  const tileWidth = adminGridCellWidth(cols);
+  // Re-measures on window resize and when the desktop sidebar collapses.
+  const tileWidth = useAdminGridCellWidth(cols);
 
   return (
     <View style={styles.quickGrid}>

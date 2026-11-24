@@ -8,6 +8,7 @@ import { OtpBoxes } from '@/components/kit/OtpBoxes';
 import { useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { fillCopy } from '@/constants/customerUiCopy';
 import { api, getApiErrorMessage } from '@/lib/api';
 import { formatLoginIdentifier } from '@/lib/phone';
 import { appToast } from '@/lib/toast';
@@ -71,7 +72,7 @@ function OtpScreenBody() {
       setCode('');
       setCodeError(undefined);
     } catch (err) {
-      appToast.error('Could not send code', getApiErrorMessage(err, 'Try password sign-in instead'));
+      appToast.error(ui.otpSendFailed, getApiErrorMessage(err, ui.otpSendFailedSub));
     } finally {
       setSending(false);
     }
@@ -110,9 +111,9 @@ function OtpScreenBody() {
       }
       appReplace(homeRouteForRole(signedIn.role));
     } catch (err) {
-      const message = getApiErrorMessage(err, 'Invalid code');
+      const message = getApiErrorMessage(err, ui.otpInvalidCode);
       setCodeError(message);
-      appToast.error('OTP failed', message);
+      appToast.error(ui.otpFailed, message);
     } finally {
       setLoading(false);
     }
@@ -153,8 +154,8 @@ function OtpScreenBody() {
       {sentTo ? (
         <View style={styles.codeBlock}>
           <View style={styles.codeHead}>
-            <Text style={styles.codeLabel}>Enter 4-digit code</Text>
-            <Text style={styles.codeSentTo}>Sent to {maskPhone(sentTo)}</Text>
+            <Text style={styles.codeLabel}>{fillCopy(ui.otpEnterDigits, { count: 4 })}</Text>
+            <Text style={styles.codeSentTo}>{fillCopy(ui.otpSentTo, { phone: maskPhone(sentTo) })}</Text>
           </View>
           <OtpBoxes
             autoFocus

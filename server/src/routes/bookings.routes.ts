@@ -23,6 +23,7 @@ import {
   resolvePaymentMethod,
 } from '../utils/booking';
 import { resolveAddressString } from '../utils/addresses';
+import { parseVisitContact } from '../utils/visitContact';
 import { releaseOfferUse, reserveOfferUse } from '../utils/coupons';
 import {
   notifyBookingEvent,
@@ -182,6 +183,7 @@ bookingsRouter.post(
   body('scheduleRequest.notes').optional().trim(),
   body('address').optional().trim(),
   body('addressId').optional().isMongoId(),
+  body('visitContact').optional({ nullable: true }).isObject(),
   body('propertyType').trim().notEmpty(),
   body('paymentMethod').optional().isIn(['upi_card', 'pay_after']),
   body('couponCode').optional().trim(),
@@ -202,6 +204,9 @@ bookingsRouter.post(
       customerId = customer._id.toString();
       customerName = customer.name;
     }
+
+    // Booking for someone else (parent, tenant, friend): the person technicians should call on the visit day.
+    const visitContact = parseVisitContact(req.body.visitContact);
 
     const service = await Service.findById(req.body.serviceId);
     if (!service || !service.active) {
@@ -268,6 +273,7 @@ bookingsRouter.post(
         propertyType,
         option,
         address,
+        ...(visitContact ? { visitContact } : {}),
         amount,
         paymentMethod,
         status: autoConfirm ? 'confirmed' : 'pending',

@@ -39,8 +39,14 @@ export function OffersPromoHero({
           <Text style={styles.badge}>
             {fallbackTitle?.trim() || fillCopy(copy.offersDealsTitle, { brand: brandName || 'Mr Antidot' })}
           </Text>
-          <Text style={styles.title}>{fallbackSub?.trim() || copy.offersDealsSub}</Text>
-          {sub ? <Text style={styles.sub}>{sub}</Text> : null}
+          <Text style={styles.title} numberOfLines={2}>
+            {fallbackSub?.trim() || copy.offersDealsSub}
+          </Text>
+          {sub ? (
+            <Text style={styles.sub} numberOfLines={2}>
+              {sub}
+            </Text>
+          ) : null}
         </View>
       </LinearGradient>
     </View>
@@ -54,7 +60,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
     padding: 16,
-    borderRadius: 24,
+    borderRadius: 22,
     overflow: 'hidden',
     shadowColor: '#075C2B',
     shadowOffset: { width: 0, height: 10 },
@@ -72,9 +78,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
   icon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.14)',
@@ -84,24 +90,24 @@ const styles = StyleSheet.create({
   body: { flex: 1, minWidth: 0 },
   badge: {
     fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 1,
+    fontSize: 10.5,
+    letterSpacing: 1.1,
     textTransform: 'uppercase',
     color: colors.limeOnDark,
   },
   title: {
     marginTop: 4,
     fontFamily: fonts.displayExtra,
-    fontSize: 17,
-    lineHeight: 22,
-    letterSpacing: -0.35,
+    fontSize: 16,
+    lineHeight: 21,
+    letterSpacing: -0.3,
     color: colors.white,
   },
   sub: {
     marginTop: 3,
     fontFamily: fonts.body,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12.5,
+    lineHeight: 17,
     color: 'rgba(255,255,255,0.82)',
   },
 });

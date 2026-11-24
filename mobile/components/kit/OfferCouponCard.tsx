@@ -109,11 +109,13 @@ export function OfferCouponCard({
         {offer.minOrderAmount || expiry ? (
           <View style={styles.metaRow}>
             {offer.minOrderAmount ? (
-              <Text style={styles.meta}>{fillCopy(copy.offerMinOrder, { amount: formatRupeeFull(offer.minOrderAmount) })}</Text>
+              <View style={styles.metaChip}>
+                <Text style={styles.meta}>{fillCopy(copy.offerMinOrder, { amount: formatRupeeFull(offer.minOrderAmount) })}</Text>
+              </View>
             ) : null}
             {expiry ? (
-              <View style={styles.expiryRow}>
-                <CalendarClock size={11} color={ui.textTertiary} strokeWidth={2.2} />
+              <View style={styles.metaChip}>
+                <CalendarClock size={11} color={ui.textSecondary} strokeWidth={2.2} />
                 <Text style={styles.meta}>{expiry}</Text>
               </View>
             ) : null}
@@ -147,28 +149,36 @@ const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.5 },
   stub: { width: STUB_W, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, gap: 2 },
-  save: { fontFamily: fonts.bodyBold, fontSize: 10.5, letterSpacing: 1.6 },
-  value: { fontFamily: fonts.displayExtra, fontSize: 28, letterSpacing: -0.6 },
+  save: { fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 1.6 },
+  value: { fontFamily: fonts.displayExtra, fontSize: 26, letterSpacing: -0.6 },
   perforation: { width: 0, marginVertical: 14, borderLeftWidth: 1.5, borderStyle: 'dashed', opacity: 0.35 },
   body: { flex: 1, minWidth: 0, padding: 14, paddingLeft: 16 },
   codeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  code: { flex: 1, fontFamily: fonts.displayExtra, fontSize: 17, letterSpacing: 1, color: ui.text },
+  code: { flex: 1, fontFamily: fonts.displayExtra, fontSize: 16, letterSpacing: 0.9, color: ui.text },
   copyPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 12,
-    height: 32,
+    paddingHorizontal: 11,
+    height: 30,
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: ui.border,
     backgroundColor: colors.white,
   },
-  copyText: { fontFamily: fonts.bodyBold, fontSize: 11.5 },
-  desc: { marginTop: 5, fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: ui.textSecondary },
-  metaRow: { marginTop: 6, gap: 3 },
-  expiryRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  meta: { fontFamily: fonts.bodyMedium, fontSize: 11.5, color: ui.textTertiary },
+  copyText: { fontFamily: fonts.bodyBold, fontSize: 11 },
+  desc: { marginTop: 5, fontFamily: fonts.body, fontSize: 12.5, lineHeight: 17, color: ui.textSecondary },
+  metaRow: { marginTop: 8, flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  metaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    height: 22,
+    borderRadius: radii.pill,
+    backgroundColor: ui.surfaceMuted,
+  },
+  meta: { fontFamily: fonts.bodyMedium, fontSize: 11, color: ui.textSecondary },
   ctaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -178,7 +188,7 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: ui.border,
   },
-  cta: { fontFamily: fonts.bodyBold, fontSize: 14, color: ui.brand },
+  cta: { fontFamily: fonts.bodyBold, fontSize: 13.5, color: ui.brand },
   ctaIcon: {
     width: 28,
     height: 28,

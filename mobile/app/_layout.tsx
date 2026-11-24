@@ -14,12 +14,14 @@ import { StatusBar } from 'expo-status-bar';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { premiumToastConfig, TOAST_DEFAULTS, useToastTopOffset } from '@/components/ui/PremiumToast';
+import { AppStatusGate } from '@/components/AppStatusGate';
+import { premiumToastConfig, setToastCopy, TOAST_DEFAULTS, useToastTopOffset } from '@/components/ui/PremiumToast';
 import { AuthSplashLayout } from '@/components/kit/auth/AuthScreenKit';
 import { AuthProvider } from '@/context/AuthContext';
 import { AppContentProvider, DEFAULT_APP_CONFIG } from '@/context/AppContentContext';
 import { LocationProvider } from '@/context/LocationContext';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { registerGlobalErrorHandlers } from '@/lib/registerGlobalErrorHandlers';
 import { setupDefaultFonts } from '@/lib/setupFonts';
 import { colors, design, fonts } from '@/constants/theme';
@@ -27,6 +29,9 @@ import { DEFAULT_CUSTOMER_UI_COPY, fillBrand } from '@/constants/customerUiCopy'
 
 function AppToastHost() {
   const topOffset = useToastTopOffset();
+  const copy = useCustomerUiCopy();
+  // Toast labels follow the admin copy; the toast module can't read the content context itself (require cycle).
+  useEffect(() => setToastCopy(copy), [copy]);
   return (
     <Toast
       config={premiumToastConfig}
@@ -100,9 +105,12 @@ export default function RootLayout() {
               {/* Every screen opens on a dark forest hero (HeroDarkSlice / auth / launch),
                   so the clock + battery need light glyphs to stay legible. */}
               <StatusBar style="light" />
-              <Stack
-                screenOptions={{ headerShown: false, contentStyle: { backgroundColor: design.screenBg }, ...WEB_ROOT_TITLE }}
-              />
+              {/* Maintenance mode and the minimum app version (Business settings → App status). */}
+              <AppStatusGate>
+                <Stack
+                  screenOptions={{ headerShown: false, contentStyle: { backgroundColor: design.screenBg }, ...WEB_ROOT_TITLE }}
+                />
+              </AppStatusGate>
               <AppToastHost />
             </AppContentProvider>
           </LocationProvider>

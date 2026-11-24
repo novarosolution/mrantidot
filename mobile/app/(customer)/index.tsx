@@ -301,6 +301,13 @@ export default function CustomerHome() {
     return out;
   }, [offers, homePromo, copy, spotlight, promoServiceId, openService]);
 
+  /** Spotlight skips what the hero carousel already shows, and hides when too little is left to be a rail. */
+  const spotlightMore = useMemo(() => {
+    const inHero = new Set(heroSlides.map((h) => h.key));
+    const rest = spotlight.filter((s) => !inHero.has(s.id));
+    return rest.length >= 2 ? rest : [];
+  }, [heroSlides, spotlight]);
+
   async function onRefresh() {
     setRefreshing(true);
     try {
@@ -461,7 +468,7 @@ export default function CustomerHome() {
                     offerTile={
                       offers[0]
                         ? {
-                            value: offers[0].discountType === 'percent' ? `${offers[0].discount}%` : `₹${offers[0].discount}`,
+                            values: offers.map((o) => (o.discountType === 'percent' ? `${o.discount}%` : `₹${o.discount}`)),
                             label: copy.homeOffersTile,
                             onPress: () => appPush(customerRoutes.offers),
                           }
@@ -487,27 +494,9 @@ export default function CustomerHome() {
               ) : null}
 
 
-              {spotlight.length > 0 ? (
-                <FadeSlideIn delay={stagger(2)} style={styles.block}>
-                  <SpotlightCarousel
-                    title={copy.homeSpotlightTitle}
-                    services={spotlight}
-                    ctaLabel={copy.homeHeroCta}
-                    onOpen={openService}
-                    onBook={bookService}
-                  />
-                </FadeSlideIn>
-              ) : null}
-
-              {newest.length >= 3 ? (
-                <FadeSlideIn delay={stagger(3)} style={styles.block}>
-                  <NewArrivalsRail title={copy.homeNewlyAdded} services={newest} onOpen={openService} />
-                </FadeSlideIn>
-              ) : null}
-
               {/* Only a band when there is something in it (rail or its loading shimmer). */}
               {mostBooked.length > 0 ? (
-                <FadeSlideIn delay={stagger(4)} style={styles.block}>
+                <FadeSlideIn delay={stagger(2)} style={styles.block}>
                   <HomeServiceRail
                     title={preferTitle(homeConfig.sectionTitles.popular, ['Popular now'], copy.homeMostBookedTitle)}
                     services={mostBooked}
@@ -524,8 +513,26 @@ export default function CustomerHome() {
               ) : null}
 
               {offers.length > 0 ? (
-                <FadeSlideIn delay={stagger(5)} style={styles.block}>
+                <FadeSlideIn delay={stagger(3)} style={styles.block}>
                   <HomeOffersRail offers={offers} onSeeAll={() => appPush(customerRoutes.offers)} />
+                </FadeSlideIn>
+              ) : null}
+
+              {spotlightMore.length > 0 ? (
+                <FadeSlideIn delay={stagger(4)} style={styles.block}>
+                  <SpotlightCarousel
+                    title={copy.homeSpotlightTitle}
+                    services={spotlightMore}
+                    ctaLabel={copy.homeHeroCta}
+                    onOpen={openService}
+                    onBook={bookService}
+                  />
+                </FadeSlideIn>
+              ) : null}
+
+              {newest.length >= 3 ? (
+                <FadeSlideIn delay={stagger(5)} style={styles.block}>
+                  <NewArrivalsRail title={copy.homeNewlyAdded} services={newest} onOpen={openService} />
                 </FadeSlideIn>
               ) : null}
 

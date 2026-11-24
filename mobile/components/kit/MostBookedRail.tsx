@@ -139,8 +139,8 @@ const styles = StyleSheet.create({
   name: {
     minHeight: 38,
     fontFamily: fonts.bodyBold,
-    fontSize: 14,
-    lineHeight: 19,
+    fontSize: 13.5,
+    lineHeight: 18,
     letterSpacing: -0.15,
     color: ui.text,
   },
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
-  price: { fontFamily: fonts.displayExtra, fontSize: 16, letterSpacing: -0.3, color: ui.text },
+  price: { fontFamily: fonts.displayExtra, fontSize: 15, letterSpacing: -0.3, color: ui.text },
   book: {
     width: 34,
     height: 34,

@@ -148,6 +148,15 @@ export function CustomerPageHeader({
           {rightAction ?? null}
         </View>
         {children}
+        {/* Brand-green accent that fades out at both ends — replaces the flat hairline. */}
+        <LinearGradient
+          pointerEvents="none"
+          colors={['rgba(21,148,71,0)', 'rgba(21,148,71,0.45)', 'rgba(143,208,60,0.45)', 'rgba(143,208,60,0)']}
+          locations={[0, 0.3, 0.7, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.whiteAccent}
+        />
       </View>
     );
   }
@@ -185,6 +194,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: ui.hairline,
   },
+  whiteAccent: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 1.5 },
   whiteRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48 },
   whiteBack: {
     width: 44,

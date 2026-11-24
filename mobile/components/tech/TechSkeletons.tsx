@@ -169,6 +169,24 @@ export function TechProfileSkeleton() {
   );
 }
 
+/** Inbox: notification cards (icon tile, title, two body lines), leaving room for each row's delete button. */
+export function TechNotificationsSkeleton() {
+  return (
+    <View style={styles.pad}>
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <View key={i} style={[styles.card, styles.row, styles.inboxCard, i > 0 && styles.gap8]}>
+          <Skeleton width={42} height={42} radius={radii.thumb} />
+          <View style={styles.flex}>
+            <Skeleton width="58%" height={14} radius={6} />
+            <Skeleton width="92%" height={11} radius={5} style={styles.gap8} />
+            <Skeleton width="64%" height={11} radius={5} style={styles.gap6} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 /** A metric block that is still loading (e.g. after switching the calendar month). */
 export function TechBlockSkeleton({ height = 180 }: { height?: number }) {
   return <Skeleton width="100%" height={height} radius={20} />;
@@ -188,6 +206,9 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
   flex: { flex: 1 },
+  /** The inbox list puts a 36pt delete button (plus a 6pt gap) beside each card. */
+  inboxCard: { alignItems: 'flex-start', marginRight: 42 },
+  gap6: { marginTop: 6 },
   gap8: { marginTop: 8 },
   gap12: { marginTop: 12 },
   gap16: { marginTop: 16 },

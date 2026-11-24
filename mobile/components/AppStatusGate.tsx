@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
+import { StatusBar } from 'expo-status-bar';
 import { Download, LogIn, RefreshCw, Wrench } from 'lucide-react-native';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { AppState, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -37,7 +38,7 @@ export function installedAppVersion(): string {
  * link during maintenance. The web build is the admin panel and always passes.
  * Settings are re-read whenever the app comes back to the foreground.
  *
- * Mount inside AuthProvider + AppContentProvider, around the root navigator.
+ * Mount inside AuthProvider + AppContentProvider, around the root navigator (app/_layout.tsx).
  */
 export function AppStatusGate({ children }: { children: ReactNode }) {
   const settings = useBusinessSettings();
@@ -57,20 +58,37 @@ export function AppStatusGate({ children }: { children: ReactNode }) {
     if (user && user.role !== 'admin') setStaffSignIn(false);
   }, [user]);
 
-  if (Platform.OS === 'web' || isLoading || user?.role === 'admin') return <>{children}</>;
+  // The web build is the admin panel: never gated.
+  if (Platform.OS === 'web') return <>{children}</>;
 
-  const { maintenance, maintenanceMessage, minVersion, iosUrl, androidUrl } = settings.app;
-  if (maintenance && !(staffSignIn && !user)) {
-    return <MaintenanceScreen message={maintenanceMessage} onStaffSignIn={user ? undefined : () => setStaffSignIn(true)} />;
+  let blocker: ReactNode = null;
+  if (!isLoading && user?.role !== 'admin') {
+    const { maintenance, maintenanceMessage, minVersion, iosUrl, androidUrl } = settings.app;
+    const installed = installedAppVersion();
+    if (maintenance && !(staffSignIn && !user)) {
+      blocker = <MaintenanceScreen message={maintenanceMessage} onStaffSignIn={user ? undefined : () => setStaffSignIn(true)} />;
+    } else if (minVersion && installed && compareVersions(installed, minVersion) < 0) {
+      blocker = <UpdateScreen storeUrl={Platform.OS === 'ios' ? iosUrl : androidUrl} installed={installed} />;
+    }
   }
 
-  const installed = installedAppVersion();
-  if (minVersion && installed && compareVersions(installed, minVersion) < 0) {
-    const storeUrl = Platform.OS === 'ios' ? iosUrl : androidUrl;
-    return <UpdateScreen storeUrl={storeUrl} installed={installed} />;
-  }
-
-  return <>{children}</>;
+  // The navigator stays mounted underneath and the gate is laid over it. Unmounting expo-router's root
+  // Stack would break any navigation made while the gate is up (a session-expiry redirect, a notification
+  // tap…) and lose the navigation state when it lifts. The tree is the same in every state, so nothing
+  // remounts when auth finishes loading or the gate opens and closes.
+  return (
+    <View style={styles.host}>
+      <View
+        style={styles.host}
+        pointerEvents={blocker ? 'none' : 'auto'}
+        importantForAccessibility={blocker ? 'no-hide-descendants' : 'auto'}
+        accessibilityElementsHidden={blocker !== null}
+      >
+        {children}
+      </View>
+      {blocker ? <View style={StyleSheet.absoluteFill}>{blocker}</View> : null}
+    </View>
+  );
 }
 
 /* ---------- screens ---------- */
@@ -91,6 +109,8 @@ function StatusShell({
   const insets = useSafeAreaInsets();
   return (
     <View style={styles.root}>
+      {/* Mounted last, so it beats the dark status bar of the (still mounted) screen underneath. */}
+      <StatusBar style="light" />
       <PremiumAurora topFade={false} />
       <View style={[styles.stage, { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.lg }]}>
         <View style={styles.center}>
@@ -199,6 +219,7 @@ function UpdateScreen({ storeUrl, installed }: { storeUrl: string; installed: st
 }
 
 const styles = StyleSheet.create({
+  host: { flex: 1 },
   root: { flex: 1, backgroundColor: colors.deep },
   stage: { flex: 1, paddingHorizontal: spacing.xl, justifyContent: 'space-between' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 22 },

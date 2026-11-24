@@ -305,8 +305,8 @@ const styles = StyleSheet.create({
   },
   brandName: {
     fontFamily: fonts.brand,
-    fontSize: 26,
-    lineHeight: 31,
+    fontSize: 24,
+    lineHeight: 29,
     letterSpacing: -0.6,
     color: colors.white,
     maxWidth: '64%',
@@ -331,9 +331,9 @@ const styles = StyleSheet.create({
   sheetScroll: { paddingHorizontal: spacing.lg, paddingTop: 26 },
   title: {
     fontFamily: fonts.displayExtra,
-    fontSize: 26,
-    lineHeight: 32,
-    letterSpacing: -0.7,
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: -0.6,
     color: ui.text,
   },
   subtitle: {

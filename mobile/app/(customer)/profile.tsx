@@ -14,7 +14,7 @@ import { AdminActionSheet } from '@/components/kit/AdminActionSheet';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { PressableScale } from '@/components/ui/PressableScale';
-import { AppIconImages } from '@/constants/appImageIcons';
+import { AppIcons } from '@/constants/appIcons';
 import { fillCopy } from '@/constants/customerUiCopy';
 import { bookingDetailPath, authRoutes, customerRoutes, appPush, appReplace } from '@/lib/routes';
 import { getApiErrorMessage, screenLoadConfig } from '@/lib/api';
@@ -23,7 +23,7 @@ import { cachedGet } from '@/lib/cachedGet';
 import { useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
 import { useLocation } from '@/context/LocationContext';
-import { displayUserEmail, displayUserName, formatPhoneDisplay, isProfileIncomplete } from '@/lib/profile-display';
+import { displayUserEmail, displayUserName, formatPhoneDisplay, hasDisplayName, isProfileIncomplete } from '@/lib/profile-display';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { localDateKey } from '@/lib/dates';
 import { bookingVisitDate } from '@/lib/booking-helpers';
@@ -77,7 +77,8 @@ export default function ProfileScreen() {
         cachedGet<{ bookings: Booking[] }>('/bookings', CACHE_TTL.bookingsList, opts),
         cachedGet<{ addresses: unknown[] }>('/addresses', CACHE_TTL.addresses, opts),
         cachedGet<{ paymentMethods: unknown[] }>('/payment-methods', CACHE_TTL.paymentMethods, opts),
-        cachedGet<{ unreadCount: number }>('/notifications', CACHE_TTL.notifications, opts),
+        // Counts only (`limit=0`) — the profile just shows the unread badge.
+        cachedGet<{ unreadCount: number }>('/notifications', CACHE_TTL.notifications, { ...opts, params: { limit: 0 } }),
       ]);
       if (bookingsRes.status === 'rejected' && addrRes.status === 'rejected') {
         throw bookingsRes.reason;
@@ -119,7 +120,8 @@ export default function ProfileScreen() {
     }
   }
 
-  const name = displayUserName(user);
+  const named = hasDisplayName(user);
+  const name = displayUserName(user, copy.profileNameFallback);
   const email = displayUserEmail(user?.email);
   const phone = formatPhoneDisplay(user?.phone);
   const city = displayLabel ?? user?.city ?? undefined;
@@ -178,7 +180,8 @@ export default function ProfileScreen() {
         >
           <CustomerProfileHero
             name={name}
-            initial={(name.trim()[0] ?? '?').toUpperCase()}
+            // No name yet → the hero shows a person icon instead of the fallback's first letter.
+            initial={named ? (name[0] ?? '').toUpperCase() : ''}
             phone={phone || undefined}
             email={email || undefined}
             city={city}
@@ -202,7 +205,7 @@ export default function ProfileScreen() {
           <FadeSlideIn delay={stagger(2)}>
             <ProfileMenuSection title={copy.profileSectionAccount}>
               <ProfileMenuRow
-                image={AppIconImages.profile.bookings}
+                icon={AppIcons.profile.bookings}
                 label={copy.profileMenuBookings}
                 description={copy.profileMenuBookingsSub}
                 badge={activeCount}
@@ -210,21 +213,21 @@ export default function ProfileScreen() {
                 onPress={() => appPush(customerRoutes.bookings)}
               />
               <ProfileMenuRow
-                image={AppIconImages.profile.addresses}
+                icon={AppIcons.profile.addresses}
                 label={copy.profileMenuAddresses}
                 description={copy.profileMenuAddressesSub}
                 showBorder
                 onPress={() => appPush(customerRoutes.addresses)}
               />
               <ProfileMenuRow
-                image={AppIconImages.profile.payments}
+                icon={AppIcons.profile.payments}
                 label={copy.profileMenuPayments}
                 description={copy.profileMenuPaymentsSub}
                 showBorder
                 onPress={() => appPush(customerRoutes.paymentMethods)}
               />
               <ProfileMenuRow
-                image={AppIconImages.profile.notifications}
+                icon={AppIcons.profile.notifications}
                 label={copy.profileMenuNotifications}
                 description={copy.profileMenuNotificationsSub}
                 badge={counts?.unread ?? 0}
@@ -232,14 +235,14 @@ export default function ProfileScreen() {
                 onPress={() => appPush(customerRoutes.notifications)}
               />
               <ProfileMenuRow
-                image={AppIconImages.profile.offers}
+                icon={AppIcons.profile.offers}
                 label={copy.profileMenuOffers}
                 description={copy.profileMenuOffersSub}
                 showBorder
                 onPress={() => appPush(customerRoutes.offers)}
               />
               <ProfileMenuRow
-                image={AppIconImages.profile.settings}
+                icon={AppIcons.profile.settings}
                 label={copy.profileMenuSettings}
                 description={copy.profileMenuSettingsSub}
                 onPress={() => appPush(customerRoutes.settings)}
@@ -254,35 +257,35 @@ export default function ProfileScreen() {
           <FadeSlideIn delay={stagger(4)}>
             <ProfileMenuSection title={copy.profileSectionInfo}>
               <ProfileMenuRow
-                image={AppIconImages.profile.help}
+                icon={AppIcons.profile.help}
                 label={copy.profileMenuHelp}
                 description={copy.profileMenuHelpSub}
                 showBorder
                 onPress={() => appPush(customerRoutes.help)}
               />
               <ProfileMenuRow
-                image={AppIconImages.profile.faq}
+                icon={AppIcons.profile.faq}
                 label={copy.profileMenuFaq}
                 description={copy.profileMenuFaqSub}
                 showBorder
                 onPress={() => appPush(customerRoutes.faq)}
               />
               <ProfileMenuRow
-                image={AppIconImages.profile.about}
+                icon={AppIcons.profile.about}
                 label={`${copy.profileMenuAbout} ${brand}`}
                 description={copy.profileMenuAboutSub}
                 showBorder
                 onPress={() => appPush(customerRoutes.about)}
               />
               <ProfileMenuRow
-                image={AppIconImages.profile.terms}
+                icon={AppIcons.profile.terms}
                 label={copy.profileMenuTerms}
                 description={copy.profileMenuTermsSub}
                 showBorder
                 onPress={() => appPush(customerRoutes.terms)}
               />
               <ProfileMenuRow
-                image={AppIconImages.profile.privacy}
+                icon={AppIcons.profile.privacy}
                 label={copy.profileMenuPrivacy}
                 description={copy.profileMenuPrivacySub}
                 onPress={() => appPush(customerRoutes.privacy)}
@@ -360,19 +363,19 @@ const styles = StyleSheet.create({
   },
   completeText: { ...typeScale.captionStrong, color: ui.text },
   block: { marginHorizontal: spacing.md, marginBottom: spacing.md },
-  blockTitle: { ...typeScale.section, marginBottom: 12, color: ui.text },
+  blockTitle: { ...typeScale.section, fontSize: 17, lineHeight: 23, marginBottom: 12, color: ui.text },
   footer: { paddingHorizontal: spacing.md, paddingTop: spacing.xs },
   logout: {
-    height: 52,
+    height: 48,
     borderRadius: radii.control,
     borderWidth: 1,
-    borderColor: ui.border,
+    borderColor: 'rgba(179,63,40,0.22)',
     backgroundColor: colors.white,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
-  logoutText: { ...typeScale.button, color: colors.error },
+  logoutText: { ...typeScale.button, fontSize: 14.5, color: colors.error },
   version: { ...typeScale.caption, fontSize: 12, marginTop: 14, textAlign: 'center', color: ui.textTertiary },
 });

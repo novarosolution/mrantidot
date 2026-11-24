@@ -5,6 +5,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import Toast from 'react-native-toast-message';
 import { paramString } from '@/lib/routeParams';
 import { BookingDetailHero } from '@/components/kit/BookingDetailHero';
+import { BookingVisitContactCard } from '@/components/kit/BookingVisitContactCard';
 import {
   BookingDetailSection,
   BookingPhotoGallery,
@@ -53,6 +54,14 @@ import { fillCopy } from '@/constants/customerUiCopy';
 import { formatDuration } from '@/lib/serviceDisplay';
 import { Info } from 'lucide-react-native';
 import { sharedRoutes, appPush } from '@/lib/routes';
+import axios from 'axios';
+import { useAppContent } from '@/context/AppContentContext';
+import { callPhone } from '@/lib/contact';
+
+/** Server code when the visit is inside the admin's cancel cut-off; its message is the editable copy. */
+function isCancelCutoff(err: unknown): boolean {
+  return axios.isAxiosError(err) && (err.response?.data as { code?: string } | undefined)?.code === 'CANCEL_CUTOFF';
+}
 
 function customerTrackingSteps(
   booking: Booking,
@@ -74,6 +83,9 @@ export default function CustomerBookingDetailScreen() {
   const [cancelling, setCancelling] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [cancelAsk, setCancelAsk] = useState(false);
+  /** Message from the server when it is too late to cancel in the app (shown in a sheet with "Call us"). */
+  const [cutoffMessage, setCutoffMessage] = useState<string | null>(null);
+  const { content } = useAppContent();
   const [rescheduling, setRescheduling] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [regenerating, setRegenerating] = useState<'start' | 'end' | null>(null);
@@ -177,12 +189,17 @@ export default function CustomerBookingDetailScreen() {
   async function doCancel() {
     setCancelling(true);
     try {
-      await api.patch(`/bookings/${id}/cancel`);
+      await api.patch(`/bookings/${id}/cancel`, undefined, { skipErrorToast: true });
       haptic('success');
       Toast.show({ type: 'success', text1: labels.bookingDetailCancelledToast });
       await load();
-    } catch {
-      // error toast shown by the api interceptor
+    } catch (err) {
+      haptic('error');
+      if (isCancelCutoff(err)) {
+        setCutoffMessage(getApiErrorMessage(err, labels.bookingDetailCancelFailed));
+      } else {
+        Toast.show({ type: 'error', text1: labels.bookingDetailCancelFailed, text2: getApiErrorMessage(err, labels.systemErrorMessage) });
+      }
     } finally {
       setCancelling(false);
     }
@@ -236,7 +253,19 @@ export default function CustomerBookingDetailScreen() {
     Boolean(booking.workStartedAt) ||
     Boolean(booking.tracking?.some((e) => e.event === 'assigned' || e.event === 'start_otp_sent'));
   const isLive = isBookingLive(booking.status);
-  const statusGuidance = getStatusGuidance(booking.status, bookingCopy);
+  // Who cancelled (and the customer's own reason) replaces the generic "was cancelled" line.
+  const cancelActor = booking.status === 'cancelled' ? booking.cancelledBy?.role : undefined;
+  const ownReason = cancelActor === 'customer' ? booking.cancelReason?.trim() : undefined;
+  const statusGuidance = cancelActor
+    ? [
+        cancelActor === 'customer'
+          ? labels.bookingDetailCancelledByYou
+          : fillCopy(labels.bookingDetailCancelledByTeam, { brand: content.branding.name?.trim() || 'Mr Antidot' }),
+        ownReason ? fillCopy(labels.bookingDetailCancelReason, { reason: ownReason }) : null,
+      ]
+        .filter(Boolean)
+        .join('\n')
+    : getStatusGuidance(booking.status, bookingCopy);
   const timeline = customerTrackingSteps(booking, expertAssigned, bookingCopy);
   const steps = booking.steps ?? [];
   const problemPhotos = booking.problemPhotos ?? [];
@@ -325,6 +354,16 @@ export default function CustomerBookingDetailScreen() {
           guidance={isSchedulePending(booking) ? undefined : statusGuidance}
           progress={showLiveProgress && steps.length > 0 ? { done: doneCount, total: steps.length } : null}
         />
+
+        {booking.visitContact ? (
+          <BookingVisitContactCard
+            name={booking.visitContact.name}
+            phone={booking.visitContact.phone}
+            title={labels.bookingVisitContactTitle}
+            subtitle={labels.bookingVisitContactSub}
+            canCall={false}
+          />
+        ) : null}
 
         {changeNotes.length > 0 ? (
           <FadeSlideIn delay={stagger(1)} style={styles.sectionWrap}>
@@ -522,6 +561,26 @@ export default function CustomerBookingDetailScreen() {
             onPress: () => void doCancel(),
           },
         ]}
+      />
+
+      <AdminActionSheet
+        visible={cutoffMessage !== null}
+        title={labels.bookingDetailCancelTooLateTitle}
+        message={cutoffMessage ?? undefined}
+        cancelLabel={labels.systemClose}
+        onClose={() => setCutoffMessage(null)}
+        options={
+          content.support.phone?.trim()
+            ? [
+                {
+                  key: 'call',
+                  label: labels.bookingDetailCallUs,
+                  subtitle: content.support.phone.trim(),
+                  onPress: () => callPhone(content.support.phone, labels),
+                },
+              ]
+            : []
+        }
       />
 
       <RescheduleSheet

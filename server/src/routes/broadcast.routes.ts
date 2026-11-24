@@ -34,11 +34,12 @@ const MAX_PER_HOUR = 5;
 const TITLE_MAX = 80;
 const BODY_MAX = 300;
 
-const AUDIENCE_WORDS: Record<BroadcastAudience, string> = {
-  customers: 'customers',
-  technicians: 'technicians',
-  everyone: 'customers and technicians',
-  user: 'person',
+/** [one, many] — for the activity-log summary. */
+const AUDIENCE_WORDS: Record<BroadcastAudience, [string, string]> = {
+  customers: ['customer', 'customers'],
+  technicians: ['technician', 'technicians'],
+  everyone: ['person', 'people'],
+  user: ['person', 'people'],
 };
 
 function runValidation(
@@ -204,7 +205,7 @@ broadcastRouter.post(
       summary:
         audience === 'user'
           ? `Sent broadcast “${title}” to ${user?.name ?? 'one person'}`
-          : `Sent broadcast “${title}” to ${recipientCount} ${AUDIENCE_WORDS[audience]}`,
+          : `Sent broadcast “${title}” to ${recipientCount} ${AUDIENCE_WORDS[audience][recipientCount === 1 ? 0 : 1]}`,
       targetId: String(broadcast._id),
       targetType: 'broadcast',
       targetLabel: title,

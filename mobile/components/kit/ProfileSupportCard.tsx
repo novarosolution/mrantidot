@@ -33,13 +33,13 @@ export function ProfileSupportCard({
       </View>
       <View style={styles.row}>
         {phone ? (
-          <PressableScale containerStyle={styles.btnWrap} style={styles.btn} haptic="tap" onPress={() => callPhone(phone)} accessibilityRole="button">
+          <PressableScale containerStyle={styles.btnWrap} style={styles.btn} haptic="tap" onPress={() => callPhone(phone, copy)} accessibilityRole="button">
             <PremiumIcon icon={AppIcons.ui.phone} variant="mint" size={17} color={colors.forest} strokeWidth={2} boxSize={40} bg={colors.soft} />
             <Text style={styles.btnLabel}>{copy.profileSupportCall}</Text>
           </PressableScale>
         ) : null}
         {wa ? (
-          <PressableScale containerStyle={styles.btnWrap} style={styles.btn} haptic="tap" onPress={() => openWhatsApp(wa)} accessibilityRole="button">
+          <PressableScale containerStyle={styles.btnWrap} style={styles.btn} haptic="tap" onPress={() => openWhatsApp(wa, copy)} accessibilityRole="button">
             <PremiumIcon icon={AppIcons.ui.message} variant="mint" size={17} color={colors.secondaryDark} strokeWidth={2} boxSize={40} bg={colors.secondarySoft} />
             <Text style={styles.btnLabel}>{copy.profileSupportWhatsapp}</Text>
           </PressableScale>

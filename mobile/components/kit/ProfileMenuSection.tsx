@@ -34,7 +34,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: spacing.sm,
-    marginLeft: 2,
+    marginLeft: 4,
   },
   title: { ...typeScale.label, color: ui.textTertiary },
   card: {

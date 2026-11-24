@@ -1,5 +1,6 @@
-import { useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 import { Platform, useWindowDimensions } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { adminRoutes } from '@/lib/routes';
 
 /**
@@ -21,6 +22,66 @@ export const WEB_SIDEBAR_COLLAPSED_WIDTH = 76;
 export const WEB_TOPBAR_HEIGHT = 64;
 /** Widest the admin screens get on a desktop — keeps lists and forms readable on big monitors. */
 export const WEB_CONTENT_MAX_WIDTH = 1080;
+/** Table screens (bookings, customers, payroll…) may widen the column to this while focused — `useWebWideContent`. */
+export const WEB_TABLE_CONTENT_MAX_WIDTH = 1360;
+
+/* ─── Wider column for table screens (desktop, opt-in) ─────────────── */
+
+let wideContentRequests = 0;
+/**
+ * Set once the shell sizes its column with `useWebContentMaxWidth()`. Until then the opt-in is ignored,
+ * so grid maths (adminContentWidth) never assume a wider column than the shell actually draws.
+ */
+let shellFollowsContentWidth = false;
+const wideContentListeners = new Set<() => void>();
+
+function subscribeWideContent(listener: () => void): () => void {
+  wideContentListeners.add(listener);
+  return () => {
+    wideContentListeners.delete(listener);
+  };
+}
+
+function getWideContent(): boolean {
+  return wideContentRequests > 0;
+}
+
+function changeWideContent(delta: 1 | -1): void {
+  const before = wideContentRequests > 0;
+  wideContentRequests = Math.max(0, wideContentRequests + delta);
+  if (before === wideContentRequests > 0) return;
+  wideContentListeners.forEach((listener) => listener());
+  remeasureWindow();
+}
+
+/** Max width of the desktop content column right now (a focused table screen may have widened it). */
+export function webContentMaxWidth(): number {
+  return wideContentRequests > 0 && shellFollowsContentWidth ? WEB_TABLE_CONTENT_MAX_WIDTH : WEB_CONTENT_MAX_WIDTH;
+}
+
+/**
+ * For the shell's content column (WebAdminShell `maxWidth`): `WEB_TABLE_CONTENT_MAX_WIDTH` while a table
+ * screen that called `useWebWideContent()` is focused, else `WEB_CONTENT_MAX_WIDTH`. Re-renders on change.
+ */
+export function useWebContentMaxWidth(): number {
+  shellFollowsContentWidth = true;
+  useSyncExternalStore(subscribeWideContent, getWideContent, getWideContent);
+  return webContentMaxWidth();
+}
+
+/**
+ * Table screens: ask for the wider desktop column while this screen is focused (given back on blur /
+ * unmount, so forms and detail screens keep the readable width). No-op on native.
+ */
+export function useWebWideContent(enabled = true): void {
+  useFocusEffect(
+    useCallback(() => {
+      if (!IS_WEB || !enabled) return undefined;
+      changeWideContent(1);
+      return () => changeWideContent(-1);
+    }, [enabled]),
+  );
+}
 
 /* ─── Sidebar collapse (desktop) ───────────────────────────────────── */
 
@@ -95,14 +156,15 @@ export function webSidebarWidth(): number {
  */
 export function adminContentWidth(windowWidth: number): number {
   if (!IS_WEB || windowWidth < WEB_WIDE_MIN_WIDTH) return windowWidth;
-  return Math.min(windowWidth - webSidebarWidth(), WEB_CONTENT_MAX_WIDTH);
+  return Math.min(windowWidth - webSidebarWidth(), webContentMaxWidth());
 }
 
-/** `adminContentWidth` as a hook: re-renders on window resize and when the desktop sidebar collapses. */
+/** `adminContentWidth` as a hook: re-renders on window resize, sidebar collapse and the table-width opt-in. */
 export const useAdminContentWidth: () => number = IS_WEB
   ? function useAdminContentWidthWeb() {
       const { width } = useWindowDimensions();
       useSidebarCollapsed();
+      useSyncExternalStore(subscribeWideContent, getWideContent, getWideContent);
       return adminContentWidth(width);
     }
   : function useAdminContentWidthNative() {

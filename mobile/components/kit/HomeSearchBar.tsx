@@ -193,12 +193,12 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontFamily: fonts.body,
-    fontSize: 15,
+    fontSize: 14,
     color: ui.textSecondary,
   },
   hintAccent: {
     fontFamily: fonts.bodyMedium,
-    fontSize: 15,
+    fontSize: 14,
     color: ui.textSecondary,
   },
   hintFlex: { flexShrink: 1 },

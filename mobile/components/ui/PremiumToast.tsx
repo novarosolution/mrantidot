@@ -16,8 +16,9 @@ import Toast from 'react-native-toast-message';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
+import { DEFAULT_CUSTOMER_UI_COPY } from '@/constants/customerUiCopy';
 import { colors, fonts, premium, shadows, spacing, surfaces, toastTones } from '@/constants/theme';
-import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import type { CustomerUiCopy } from '@/types/api';
 
 type ToastVariant = 'success' | 'error' | 'info' | 'warning' | 'offline';
 
@@ -26,6 +27,30 @@ type ToastExtraProps = {
 };
 
 type CopyKey = 'toastLabelSuccess' | 'toastLabelError' | 'toastLabelInfo' | 'toastLabelWarning' | 'toastLabelOffline';
+
+type ToastCopy = Pick<CustomerUiCopy, CopyKey | 'toastDismiss'>;
+
+function pickToastCopy(c: ToastCopy): ToastCopy {
+  return {
+    toastLabelSuccess: c.toastLabelSuccess,
+    toastLabelError: c.toastLabelError,
+    toastLabelInfo: c.toastLabelInfo,
+    toastLabelWarning: c.toastLabelWarning,
+    toastLabelOffline: c.toastLabelOffline,
+    toastDismiss: c.toastDismiss,
+  };
+}
+
+/**
+ * Toast labels (variant eyebrow + dismiss button). The root toast host in app/_layout.tsx sits inside the
+ * content provider and keeps these in sync with the admin copy through setToastCopy. This file must not
+ * import the content context itself: that closed a require cycle (AppContentContext → api → toast → here).
+ */
+let toastCopy: ToastCopy = pickToastCopy(DEFAULT_CUSTOMER_UI_COPY);
+
+export function setToastCopy(copy: ToastCopy): void {
+  toastCopy = pickToastCopy(copy);
+}
 
 const VARIANT_META: Record<
   ToastVariant,
@@ -85,8 +110,7 @@ function PremiumToastCard({
   onHide?: () => void;
 }) {
   const meta = VARIANT_META[variant];
-  const copy = useCustomerUiCopy();
-  const label = copy[meta.labelKey];
+  const label = toastCopy[meta.labelKey];
   const enter = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -177,7 +201,7 @@ function PremiumToastCard({
               }}
               style={styles.dismiss}
               accessibilityRole="button"
-              accessibilityLabel={copy.toastDismiss}
+              accessibilityLabel={toastCopy.toastDismiss}
             >
               <PremiumIcon icon={AppIcons.ui.close} variant="plain" size={15} color={colors.muted} strokeWidth={2.2} />
             </Pressable>

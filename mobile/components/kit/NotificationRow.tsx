@@ -5,7 +5,7 @@ import { fillCopy } from '@/constants/customerUiCopy';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import type { CustomerUiCopy } from '@/types/api';
 import type { LucideIcon } from 'lucide-react-native';
-import { ChevronRight } from 'lucide-react-native';
+import { ArrowRight, ChevronRight, ExternalLink, Megaphone } from 'lucide-react-native';
 import { AppIcons } from '@/constants/appIcons';
 import type { AppNotification } from '@/types/api';
 import { colors, fonts, radii, spacing, typeScale, ui } from '@/constants/theme';
@@ -15,6 +15,7 @@ type Look = { icon: LucideIcon; fg: string; bg: string };
 const BRAND: Pick<Look, 'fg' | 'bg'> = { fg: ui.brand, bg: ui.brandSoft };
 
 function lookForType(type: string): Look {
+  if (type === 'broadcast') return { icon: Megaphone, fg: colors.amberInk, bg: colors.amberBg };
   if (type.startsWith('admin_')) return { icon: AppIcons.notification.admin, ...BRAND };
   if (type.includes('otp')) return { icon: AppIcons.ui.key, fg: colors.amberInk, bg: colors.amberBg };
   if (type.includes('cancel')) return { icon: AppIcons.ui.close, fg: colors.error, bg: colors.errorBg };
@@ -59,6 +60,14 @@ function NotificationRowComponent({
   const grouped = groupPos != null;
   const unread = !item.read;
   const when = formatWhen(item.createdAt, copy);
+  // Booking updates open the booking; otherwise an admin link (service / offers / web page) gets a pill.
+  const link = item.bookingId ? null : (item.link ?? null);
+  const linkText = link
+    ? link.kind === 'offers'
+      ? copy.notifLinkOffers
+      : link.label?.trim() || (link.kind === 'service' ? copy.notifLinkService : copy.notifLinkUrl)
+    : null;
+  const LinkIcon = link?.kind === 'url' ? ExternalLink : ArrowRight;
 
   return (
     <PressableScale
@@ -73,7 +82,7 @@ function NotificationRowComponent({
         grouped && unread && styles.rowUnread,
       ]}
       accessibilityRole="button"
-      accessibilityLabel={[unread ? copy.notificationsUnreadA11y : null, item.title, item.body, when].filter(Boolean).join('. ')}
+      accessibilityLabel={[unread ? copy.notificationsUnreadA11y : null, item.title, item.body, linkText, when].filter(Boolean).join('. ')}
     >
       {grouped && groupPos !== 'first' && groupPos !== 'only' ? <View style={styles.divider} /> : null}
       <View style={[styles.tile, { backgroundColor: look.bg }, item.read && styles.tileRead]}>
@@ -90,8 +99,16 @@ function NotificationRowComponent({
         <Text style={styles.bodyText} numberOfLines={2}>
           {item.body}
         </Text>
+        {linkText ? (
+          <View style={styles.linkPill}>
+            <LinkIcon size={12} color={ui.brand} strokeWidth={2.4} />
+            <Text style={styles.linkText} numberOfLines={1}>
+              {linkText}
+            </Text>
+          </View>
+        ) : null}
       </View>
-      {item.bookingId ? (
+      {item.bookingId || link ? (
         <View style={styles.trail}>
           <ChevronRight size={16} color={ui.textTertiary} strokeWidth={2.2} />
         </View>
@@ -150,5 +167,18 @@ const styles = StyleSheet.create({
   whenUnread: { color: ui.brand, fontFamily: fonts.bodySemi },
   bodyText: { ...typeScale.caption, marginTop: 3, color: ui.textSecondary },
   trail: { alignSelf: 'center' },
+  linkPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 5,
+    maxWidth: '100%',
+    marginTop: 8,
+    paddingHorizontal: 10,
+    height: 26,
+    borderRadius: radii.pill,
+    backgroundColor: ui.brandSoft,
+  },
+  linkText: { ...typeScale.captionStrong, fontSize: 12, flexShrink: 1, color: ui.brand },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: ui.brandBright },
 });

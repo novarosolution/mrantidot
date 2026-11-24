@@ -5,12 +5,13 @@ import { AppImage } from '@/components/ui/AppImage';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { serviceCoverUri } from '@/components/kit/ServiceThumb';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Check, CircleCheck, Info, Share2, ShieldCheck, Star, X } from 'lucide-react-native';
+import { ArrowLeft, Check, CircleCheck, Clock3, Info, Share2, ShieldCheck, Star, X } from 'lucide-react-native';
 import { paramString } from '@/lib/routeParams';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
 import { PestImage } from '@/components/kit/ServiceThumb';
+import { resolveServiceImage } from '@/constants/serviceImages';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
@@ -258,13 +259,14 @@ export default function ServiceDetailScreen() {
                 },
               ]}
             >
-              <PestImage source={meta.image} size={150} />
+              {/* Same picture rule as the catalog, cart and bookings: the admin's icon, else the pest type. */}
+              <PestImage source={resolveServiceImage(service.iconKey, service.serviceTypes) ?? meta.image} size={150} />
             </Animated.View>
           </Animated.View>
         )}
 
-        <FadeSlideIn delay={stagger(1)} slideFrom={16}>
-          <View style={styles.white}>
+        <FadeSlideIn delay={stagger(1)} slideFrom={16} style={styles.sheetOverlap}>
+          <View style={[styles.white, styles.sheet]}>
             <View style={styles.titleRow}>
               <View style={styles.flex}>
                 <Text style={styles.title} accessibilityRole="header">
@@ -272,7 +274,7 @@ export default function ServiceDetailScreen() {
                 </Text>
                 {socialProof ? (
                   <View style={styles.ratingRow}>
-                    <Star size={13} color={ui.star} fill={ui.star} strokeWidth={1.5} />
+                    <Star size={12} color={colors.amber} fill={colors.amber} strokeWidth={1.5} />
                     <Text style={styles.ratingText}>{socialProof}</Text>
                   </View>
                 ) : null}
@@ -287,11 +289,16 @@ export default function ServiceDetailScreen() {
                 </View>
               ) : null}
             </View>
-            <Text style={styles.priceLine}>
-              {copy.serviceStartsAtLabel} <Text style={styles.priceStrong}>{formatRupeeFull(serviceStartPrice(service))}</Text>
-              {'  ·  '}
-              {duration}
-            </Text>
+            <View style={styles.priceCard}>
+              <View style={styles.flex}>
+                <Text style={styles.priceLabel}>{copy.serviceStartsAtLabel}</Text>
+                <Text style={styles.priceBig}>{formatRupeeFull(serviceStartPrice(service))}</Text>
+              </View>
+              <View style={styles.durationPill}>
+                <Clock3 size={14} color={ui.brand} strokeWidth={2.3} />
+                <Text style={styles.durationText}>{duration}</Text>
+              </View>
+            </View>
             {service.shortDesc ? <Text style={styles.about}>{service.shortDesc}</Text> : null}
             {highlights.length > 0 ? (
               <View style={styles.highlights}>
@@ -614,11 +621,14 @@ export default function ServiceDetailScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: ui.canvas },
   flex: { flex: 1, minWidth: 0 },
-  hero: { alignItems: 'center', paddingBottom: 18 },
+  hero: { alignItems: 'center', paddingBottom: 40 },
+  /** The title card slides up over the hero's bottom edge, like a sheet. */
+  sheetOverlap: { marginTop: -26, zIndex: 2 },
+  sheet: { borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingTop: 22 },
   heroPhoto: { width: '100%', overflow: 'hidden' },
   highlights: { marginTop: 12, gap: 6 },
   highlightRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  highlightText: { ...typeScale.body, flex: 1, color: ui.text },
+  highlightText: { ...typeScale.body, fontSize: 13.5, flex: 1, color: ui.text },
   heroArt: {
     width: 190,
     height: 170,
@@ -628,12 +638,22 @@ const styles = StyleSheet.create({
   white: { backgroundColor: colors.white, paddingHorizontal: PAD, paddingVertical: 20 },
   band: { height: 8, backgroundColor: ui.canvas },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  title: { ...typeScale.title, color: ui.text },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
+  title: { ...typeScale.title, fontSize: 21, lineHeight: 27, color: ui.text },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 5,
+    marginTop: 8,
+    paddingHorizontal: 9,
+    height: 26,
+    borderRadius: radii.pill,
+    backgroundColor: '#FFF7E2',
+  },
   ratingText: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 13.5,
-    color: ui.textSecondary,
+    fontFamily: fonts.bodySemi,
+    fontSize: 12.5,
+    color: ui.text,
   },
   earliest: {
     paddingHorizontal: 10,
@@ -646,11 +666,31 @@ const styles = StyleSheet.create({
   },
   earliestHead: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   earliestDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: ui.brand },
-  earliestLabel: { fontFamily: fonts.bodyBold, fontSize: 11.5, color: ui.brand },
-  earliestValue: { marginTop: 2, fontFamily: fonts.bodySemi, fontSize: 12.5, color: ui.text },
-  priceLine: { marginTop: 12, fontFamily: fonts.bodyMedium, fontSize: 14, color: ui.textSecondary },
-  priceStrong: { fontFamily: fonts.bodyBold, color: ui.text },
-  about: { marginTop: 10, fontFamily: fonts.body, fontSize: 14, lineHeight: 21, color: ui.textSecondary },
+  earliestLabel: { fontFamily: fonts.bodyBold, fontSize: 11, color: ui.brand },
+  earliestValue: { marginTop: 2, fontFamily: fonts.bodySemi, fontSize: 12, color: ui.text },
+  priceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: radii.card,
+    backgroundColor: ui.brandSoft,
+  },
+  priceLabel: { fontFamily: fonts.bodyMedium, fontSize: 12, color: ui.textSecondary },
+  priceBig: { marginTop: 1, fontFamily: fonts.displayExtra, fontSize: 24, lineHeight: 30, letterSpacing: -0.6, color: ui.text },
+  durationPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    height: 32,
+    borderRadius: radii.pill,
+    backgroundColor: colors.white,
+  },
+  durationText: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: ui.text },
+  about: { marginTop: 14, fontFamily: fonts.body, fontSize: 13.5, lineHeight: 20, color: ui.textSecondary },
   facts: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
   fact: {
     flexDirection: 'row',
@@ -663,7 +703,7 @@ const styles = StyleSheet.create({
   },
   factText: { fontFamily: fonts.bodySemi, fontSize: 12, color: ui.text },
   sectionHead: { marginBottom: 14 },
-  sectionTitle: { ...typeScale.section, color: ui.text },
+  sectionTitle: { ...typeScale.section, fontSize: 17, lineHeight: 23, color: ui.text },
   sectionSub: { ...typeScale.caption, marginTop: 3, color: ui.textSecondary },
   reqHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
   reqNum: {
@@ -709,7 +749,7 @@ const styles = StyleSheet.create({
   linkHit: { alignSelf: 'flex-start', marginTop: 8, paddingVertical: 8 },
   link: { ...typeScale.bodyStrong, color: ui.brand, textDecorationLine: 'underline' },
   noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 7 },
-  noteText: { flex: 1, fontFamily: fonts.body, fontSize: 14.5, lineHeight: 21, color: ui.text },
+  noteText: { flex: 1, fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: ui.text },
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   tile: {
     width: '48.4%',
@@ -719,7 +759,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.control,
     backgroundColor: ui.surfaceMuted,
   },
-  tileText: { fontFamily: fonts.bodySemi, fontSize: 13.5, lineHeight: 19, color: ui.text },
+  tileText: { fontFamily: fonts.bodySemi, fontSize: 13, lineHeight: 18, color: ui.text },
   stepRow: { flexDirection: 'row', gap: 12 },
   stepRail: { width: 26, alignItems: 'center' },
   stepNum: {
@@ -732,7 +772,7 @@ const styles = StyleSheet.create({
   },
   stepNumText: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.white },
   stepLine: { width: 2, flex: 1, minHeight: 14, backgroundColor: ui.brandSoft, marginVertical: 3 },
-  stepText: { flex: 1, paddingTop: 3, paddingBottom: 16, fontFamily: fonts.bodySemi, fontSize: 14.5, color: ui.text },
+  stepText: { flex: 1, paddingTop: 3, paddingBottom: 16, fontFamily: fonts.bodySemi, fontSize: 14, color: ui.text },
   trustCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -742,7 +782,7 @@ const styles = StyleSheet.create({
     backgroundColor: ui.brandSoft,
   },
   trustRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5 },
-  trustText: { flex: 1, fontFamily: fonts.bodyMedium, fontSize: 14, color: ui.text },
+  trustText: { flex: 1, fontFamily: fonts.bodyMedium, fontSize: 13.5, color: ui.text },
   trustSeal: {
     width: 60,
     height: 60,
@@ -764,7 +804,7 @@ const styles = StyleSheet.create({
   barTrack: { flex: 1, height: 5, borderRadius: 3, backgroundColor: ui.surfaceMuted, overflow: 'hidden' },
   barFill: { height: 5, borderRadius: 3, backgroundColor: ui.text },
   barCount: { width: 24, textAlign: 'right', fontFamily: fonts.body, fontSize: 12, color: ui.textSecondary },
-  reviewsHeading: { ...typeScale.section, color: ui.text, marginBottom: 4 },
+  reviewsHeading: { ...typeScale.section, fontSize: 17, lineHeight: 23, color: ui.text, marginBottom: 4 },
   seeAll: {
     marginTop: 6,
     height: 48,
@@ -778,7 +818,7 @@ const styles = StyleSheet.create({
   review: { paddingVertical: 14 },
   reviewBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ui.border },
   reviewHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  reviewName: { fontFamily: fonts.bodyBold, fontSize: 15, color: ui.text },
+  reviewName: { fontFamily: fonts.bodyBold, fontSize: 14, color: ui.text },
   reviewDate: { marginTop: 2, fontFamily: fonts.body, fontSize: 12, color: ui.textTertiary },
   reviewStars: {
     flexDirection: 'row',
@@ -790,9 +830,9 @@ const styles = StyleSheet.create({
     backgroundColor: ui.brand,
   },
   reviewStarsText: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.white },
-  reviewText: { marginTop: 8, fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: ui.text },
+  reviewText: { marginTop: 8, fontFamily: fonts.body, fontSize: 13.5, lineHeight: 20, color: ui.text },
   shareBlock: { alignItems: 'center', gap: 12 },
-  shareText: { fontFamily: fonts.bodyMedium, fontSize: 14, color: ui.textSecondary },
+  shareText: { fontFamily: fonts.bodyMedium, fontSize: 13, color: ui.textSecondary },
   shareBtnWrap: { alignSelf: 'stretch' },
   shareBtn: {
     height: 48,
@@ -804,7 +844,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  shareBtnText: { fontFamily: fonts.bodyBold, fontSize: 15, color: ui.brand },
+  shareBtnText: { fontFamily: fonts.bodyBold, fontSize: 14, color: ui.brand },
   topBar: { position: 'absolute', top: 0, left: 0, right: 0 },
   topBarBg: {
     ...StyleSheet.absoluteFill,
@@ -813,7 +853,7 @@ const styles = StyleSheet.create({
     borderBottomColor: ui.border,
   },
   topBarRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: PAD },
-  topBarTitle: { flex: 1, fontFamily: fonts.bodyBold, fontSize: 16, color: ui.text },
+  topBarTitle: { flex: 1, fontFamily: fonts.bodyBold, fontSize: 15, color: ui.text },
   circleBtn: {
     width: 44,
     height: 44,
@@ -825,7 +865,7 @@ const styles = StyleSheet.create({
   },
   footerRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   footerPrice: { ...typeScale.priceLg, color: ui.text },
-  footerSub: { marginTop: 1, fontFamily: fonts.bodyMedium, fontSize: 12.5, color: ui.textSecondary },
+  footerSub: { marginTop: 1, fontFamily: fonts.bodyMedium, fontSize: 12, color: ui.textSecondary },
   bookWrap: { flexShrink: 0 },
   bookBtn: {
     height: 52,
@@ -835,5 +875,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bookText: { ...typeScale.button, fontSize: 16, color: colors.white },
+  bookText: { ...typeScale.button, fontSize: 15, color: colors.white },
 });

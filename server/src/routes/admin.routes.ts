@@ -182,6 +182,8 @@ adminRouter.patch(
     if (!user) {
       throw new AppError(404, 'User not found');
     }
+    await assertCanEditAccount(req.user!.id, user, req.body as Record<string, unknown>);
+    const before = accountSnapshot(user);
     if (isEnvAdmin(user)) {
       if (req.body.role && req.body.role !== 'admin') {
         throw new AppError(400, 'Cannot change role of primary admin');
@@ -251,6 +253,7 @@ adminRouter.patch(
       user.phone = phone;
     }
     await user.save();
+    res.locals.activity = accountChangeNote(before, user, req.user!.id);
     const json = sanitizeUser(user) as Record<string, unknown>;
     if (isEnvAdmin(user)) json.protected = true;
     res.json({ user: json });
@@ -267,8 +270,17 @@ adminRouter.patch(
     if (!user) {
       throw new AppError(404, 'User not found');
     }
+    // Admins may change their own password; other admins' passwords only the primary admin resets.
+    const self = String(user._id) === req.user!.id;
+    if (user.role === 'admin' && !self) await assertPrimaryAdmin(req.user!.id);
     user.passwordHash = await bcrypt.hash(req.body.password, 12);
     await user.save();
+    res.locals.activity = {
+      summary: self ? 'Changed own password' : `Reset the password for ${user.name}`,
+      targetType: 'user',
+      targetLabel: user.name,
+      fields: ['password'],
+    };
     res.json({ ok: true });
   }),
 );
@@ -285,9 +297,16 @@ adminRouter.delete(
     if (isEnvAdmin(user)) {
       throw new AppError(400, 'Cannot disable primary admin account');
     }
+    if (user.role === 'admin') await assertPrimaryAdmin(req.user!.id);
     user.disabled = true;
     user.available = false;
     await user.save();
+    res.locals.activity = {
+      summary: `Disabled ${user.name}'s ${user.role} account`,
+      targetType: 'user',
+      targetLabel: user.name,
+      fields: ['disabled'],
+    };
     res.json({ user: sanitizeUser(user) });
   }),
 );
@@ -520,5 +539,116 @@ adminRouter.patch(
     });
 
     res.json({ review: formatReview(review) });
+  }),
+);
+
+/* ---------- E2: admin accounts, customer addresses, people search ---------- */
+
+const PRIMARY_ADMIN_ONLY = 'Only the primary admin can manage admin accounts';
+
+/** The env-configured admin (ADMIN_PHONE) is the primary admin. */
+async function isPrimaryAdminId(userId: string): Promise<boolean> {
+  const actor = await User.findById(userId).select('role phone');
+  return Boolean(actor && isEnvAdmin(actor));
+}
+
+async function assertPrimaryAdmin(actorId: string): Promise<void> {
+  if (!(await isPrimaryAdminId(actorId))) throw new AppError(403, PRIMARY_ADMIN_ONLY, 'PRIMARY_ADMIN_ONLY');
+}
+
+/**
+ * Editing an admin account, or promoting someone to admin, is for the primary admin only. Other admins may
+ * still edit their own profile (name, phone, email, city) — but not their own role or access.
+ */
+async function assertCanEditAccount(actorId: string, target: IUser, body: Record<string, unknown>): Promise<void> {
+  const promotes = body.role === 'admin' && target.role !== 'admin';
+  if (target.role !== 'admin' && !promotes) return;
+  if (await isPrimaryAdminId(actorId)) return;
+  const self = String(target._id) === actorId;
+  const roleChange = typeof body.role === 'string' && body.role !== target.role;
+  const accessChange = typeof body.disabled === 'boolean' && body.disabled !== (target.disabled === true);
+  if (self && !roleChange && !accessChange) return;
+  throw new AppError(403, PRIMARY_ADMIN_ONLY, 'PRIMARY_ADMIN_ONLY');
+}
+
+const ACCOUNT_FIELDS = [
+  'name',
+  'phone',
+  'email',
+  'city',
+  'role',
+  'available',
+  'disabled',
+  'displayRating',
+  'payMode',
+  'payPercent',
+  'payFlat',
+] as const;
+
+type AccountSnapshot = Record<(typeof ACCOUNT_FIELDS)[number], unknown>;
+
+function accountSnapshot(user: IUser): AccountSnapshot {
+  const u = user as unknown as Record<string, unknown>;
+  return Object.fromEntries(ACCOUNT_FIELDS.map((f) => [f, u[f] ?? null])) as AccountSnapshot;
+}
+
+/** Activity entry for a user edit — role and access changes spelled out, other fields by name (never values). */
+function accountChangeNote(before: AccountSnapshot, user: IUser, actorId: string) {
+  const after = accountSnapshot(user);
+  const fields = ACCOUNT_FIELDS.filter((f) => JSON.stringify(before[f]) !== JSON.stringify(after[f]));
+  if (fields.length === 0) return { skip: true };
+  const whose = String(user._id) === actorId ? 'own account' : `${user.name}'s account`;
+  let summary: string;
+  if (fields.includes('role')) summary = `Changed ${user.name}'s role from ${String(before.role)} to ${user.role}`;
+  else if (fields.includes('disabled')) summary = user.disabled ? `Disabled ${user.name}'s account` : `Re-enabled ${user.name}'s account`;
+  else summary = `Updated ${whose} (${fields.join(', ')})`;
+  return { summary, targetType: 'user', targetLabel: user.name, fields: [...fields] };
+}
+
+/** GET /admin/customers/:id/addresses → { addresses } — a customer's saved addresses (default first). */
+adminRouter.get(
+  '/customers/:id/addresses',
+  param('id').isMongoId(),
+  (req, res, next) => runValidation(req, res, next),
+  asyncHandler(async (req, res) => {
+    const customer = await User.findOne({ _id: req.params.id, role: 'customer' }).select('_id');
+    if (!customer) throw new AppError(404, 'Customer not found');
+    const { SavedAddress } = await import('../models/SavedAddress');
+    const addresses = await SavedAddress.find({ customerId: customer._id }).sort({ isDefault: -1, createdAt: -1 });
+    res.json({ addresses: addresses.map((a) => a.toJSON()) });
+  }),
+);
+
+/**
+ * GET /admin/user-search?q&role&limit&includeDisabled=1 → { users: [{ id, name, phone, email, role, city, disabled }] }
+ * Light people search for pickers (book for a customer, broadcast to one person). Name, email or phone digits.
+ */
+adminRouter.get(
+  '/user-search',
+  asyncHandler(async (req, res) => {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 60) : '';
+    const roles = ['customer', 'technician', 'admin'];
+    const role = typeof req.query.role === 'string' && roles.includes(req.query.role) ? req.query.role : undefined;
+    const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '20'), 10) || 20, 1), 50);
+    const filter: Record<string, unknown> = {};
+    if (role) filter.role = role;
+    if (req.query.includeDisabled !== '1') filter.disabled = { $ne: true };
+    if (q) {
+      const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      const digits = q.replace(/\D/g, '');
+      filter.$or = [{ name: rx }, { email: rx }, { phone: digits.length >= 3 ? new RegExp(digits) : rx }];
+    }
+    const users = await User.find(filter).sort({ name: 1 }).limit(limit).select('name phone email role city disabled');
+    res.json({
+      users: users.map((u) => ({
+        id: String(u._id),
+        name: u.name,
+        phone: u.phone,
+        email: u.email,
+        role: u.role,
+        city: u.city,
+        disabled: u.disabled === true,
+      })),
+    });
   }),
 );

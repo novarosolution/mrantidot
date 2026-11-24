@@ -1,10 +1,12 @@
 import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Bell, ChevronDown, CircleUserRound } from 'lucide-react-native';
+import { useAuth } from '@/context/AuthContext';
 import { useLocation } from '@/context/LocationContext';
+import { homeGreetingName } from '@/lib/profile-display';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { AURORA_BRAND_TOP } from '@/components/kit/PremiumAurora';
-import { colors, fonts, ui } from '@/constants/theme';
+import { colors, fonts } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
 import { fillCopy } from '@/constants/customerUiCopy';
 
@@ -28,6 +30,11 @@ function splitPlace(label: string): { place: string; detail: string } {
  */
 export function HomeTopBar({ unread, scrollY }: { unread: number; scrollY?: Animated.Value }) {
   const copy = useCustomerUiCopy();
+  const { user } = useAuth();
+  const firstName = homeGreetingName(user);
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? copy.homeGreetingMorning : hour < 17 ? copy.homeGreetingAfternoon : copy.homeGreetingEvening;
+  const initial = firstName === 'Guest' ? '' : firstName.charAt(0).toUpperCase();
   const { displayLabel, locating, refreshLocation } = useLocation();
   const label = displayLabel?.trim() ?? '';
   const { place, detail } = splitPlace(label);
@@ -58,6 +65,9 @@ export function HomeTopBar({ unread, scrollY }: { unread: number; scrollY?: Anim
           accessibilityRole="button"
           accessibilityLabel={fillCopy(copy.homeTopLocationA11y, { title: copy.homeHeroTitle, place: where })}
         >
+          <Text style={styles.greeting} numberOfLines={1}>
+            {firstName === 'Guest' ? greeting : `${greeting}, ${firstName}`}
+          </Text>
           <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
             {copy.homeHeroTitle}
           </Text>
@@ -69,7 +79,7 @@ export function HomeTopBar({ unread, scrollY }: { unread: number; scrollY?: Anim
             {locating ? (
               <ActivityIndicator size="small" color={colors.white} style={styles.spinner} />
             ) : (
-              <ChevronDown size={18} color={colors.white} strokeWidth={2.2} />
+              <ChevronDown size={16} color={colors.white} strokeWidth={2.2} />
             )}
           </View>
         </Pressable>
@@ -82,7 +92,7 @@ export function HomeTopBar({ unread, scrollY }: { unread: number; scrollY?: Anim
           accessibilityRole="button"
           accessibilityLabel={unread > 0 ? fillCopy(copy.profileNotificationsA11y, { count: unread }) : copy.profileMenuNotifications}
         >
-          <Bell size={20} color={ui.text} strokeWidth={1.9} />
+          <Bell size={20} color={colors.white} strokeWidth={1.9} />
           {unread > 0 ? (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{unread > 9 ? '9+' : unread}</Text>
@@ -98,7 +108,11 @@ export function HomeTopBar({ unread, scrollY }: { unread: number; scrollY?: Anim
           accessibilityRole="button"
           accessibilityLabel={copy.homeOpenProfileA11y}
         >
-          <CircleUserRound size={25} color={ui.text} strokeWidth={1.8} />
+          {initial ? (
+            <Text style={styles.initial}>{initial}</Text>
+          ) : (
+            <CircleUserRound size={25} color={colors.white} strokeWidth={1.8} />
+          )}
         </PressableScale>
       </Animated.View>
     </View>
@@ -111,19 +125,28 @@ const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 12 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   textCol: { flex: 1, minWidth: 0 },
+  greeting: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
+    color: colors.limeOnDark,
+    marginBottom: 2,
+  },
   title: {
     fontFamily: fonts.displaySemi,
-    fontSize: 26,
-    lineHeight: 32,
-    letterSpacing: -0.6,
+    fontSize: 22,
+    lineHeight: 27,
+    letterSpacing: -0.5,
     color: colors.white,
   },
   placeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
   place: {
     flexShrink: 1,
     fontFamily: fonts.body,
-    fontSize: 14.5,
-    color: 'rgba(255,255,255,0.94)',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.92)',
   },
   placeLabel: { fontFamily: fonts.bodySemi, color: colors.white },
   spinner: { transform: [{ scale: 0.7 }] },
@@ -131,10 +154,14 @@ const styles = StyleSheet.create({
     width: CIRCLE,
     height: CIRCLE,
     borderRadius: CIRCLE / 2,
-    backgroundColor: colors.white,
+    /** Frosted glass on the green — reads quieter and more premium than solid white discs. */
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.32)',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  initial: { fontFamily: fonts.displayExtra, fontSize: 18, lineHeight: 22, color: colors.white },
   badge: {
     position: 'absolute',
     top: -3,

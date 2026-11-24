@@ -28,6 +28,31 @@ const ROLES: { key: UserRole; label: string }[] = [
   { key: 'admin', label: 'Admin' },
 ];
 
+const ROLE_LABEL: Record<UserRole, string> = { customer: 'Customer', technician: 'Technician', admin: 'Admin' };
+
+/**
+ * Whether the signed-in admin is the primary admin (from `/auth/me`, so it is always current).
+ * null while unknown — admin-management controls stay hidden until it is known (the server enforces it anyway).
+ */
+function usePrimaryAdmin(): boolean | null {
+  const [primary, setPrimary] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    api
+      .get<{ user: User }>('/auth/me', screenLoadConfig)
+      .then(({ data }) => {
+        if (alive) setPrimary(data.user.isPrimaryAdmin === true);
+      })
+      .catch(() => {
+        if (alive) setPrimary(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return primary;
+}
+
 function parseInitialRole(raw: string | string[] | undefined): UserRole {
   const v = paramString(raw);
   if (v === 'technician' || v === 'admin') return v;
@@ -41,6 +66,9 @@ export default function UserEditScreen() {
   const returnTo = paramString(useLocalSearchParams<{ returnTo?: string | string[] }>().returnTo) || adminRoutes.users;
 
   const [role, setRole] = useState<UserRole>(initialRole);
+  /** Role saved on the server (edit only) — a different `role` means the admin is changing it. */
+  const [loadedRole, setLoadedRole] = useState<UserRole | null>(null);
+  const amPrimary = usePrimaryAdmin();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -65,6 +93,7 @@ export default function UserEditScreen() {
     const { data } = await api.get<{ user: User }>(`/admin/users/${id}`, screenLoadConfig);
     const u = data.user;
     setRole(u.role);
+    setLoadedRole(u.role);
     setName(u.name);
     setPhone(u.phone ?? '');
     setEmail(u.email);
@@ -84,6 +113,16 @@ export default function UserEditScreen() {
   }, [id, load, runLoad]);
 
   const roleLocked = protectedAccount;
+  const isSelf = Boolean(id) && id === me?.id;
+  const editingAdmin = Boolean(id) && loadedRole === 'admin';
+  /** Only the primary admin may create, promote, edit, disable or reset other admins. */
+  const canManageAdmins = amPrimary === true;
+  /** Another admin's account, opened by a non-primary admin: read-only. */
+  const adminLocked = editingAdmin && !canManageAdmins && !isSelf;
+  /** Role chips can't change: primary account, someone else's admin account, or your own role without primary rights. */
+  const roleChipsLocked = roleLocked || adminLocked || (editingAdmin && !canManageAdmins);
+  /** Access (active / disable) can't change for admins unless you are the primary admin. */
+  const accessLocked = roleLocked || (editingAdmin && !canManageAdmins);
 
   async function save() {
     const next: Partial<Record<'name' | 'phone' | 'email' | 'password' | 'displayRating', string>> = {};
@@ -101,6 +140,31 @@ export default function UserEditScreen() {
       Toast.show({ type: 'error', text1: 'Fix the highlighted fields' });
       return;
     }
+    if (adminLocked) {
+      haptic('error');
+      Toast.show({ type: 'info', text1: 'Read only', text2: 'Only the primary admin can change other admin accounts.' });
+      return;
+    }
+    if (!id && role === 'admin' && !canManageAdmins) {
+      haptic('error');
+      Toast.show({ type: 'info', text1: 'Not allowed', text2: 'Only the primary admin can add admins. Pick another role.' });
+      return;
+    }
+    if (id && loadedRole && !roleChipsLocked && role !== loadedRole) {
+      const ok = await confirmAsync({
+        title: `Change role to ${ROLE_LABEL[role]}?`,
+        message:
+          role === 'admin'
+            ? `${name.trim() || 'This person'} gets full access to the admin panel. The change is recorded in the activity log.`
+            : loadedRole === 'admin'
+              ? `${name.trim() || 'This person'} loses access to the admin panel. The change is recorded in the activity log.`
+              : `${name.trim() || 'This person'} will use the ${ROLE_LABEL[role].toLowerCase()} app from now on. The change is recorded in the activity log.`,
+        confirmLabel: 'Change role',
+        cancelLabel: 'Back',
+        destructive: loadedRole === 'admin',
+      });
+      if (!ok) return;
+    }
     setSaving(true);
     try {
       if (id) {
@@ -111,7 +175,8 @@ export default function UserEditScreen() {
           city: city.trim(),
           disabled: !active,
         };
-        if (!roleLocked) body.role = role;
+        if (!roleChipsLocked) body.role = role;
+        if (accessLocked) delete body.disabled;
         if (role === 'technician') {
           body.available = available;
           if (displayRating.trim()) {
@@ -179,7 +244,7 @@ export default function UserEditScreen() {
   }
 
   function disableAccount() {
-    if (!id || roleLocked) return;
+    if (!id || accessLocked) return;
     void confirmAsync({
       title: 'Disable account?',
       message: 'They will not be able to sign in.',
@@ -226,10 +291,18 @@ export default function UserEditScreen() {
       keyboardAvoid
       stickyFooter={
         <StickyActionBar row>
-          {id && active && !roleLocked ? (
+          {id && active && !accessLocked ? (
             <Button title="Disable" variant="dangerOutline" onPress={disableAccount} fullWidth={false} style={styles.footerSecondary} />
           ) : null}
-          <Button title="Save" variant="premium" onPress={() => void save()} loading={saving} fullWidth={false} style={styles.footerPrimary} />
+          <Button
+            title={adminLocked ? 'Read only' : 'Save'}
+            variant="premium"
+            onPress={() => void save()}
+            loading={saving}
+            disabled={adminLocked}
+            fullWidth={false}
+            style={styles.footerPrimary}
+          />
         </StickyActionBar>
       }
     >
@@ -242,12 +315,23 @@ export default function UserEditScreen() {
           <AdminFormCard>
             <Text style={styles.sectionTitle}>Account</Text>
             <Text style={styles.sectionHint}>Who they are and how they sign in</Text>
+            {adminLocked ? (
+              <View style={styles.lockBanner}>
+                <Text style={styles.lockTitle}>Admin account · read only</Text>
+                <Text style={styles.lockBody}>Only the primary admin can change, disable or reset the password of other admins.</Text>
+              </View>
+            ) : null}
             <Text style={styles.label}>Role</Text>
             <AdminFilterChips
-              chips={ROLES.map((r) => ({ key: r.key, label: r.label, disabled: roleLocked }))}
+              chips={ROLES.map((r) => ({
+                key: r.key,
+                label: r.label,
+                // Making someone an admin is for the primary admin only.
+                disabled: roleChipsLocked || (r.key === 'admin' && !canManageAdmins && role !== 'admin'),
+              }))}
               selected={role}
               onSelect={(key) => {
-                if (roleLocked) {
+                if (roleChipsLocked) {
                   Toast.show({
                     type: 'info',
                     text1: 'Role locked',
@@ -260,6 +344,10 @@ export default function UserEditScreen() {
             />
             {roleLocked ? (
               <Text style={styles.hint}>Primary admin role is locked and cannot be changed.</Text>
+            ) : editingAdmin && !canManageAdmins ? (
+              <Text style={styles.hint}>Only the primary admin can change an admin's role.</Text>
+            ) : !canManageAdmins && amPrimary !== null ? (
+              <Text style={styles.hint}>Only the primary admin can make someone an admin.</Text>
             ) : null}
 
             <IconInput
@@ -292,25 +380,27 @@ export default function UserEditScreen() {
               error={errors.email}
             />
             <IconInput label="City" value={city} onChangeText={setCity} />
-            <IconInput
-              label={id ? 'New password (optional)' : 'Password'}
-              value={password}
-              onChangeText={(t) => {
-                setPassword(t);
-                if (errors.password) setErrors((e) => ({ ...e, password: undefined }));
-              }}
-              secure
-              error={errors.password}
-            />
+            {adminLocked ? null : (
+              <IconInput
+                label={id ? 'New password (optional)' : 'Password'}
+                value={password}
+                onChangeText={(t) => {
+                  setPassword(t);
+                  if (errors.password) setErrors((e) => ({ ...e, password: undefined }));
+                }}
+                secure
+                error={errors.password}
+              />
+            )}
 
-            {id ? (
+            {id && !accessLocked ? (
               <View style={styles.toggleRow}>
                 <View style={styles.flex}>
                   <Text style={styles.toggleLabel}>Account active</Text>
                 </View>
                 <ToggleSwitch
                   value={active}
-                  onToggle={() => !roleLocked && setActive((v) => !v)}
+                  onToggle={() => !accessLocked && setActive((v) => !v)}
                   accessibilityLabel="Account active"
                 />
               </View>
@@ -409,4 +499,12 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   toggleLabel: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink },
   toggleHint: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
+  lockBanner: {
+    padding: spacing.sm,
+    borderRadius: 12,
+    backgroundColor: colors.amberBg,
+    marginBottom: spacing.md,
+  },
+  lockTitle: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.amberInk },
+  lockBody: { fontFamily: fonts.body, fontSize: 12, lineHeight: 17, color: colors.amberInk, marginTop: 2 },
 });
