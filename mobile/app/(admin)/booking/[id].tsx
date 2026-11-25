@@ -3,8 +3,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { adminRoutes, appPush } from '@/lib/routes';
 import { paramString } from '@/lib/routeParams';
+import { AppImage } from '@/components/ui/AppImage';
 import {
-  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -681,7 +681,7 @@ export default function AdminBookingDetailScreen() {
                         accessibilityRole="imagebutton"
                         accessibilityLabel={`View photo for ${step.title}`}
                       >
-                        <Image source={{ uri: mediaUrl(photos[0]) }} style={styles.img} />
+                        <AppImage uri={mediaUrl(photos[0])} style={styles.img} />
                         <View style={styles.ok}>
                           <PremiumIcon icon={AppIcons.ui.check} variant="plain" size="xs" color={colors.white} strokeWidth={3} />
                         </View>
@@ -720,7 +720,7 @@ export default function AdminBookingDetailScreen() {
                             accessibilityRole="imagebutton"
                             accessibilityLabel={`View photo ${pi + 1} of ${photos.length} for ${step.title}`}
                           >
-                            <Image source={{ uri: mediaUrl(url) }} style={styles.stepPhotoThumb} />
+                            <AppImage uri={mediaUrl(url)} style={styles.stepPhotoThumb} recyclingKey={url} />
                           </Pressable>
                         ))}
                       </ScrollView>

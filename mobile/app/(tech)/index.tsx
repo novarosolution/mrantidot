@@ -159,7 +159,8 @@ export default function TechJobsScreen() {
   }
 
   const firstName = (user?.name?.trim() || copy.techNameFallback).split(/\s+/)[0];
-  const dateLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' });
+  // Short weekday ("Wed, 25 Nov"): the duty pill and the inbox bell share this row, so a long one wraps.
+  const dateLabel = new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
   const hero = (
     <PremiumAppHeader
       eyebrow={copy.techJobsEyebrow}

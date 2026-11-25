@@ -32,7 +32,7 @@ import {
  *   paymentMethod   upi_card | pay_after
  *   source          app | website | admin | unknown (bookings saved before the source was recorded)
  *   from, to        YYYY-MM-DD business days (IST); `dateField` = visit (default) | created | completed
- *   q               ref (#MA-1A2B3), customer / technician name or phone, service name
+ *   q               ref (#MA-1A2B3), customer / technician name or phone, service name, coupon code
  *   sort            visit | created (default) | amount | updated;  order = asc | desc (default desc)
  *   page, limit     paging (default 25, max 100)
  *   withCounts=1    adds `statusCounts` for the same filters without the status filter (chip counts)
@@ -100,6 +100,8 @@ async function searchConditions(raw: unknown): Promise<Record<string, unknown>[]
     { customerId: { $in: userIds } },
     { technicianId: { $in: userIds } },
     { serviceId: { $in: services.map((s) => s._id) } },
+    // Coupon codes too, so an offer can link to "every booking with this code".
+    { couponCode: rx },
   ];
   // Booking refs are the end of the id (#MA-1A2B3 / #1A2B3C) — match hex text against the id.
   if (/^[a-f\d]{4,24}$/i.test(text)) {

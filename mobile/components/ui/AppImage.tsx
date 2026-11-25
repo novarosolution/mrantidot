@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { StyleSheet, View, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native';
 import { Image, type ImageContentFit, type ImageSource } from 'expo-image';
 import { ImageOff } from 'lucide-react-native';
@@ -35,11 +35,15 @@ export const AppImage = memo(function AppImage({
   recyclingKey?: string;
   accessibilityLabel?: string;
   placeholderColor?: string;
-  /** Show a small "no image" icon when there is nothing to load. */
+  /** Show a small "no image" icon when there is nothing to load (or it failed to load). */
   showFallbackIcon?: boolean;
 }) {
   const src = source ?? (uri ? { uri } : null);
-  if (!src) {
+  // A photo that fails to load (deleted upload, 404, offline) gets the same "no image" tile instead of a
+  // blank box. Keyed by source, so a new photo in a recycled row loads normally; remounting retries.
+  const srcKey = typeof src === 'number' ? `asset:${src}` : JSON.stringify(src ?? '');
+  const [failedKey, setFailedKey] = useState<string | null>(null);
+  if (!src || failedKey === srcKey) {
     return (
       <View style={[styles.empty, { backgroundColor: placeholderColor }, style as StyleProp<ViewStyle>]} accessibilityLabel={accessibilityLabel}>
         {showFallbackIcon ? <ImageOff size={18} color={ui.textTertiary} strokeWidth={2} /> : null}
@@ -57,6 +61,7 @@ export const AppImage = memo(function AppImage({
       recyclingKey={recyclingKey}
       accessibilityLabel={accessibilityLabel}
       accessible={Boolean(accessibilityLabel)}
+      onError={() => setFailedKey(srcKey)}
     />
   );
 });

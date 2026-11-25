@@ -196,9 +196,12 @@ export function HomeCategoryGrid({
   const size = useTileSize();
   if (types.length === 0) return null;
 
-  const gridSlots = MAX_TILES - (onAll ? 1 : 0) - (offerTile ? 1 : 0);
+  const reserved = (onAll ? 1 : 0) + (offerTile ? 1 : 0);
+  // Without a heading for the overflow group, everything is one grid and "All services" stays the last
+  // tile (otherwise it would sit mid-grid, with more pest types after it).
+  const gridSlots = moreTitle ? MAX_TILES - reserved : MAX_TILES + MORE_TILES - reserved;
   const gridTypes = types.slice(0, gridSlots);
-  const moreTypes = types.slice(gridSlots, gridSlots + MORE_TILES);
+  const moreTypes = moreTitle ? types.slice(gridSlots, gridSlots + MORE_TILES) : [];
   let n = 0;
 
   return (
@@ -226,8 +229,8 @@ export function HomeCategoryGrid({
       </View>
 
       {moreTypes.length > 0 ? (
-        <View style={moreTitle ? styles.more : styles.moreContinued}>
-          {moreTitle ? <Text style={styles.moreTitle}>{moreTitle}</Text> : null}
+        <View style={styles.more}>
+          <Text style={styles.moreTitle}>{moreTitle}</Text>
           <View style={styles.grid}>
             {moreTypes.map((key) => (
               <CategoryTile key={key} typeKey={key} size={size} popular={false} />
@@ -245,7 +248,7 @@ export function HomeCategoryGridSkeleton() {
   const pulse = useSkeletonPulse();
   return (
     <View style={styles.grid}>
-      {Array.from({ length: MAX_TILES }, (_, i) => (
+      {Array.from({ length: MAX_TILES + MORE_TILES }, (_, i) => (
         <View key={i} style={{ width: size }}>
           <Skeleton width={size} height={size} radius={16} pulse={pulse} />
           <Skeleton width={size * 0.7} height={11} radius={6} pulse={pulse} style={styles.skeletonLabel} />
@@ -301,8 +304,6 @@ const styles = StyleSheet.create({
   offerDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: 'rgba(8,123,53,0.25)' },
   offerDotOn: { width: 14, backgroundColor: ui.brand },
   more: { marginTop: 28 },
-  /** No heading → the second group just continues the grid at the same row rhythm. */
-  moreContinued: { marginTop: 16 },
   moreTitle: {
     paddingHorizontal: H_PAD,
     marginBottom: 14,

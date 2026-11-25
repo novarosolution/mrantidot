@@ -302,6 +302,8 @@ export default function OfferEditScreen() {
               recent={recent}
               maxUses={maxUses.trim() ? parseInt(maxUses, 10) || undefined : undefined}
               onOpenBooking={(bookingId) => appPush(adminRoutes.booking(bookingId))}
+              // The bookings search matches coupon codes, so this lists every booking that used this one.
+              onViewAll={code.trim() ? () => appPush(adminRoutes.bookingsFiltered({ q: code.trim() })) : undefined}
             />
             <Text style={styles.statsNote}>
               {neverUsed
