@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Image, StyleSheet, View, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { PremiumAurora } from '@/components/kit/PremiumAurora';
 import { SERVICE_TYPE_IMAGES } from '@/constants/serviceImages';
+import { getReducedMotion, useAmbientLoop } from '@/lib/a11yPrefs';
 
 /** Brand hero wash — deep forest, lighter at the top-left. */
-export const AUTH_HERO_GRADIENT = ['#1A8B3F', '#0D6A2B', '#06461C'] as const;
+export const AUTH_HERO_GRADIENT = ['#159447', '#087B35', '#075C2B'] as const;
 
 /** One 3D pest illustration on a soft glass disc that slowly bobs. */
 export function FloatingPest({
@@ -21,25 +22,34 @@ export function FloatingPest({
   tilt?: number;
 }) {
   const bob = useRef(new Animated.Value(0)).current;
-  const enter = useRef(new Animated.Value(0)).current;
+  const enter = useRef(new Animated.Value(getReducedMotion() ? 1 : 0)).current;
 
   useEffect(() => {
-    Animated.timing(enter, {
+    if (getReducedMotion()) {
+      enter.setValue(1);
+      return;
+    }
+    const anim = Animated.timing(enter, {
       toValue: 1,
       duration: 620,
       delay,
       easing: Easing.out(Easing.back(1.4)),
       useNativeDriver: true,
-    }).start();
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(bob, { toValue: 1, duration: 2400 + delay, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(bob, { toValue: 0, duration: 2400 + delay, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [bob, delay, enter]);
+    });
+    anim.start();
+    return () => anim.stop();
+  }, [delay, enter]);
+
+  useAmbientLoop(
+    () =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(bob, { toValue: 1, duration: 2400 + delay, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(bob, { toValue: 0, duration: 2400 + delay, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+      ),
+    [bob, delay],
+  );
 
   return (
     <Animated.View
@@ -70,15 +80,7 @@ export function FloatingPest({
 export function AuthHeroBackdrop({ height, dense = false }: { height: number; dense?: boolean }) {
   return (
     <View style={[StyleSheet.absoluteFill, { height }]} pointerEvents="none">
-      <LinearGradient
-        colors={[...AUTH_HERO_GRADIENT]}
-        locations={[0, 0.55, 1]}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={[styles.glow, styles.glowA]} />
-      <View style={[styles.glow, styles.glowB]} />
+      <PremiumAurora topFade={false} rings={false} />
       <FloatingPest source={SERVICE_TYPE_IMAGES.cockroach} size={dense ? 70 : 64} delay={80} tilt={-12} style={{ top: height * 0.2, right: 18 }} />
       <FloatingPest source={SERVICE_TYPE_IMAGES.mosquito} size={52} delay={220} tilt={10} style={{ top: height * 0.5, right: 92 }} />
       <FloatingPest source={SERVICE_TYPE_IMAGES.termite} size={46} delay={360} tilt={-6} style={{ bottom: 44, right: 22 }} />

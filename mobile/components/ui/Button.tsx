@@ -2,22 +2,25 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
   type PressableProps,
+  type PressableStateCallbackType,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
 import { colors, fonts, gradients, premiumType, spacing, buttonTokens, ui } from '@/constants/theme';
+import { haptic } from '@/lib/motion';
 
 interface ButtonProps extends PressableProps {
   title: string;
   loading?: boolean;
   /** @default premium */
-  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'sky' | 'premium' | 'gold' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'dangerOutline' | 'sky' | 'premium' | 'gold' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -51,6 +54,13 @@ function ButtonLabel({
   );
 }
 
+const IS_WEB = Platform.OS === 'web';
+
+/** Web (admin): a soft dip while the mouse is over an enabled button (react-native-web reports `hovered`). */
+function hoverStyle(state: PressableStateCallbackType, disabled: boolean): StyleProp<ViewStyle> {
+  return IS_WEB && !disabled && !state.pressed && (state as { hovered?: boolean }).hovered ? styles.hovered : null;
+}
+
 function ButtonShell({
   children,
   pressed,
@@ -82,6 +92,18 @@ export function Button({
 }: ButtonProps) {
   const isDisabled = disabled || loading;
   const sz = SIZE[size];
+  // Filled (primary) actions get a light tap haptic; quieter variants stay silent.
+  const userPress = props.onPress;
+  const pressProps: PressableProps =
+    userPress && (variant === 'premium' || variant === 'primary' || variant === 'gold')
+      ? {
+          ...props,
+          onPress: (e) => {
+            haptic('tap');
+            userPress(e);
+          },
+        }
+      : props;
   const shellStyle: StyleProp<ViewStyle> = [fullWidth ? styles.full : styles.inline, style];
 
   const frame = {
@@ -112,8 +134,8 @@ export function Button({
         accessibilityRole="button"
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
-        style={shellStyle}
-        {...props}
+        style={(state) => [shellStyle, hoverStyle(state, !!isDisabled)]}
+        {...pressProps}
       >
         {({ pressed }) => (
           <ButtonShell pressed={pressed} disabled={!!isDisabled} style={[styles.shadow, { borderRadius: sz.radius }]}>
@@ -130,8 +152,8 @@ export function Button({
         accessibilityRole="button"
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
-        style={shellStyle}
-        {...props}
+        style={(state) => [shellStyle, hoverStyle(state, !!isDisabled)]}
+        {...pressProps}
       >
         {({ pressed }) => (
           <ButtonShell pressed={pressed} disabled={!!isDisabled} style={[styles.shadow, { borderRadius: sz.radius }]}>
@@ -148,8 +170,8 @@ export function Button({
         accessibilityRole="button"
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
-        style={shellStyle}
-        {...props}
+        style={(state) => [shellStyle, hoverStyle(state, !!isDisabled)]}
+        {...pressProps}
       >
         {({ pressed }) => (
           <ButtonShell pressed={pressed} disabled={!!isDisabled}>
@@ -173,8 +195,8 @@ export function Button({
         accessibilityRole="button"
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
-        style={shellStyle}
-        {...props}
+        style={(state) => [shellStyle, hoverStyle(state, !!isDisabled)]}
+        {...pressProps}
       >
         {({ pressed }) => (
           <ButtonShell
@@ -195,8 +217,8 @@ export function Button({
         accessibilityRole="button"
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
-        style={shellStyle}
-        {...props}
+        style={(state) => [shellStyle, hoverStyle(state, !!isDisabled)]}
+        {...pressProps}
       >
         {({ pressed }) => (
           <ButtonShell
@@ -211,21 +233,44 @@ export function Button({
     );
   }
 
+  if (variant === 'dangerOutline') {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: isDisabled, busy: loading }}
+        disabled={isDisabled}
+        style={(state) => [shellStyle, hoverStyle(state, !!isDisabled)]}
+        {...pressProps}
+      >
+        {({ pressed }) => (
+          <ButtonShell
+            pressed={pressed}
+            disabled={!!isDisabled}
+            style={[styles.dangerOutline, frame, pressed && !isDisabled && styles.dangerOutlinePressed]}
+          >
+            {label(colors.error)}
+          </ButtonShell>
+        )}
+      </Pressable>
+    );
+  }
+
   if (variant === 'ghost') {
     return (
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ disabled: isDisabled, busy: loading }}
         disabled={isDisabled}
-        style={({ pressed }) => [
+        style={(state) => [
           fullWidth ? styles.full : styles.inline,
           styles.ghost,
           frame,
-          pressed && !isDisabled && styles.ghostPressed,
+          state.pressed && !isDisabled && styles.ghostPressed,
+          hoverStyle(state, !!isDisabled),
           isDisabled && styles.disabled,
           style,
         ]}
-        {...props}
+        {...pressProps}
       >
         {label(colors.forest)}
       </Pressable>
@@ -237,8 +282,8 @@ export function Button({
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
-      style={shellStyle}
-      {...props}
+      style={(state) => [shellStyle, hoverStyle(state, !!isDisabled)]}
+      {...pressProps}
     >
       {({ pressed }) => (
         <ButtonShell
@@ -254,6 +299,7 @@ export function Button({
 }
 
 const styles = StyleSheet.create({
+  hovered: { opacity: 0.88 },
   full: { width: '100%' },
   inline: { alignSelf: 'flex-start' },
   label: {
@@ -306,6 +352,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.error,
   },
+  /** Secondary destructive action — sits beside a primary Save without shouting. */
+  dangerOutline: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: 'rgba(179,63,40,0.4)',
+  },
+  dangerOutlinePressed: { backgroundColor: colors.errorBg },
   pressed: {
     opacity: 0.94,
     transform: [{ scale: 0.985 }],

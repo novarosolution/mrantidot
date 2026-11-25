@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -13,19 +12,25 @@ import { BookingListCard } from '@/components/kit/BookingListCard';
 import { BookingsEmpty } from '@/components/kit/BookingsEmpty';
 import { BookingsNextHighlight } from '@/components/kit/BookingsNextHighlight';
 import { BookingsSummaryBar } from '@/components/kit/BookingsSummaryBar';
+import { PremiumAurora } from '@/components/kit/PremiumAurora';
 import { TAB_BAR_SCROLL_PAD, customerScrollProps } from '@/components/kit/GlassScreenKit';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { BookingsSkeleton } from '@/components/kit/ScreenSkeletons';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { stagger } from '@/lib/motion';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { bookingDetailPath, customerRoutes, appPush } from '@/lib/routes';
-import { bookingHasTechnician, nextActiveBooking } from '@/lib/booking-helpers';
+import { bookingHasTechnician, isRequestedTimePast, nextActiveBooking } from '@/lib/booking-helpers';
 import { useBookingCopy } from '@/lib/schedule-copy';
 import { useAuth } from '@/context/AuthContext';
-import type { Booking } from '@/types/api';
+import type { Booking, BookingCopyConfig, CustomerUiCopy } from '@/types/api';
 import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
-import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { colors, fonts, radii, spacing, typeScale, ui } from '@/constants/theme';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 
 type FilterKey = 'active' | 'completed' | 'cancelled';
@@ -39,26 +44,31 @@ function sortBookings(list: Booking[], filter: FilterKey): Booking[] {
   });
 }
 
-function customerActionHint(booking: Booking): string | undefined {
-  if (booking.status === 'awaiting_verification') return 'Share your completion code';
-  if (booking.status === 'confirmed' && bookingHasTechnician(booking)) return 'Expert assigned · share start code on arrival';
+function customerActionHint(booking: Booking, copy: BookingCopyConfig, labels: CustomerUiCopy): string | undefined {
+  if (isRequestedTimePast(booking)) return copy.listPendingPastHint;
+  if (booking.status === 'awaiting_verification') return labels.bookingsHintCode;
+  if (booking.status === 'confirmed' && bookingHasTechnician(booking)) return labels.bookingsHintAssigned;
   return undefined;
 }
 
-function sectionLabel(filter: FilterKey): string {
-  if (filter === 'completed') return 'Past visits';
-  if (filter === 'cancelled') return 'Cancelled visits';
-  return 'Upcoming visits';
+function sectionLabel(filter: FilterKey, labels: CustomerUiCopy): string {
+  if (filter === 'completed') return labels.bookingsPastTitle;
+  if (filter === 'cancelled') return labels.bookingsCancelledTitle;
+  return labels.bookingsUpcomingTitle;
 }
 
 export default function MyBookingsScreen() {
   const { user } = useAuth();
   const bookingCopy = useBookingCopy();
+  const labels = useCustomerUiCopy();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filter, setFilter] = useState<FilterKey>('active');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const role = user?.role;
+  /** One stable handler for every card, so memoised rows don't re-render on each list update. */
+  const openBooking = useCallback((b: Booking) => appPush(bookingDetailPath(role, b.id)), [role]);
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -74,7 +84,7 @@ export default function MyBookingsScreen() {
       try {
         await load();
       } catch (err) {
-        setLoadError(getApiErrorMessage(err, 'Could not load bookings'));
+        setLoadError(getApiErrorMessage(err, labels.bookingsLoadFailed));
       }
     }, () => setLoading(false));
   }, [load]);
@@ -110,17 +120,17 @@ export default function MyBookingsScreen() {
 
   const total = counts.active + counts.completed + counts.cancelled;
   const subtitle = loading
-    ? 'Loading your visits…'
+    ? labels.bookingsLoadingSub
     : total === 0
-      ? 'No visits yet — book your first service'
-      : `${counts.active} active · ${total} total`;
+      ? labels.bookingsEmptySub
+      : fillCopy(labels.bookingsCountSub, { active: counts.active, total });
 
   async function onRefresh() {
     setRefreshing(true);
     try {
       await load();
     } catch (err) {
-      setLoadError(getApiErrorMessage(err, 'Could not refresh bookings'));
+      setLoadError(getApiErrorMessage(err, labels.homeRefreshFailed));
     } finally {
       setRefreshing(false);
     }
@@ -128,30 +138,41 @@ export default function MyBookingsScreen() {
 
   const hero = (
     <View style={styles.header}>
+      <PremiumAurora tone="light" base={false} topFade />
+      <View style={styles.headerTop}>
       <View style={styles.heroLeft}>
-        <Text style={styles.kicker}>YOUR VISITS</Text>
-        <Text style={styles.heroTitle}>{bookingCopy.listScreenTitle}</Text>
-        <Text style={styles.heroSub}>{subtitle}</Text>
+        <View style={styles.kickerRow}>
+          <View style={styles.kickerDot} />
+          <Text style={styles.kicker}>{labels.bookingsKicker}</Text>
+        </View>
+        <Text style={styles.heroTitle} accessibilityRole="header">
+          {bookingCopy.listScreenTitle}
+        </Text>
       </View>
       <View style={styles.heroActions}>
-        <Pressable
-          style={({ pressed }) => [styles.guideBtn, pressed && styles.pressedSm]}
+        <PressableScale
+          scaleTo={0.92}
+          style={styles.guideBtn}
           onPress={() => appPush(customerRoutes.bookGuide)}
           accessibilityRole="button"
-          accessibilityLabel="How to book a service"
+          accessibilityLabel={labels.helpGuideTitle}
         >
           <CircleHelp size={18} color={ui.brand} strokeWidth={2.2} />
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.bookBtn, pressed && styles.pressedSm]}
+        </PressableScale>
+        <PressableScale
+          scaleTo={0.94}
+          haptic="tap"
+          style={styles.bookBtn}
           onPress={() => appPush(customerRoutes.services)}
           accessibilityRole="button"
-          accessibilityLabel="Book a service"
+          accessibilityLabel={labels.bookingsBookButton}
         >
           <Plus size={18} color={colors.white} strokeWidth={2.6} />
-          <Text style={styles.bookBtnText}>Book</Text>
-        </Pressable>
+          <Text style={styles.bookBtnText}>{labels.bookingsBookButton}</Text>
+        </PressableScale>
       </View>
+      </View>
+      <Text style={styles.heroSub}>{subtitle}</Text>
     </View>
   );
 
@@ -167,19 +188,19 @@ export default function MyBookingsScreen() {
           onSelect={setFilter}
         />
         {filter === 'active' && nextActive ? (
-          <BookingsNextHighlight
-            booking={nextActive}
-            onPress={() => appPush(bookingDetailPath(user?.role, nextActive.id))}
-          />
+          <FadeSlideIn key={nextActive.id} delay={stagger(0)} slideFrom={14}>
+            <BookingsNextHighlight
+              booking={nextActive}
+              onPress={() => appPush(bookingDetailPath(user?.role, nextActive.id))}
+            />
+          </FadeSlideIn>
         ) : null}
-        {listData.length > 0 || (filter === 'active' && nextActive) ? (
+        {/* Only a heading when there are rows under it — the pinned "next visit" card is its own block. */}
+        {listData.length > 0 ? (
           <View style={styles.sectionPad}>
-            <Text style={styles.sectionTitle}>{sectionLabel(filter)}</Text>
+            <Text style={styles.sectionTitle}>{sectionLabel(filter, labels)}</Text>
             <Text style={styles.sectionCount}>
-              {filter === 'active' && nextActive ? listData.length + 1 : listData.length}{' '}
-              {(filter === 'active' && nextActive ? listData.length + 1 : listData.length) === 1
-                ? 'booking'
-                : 'bookings'}
+              {listData.length === 1 ? labels.bookingsCountOne : fillCopy(labels.bookingsCountMany, { count: listData.length })}
             </Text>
           </View>
         ) : null}
@@ -195,9 +216,7 @@ export default function MyBookingsScreen() {
         {loading ? (
           <View style={styles.flex}>
             {hero}
-            <View style={styles.loadingBody}>
-              <Spinner />
-            </View>
+            <BookingsSkeleton />
           </View>
         ) : loadError && bookings.length === 0 ? (
           <View style={styles.flex}>
@@ -211,6 +230,7 @@ export default function MyBookingsScreen() {
           </View>
         ) : (
           <FlatList
+            style={styles.flex}
             data={listData}
             keyExtractor={(b) => b.id}
             refreshControl={
@@ -228,14 +248,15 @@ export default function MyBookingsScreen() {
             }
             {...CUSTOMER_LIST_PERF}
             {...customerScrollProps}
-            renderItem={({ item }) => (
-              <View style={styles.cardPad}>
+            renderItem={({ item, index }) => (
+              <FadeSlideIn delay={stagger(index + 1)} slideFrom={14} disabled={index > 6} style={styles.cardPad}>
                 <BookingListCard
                   booking={item}
-                  hint={customerActionHint(item)}
-                  onPress={() => appPush(bookingDetailPath(user?.role, item.id))}
+                  hint={customerActionHint(item, bookingCopy, labels)}
+                  hintTone={isRequestedTimePast(item) ? 'warning' : 'status'}
+                  onPress={openBooking}
                 />
-              </View>
+              </FadeSlideIn>
             )}
           />
         )}
@@ -245,59 +266,46 @@ export default function MyBookingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: ui.surfaceMuted },
+  // White root so the status-bar strip matches the white header; the feed below sits on the muted canvas.
+  root: { flex: 1, backgroundColor: colors.white },
   safe: { flex: 1, backgroundColor: 'transparent' },
-  flex: { flex: 1 },
+  flex: { flex: 1, backgroundColor: ui.canvas },
   listContent: { paddingBottom: TAB_BAR_SCROLL_PAD + 12, flexGrow: 1 },
   listEmptyGrow: { flexGrow: 1 },
   loadingBody: { flex: 1, justifyContent: 'center', paddingTop: 24 },
-  pressedSm: { transform: [{ scale: 0.94 }], opacity: 0.92 },
 
   headerBlock: { marginBottom: 2 },
   header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
     paddingHorizontal: spacing.md,
     paddingTop: 10,
-    paddingBottom: 18,
+    paddingBottom: 16,
     backgroundColor: colors.white,
     borderBottomWidth: 1,
     borderBottomColor: ui.hairline,
     marginBottom: 14,
+    overflow: 'hidden',
   },
+  headerTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   heroLeft: { flex: 1, minWidth: 0 },
+  kickerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
+  kickerDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: ui.brandBright },
   kicker: {
     fontFamily: fonts.bodyBold,
     fontSize: 10.5,
     letterSpacing: 1.1,
     color: ui.brand,
-    marginBottom: 4,
   },
-  heroTitle: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 28,
-    lineHeight: 34,
-    letterSpacing: -0.8,
-    color: ui.text,
-  },
-  heroSub: {
-    marginTop: 4,
-    fontFamily: fonts.body,
-    fontSize: 13.5,
-    lineHeight: 19,
-    color: ui.textSecondary,
-  },
+  heroTitle: { ...typeScale.display, fontSize: 24, lineHeight: 30, color: ui.text },
+  heroSub: { ...typeScale.caption, marginTop: 8, lineHeight: 18, color: ui.textSecondary },
   heroActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 18,
   },
   guideBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: ui.brandSoft,
@@ -308,10 +316,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    height: 42,
-    paddingLeft: 14,
-    paddingRight: 16,
-    borderRadius: 14,
+    height: 40,
+    paddingLeft: 12,
+    paddingRight: 15,
+    borderRadius: radii.pill,
     backgroundColor: ui.brand,
     shadowColor: colors.forest,
     shadowOffset: { width: 0, height: 6 },
@@ -319,7 +327,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
-  bookBtnText: { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.white },
+  bookBtnText: { fontFamily: fonts.bodyBold, fontSize: 13.5, color: colors.white },
 
   sectionPad: {
     paddingHorizontal: spacing.md,
@@ -329,12 +337,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 10,
   },
-  sectionTitle: {
-    fontFamily: fonts.display,
-    fontSize: 17,
-    letterSpacing: -0.3,
-    color: ui.text,
-  },
+  sectionTitle: { ...typeScale.section, fontSize: 17, lineHeight: 23, color: ui.text },
   sectionCount: {
     fontFamily: fonts.bodySemi,
     fontSize: 12.5,

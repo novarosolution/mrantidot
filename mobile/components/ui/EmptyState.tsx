@@ -1,27 +1,37 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Inbox, type LucideIcon } from 'lucide-react-native';
+import { StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { PestImage } from '@/components/ServiceIcon';
-import { SERVICE_TYPE_IMAGES } from '@/constants/serviceImages';
 import { Button } from './Button';
-import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { colors, radii, spacing, typeScale, ui } from '@/constants/theme';
 
+/**
+ * Calm "nothing here" card. Defaults to a neutral line icon; pass `icon` for a context glyph
+ * (bell, map pin, card…) or `art` for a bundled illustration where one genuinely fits.
+ */
 export function EmptyState({
   title,
   message,
   actionLabel,
   onAction,
+  icon: Icon = Inbox,
+  art,
 }: {
   title: string;
   message?: string;
   actionLabel?: string;
   onAction?: () => void;
+  icon?: LucideIcon;
+  art?: ImageSourcePropType;
 }) {
   return (
     <View style={styles.wrap}>
       <View style={styles.card}>
         <View style={styles.icon}>
-          <PestImage source={SERVICE_TYPE_IMAGES.cockroach} size={56} />
+          {art ? <PestImage source={art} size={52} /> : <Icon size={30} color={ui.brand} strokeWidth={1.8} />}
         </View>
-        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.title} accessibilityRole="header">
+          {title}
+        </Text>
         {message ? <Text style={styles.message}>{message}</Text> : null}
         {actionLabel && onAction ? (
           <Button title={actionLabel} variant="premium" size="md" onPress={onAction} style={styles.btn} />
@@ -34,9 +44,9 @@ export function EmptyState({
 const styles = StyleSheet.create({
   wrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
   card: {
-    maxWidth: 320,
+    maxWidth: 340,
     width: '100%',
-    borderRadius: 22,
+    borderRadius: radii.card,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.hairline,
@@ -46,25 +56,21 @@ const styles = StyleSheet.create({
     ...ui.shadow,
   },
   icon: {
-    width: 88,
-    height: 88,
-    borderRadius: 28,
+    width: 72,
+    height: 72,
+    borderRadius: radii.pill,
     backgroundColor: ui.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
   },
   title: {
-    fontFamily: fonts.displaySemi,
-    fontSize: 18,
-    lineHeight: 24,
-    letterSpacing: -0.3,
+    ...typeScale.section,
     textAlign: 'center',
     color: ui.text,
   },
   message: {
-    fontFamily: fonts.body,
-    fontSize: 13.5,
+    ...typeScale.caption,
     lineHeight: 20,
     textAlign: 'center',
     color: ui.textSecondary,

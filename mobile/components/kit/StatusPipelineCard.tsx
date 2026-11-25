@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
   period: { fontFamily: fonts.body, fontSize: 10, color: colors.muted },
   track: {
     height: 8,
-    backgroundColor: 'rgba(226,240,216,0.85)',
+    backgroundColor: '#EEF2EF',
     borderRadius: 4,
     overflow: 'hidden',
   },

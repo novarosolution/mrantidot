@@ -8,15 +8,17 @@
     "build": "tsc",
     "start": "node --max-old-space-size=512 dist/index.js",
     "seed": "tsx src/seed/seed.ts",
-    "db:reset": "rm -rf .data/mongo && echo 'Local database wiped — demo data reloads on next start (SEED_ON_START=if-empty).'",
+    "db:reset": "rm -rf .data/mongo && echo 'Local database wiped \u2014 demo data reloads on next start (SEED_ON_START=if-empty).'",
     "deploy:check": "bash render-build.sh",
     "typecheck": "tsc --noEmit",
-    "test": "bash test/auth.sh && bash test/flow.sh && bash test/features.sh"
+    "test": "bash test/auth.sh && bash test/flow.sh && bash test/features.sh",
+    "import:website": "tsx src/scripts/importWebsiteData.ts"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "@vercel/blob": "^0.27.3",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -37,9 +39,11 @@
     "@types/morgan": "^1.9.9",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.10.2",
+    "@types/turndown": "^5.0.6",
     "mongodb-memory-server": "^11.2.0",
     "ts-node-dev": "^2.0.0",
     "tsx": "^4.22.4",
+    "turndown": "^7.2.5",
     "typescript": "^5.7.2"
   }
 }

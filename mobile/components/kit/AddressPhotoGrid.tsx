@@ -6,6 +6,8 @@ import { PhotoSourceSheet } from '@/components/kit/PhotoSourceSheet';
 import { mergePickedImages, pickImageFromCamera, pickImagesFromLibrary } from '@/lib/pickImages';
 import type { PickedImage } from '@/lib/upload';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { fillCopy } from '@/constants/customerUiCopy';
 
 const DEFAULT_MAX = 6;
 
@@ -18,6 +20,7 @@ export function AddressPhotoGrid({
   onChange: (photos: PickedImage[]) => void;
   max?: number;
 }) {
+  const copy = useCustomerUiCopy();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const photosRef = useRef(photos);
@@ -66,7 +69,7 @@ export function AddressPhotoGrid({
             ) : (
               <>
                 <PremiumIcon icon={AppIcons.ui.camera} variant="plain" size={22} color={colors.white} />
-                <Text style={styles.addLabel}>Add photo</Text>
+                <Text style={styles.addLabel}>{copy.photoSheetTitle}</Text>
               </>
             )}
           </View>
@@ -80,7 +83,7 @@ export function AddressPhotoGrid({
               onPress={() => onChange(photos.filter((p) => p.uri !== photo.uri))}
               hitSlop={6}
               accessibilityRole="button"
-              accessibilityLabel="Remove photo"
+              accessibilityLabel={copy.photoRemoveA11y}
             >
               <PremiumIcon icon={AppIcons.ui.close} variant="plain" size={12} color={colors.white} strokeWidth={3} />
             </Pressable>
@@ -93,16 +96,14 @@ export function AddressPhotoGrid({
             onPress={openSheet}
             disabled={busy}
             accessibilityRole="button"
-            accessibilityLabel="Add another photo"
+            accessibilityLabel={copy.photoAddAnotherA11y}
           >
             <PremiumIcon icon={AppIcons.ui.imagePlus} variant="plain" size={20} color={ui.brand} />
           </Pressable>
         ) : null}
       </View>
 
-      <Text style={styles.hint}>
-        Optional · {photos.length}/{max} photos
-      </Text>
+      <Text style={styles.hint}>{fillCopy(copy.photosOptionalCount, { count: photos.length, max })}</Text>
 
       <PhotoSourceSheet
         visible={sheetOpen}

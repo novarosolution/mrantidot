@@ -1,9 +1,5 @@
+import { getBusinessSettings } from '@/lib/businessSettings';
 import type { Offer } from '@/types/api';
-
-const FALLBACK_COUPONS: Record<string, number> = {
-  ANTIDOT100: 100,
-  FIRST50: 50,
-};
 
 function isOfferValidForOrder(offer: Offer, orderAmount: number): boolean {
   if (!offer.active) return false;
@@ -42,18 +38,25 @@ export function isValidCoupon(code: string, offers: Offer[], orderAmount = 0): b
   return couponDiscountFromOffers(trimmed, offers, orderAmount) > 0;
 }
 
-/** @deprecated Use couponDiscountFromOffers with live offers */
-export function couponDiscount(code: string): number {
-  if (!__DEV__ || !code.trim()) return 0;
-  return FALLBACK_COUPONS[code.trim().toUpperCase()] ?? 0;
+/**
+ * @deprecated Coupons come from live offers only (`couponDiscountFromOffers`); the old built-in demo codes
+ * are gone, matching the server. Always 0.
+ */
+export function couponDiscount(_code: string): number {
+  return 0;
 }
 
-/** Must match server computeAmount: coupon off the service price, then 18% GST on the discounted amount. */
-export function computePricing(basePrice: number, couponCode = '', offers: Offer[] = []) {
+/**
+ * Must match server computeAmount: coupon off the service price, then GST on the discounted amount.
+ * The rate is the admin's (Business settings → Tax, 18% by default); pass `gstPercent` to price with a
+ * specific rate (e.g. from `useBusinessSettings()` so the screen re-renders when it changes).
+ */
+export function computePricing(basePrice: number, couponCode = '', offers: Offer[] = [], gstPercent?: number) {
+  const pct = gstPercent ?? getBusinessSettings().tax.gstPercent;
   const base = basePrice;
   const subtotal = base;
   const coupon = Math.min(base, couponDiscountFromOffers(couponCode, offers, base));
-  const gst = Math.round((base - coupon) * 0.18);
+  const gst = Math.round(((base - coupon) * pct) / 100);
   const total = base - coupon + gst;
-  return { base, gst, coupon, total, subtotal };
+  return { base, gst, coupon, total, subtotal, gstPercent: pct };
 }

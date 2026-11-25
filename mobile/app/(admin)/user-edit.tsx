@@ -1,29 +1,60 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { adminGoBack, adminRoutes } from '@/lib/routes';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { AdminFormCard, AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { AdminFormSkeleton } from '@/components/kit/AdminSkeletons';
 import { IconInput } from '@/components/kit/IconInput';
 import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
 import { Button } from '@/components/ui/Button';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
+import { EMPTY_COVERAGE, TechnicianCoverageEditor, type CoverageDraft } from '@/components/admin/TechnicianCoverageEditor';
 import { useAuth } from '@/context/AuthContext';
 import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
+import { haptic, stagger } from '@/lib/motion';
 import { technicianRealRating } from '@/lib/ratings';
 import { paramString } from '@/lib/routeParams';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { User, UserRole } from '@/types/api';
+import type { TechnicianUser } from '@/types/adminManage';
+import { IS_WEB } from '@/lib/webAdmin';
 import { colors, fonts, spacing } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
 
 const ROLES: { key: UserRole; label: string }[] = [
   { key: 'customer', label: 'Customer' },
   { key: 'technician', label: 'Technician' },
   { key: 'admin', label: 'Admin' },
 ];
+
+const ROLE_LABEL: Record<UserRole, string> = { customer: 'Customer', technician: 'Technician', admin: 'Admin' };
+
+/**
+ * Whether the signed-in admin is the primary admin (from `/auth/me`, so it is always current).
+ * null while unknown — admin-management controls stay hidden until it is known (the server enforces it anyway).
+ */
+function usePrimaryAdmin(): boolean | null {
+  const [primary, setPrimary] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    api
+      .get<{ user: User }>('/auth/me', screenLoadConfig)
+      .then(({ data }) => {
+        if (alive) setPrimary(data.user.isPrimaryAdmin === true);
+      })
+      .catch(() => {
+        if (alive) setPrimary(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return primary;
+}
 
 function parseInitialRole(raw: string | string[] | undefined): UserRole {
   const v = paramString(raw);
@@ -38,6 +69,9 @@ export default function UserEditScreen() {
   const returnTo = paramString(useLocalSearchParams<{ returnTo?: string | string[] }>().returnTo) || adminRoutes.users;
 
   const [role, setRole] = useState<UserRole>(initialRole);
+  /** Role saved on the server (edit only) — a different `role` means the admin is changing it. */
+  const [loadedRole, setLoadedRole] = useState<UserRole | null>(null);
+  const amPrimary = usePrimaryAdmin();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -50,6 +84,8 @@ export default function UserEditScreen() {
   const [payMode, setPayMode] = useState<'percent' | 'flat'>('percent');
   const [payPercent, setPayPercent] = useState('100');
   const [payFlat, setPayFlat] = useState('0');
+  /** Skills, area, weekly days off and daily cap (technicians) — utils/technicianFit.ts on the server. */
+  const [coverage, setCoverage] = useState<CoverageDraft>(EMPTY_COVERAGE);
   const [protectedAccount, setProtectedAccount] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<
@@ -59,9 +95,10 @@ export default function UserEditScreen() {
 
   const load = useCallback(async () => {
     if (!id) return;
-    const { data } = await api.get<{ user: User }>(`/admin/users/${id}`, screenLoadConfig);
+    const { data } = await api.get<{ user: TechnicianUser }>(`/admin/users/${id}`, screenLoadConfig);
     const u = data.user;
     setRole(u.role);
+    setLoadedRole(u.role);
     setName(u.name);
     setPhone(u.phone ?? '');
     setEmail(u.email);
@@ -73,6 +110,13 @@ export default function UserEditScreen() {
     setPayMode(u.payMode === 'flat' ? 'flat' : 'percent');
     setPayPercent(u.payPercent != null ? String(u.payPercent) : '100');
     setPayFlat(u.payFlat != null ? String(u.payFlat) : '0');
+    setCoverage({
+      skills: u.skills ?? [],
+      serviceCities: u.serviceCities ?? [],
+      servicePincodes: u.servicePincodes ?? [],
+      offDays: u.offDays ?? [],
+      maxJobsPerDay: u.maxJobsPerDay ?? null,
+    });
     setProtectedAccount(u.protected === true);
   }, [id]);
 
@@ -81,6 +125,16 @@ export default function UserEditScreen() {
   }, [id, load, runLoad]);
 
   const roleLocked = protectedAccount;
+  const isSelf = Boolean(id) && id === me?.id;
+  const editingAdmin = Boolean(id) && loadedRole === 'admin';
+  /** Only the primary admin may create, promote, edit, disable or reset other admins. */
+  const canManageAdmins = amPrimary === true;
+  /** Another admin's account, opened by a non-primary admin: read-only. */
+  const adminLocked = editingAdmin && !canManageAdmins && !isSelf;
+  /** Role chips can't change: primary account, someone else's admin account, or your own role without primary rights. */
+  const roleChipsLocked = roleLocked || adminLocked || (editingAdmin && !canManageAdmins);
+  /** Access (active / disable) can't change for admins unless you are the primary admin. */
+  const accessLocked = roleLocked || (editingAdmin && !canManageAdmins);
 
   async function save() {
     const next: Partial<Record<'name' | 'phone' | 'email' | 'password' | 'displayRating', string>> = {};
@@ -94,20 +148,47 @@ export default function UserEditScreen() {
     }
     setErrors(next);
     if (Object.keys(next).length > 0) {
+      haptic('error');
       Toast.show({ type: 'error', text1: 'Fix the highlighted fields' });
       return;
+    }
+    if (adminLocked) {
+      haptic('error');
+      Toast.show({ type: 'info', text1: 'Read only', text2: 'Only the primary admin can change other admin accounts.' });
+      return;
+    }
+    if (!id && role === 'admin' && !canManageAdmins) {
+      haptic('error');
+      Toast.show({ type: 'info', text1: 'Not allowed', text2: 'Only the primary admin can add admins. Pick another role.' });
+      return;
+    }
+    if (id && loadedRole && !roleChipsLocked && role !== loadedRole) {
+      const ok = await confirmAsync({
+        title: `Change role to ${ROLE_LABEL[role]}?`,
+        message:
+          role === 'admin'
+            ? `${name.trim() || 'This person'} gets full access to the admin panel. The change is recorded in the activity log.`
+            : loadedRole === 'admin'
+              ? `${name.trim() || 'This person'} loses access to the admin panel. The change is recorded in the activity log.`
+              : `${name.trim() || 'This person'} will use the ${ROLE_LABEL[role].toLowerCase()} app from now on. The change is recorded in the activity log.`,
+        confirmLabel: 'Change role',
+        cancelLabel: 'Back',
+        destructive: loadedRole === 'admin',
+      });
+      if (!ok) return;
     }
     setSaving(true);
     try {
       if (id) {
-        const body: Record<string, string | boolean | number | null> = {
+        const body: Record<string, string | boolean | number | null | string[] | number[]> = {
           name: name.trim(),
           phone: phone.trim(),
           email: email.trim(),
           city: city.trim(),
           disabled: !active,
         };
-        if (!roleLocked) body.role = role;
+        if (!roleChipsLocked) body.role = role;
+        if (accessLocked) delete body.disabled;
         if (role === 'technician') {
           body.available = available;
           if (displayRating.trim()) {
@@ -119,6 +200,7 @@ export default function UserEditScreen() {
           if (payMode === 'percent') {
             const pct = parseFloat(payPercent);
             if (Number.isNaN(pct) || pct < 0 || pct > 100) {
+              haptic('error');
               Toast.show({ type: 'error', text1: 'Pay percent must be 0–100' });
               setSaving(false);
               return;
@@ -127,12 +209,14 @@ export default function UserEditScreen() {
           } else {
             const flat = parseFloat(payFlat);
             if (Number.isNaN(flat) || flat < 0) {
+              haptic('error');
               Toast.show({ type: 'error', text1: 'Flat pay must be 0 or more' });
               setSaving(false);
               return;
             }
             body.payFlat = Math.round(flat);
           }
+          Object.assign(body, coverage);
         }
         else if (active) body.available = true;
         await api.patch(`/admin/users/${id}`, body);
@@ -141,7 +225,7 @@ export default function UserEditScreen() {
         }
         if (id === me?.id) await refreshMe({ silent: true });
       } else {
-        const createBody: Record<string, string | number> = {
+        const createBody: Record<string, string | number | null | string[] | number[]> = {
           role,
           name: name.trim(),
           phone: phone.trim(),
@@ -158,12 +242,15 @@ export default function UserEditScreen() {
             const flat = parseFloat(payFlat);
             createBody.payFlat = Number.isNaN(flat) ? 0 : Math.max(0, Math.round(flat));
           }
+          Object.assign(createBody, coverage);
         }
         await api.post('/admin/users', createBody);
       }
+      haptic('success');
       Toast.show({ type: 'success', text1: 'Saved' });
       adminGoBack(returnTo);
     } catch (err) {
+      haptic('error');
       Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not save user') });
     } finally {
       setSaving(false);
@@ -171,35 +258,43 @@ export default function UserEditScreen() {
   }
 
   function disableAccount() {
-    if (!id || roleLocked) return;
-    Alert.alert('Disable account?', 'They will not be able to sign in.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Disable',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await api.delete(`/admin/users/${id}`);
-              Toast.show({ type: 'success', text1: 'Account disabled' });
-              adminGoBack(returnTo);
-            } catch (err) {
-              Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not disable account') });
-            }
-          })();
-        },
-      },
-    ]);
+    if (!id || accessLocked) return;
+    void confirmAsync({
+      title: 'Disable account?',
+      message: 'They will not be able to sign in.',
+      confirmLabel: 'Disable',
+      destructive: true,
+    }).then(async (ok) => {
+      if (!ok) return;
+      try {
+        await api.delete(`/admin/users/${id}`);
+        haptic('success');
+        Toast.show({ type: 'success', text1: 'Account disabled' });
+        adminGoBack(returnTo);
+      } catch (err) {
+        haptic('error');
+        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not disable account') });
+      }
+    });
   }
+
+  /** Web: Enter in a single-line field saves (native keeps return = next line / done). */
+  const submitOnEnter = IS_WEB && !adminLocked ? { onSubmitEditing: () => void save() } : {};
 
   const title = id ? 'Edit user' : `Add ${role}`;
   const subtitle = id ? `Role: ${role}` : 'New account';
 
-  if (id && loading) return <Spinner fullScreen />;
+  if (id && loading) {
+    return (
+      <AdminListShell title="Edit user" subtitle="Loading account…" backFallback={returnTo}>
+        <AdminFormSkeleton cards={[5, 2]} />
+      </AdminListShell>
+    );
+  }
 
   if (id && error) {
     return (
-      <AdminListShell title="User" subtitle="Error">
+      <AdminListShell title="User" subtitle="Error" backFallback={returnTo}>
         <ListEmptyRetry message={error} onRetry={() => void reload(load, error)} />
       </AdminListShell>
     );
@@ -212,168 +307,213 @@ export default function UserEditScreen() {
       backFallback={returnTo}
       keyboardAvoid
       stickyFooter={
-        <StickyActionBar>
-          <Button title="Save" variant="premium" onPress={() => void save()} loading={saving} />
-          {id && active && !roleLocked ? (
-            <Button title="Disable account" variant="danger" onPress={disableAccount} style={{ marginTop: spacing.sm }} />
+        <StickyActionBar row>
+          {id && active && !accessLocked ? (
+            <Button title="Disable" variant="dangerOutline" onPress={disableAccount} fullWidth={false} style={styles.footerSecondary} />
           ) : null}
+          <Button
+            title={adminLocked ? 'Read only' : 'Save'}
+            variant="premium"
+            onPress={() => void save()}
+            loading={saving}
+            disabled={adminLocked}
+            fullWidth={false}
+            style={styles.footerPrimary}
+          />
         </StickyActionBar>
       }
     >
       <ScrollView
-        contentContainerStyle={id && active && !roleLocked ? adminListShellStyles.scrollWithFooterTall : adminListShellStyles.scrollWithFooter}
+        contentContainerStyle={adminListShellStyles.form}
         keyboardShouldPersistTaps="always"
         showsVerticalScrollIndicator={false}
       >
-        <AdminFormCard>
-          <Text style={styles.sectionTitle}>Account</Text>
-          <Text style={styles.sectionHint}>Who they are and how they sign in</Text>
-          <Text style={styles.label}>Role</Text>
-          <AdminFilterChips
-            chips={ROLES.map((r) => ({ key: r.key, label: r.label, disabled: roleLocked }))}
-            selected={role}
-            onSelect={(key) => {
-              if (roleLocked) {
-                Toast.show({
-                  type: 'info',
-                  text1: 'Role locked',
-                  text2: 'The primary admin account cannot change role.',
-                });
-                return;
-              }
-              setRole(key as UserRole);
-            }}
-          />
-          {roleLocked ? (
-            <Text style={styles.hint}>Primary admin role is locked and cannot be changed.</Text>
-          ) : null}
-
-          <IconInput
-            label="Name"
-            value={name}
-            onChangeText={(t) => {
-              setName(t);
-              if (errors.name) setErrors((e) => ({ ...e, name: undefined }));
-            }}
-            error={errors.name}
-          />
-          <IconInput
-            label="Phone"
-            value={phone}
-            onChangeText={(t) => {
-              setPhone(t);
-              if (errors.phone) setErrors((e) => ({ ...e, phone: undefined }));
-            }}
-            keyboardType="phone-pad"
-            error={errors.phone}
-          />
-          <IconInput
-            label="Email"
-            value={email}
-            onChangeText={(t) => {
-              setEmail(t);
-              if (errors.email) setErrors((e) => ({ ...e, email: undefined }));
-            }}
-            autoCapitalize="none"
-            error={errors.email}
-          />
-          <IconInput label="City" value={city} onChangeText={setCity} />
-          <IconInput
-            label={id ? 'New password (optional)' : 'Password'}
-            value={password}
-            onChangeText={(t) => {
-              setPassword(t);
-              if (errors.password) setErrors((e) => ({ ...e, password: undefined }));
-            }}
-            secure
-            error={errors.password}
-          />
-
-          {id ? (
-            <View style={styles.toggleRow}>
-              <View style={styles.flex}>
-                <Text style={styles.toggleLabel}>Account active</Text>
+        <FadeSlideIn delay={stagger(0)} slideFrom={14}>
+          <AdminFormCard>
+            <Text style={styles.sectionTitle}>Account</Text>
+            <Text style={styles.sectionHint}>Who they are and how they sign in</Text>
+            {adminLocked ? (
+              <View style={styles.lockBanner}>
+                <Text style={styles.lockTitle}>Admin account · read only</Text>
+                <Text style={styles.lockBody}>Only the primary admin can change, disable or reset the password of other admins.</Text>
               </View>
-              <ToggleSwitch
-                value={active}
-                onToggle={() => !roleLocked && setActive((v) => !v)}
-                accessibilityLabel="Account active"
+            ) : null}
+            <Text style={styles.label}>Role</Text>
+            <AdminFilterChips
+              chips={ROLES.map((r) => ({
+                key: r.key,
+                label: r.label,
+                // Making someone an admin is for the primary admin only.
+                disabled: roleChipsLocked || (r.key === 'admin' && !canManageAdmins && role !== 'admin'),
+              }))}
+              selected={role}
+              onSelect={(key) => {
+                if (roleChipsLocked) {
+                  Toast.show({
+                    type: 'info',
+                    text1: 'Role locked',
+                    text2: 'The primary admin account cannot change role.',
+                  });
+                  return;
+                }
+                setRole(key as UserRole);
+              }}
+            />
+            {roleLocked ? (
+              <Text style={styles.hint}>Primary admin role is locked and cannot be changed.</Text>
+            ) : editingAdmin && !canManageAdmins ? (
+              <Text style={styles.hint}>Only the primary admin can change an admin's role.</Text>
+            ) : !canManageAdmins && amPrimary !== null ? (
+              <Text style={styles.hint}>Only the primary admin can make someone an admin.</Text>
+            ) : null}
+
+            <IconInput
+              label="Name"
+              value={name}
+              onChangeText={(t) => {
+                setName(t);
+                if (errors.name) setErrors((e) => ({ ...e, name: undefined }));
+              }}
+              error={errors.name}
+              {...submitOnEnter}
+            />
+            <IconInput
+              label="Phone"
+              value={phone}
+              onChangeText={(t) => {
+                setPhone(t);
+                if (errors.phone) setErrors((e) => ({ ...e, phone: undefined }));
+              }}
+              keyboardType="phone-pad"
+              error={errors.phone}
+              {...submitOnEnter}
+            />
+            <IconInput
+              label="Email"
+              value={email}
+              onChangeText={(t) => {
+                setEmail(t);
+                if (errors.email) setErrors((e) => ({ ...e, email: undefined }));
+              }}
+              autoCapitalize="none"
+              error={errors.email}
+              {...submitOnEnter}
+            />
+            <IconInput label="City" value={city} onChangeText={setCity} {...submitOnEnter} />
+            {adminLocked ? null : (
+              <IconInput
+                label={id ? 'New password (optional)' : 'Password'}
+                value={password}
+                onChangeText={(t) => {
+                  setPassword(t);
+                  if (errors.password) setErrors((e) => ({ ...e, password: undefined }));
+                }}
+                secure
+                error={errors.password}
               />
-            </View>
-          ) : null}
-        </AdminFormCard>
+            )}
+
+            {id && !accessLocked ? (
+              <View style={styles.toggleRow}>
+                <View style={styles.flex}>
+                  <Text style={styles.toggleLabel}>Account active</Text>
+                </View>
+                <ToggleSwitch
+                  value={active}
+                  onToggle={() => !accessLocked && setActive((v) => !v)}
+                  accessibilityLabel="Account active"
+                />
+              </View>
+            ) : null}
+          </AdminFormCard>
+        </FadeSlideIn>
 
         {role === 'technician' ? (
-          <AdminFormCard>
-            <Text style={styles.sectionTitle}>Technician</Text>
-            <Text style={styles.sectionHint}>Duty status and public rating</Text>
-            {id ? (
-              <>
-                <IconInput
-                  label="Public rating"
-                  value={displayRating}
-                  onChangeText={(t) => {
-                    setDisplayRating(t);
-                    if (errors.displayRating) setErrors((e) => ({ ...e, displayRating: undefined }));
-                  }}
-                  keyboardType="decimal-pad"
-                  placeholder="Empty = real average"
-                  error={errors.displayRating}
-                />
-                {realTechRating != null ? (
-                  <Text style={styles.hint}>Real avg: ★ {realTechRating.toFixed(1)}</Text>
-                ) : null}
-                <View style={styles.toggleRow}>
-                  <View style={styles.flex}>
-                    <Text style={styles.toggleLabel}>On duty</Text>
-                  </View>
-                  <ToggleSwitch
-                    value={available}
-                    onToggle={() => setAvailable((v) => !v)}
-                    accessibilityLabel="On duty"
+          <FadeSlideIn delay={stagger(1)} slideFrom={14}>
+            <AdminFormCard>
+              <Text style={styles.sectionTitle}>Technician</Text>
+              <Text style={styles.sectionHint}>Duty status and public rating</Text>
+              {id ? (
+                <>
+                  <IconInput
+                    label="Public rating"
+                    value={displayRating}
+                    onChangeText={(t) => {
+                      setDisplayRating(t);
+                      if (errors.displayRating) setErrors((e) => ({ ...e, displayRating: undefined }));
+                    }}
+                    keyboardType="decimal-pad"
+                    placeholder="Empty = real average"
+                    error={errors.displayRating}
                   />
-                </View>
-              </>
-            ) : (
-              <Text style={styles.hint}>Save the account first, then set rating and duty.</Text>
-            )}
+                  {realTechRating != null ? (
+                    <Text style={styles.hint}>Real avg: ★ {realTechRating.toFixed(1)}</Text>
+                  ) : null}
+                  <View style={styles.toggleRow}>
+                    <View style={styles.flex}>
+                      <Text style={styles.toggleLabel}>On duty</Text>
+                    </View>
+                    <ToggleSwitch
+                      value={available}
+                      onToggle={() => setAvailable((v) => !v)}
+                      accessibilityLabel="On duty"
+                    />
+                  </View>
+                </>
+              ) : (
+                <Text style={styles.hint}>Save the account first, then set rating and duty.</Text>
+              )}
 
-            <Text style={[styles.sectionTitle, styles.payTitle]}>Technician pay</Text>
-            <Text style={styles.sectionHint}>
-              Take-home per completed job. Locked when the job is marked complete.
-            </Text>
-            <Text style={styles.label}>Pay mode</Text>
-            <AdminFilterChips
-              chips={[
-                { key: 'percent', label: '% of job' },
-                { key: 'flat', label: 'Flat ₹' },
-              ]}
-              selected={payMode}
-              onSelect={(key) => setPayMode(key as 'percent' | 'flat')}
-            />
-            {payMode === 'percent' ? (
-              <IconInput
-                label="Percent of job value"
-                value={payPercent}
-                onChangeText={setPayPercent}
-                keyboardType="decimal-pad"
-                placeholder="e.g. 70"
+              <Text style={[styles.sectionTitle, styles.payTitle]}>Technician pay</Text>
+              <Text style={styles.sectionHint}>
+                Take-home per completed job. Locked when the job is marked complete.
+              </Text>
+              <Text style={styles.label}>Pay mode</Text>
+              <AdminFilterChips
+                chips={[
+                  { key: 'percent', label: '% of job' },
+                  { key: 'flat', label: 'Flat ₹' },
+                ]}
+                selected={payMode}
+                onSelect={(key) => setPayMode(key as 'percent' | 'flat')}
               />
-            ) : (
-              <IconInput
-                label="Flat pay (₹)"
-                value={payFlat}
-                onChangeText={setPayFlat}
-                keyboardType="number-pad"
-                placeholder="e.g. 500"
-              />
-            )}
-            <Text style={styles.hint}>
-              {payMode === 'percent'
-                ? `Tech earns ${payPercent || '0'}% of each completed job total`
-                : `Tech earns ₹${payFlat || '0'} per completed job`}
-            </Text>
-          </AdminFormCard>
+              {payMode === 'percent' ? (
+                <IconInput
+                  label="Percent of job value"
+                  value={payPercent}
+                  onChangeText={setPayPercent}
+                  keyboardType="decimal-pad"
+                  placeholder="e.g. 70"
+                />
+              ) : (
+                <IconInput
+                  label="Flat pay (₹)"
+                  value={payFlat}
+                  onChangeText={setPayFlat}
+                  keyboardType="number-pad"
+                  placeholder="e.g. 500"
+                />
+              )}
+              <Text style={styles.hint}>
+                {payMode === 'percent'
+                  ? `Tech earns ${payPercent || '0'}% of each completed job total`
+                  : `Tech earns ₹${payFlat || '0'} per completed job`}
+              </Text>
+            </AdminFormCard>
+          </FadeSlideIn>
+        ) : null}
+
+        {role === 'technician' ? (
+          <FadeSlideIn delay={stagger(2)} slideFrom={14}>
+            <AdminFormCard>
+              <Text style={styles.sectionTitle}>Coverage</Text>
+              <Text style={styles.sectionHint}>
+                What they treat, where and when they work. Auto-assign follows these rules; the assign list shows
+                why someone is a poor fit.
+              </Text>
+              <TechnicianCoverageEditor value={coverage} onChange={(patch) => setCoverage((c) => ({ ...c, ...patch }))} />
+            </AdminFormCard>
+          </FadeSlideIn>
         ) : null}
       </ScrollView>
     </AdminListShell>
@@ -381,7 +521,9 @@ export default function UserEditScreen() {
 }
 
 const styles = StyleSheet.create({
-  sectionTitle: { fontFamily: fonts.displayExtra, fontSize: 16, color: '#0B2213', letterSpacing: -0.3 },
+  footerSecondary: { flex: 1 },
+  footerPrimary: { flex: 1.6 },
+  sectionTitle: { fontFamily: fonts.displayExtra, fontSize: 16, color: colors.ink, letterSpacing: -0.3 },
   payTitle: { marginTop: spacing.lg },
   sectionHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginBottom: spacing.sm, marginTop: 2 },
   label: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, marginBottom: 8 },
@@ -390,4 +532,12 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   toggleLabel: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.ink },
   toggleHint: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
+  lockBanner: {
+    padding: spacing.sm,
+    borderRadius: 12,
+    backgroundColor: colors.amberBg,
+    marginBottom: spacing.md,
+  },
+  lockTitle: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.amberInk },
+  lockBody: { fontFamily: fonts.body, fontSize: 12, lineHeight: 17, color: colors.amberInk, marginTop: 2 },
 });

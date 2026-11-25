@@ -2,44 +2,49 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
 import { TicketPercent } from 'lucide-react-native';
 import { colors, fonts, gradients, spacing } from '@/constants/theme';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
+/**
+ * Compact brand banner that opens the Offers list. It carries the promise (and a code / guarantee line),
+ * while the coupon count lives on the list's own section title. Horizontal padding comes from the parent.
+ */
 export function OffersPromoHero({
-  offerCount,
   brandName,
   subtitle,
   fallbackTitle,
   fallbackSub,
 }: {
-  offerCount: number;
   brandName?: string;
   subtitle?: string;
   fallbackTitle?: string;
   fallbackSub?: string;
 }) {
+  const copy = useCustomerUiCopy();
+  const sub = subtitle?.trim();
   return (
     <View style={styles.wrap}>
       <LinearGradient
         colors={[...gradients.premiumHero]}
+        locations={[0, 0.55, 1]}
         style={styles.card}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
         <View style={styles.orb} pointerEvents="none" />
         <View style={styles.icon}>
-          <TicketPercent size={26} color={colors.white} strokeWidth={2} />
+          <TicketPercent size={24} color={colors.white} strokeWidth={2} />
         </View>
         <View style={styles.body}>
           <Text style={styles.badge}>
-            {fallbackTitle?.trim() || (brandName ? `${brandName} deals` : 'Exclusive deals')}
+            {fallbackTitle?.trim() || fillCopy(copy.offersDealsTitle, { brand: brandName || 'Mr Antidot' })}
           </Text>
-          <Text style={styles.title}>
-            {offerCount > 0
-              ? `${offerCount} offer${offerCount === 1 ? '' : 's'} available`
-              : fallbackSub || 'Save on your next booking'}
+          <Text style={styles.title} numberOfLines={2}>
+            {fallbackSub?.trim() || copy.offersDealsSub}
           </Text>
-          {offerCount > 0 || subtitle?.trim() ? (
-            <Text style={styles.sub}>
-              {subtitle?.trim() || 'Apply a coupon at checkout — works on any service'}
+          {sub ? (
+            <Text style={styles.sub} numberOfLines={2}>
+              {sub}
             </Text>
           ) : null}
         </View>
@@ -49,23 +54,19 @@ export function OffersPromoHero({
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
-  },
+  wrap: { paddingBottom: spacing.xs },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    padding: 18,
+    gap: 14,
+    padding: 16,
     borderRadius: 22,
     overflow: 'hidden',
-    shadowColor: colors.deep,
-    shadowOffset: { width: 0, height: 12 },
+    shadowColor: '#075C2B',
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.2,
-    shadowRadius: 18,
-    elevation: 8,
+    shadowRadius: 20,
+    elevation: 6,
   },
   orb: {
     position: 'absolute',
@@ -74,12 +75,12 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: 'rgba(185,229,138,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   icon: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.14)',
@@ -89,24 +90,24 @@ const styles = StyleSheet.create({
   body: { flex: 1, minWidth: 0 },
   badge: {
     fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 1,
+    fontSize: 10.5,
+    letterSpacing: 1.1,
     textTransform: 'uppercase',
     color: colors.limeOnDark,
   },
   title: {
-    marginTop: 6,
+    marginTop: 4,
     fontFamily: fonts.displayExtra,
-    fontSize: 18,
-    lineHeight: 24,
-    letterSpacing: -0.35,
+    fontSize: 16,
+    lineHeight: 21,
+    letterSpacing: -0.3,
     color: colors.white,
   },
   sub: {
-    marginTop: 4,
+    marginTop: 3,
     fontFamily: fonts.body,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12.5,
+    lineHeight: 17,
     color: 'rgba(255,255,255,0.82)',
   },
 });

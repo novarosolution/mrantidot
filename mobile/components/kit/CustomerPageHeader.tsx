@@ -3,19 +3,24 @@ import { ArrowLeft } from 'lucide-react-native';
 import { adminGoBack, safeGoBack } from '@/lib/routes';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { PremiumAurora } from '@/components/kit/PremiumAurora';
 import { AppIcons } from '@/constants/appIcons';
 import { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GlassSurface } from '@/components/ui/GlassSurface';
+import { PressableScale } from '@/components/ui/PressableScale';
 import {
   colors,
   customerType,
-  fonts,
   headerTopPad,
+  radii,
   spacing,
   surfaces,
+  typeScale,
   ui,
 } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 type Variant = 'gradient' | 'light' | 'premium';
 
@@ -43,6 +48,7 @@ export function CustomerPageHeader({
   children?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  const copy = useCustomerUiCopy();
   const padTop = headerTopPad(insets.top);
   const onDark = variant === 'gradient' || variant === 'premium';
 
@@ -64,7 +70,7 @@ export function CustomerPageHeader({
         <Pressable
           onPress={handleBack}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={copy.navBack}
           style={({ pressed }) => [
             styles.backBtn,
             onDark ? styles.backBtnOnDark : styles.backBtnLight,
@@ -87,6 +93,7 @@ export function CustomerPageHeader({
         <Text
           style={[styles.title, onDark ? styles.titleOnDark : styles.titleLight]}
           numberOfLines={1}
+          accessibilityRole="header"
         >
           {title}
         </Text>
@@ -113,20 +120,23 @@ export function CustomerPageHeader({
         ]}
       >
         <FocusStatusBar style="dark" />
+        <PremiumAurora tone="light" base={false} />
         <View style={styles.whiteRow}>
           {showBack ? (
-            <Pressable
+            <PressableScale
+              scaleTo={0.92}
               onPress={handleBack}
               accessibilityRole="button"
-              accessibilityLabel="Go back"
-              style={({ pressed }) => [styles.whiteBack, pressed && styles.whiteBackPressed]}
+              accessibilityLabel={copy.navBack}
               hitSlop={8}
             >
-              <ArrowLeft size={22} color={ui.text} strokeWidth={2.1} />
-            </Pressable>
+              <GlassSurface style={styles.whiteBack} intensity={30} tintOpacity={0.8}>
+                <ArrowLeft size={20} color={ui.text} strokeWidth={2.2} />
+              </GlassSurface>
+            </PressableScale>
           ) : null}
           <View style={styles.textCol}>
-            <Text style={showBack ? styles.whiteTitle : styles.whiteTitleLarge} numberOfLines={1}>
+            <Text style={showBack ? styles.whiteTitle : styles.whiteTitleLarge} numberOfLines={1} accessibilityRole="header">
               {title}
             </Text>
             {subtitle ? (
@@ -138,6 +148,15 @@ export function CustomerPageHeader({
           {rightAction ?? null}
         </View>
         {children}
+        {/* Brand-green accent that fades out at both ends — replaces the flat hairline. */}
+        <LinearGradient
+          pointerEvents="none"
+          colors={['rgba(21,148,71,0)', 'rgba(21,148,71,0.45)', 'rgba(143,208,60,0.45)', 'rgba(143,208,60,0)']}
+          locations={[0, 0.3, 0.7, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.whiteAccent}
+        />
       </View>
     );
   }
@@ -169,42 +188,27 @@ export function CustomerPageHeader({
 
 const styles = StyleSheet.create({
   whiteWrap: {
+    overflow: 'hidden',
     paddingHorizontal: spacing.md,
     backgroundColor: colors.white,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: ui.hairline,
   },
-  whiteRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 48 },
+  whiteAccent: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 1.5 },
+  whiteRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48 },
   whiteBack: {
-    width: 40,
-    height: 40,
-    marginLeft: -8,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: ui.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  whiteBackPressed: { backgroundColor: ui.surfaceMuted },
-  whiteTitle: {
-    fontFamily: fonts.display,
-    fontSize: 19,
-    lineHeight: 25,
-    letterSpacing: -0.35,
-    color: ui.text,
-  },
-  whiteTitleLarge: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 26,
-    lineHeight: 32,
-    letterSpacing: -0.7,
-    color: ui.text,
-  },
-  whiteSub: {
-    marginTop: 2,
-    fontFamily: fonts.body,
-    fontSize: 13,
-    lineHeight: 18,
-    color: ui.textSecondary,
-  },
+  /** Pushed screens: the title step; tab-level pages (no back button): the display step. */
+  whiteTitle: { ...typeScale.title, color: ui.text },
+  whiteTitleLarge: { ...typeScale.display, color: ui.text },
+  whiteSub: { ...typeScale.caption, marginTop: 2, color: ui.textSecondary },
   lightWrap: {
     paddingHorizontal: spacing.md,
     borderBottomWidth: 0,

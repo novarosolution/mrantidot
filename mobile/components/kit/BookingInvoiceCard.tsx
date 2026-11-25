@@ -1,14 +1,22 @@
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Share, StyleSheet, Text, View } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { useBusinessSettings } from '@/lib/businessSettings';
+import { gstLabel } from '@/lib/settingsLabels';
+import { haptic } from '@/lib/motion';
 import Toast from 'react-native-toast-message';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { Button } from '@/components/ui/Button';
 import { AppIcons } from '@/constants/appIcons';
 import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
-import { colors, fonts, premium, shadows, spacing, surfaces, ui } from '@/constants/theme';
+import { colors, fonts, premium, radii, shadows, spacing, surfaces, typeScale, ui } from '@/constants/theme';
 import { formatScheduleLabel } from '@/lib/dates';
+import { getReducedMotion, useAmbientLoop } from '@/lib/a11yPrefs';
+import { motion } from '@/lib/motion';
 import type { BookingInvoice } from '@/types/api';
 
 function rupee(n: number): string {
@@ -17,11 +25,14 @@ function rupee(n: number): string {
 
 export function BookingInvoiceCard({
   bookingId,
+  refreshKey,
   compact,
   autoLoad = true,
   summaryOnly,
 }: {
   bookingId: string;
+  /** Change it (e.g. status + schedule) to drop the cached invoice and fetch a fresh one. */
+  refreshKey?: string;
   compact?: boolean;
   /** Prefetch invoice preview on mount. */
   autoLoad?: boolean;
@@ -31,6 +42,10 @@ export function BookingInvoiceCard({
    */
   summaryOnly?: boolean;
 }) {
+  const copy = useCustomerUiCopy();
+  const settings = useBusinessSettings();
+  /** Seller details for the invoice (Business settings → Invoice); lines only show once set. */
+  const legal = settings.invoice;
   const [invoice, setInvoice] = useState<BookingInvoice | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<'share' | 'copy' | null>(null);
@@ -53,30 +68,38 @@ export function BookingInvoiceCard({
   }, [bookingId, invoice]);
 
   useEffect(() => {
-    Animated.timing(enter, {
+    if (getReducedMotion()) {
+      enter.setValue(1);
+      return;
+    }
+    const anim = Animated.timing(enter, {
       toValue: 1,
-      duration: 520,
-      easing: Easing.out(Easing.cubic),
+      duration: motion.duration.slow,
+      easing: motion.easing.out,
       useNativeDriver: true,
-    }).start();
+    });
+    anim.start();
+    return () => anim.stop();
+  }, [enter]);
 
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(sheen, {
-          toValue: 1,
-          duration: 3200,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(sheen, {
-          toValue: 0,
-          duration: 3200,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
-  }, [enter, sheen]);
+  // Decorative sheen — stops when the screen is hidden, the app is in the background or Reduce Motion is on.
+  useAmbientLoop(
+    () =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(sheen, { toValue: 1, duration: 3200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(sheen, { toValue: 0, duration: 3200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+      ),
+    [sheen],
+  );
+
+  const lastRefreshKey = useRef(refreshKey);
+  useEffect(() => {
+    if (lastRefreshKey.current === refreshKey) return;
+    lastRefreshKey.current = refreshKey;
+    setInvoice(null);
+  }, [refreshKey]);
 
   useEffect(() => {
     if (!autoLoad) return;
@@ -93,9 +116,9 @@ export function BookingInvoiceCard({
         title: `${inv.invoiceNumber} · ${inv.brand.name}`,
         message: inv.text,
       });
-      Toast.show({ type: 'success', text1: 'Invoice ready to save or share' });
+      Toast.show({ type: 'success', text1: copy.invoiceReadyToast });
     } catch (err) {
-      Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not download invoice') });
+      Toast.show({ type: 'error', text1: getApiErrorMessage(err, copy.invoiceDownloadFailed) });
     } finally {
       setBusy(null);
     }
@@ -106,16 +129,28 @@ export function BookingInvoiceCard({
     try {
       const inv = await ensureInvoice();
       await Clipboard.setStringAsync(inv.text);
-      Toast.show({ type: 'success', text1: 'Invoice copied' });
+      haptic('success');
+      Toast.show({ type: 'success', text1: copy.invoiceCopied });
     } catch (err) {
-      Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not copy invoice') });
+      Toast.show({ type: 'error', text1: getApiErrorMessage(err, copy.invoiceCopyFailed) });
     } finally {
       setBusy(null);
     }
   }
 
   const isPaid = invoice?.booking.status === 'completed';
-  const totalLabel = isPaid ? 'Total paid' : 'Amount due';
+  const totalLabel = isPaid ? copy.invoiceTotalPaid : copy.invoiceAmountDue;
+  // Seller details: the invoice's own copy (frozen when it was issued) wins over today's settings.
+  const seller = {
+    legalName: invoice?.seller?.legalName?.trim() || legal.legalName?.trim() || '',
+    gstin: invoice?.seller?.gstin?.trim() || legal.gstin?.trim() || '',
+    address: invoice?.seller?.address?.trim() || legal.address?.trim() || '',
+  };
+  const legalLines = [seller.legalName, seller.gstin ? fillCopy(copy.invoiceGstin, { gstin: seller.gstin }) : '', seller.address].filter(
+    (l): l is string => Boolean(l),
+  );
+  const footerLine = invoice?.footer?.trim() || legal.footer?.trim() || '';
+  const taxLabel = invoice?.tax?.label?.trim() || gstLabel(copy.billGst, settings, invoice?.tax?.gstPercent);
   const scheduleLabel = invoice
     ? formatScheduleLabel(
         {
@@ -147,39 +182,48 @@ export function BookingInvoiceCard({
             <PremiumIcon icon={AppIcons.ui.terms} variant="plain" size={20} color={colors.forest} strokeWidth={2} fill="none" />
           </View>
           <View style={styles.summaryText}>
-            <Text style={styles.summaryTitle}>Tax invoice</Text>
+            <Text style={styles.summaryTitle}>{copy.invoiceTaxTitle}</Text>
+            {/* The amount is shown once, in the charges above — the receipt row only names the invoice. */}
             <Text style={styles.summaryMeta} numberOfLines={1}>
-              {invoice
-                ? `${invoice.invoiceNumber} · ${totalLabel} ${rupee(invoice.amount.total)}`
-                : loading
-                  ? 'Preparing invoice…'
-                  : 'Itemised receipt for this visit'}
+              {invoice ? invoice.invoiceNumber : loading ? copy.invoicePreparing : copy.invoiceItemised}
             </Text>
+            {legalLines.map((line) => (
+              <Text key={line} style={styles.summaryLegal} numberOfLines={2}>
+                {line}
+              </Text>
+            ))}
+            {invoice && footerLine ? (
+              <Text style={styles.summaryLegal} numberOfLines={2}>
+                {footerLine}
+              </Text>
+            ) : null}
           </View>
         </View>
         <View style={styles.summaryActions}>
-          <Pressable
-            style={({ pressed }) => [styles.summaryPrimary, pressed && styles.pressed]}
+          <PressableScale
+            containerStyle={styles.summaryPrimaryWrap}
+            style={styles.summaryPrimary}
             onPress={() => void downloadInvoice()}
             disabled={busy === 'share' || loading}
+            haptic="tap"
             accessibilityRole="button"
-            accessibilityLabel={invoice ? 'Download invoice' : 'Generate invoice'}
+            accessibilityLabel={invoice ? copy.invoiceDownloadA11y : copy.invoiceGenerateA11y}
           >
             <PremiumIcon icon={AppIcons.ui.download} variant="plain" size={15} color={colors.forest} strokeWidth={2.3} fill="none" />
             <Text style={styles.summaryPrimaryText}>
-              {busy === 'share' ? 'Opening…' : invoice ? 'Download' : 'Generate'}
+              {busy === 'share' ? copy.invoiceOpening : invoice ? copy.invoiceDownload : copy.invoiceGenerate}
             </Text>
-          </Pressable>
+          </PressableScale>
           {invoice ? (
-            <Pressable
-              style={({ pressed }) => [styles.summaryIconBtn, pressed && styles.pressed]}
+            <PressableScale
+              style={styles.summaryIconBtn}
               onPress={() => void copyInvoice()}
               disabled={busy === 'copy'}
               accessibilityRole="button"
-              accessibilityLabel="Copy invoice"
+              accessibilityLabel={copy.invoiceCopyA11y}
             >
               <PremiumIcon icon={AppIcons.ui.copy} variant="plain" size={16} color={colors.ink} strokeWidth={2.1} fill="none" />
-            </Pressable>
+            </PressableScale>
           ) : null}
         </View>
       </Animated.View>
@@ -207,16 +251,19 @@ export function BookingInvoiceCard({
               color={colors.lime}
               strokeWidth={2.4}
             />
-            <Text style={styles.badgeText}>TAX INVOICE</Text>
+            <Text style={styles.badgeText}>{copy.invoiceBadge}</Text>
           </View>
           <Text style={styles.invNo}>{invoice?.invoiceNumber ?? '••••••••'}</Text>
         </View>
 
-        <Text style={styles.brand}>{invoice?.brand.name ?? 'Mr Antidot'}</Text>
-        <Text style={styles.heroTitle}>Service receipt</Text>
-        <Text style={styles.heroSub}>
-          {invoice?.brand.tagline ?? 'Itemised charges, visit details & treatment summary'}
-        </Text>
+        <Text style={styles.brand}>{seller.legalName || invoice?.brand.name || 'Mr Antidot'}</Text>
+        <Text style={styles.heroTitle}>{copy.invoiceReceiptTitle}</Text>
+        <Text style={styles.heroSub}>{invoice?.brand.tagline || copy.invoiceReceiptSub}</Text>
+        {legalLines.slice(1).map((line) => (
+          <Text key={line} style={styles.heroLegal}>
+            {line}
+          </Text>
+        ))}
 
         {invoice ? (
           <View style={styles.amountPill}>
@@ -226,7 +273,7 @@ export function BookingInvoiceCard({
         ) : (
           <View style={styles.amountPillIdle}>
             <Text style={styles.amountIdleText}>
-              {loading ? 'Preparing invoice…' : 'Tap below to generate'}
+              {loading ? copy.invoicePreparing : copy.invoiceTapToGenerate}
             </Text>
           </View>
         )}
@@ -236,7 +283,7 @@ export function BookingInvoiceCard({
         {invoice ? (
           <>
             <View style={styles.serviceHead}>
-              <Text style={styles.kicker}>SERVICE</Text>
+              <Text style={styles.kicker}>{copy.invoiceServiceKicker}</Text>
               <Text style={styles.serviceName}>{invoice.service.name}</Text>
               {invoice.service.shortDesc ? (
                 <Text style={styles.serviceDesc} numberOfLines={2}>
@@ -256,24 +303,32 @@ export function BookingInvoiceCard({
             ) : null}
 
             <View style={styles.facts}>
-              <Fact icon={AppIcons.ui.calendar} label="Visit" value={scheduleLabel || invoice.booking.scheduleLabel} />
+              <Fact icon={AppIcons.ui.calendar} label={copy.invoiceFactVisit} value={scheduleLabel || invoice.booking.scheduleLabel} />
               {invoice.booking.propertyTypeLabel ? (
-                <Fact icon={AppIcons.ui.mapPinned} label="Property" value={invoice.booking.propertyTypeLabel} />
+                <Fact icon={AppIcons.ui.mapPinned} label={copy.invoiceFactProperty} value={invoice.booking.propertyTypeLabel} />
               ) : null}
-              <Fact icon={AppIcons.ui.pay} label="Payment" value={invoice.booking.paymentMethodLabel} />
+              <Fact icon={AppIcons.ui.pay} label={copy.invoiceFactPayment} value={invoice.booking.paymentMethodLabel} />
               {invoice.technician ? (
-                <Fact icon={AppIcons.ui.user} label="Technician" value={invoice.technician.name} />
+                <Fact icon={AppIcons.ui.user} label={copy.invoiceFactTechnician} value={invoice.technician.name} />
               ) : null}
             </View>
 
             <View style={styles.chargeBox}>
               <View style={styles.chargeTopRule} />
-              <Text style={styles.chargeHeading}>Charges</Text>
-              <ChargeRow label="Service" value={rupee(invoice.amount.base)} />
+              <Text style={styles.chargeHeading}>{copy.invoiceCharges}</Text>
+              <ChargeRow label={copy.invoiceChargeService} value={rupee(invoice.amount.base)} />
               {invoice.amount.coupon > 0 ? (
-                <ChargeRow label="Coupon" value={`−${rupee(invoice.amount.coupon)}`} accent />
+                <ChargeRow label={copy.invoiceChargeCoupon} value={`−${rupee(invoice.amount.coupon)}`} accent />
               ) : null}
-              <ChargeRow label="GST (18%)" value={rupee(invoice.amount.gst)} />
+              {(invoice.adjustments ?? []).map((line, i) => (
+                <ChargeRow
+                  key={`${line.label}-${i}`}
+                  label={line.label}
+                  value={line.amount < 0 ? `−${rupee(Math.abs(line.amount))}` : rupee(line.amount)}
+                  accent={line.amount < 0}
+                />
+              ))}
+              <ChargeRow label={taxLabel} value={rupee(invoice.amount.gst)} />
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>{totalLabel}</Text>
                 <Text style={styles.totalValue}>{rupee(invoice.amount.total)}</Text>
@@ -282,7 +337,7 @@ export function BookingInvoiceCard({
 
             {invoice.steps.length > 0 ? (
               <View style={styles.stepsBlock}>
-                <Text style={styles.stepsTitle}>Treatment included</Text>
+                <Text style={styles.stepsTitle}>{copy.invoiceTreatment}</Text>
                 {invoice.steps.map((step, i) => (
                   <View key={`${step.title}-${i}`} style={styles.stepRow}>
                     <View style={[styles.stepDot, step.status === 'done' && styles.stepDotDone]}>
@@ -303,6 +358,7 @@ export function BookingInvoiceCard({
                 ))}
               </View>
             ) : null}
+            {footerLine ? <Text style={styles.footerLine}>{footerLine}</Text> : null}
           </>
         ) : (
           <View style={styles.idle}>
@@ -315,15 +371,13 @@ export function BookingInvoiceCard({
                 boxSize={52}
               />
             </View>
-            <Text style={styles.idleTitle}>Premium invoice</Text>
-            <Text style={styles.placeholder}>
-              Download a branded receipt with service coverage, visit details, and itemised charges.
-            </Text>
+            <Text style={styles.idleTitle}>{copy.invoicePremiumTitle}</Text>
+            <Text style={styles.placeholder}>{copy.invoicePremiumBody}</Text>
           </View>
         )}
 
         <Button
-          title={invoice ? 'Download invoice' : 'Generate invoice'}
+          title={invoice ? copy.invoiceDownloadA11y : copy.invoiceGenerateA11y}
           variant="premium"
           loading={loading || busy === 'share'}
           onPress={() => void downloadInvoice()}
@@ -331,12 +385,13 @@ export function BookingInvoiceCard({
 
         {invoice ? (
           <View style={styles.secondaryRow}>
-            <Pressable
-              style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
+            <PressableScale
+              containerStyle={styles.secondaryWrap}
+              style={styles.secondaryBtn}
               onPress={() => void copyInvoice()}
               disabled={busy === 'copy'}
               accessibilityRole="button"
-              accessibilityLabel="Copy invoice"
+              accessibilityLabel={copy.invoiceCopyA11y}
             >
               <PremiumIcon
                 icon={AppIcons.ui.copy}
@@ -345,14 +400,15 @@ export function BookingInvoiceCard({
                 color={colors.forest}
                 strokeWidth={2.2}
               />
-              <Text style={styles.secondaryText}>{busy === 'copy' ? 'Copying…' : 'Copy'}</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
+              <Text style={styles.secondaryText}>{busy === 'copy' ? copy.invoiceCopying : copy.invoiceCopy}</Text>
+            </PressableScale>
+            <PressableScale
+              containerStyle={styles.secondaryWrap}
+              style={styles.secondaryBtn}
               onPress={() => void downloadInvoice()}
               disabled={busy === 'share'}
               accessibilityRole="button"
-              accessibilityLabel="Share invoice"
+              accessibilityLabel={copy.invoiceShareA11y}
             >
               <PremiumIcon
                 icon={AppIcons.ui.share}
@@ -361,8 +417,8 @@ export function BookingInvoiceCard({
                 color={colors.forest}
                 strokeWidth={2.2}
               />
-              <Text style={styles.secondaryText}>Share</Text>
-            </Pressable>
+              <Text style={styles.secondaryText}>{copy.invoiceShare}</Text>
+            </PressableScale>
           </View>
         ) : null}
       </View>
@@ -395,7 +451,7 @@ function Fact({
 function ChargeRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <View style={styles.chargeRow}>
-      <Text style={styles.chargeLabel}>{label}</Text>
+      <Text style={[styles.chargeLabel, styles.chargeLabelFlex]}>{label}</Text>
       <Text style={[styles.chargeValue, accent && styles.chargeAccent]}>{value}</Text>
     </View>
   );
@@ -406,12 +462,17 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.md,
     marginBottom: spacing.md,
     padding: spacing.md,
-    borderRadius: 20,
+    borderRadius: radii.card,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.hairline,
     gap: 14,
   },
+  summaryLegal: { ...typeScale.caption, fontSize: 12, marginTop: 2, color: ui.textTertiary },
+  footerLine: { ...typeScale.caption, marginTop: spacing.md, textAlign: 'center', color: ui.textSecondary },
+  summaryPrimaryWrap: { flex: 1 },
+  secondaryWrap: { flex: 1 },
+  heroLegal: { ...typeScale.caption, fontSize: 12, marginTop: 2, color: 'rgba(255,255,255,0.78)' },
   summaryTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   summaryIcon: {
     width: 44,
@@ -422,17 +483,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   summaryText: { flex: 1, minWidth: 0 },
-  summaryTitle: { fontFamily: fonts.display, fontSize: 15.5, color: ui.text },
-  summaryMeta: { marginTop: 2, fontFamily: fonts.bodyMedium, fontSize: 12.5, color: ui.textSecondary },
+  summaryTitle: { ...typeScale.rowTitle, fontFamily: fonts.display, color: ui.text },
+  summaryMeta: { ...typeScale.caption, fontSize: 12.5, marginTop: 2, color: ui.textSecondary },
   summaryActions: { flexDirection: 'row', gap: 10 },
   summaryPrimary: {
-    flex: 1,
     height: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    borderRadius: 12,
+    borderRadius: radii.control,
     borderWidth: 1,
     borderColor: ui.border,
     backgroundColor: colors.white,
@@ -441,7 +501,7 @@ const styles = StyleSheet.create({
   summaryIconBtn: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: radii.control,
     borderWidth: 1,
     borderColor: ui.border,
     alignItems: 'center',
@@ -676,8 +736,11 @@ const styles = StyleSheet.create({
   chargeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 12,
   },
   chargeLabel: { fontFamily: fonts.body, fontSize: 13.5, color: colors.muted },
+  /** Long admin-written lines wrap instead of pushing the amount off the edge. */
+  chargeLabelFlex: { flex: 1, minWidth: 0 },
   chargeValue: { fontFamily: fonts.bodySemi, fontSize: 13.5, color: colors.ink },
   chargeAccent: { color: colors.green },
   totalRow: {
@@ -734,13 +797,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   secondaryBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
-    paddingVertical: 12,
-    borderRadius: 14,
+    minHeight: 44,
+    borderRadius: radii.control,
     backgroundColor: colors.soft,
     borderWidth: 1,
     borderColor: surfaces.glassBorderStrong,

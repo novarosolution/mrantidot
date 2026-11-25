@@ -1,6 +1,6 @@
-import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { AppIcons } from '@/constants/appIcons';
 import {
   bookingCustomerName,
@@ -9,7 +9,7 @@ import {
 } from '@/lib/booking-helpers';
 import { formatTimeAgo } from '@/lib/time-ago';
 import type { Booking } from '@/types/api';
-import { adminSurfaces, colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
 
 export function PendingAnalyticsRow({
   booking,
@@ -21,8 +21,13 @@ export function PendingAnalyticsRow({
   const age = formatTimeAgo(booking.createdAt);
 
   return (
-    <Pressable style={({ pressed }) => [styles.row, pressed && styles.pressed]} onPress={onPress}>
-      <LinearGradient colors={[colors.limeBright, colors.green]} style={styles.edge} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+    <PressableScale
+      style={styles.row}
+      containerStyle={styles.rowWrap}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${bookingServiceName(booking)}, ${bookingCustomerName(booking)}, needs confirmation`}
+    >
       <View style={styles.icon}>
         <PremiumIcon icon={AppIcons.ui.clock} variant="mint" size="sm" color={colors.forest} boxSize={40} />
       </View>
@@ -31,7 +36,11 @@ export function PendingAnalyticsRow({
           <Text style={styles.service} numberOfLines={1}>
             {bookingServiceName(booking)}
           </Text>
-          {age ? <Text style={styles.age}>{age}</Text> : null}
+          {age ? (
+            <Text style={styles.age} numberOfLines={1}>
+              {age}
+            </Text>
+          ) : null}
         </View>
         <Text style={styles.meta} numberOfLines={1}>
           {bookingCustomerName(booking)} · {bookingScheduleDisplay(booking)}
@@ -39,53 +48,38 @@ export function PendingAnalyticsRow({
         <Text style={styles.badge}>Needs confirmation</Text>
       </View>
       <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size="md" color={colors.muted} />
-    </Pressable>
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
+  rowWrap: { marginBottom: spacing.sm },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     padding: spacing.md,
-    paddingLeft: spacing.md + 4,
-    backgroundColor: adminSurfaces.card,
+    backgroundColor: colors.white,
     borderRadius: premium.radiusCard,
     borderWidth: 1,
-    borderColor: adminSurfaces.cardBorder,
-    marginBottom: spacing.sm,
-    overflow: 'hidden',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.14,
-    shadowRadius: 16,
-    elevation: 6,
+    borderColor: ui.hairline,
+    ...ui.shadow,
   },
-  edge: {
-    position: 'absolute',
-    left: 0,
-    top: 10,
-    bottom: 10,
-    width: 3,
-    borderRadius: 2,
-  },
-  pressed: { opacity: 0.88 },
   icon: {
     width: 40,
     height: 40,
     borderRadius: 14,
     backgroundColor: colors.mint,
     borderWidth: 1,
-    borderColor: adminSurfaces.cardBorder,
+    borderColor: ui.hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   body: { flex: 1, minWidth: 0 },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  service: { fontFamily: fonts.displayExtra, fontSize: 14, color: '#0B2213', flex: 1, letterSpacing: -0.2 },
-  age: { fontFamily: fonts.body, fontSize: 10, color: colors.muted },
-  meta: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 4 },
+  service: { fontFamily: fonts.displayExtra, fontSize: 14, color: ui.text, flex: 1, letterSpacing: -0.2 },
+  age: { fontFamily: fonts.body, fontSize: 10, color: ui.textSecondary },
+  meta: { fontFamily: fonts.body, fontSize: 12, color: ui.textSecondary, marginTop: 4 },
   badge: {
     alignSelf: 'flex-start',
     fontFamily: fonts.bodySemi,
@@ -93,7 +87,7 @@ const styles = StyleSheet.create({
     color: colors.forest,
     backgroundColor: colors.mint,
     borderWidth: 1,
-    borderColor: '#D8EDC8',
+    borderColor: ui.brandSoft,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 999,

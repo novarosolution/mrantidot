@@ -1,4 +1,10 @@
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppImage } from '@/components/ui/AppImage';
+import { PhotoViewer } from '@/components/ui/PhotoViewer';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { callPhone } from '@/lib/contact';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
@@ -21,7 +27,7 @@ import { mediaUrl } from '@/lib/images';
 import { propertyTypeLabel } from '@/constants/propertyTypes';
 import type { Booking, User } from '@/types/api';
 import { formatRupeeFull } from '@/components/kit/format';
-import { colors, fonts, premium, spacing, typography } from '@/constants/theme';
+import { colors, fonts, premium, radii, spacing, typography, ui } from '@/constants/theme';
 
 export function BookingFactsCard({
   booking,
@@ -50,6 +56,8 @@ export function BookingFactsCard({
   hideSchedule?: boolean;
 }) {
   const bookingCopy = useBookingCopy();
+  const copy = useCustomerUiCopy();
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const forCustomer = audience === 'customer';
   const forTechnician = audience === 'technician';
   const showCustomerRow =
@@ -61,7 +69,7 @@ export function BookingFactsCard({
     booking.service && typeof booking.service === 'object' && 'shortDesc' in booking.service
       ? String((booking.service as { shortDesc?: string }).shortDesc ?? '').trim()
       : '';
-  const photos = showPhotos !== false ? booking.problemPhotos ?? [] : [];
+  const photos = (showPhotos !== false ? booking.problemPhotos ?? [] : []).map((p) => mediaUrl(p));
 
   const person =
     showCustomerRow && booking.customer && typeof booking.customer === 'object'
@@ -72,8 +80,8 @@ export function BookingFactsCard({
 
   const personLabel = showCustomerRow
     ? forTechnician
-      ? 'Customer contact'
-      : 'Customer'
+      ? copy.bookingFactCustomerContact
+      : copy.bookingFactCustomer
     : showTechnicianRow
       ? bookingCopy.factLabelTechnician
       : null;
@@ -82,6 +90,11 @@ export function BookingFactsCard({
     : showTechnicianRow
       ? bookingTechnicianName(booking)
       : null;
+  const scheduleText = bookingScheduleDisplay(booking, copy);
+  // "UPI / Card · Paid" once the admin marks the visit paid (or refunded).
+  const paymentState =
+    booking.paymentStatus === 'paid' ? copy.bookingPaymentPaid : booking.paymentStatus === 'refunded' ? copy.bookingPaymentRefunded : null;
+  const paymentText = [paymentMethodLabel(booking.paymentMethod), paymentState].filter(Boolean).join(' · ');
 
   const body = (
     <>
@@ -90,7 +103,7 @@ export function BookingFactsCard({
           <View style={styles.head}>
             <ServiceIcon iconKey={iconKey} size={22} variant="premium" boxSize={48} color={colors.white} />
             <View style={styles.flex}>
-              <Text style={styles.service}>{bookingServiceName(booking)}</Text>
+              <Text style={styles.service}>{bookingServiceName(booking, copy)}</Text>
               <Text style={styles.ref}>{bookingRef(booking.id)}</Text>
             </View>
             {booking.amount?.total ? (
@@ -104,13 +117,16 @@ export function BookingFactsCard({
       {!hideSchedule ? (
         <FactRow
           label={bookingCopy.factLabelWhen}
-          value={bookingScheduleDisplay(booking)}
+          value={scheduleText}
           subtitle={
             audience !== 'customer' && isSchedulePending(booking)
               ? bookingCopy.pendingFactsSubtitle
               : undefined
           }
         />
+      ) : null}
+      {booking.option?.label ? (
+        <FactRow label={copy.bookingFactPackage} value={`${booking.option.label} · ${formatRupeeFull(booking.option.price)}`} />
       ) : null}
       {booking.propertyType || booking.propertyTypeLabel ? (
         <FactRow
@@ -119,7 +135,7 @@ export function BookingFactsCard({
         />
       ) : null}
       <FactRow label={bookingCopy.factLabelWhere} value={booking.address} />
-      {forTechnician && jobDetails ? <FactRow label="Job" value={jobDetails} /> : null}
+      {forTechnician && jobDetails ? <FactRow label={copy.bookingFactJob} value={jobDetails} /> : null}
 
       {person && personName && personLabel ? (
         <View style={styles.personRow}>
@@ -128,15 +144,19 @@ export function BookingFactsCard({
             {personName}
           </Text>
           {person.phone ? (
-            <Pressable
+            <PressableScale
               style={styles.callBtn}
+              haptic="tap"
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={fillCopy(copy.bookingCallLabel, { name: personName })}
               onPress={() => {
                 if (onCallPhone) onCallPhone(person.phone!);
-                else callPhone(person.phone!);
+                else callPhone(person.phone!, copy);
               }}
             >
               <PremiumIcon icon={AppIcons.ui.phone} variant="plain" size={16} color={colors.forest} />
-            </Pressable>
+            </PressableScale>
           ) : null}
         </View>
       ) : null}
@@ -144,26 +164,36 @@ export function BookingFactsCard({
       {showPayment && !embedded ? (
         <>
           <View style={styles.divider} />
-          <FactRow label={bookingCopy.factLabelPayment} value={paymentMethodLabel(booking.paymentMethod)} />
+          <FactRow label={bookingCopy.factLabelPayment} value={paymentText} />
           {booking.couponCode ? <FactRow label={bookingCopy.factLabelCoupon} value={booking.couponCode} /> : null}
         </>
       ) : null}
 
       {showPayment && embedded ? (
         <>
-          <FactRow label={bookingCopy.factLabelPayment} value={paymentMethodLabel(booking.paymentMethod)} />
+          <FactRow label={bookingCopy.factLabelPayment} value={paymentText} />
           {booking.couponCode ? <FactRow label={bookingCopy.factLabelCoupon} value={booking.couponCode} /> : null}
         </>
       ) : null}
 
       {photos.length > 0 ? (
         <View style={styles.photosBlock}>
-          <Text style={styles.factLabel}>Problem photos ({photos.length})</Text>
+          <Text style={styles.factLabel}>{fillCopy(copy.bookingProblemPhotos, { count: photos.length })}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photos}>
-            {photos.map((uri) => (
-              <Image key={uri} source={{ uri: mediaUrl(uri) }} style={styles.thumb} />
+            {photos.map((uri, i) => (
+              <PressableScale
+                key={`${uri}-${i}`}
+                onPress={() => setViewerIndex(i)}
+                accessibilityRole="imagebutton"
+                accessibilityLabel={fillCopy(copy.photoViewerLabel, { current: i + 1, total: photos.length })}
+                accessibilityHint={copy.photoOpenHint}
+                containerStyle={styles.thumbWrap}
+              >
+                <AppImage uri={uri} style={styles.thumb} recyclingKey={uri} />
+              </PressableScale>
             ))}
           </ScrollView>
+          <PhotoViewer photos={photos} index={viewerIndex} onClose={() => setViewerIndex(null)} />
         </View>
       ) : null}
     </>
@@ -219,16 +249,17 @@ const styles = StyleSheet.create({
   factSubtitle: { fontFamily: fonts.body, fontSize: 11, color: colors.muted, marginTop: 2 },
   personRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
   callBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: radii.pill,
     backgroundColor: colors.mint,
     borderWidth: 1,
-    borderColor: 'rgba(180,220,165,0.95)',
+    borderColor: ui.hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
   photosBlock: { marginTop: spacing.sm },
   photos: { marginTop: 8 },
-  thumb: { width: 64, height: 64, borderRadius: 12, marginRight: 8 },
+  thumbWrap: { marginRight: 8 },
+  thumb: { width: 72, height: 72, borderRadius: radii.thumb },
 });

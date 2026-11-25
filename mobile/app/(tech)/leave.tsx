@@ -1,419 +1,404 @@
-import { useCallback, useEffect, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import Toast from 'react-native-toast-message';
+import { ArrowRight, CalendarDays } from 'lucide-react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
-import { GlassPanel, GlassSectionLabel, customerScrollProps } from '@/components/kit/GlassScreenKit';
-import { TechScreen, TechScreenScroll, TECH_TAB_BAR_PAD } from '@/components/kit/TechScreenKit';
+import { formatDayKey } from '@/components/kit/format';
+import { TECH_TAB_BAR_PAD, TechScreen, TechScreenScroll } from '@/components/kit/TechScreenKit';
+import { TechChoiceChip } from '@/components/tech/TechChoiceChip';
+import { TechConfirmSheet } from '@/components/tech/TechConfirmSheet';
+import { TechDateRangeSheet } from '@/components/tech/TechDateRangeSheet';
+import { addDaysKey, daysInclusive } from '@/components/tech/TechMonthGrid';
+import { TechLeaveSkeleton } from '@/components/tech/TechSkeletons';
 import { Button } from '@/components/ui/Button';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { Input } from '@/components/ui/Input';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
-import { textInputDefaults } from '@/components/ui/textInputDefaults';
-import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { StatusBadge, type BadgeTone } from '@/components/ui/StatusBadge';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { api } from '@/lib/api';
+import { useBusinessSettings } from '@/lib/businessSettings';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { localDateKey } from '@/lib/dates';
-import { formatDayKey, plural } from '@/components/kit/format';
+import { haptic, stagger } from '@/lib/motion';
 import { techGoBack, techRoutes } from '@/lib/routes';
+import { activeLeaveTypes, leaveTypeLabel } from '@/lib/settingsLabels';
+import { useTechLeave } from '@/lib/techData';
+import { dayCount, leaveStatusLabel, techErrorText } from '@/lib/techLabels';
+import { appToast } from '@/lib/toast';
 import type { LeaveRequest, LeaveStatus, LeaveType } from '@/types/api';
-import { colors, fonts, formField, premium, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, radii, spacing, ui } from '@/constants/theme';
 
-const TYPES: { key: LeaveType; label: string }[] = [
-  { key: 'casual', label: 'Casual' },
-  { key: 'sick', label: 'Sick' },
-  { key: 'emergency', label: 'Emergency' },
-  { key: 'other', label: 'Other' },
-];
+/** How far ahead leave can be requested. */
+const MAX_DAYS_AHEAD = 180;
 
-function addDays(key: string, n: number): string {
-  const [y, m, d] = key.split('-').map(Number);
-  const dt = new Date(y, m - 1, d + n);
-  return localDateKey(dt);
-}
+const STATUS_TONE: Record<LeaveStatus, BadgeTone> = {
+  pending: 'warning',
+  approved: 'success',
+  rejected: 'danger',
+  cancelled: 'neutral',
+};
 
-function statusTone(status: LeaveStatus): { bg: string; text: string; label: string } {
-  switch (status) {
-    case 'approved':
-      return { bg: colors.soft, text: colors.forest, label: 'Approved' };
-    case 'rejected':
-      return { bg: colors.errorBg, text: colors.error, label: 'Rejected' };
-    case 'cancelled':
-      return { bg: colors.greyBg, text: colors.muted, label: 'Cancelled' };
-    default:
-      return { bg: colors.amberBg, text: colors.amberInk, label: 'Pending' };
-  }
+function rangeLabel(from: string, to: string): string {
+  return from === to ? formatDayKey(from) : `${formatDayKey(from)} – ${formatDayKey(to)}`;
 }
 
 export default function TechLeaveScreen() {
+  const copy = useCustomerUiCopy();
+  const settings = useBusinessSettings();
+  const leaveTypes = useMemo(() => activeLeaveTypes(settings), [settings]);
+  const leave = useTechLeave();
   const today = localDateKey();
-  const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [from, setFrom] = useState(today);
   const [to, setTo] = useState(today);
   const [type, setType] = useState<LeaveType>('casual');
   const [reason, setReason] = useState('');
+  const [dateError, setDateError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [cancelId, setCancelId] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
-  const load = useCallback(async () => {
-    setError(null);
-    const res = await api.get<{ leaves: LeaveRequest[] }>('/leave/me', screenLoadConfig);
-    setLeaves(res.data.leaves);
-  }, []);
-
+  // Keep the picked type valid when admin turns leave types on or off.
   useEffect(() => {
-    safeAsync(
-      async () => {
-        try {
-          await load();
-        } finally {
-          setLoading(false);
-        }
-      },
-      undefined,
-      (msg) => setError(msg),
-    );
-  }, [load]);
+    if (leaveTypes.length && !leaveTypes.some((t) => t.key === type)) setType(leaveTypes[0].key as LeaveType);
+  }, [leaveTypes, type]);
 
-  function isValidDateKey(value: string): boolean {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-    const [y, m, d] = value.split('-').map(Number);
-    return localDateKey(new Date(y, m - 1, d)) === value;
+  function pickRange(nextFrom: string, nextTo: string) {
+    setFrom(nextFrom);
+    setTo(nextTo);
+    setDateError(null);
   }
 
   async function submit() {
-    if (!isValidDateKey(from) || !isValidDateKey(to)) {
-      Alert.alert('Invalid dates', 'Use YYYY-MM-DD, or pick Today / Tomorrow / 3 days / 1 week.');
-      return;
-    }
+    if (saving) return;
     if (to < from) {
-      Alert.alert('Invalid dates', 'End date must be on or after start date');
+      haptic('warning');
+      setDateError(copy.techLeaveEndBeforeStart);
       return;
     }
     setSaving(true);
     try {
-      await api.post('/leave', { from, to, type, reason: reason.trim() || undefined });
-      Toast.show({ type: 'success', text1: 'Leave requested' });
+      await api.post(
+        '/leave',
+        { from, to, ...(leaveTypes.length ? { type } : {}), reason: reason.trim() || undefined },
+        { skipErrorToast: true },
+      );
+      haptic('success');
+      appToast.success(copy.techLeaveRequestedToast);
       setReason('');
-      await load();
+      await leave.reload(true);
     } catch (err) {
-      Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not request leave') });
+      haptic('error');
+      appToast.error(copy.techLeaveRequestError, techErrorText(copy, err));
     } finally {
       setSaving(false);
     }
   }
 
-  async function cancelLeave(id: string) {
-    if (cancellingId) return;
-    Alert.alert('Cancel leave request?', 'Admin will no longer see this pending request.', [
-      { text: 'Keep', style: 'cancel' },
-      {
-        text: 'Cancel request',
-        style: 'destructive',
-        onPress: () =>
-          void (async () => {
-            if (cancellingId) return;
-            setCancellingId(id);
-            try {
-              await api.post(`/leave/${id}/cancel`);
-              Toast.show({ type: 'success', text1: 'Leave cancelled' });
-              await load();
-            } catch (err) {
-              Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not cancel') });
-            } finally {
-              setCancellingId(null);
-            }
-          })(),
-      },
-    ]);
+  async function confirmCancel() {
+    if (!cancelId || cancelling) return;
+    setCancelling(true);
+    try {
+      await api.post(`/leave/${cancelId}/cancel`, undefined, { skipErrorToast: true });
+      haptic('success');
+      appToast.success(copy.techLeaveCancelledToast);
+      await leave.reload(true);
+    } catch (err) {
+      haptic('error');
+      appToast.error(copy.techLeaveCancelError, techErrorText(copy, err));
+    } finally {
+      setCancelling(false);
+      setCancelId(null);
+    }
   }
 
   const header = (
     <CustomerPageHeader
       variant="premium"
-      title="Leave"
-      subtitle="Request time off for approval"
+      title={copy.techLeaveTitle}
+      subtitle={copy.techLeaveSubtitle}
       showBack
       onBack={() => techGoBack(techRoutes.home)}
     />
   );
 
-  if (loading) {
-    return (
-      <TechScreen header={header}>
-        <Spinner />
-      </TechScreen>
-    );
-  }
-
-  if (error && leaves.length === 0) {
-    return (
-      <TechScreen header={header}>
-        <ListEmptyRetry message={error} onRetry={() => void load()} />
-      </TechScreen>
-    );
-  }
-
-  const pendingCount = leaves.filter((l) => l.status === 'pending').length;
-  const presets = [
-    { label: 'Today', from: today, to: today },
-    { label: 'Tomorrow', from: addDays(today, 1), to: addDays(today, 1) },
-    { label: '3 days', from: today, to: addDays(today, 2) },
-    { label: '1 week', from: today, to: addDays(today, 6) },
-  ];
-  const dayCount = Math.max(
-    1,
-    Math.round((new Date(`${to}T00:00:00`).getTime() - new Date(`${from}T00:00:00`).getTime()) / 86_400_000) + 1,
+  const sheets = (
+    <>
+      <TechDateRangeSheet
+        visible={pickerOpen}
+        from={from}
+        to={to}
+        minDate={today}
+        maxDate={addDaysKey(today, MAX_DAYS_AHEAD)}
+        onClose={() => setPickerOpen(false)}
+        onApply={(f, t) => {
+          pickRange(f, t);
+          setPickerOpen(false);
+        }}
+      />
+      <TechConfirmSheet
+        visible={cancelId !== null}
+        title={copy.techLeaveCancelTitle}
+        message={copy.techLeaveCancelText}
+        confirmLabel={copy.techLeaveCancelAction}
+        cancelLabel={copy.techLeaveKeep}
+        destructive
+        loading={cancelling}
+        onConfirm={() => void confirmCancel()}
+        onClose={() => setCancelId(null)}
+      />
+    </>
   );
+
+  if (leave.loading) {
+    return (
+      <TechScreen header={header}>
+        <TechLeaveSkeleton />
+      </TechScreen>
+    );
+  }
+
+  if (!leave.data) {
+    return (
+      <TechScreen header={header}>
+        <ListEmptyRetry
+          title={copy.techLeaveLoadError}
+          message={leave.error ?? undefined}
+          retryLabel={copy.techRetry}
+          onRetry={() => void leave.refresh()}
+        />
+      </TechScreen>
+    );
+  }
+
+  const leaves = leave.data;
+  const pendingCount = leaves.filter((l) => l.status === 'pending').length;
+  const listHint = leaves.length
+    ? [
+        fillCopy(copy.techLeaveListCount, { total: leaves.length }),
+        pendingCount ? fillCopy(copy.techLeaveListPending, { count: pendingCount }) : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : null;
+  const presets = [
+    { key: 'today', label: copy.techLeaveToday, from: today, to: today },
+    { key: 'tomorrow', label: copy.techLeaveTomorrow, from: addDaysKey(today, 1), to: addDaysKey(today, 1) },
+    { key: '3d', label: dayCount(copy, 3), from: today, to: addDaysKey(today, 2) },
+    { key: 'week', label: copy.techLeaveWeek, from: today, to: addDaysKey(today, 6) },
+  ];
 
   return (
     <TechScreen header={header}>
       <TechScreenScroll
         contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={async () => {
-              setRefreshing(true);
-              try {
-                await load();
-              } finally {
-                setRefreshing(false);
-              }
-            }}
-            tintColor={colors.forest}
-          />
-        }
-        {...customerScrollProps}
+        refreshControl={<RefreshControl refreshing={leave.refreshing} onRefresh={() => void leave.refresh()} tintColor={ui.brand} />}
       >
-        <GlassPanel goldEdge tone="light">
-          <Text style={styles.cardTitle}>Request leave</Text>
-          <Text style={styles.hint}>
-            Admin must approve. Approved days mark attendance as leave automatically.
-          </Text>
+        <FadeSlideIn delay={stagger(0)} slideFrom={14}>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>{copy.techLeaveFormTitle}</Text>
+            <Text style={styles.cardHint}>{copy.techLeaveFormHint}</Text>
 
-          <Text style={styles.label}>When</Text>
-          <View style={styles.quickRow}>
-            {presets.map((p) => {
-              const on = from === p.from && to === p.to;
-              return (
-                <Pressable
-                  key={p.label}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
-                  accessibilityLabel={`Leave ${p.label}`}
-                  style={[styles.chip, on && styles.chipOn]}
-                  onPress={() => {
-                    setFrom(p.from);
-                    setTo(p.to);
-                  }}
-                >
-                  <Text style={[styles.chipText, on && styles.chipTextOn]}>{p.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <View style={styles.range} accessibilityLabel={`Leave from ${from} to ${to}`}>
-            <View style={styles.rangeCell}>
-              <Text style={styles.rangeLabel}>FROM</Text>
-              <Text style={styles.rangeValue}>{formatDayKey(from)}</Text>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>{copy.techLeaveWhen}</Text>
+              <View style={styles.daysPill}>
+                <Text style={styles.daysText}>{dayCount(copy, daysInclusive(from, to))}</Text>
+              </View>
             </View>
-            <View style={styles.rangeMid}>
-              <Text style={styles.rangeDays}>{plural(dayCount, 'day')}</Text>
+            <PressableScale
+              onPress={() => setPickerOpen(true)}
+              haptic="tap"
+              style={[styles.range, dateError && styles.rangeError]}
+              accessibilityRole="button"
+              accessibilityLabel={fillCopy(copy.techLeaveDatesA11y, { from: formatDayKey(from), to: formatDayKey(to) })}
+            >
+              <View style={styles.rangeCell}>
+                <Text style={styles.rangeLabel}>{copy.techLeaveFrom}</Text>
+                <Text style={styles.rangeValue}>{formatDayKey(from)}</Text>
+              </View>
+              <ArrowRight size={16} color={ui.textTertiary} strokeWidth={2.2} />
+              <View style={styles.rangeCell}>
+                <Text style={styles.rangeLabel}>{copy.techLeaveTo}</Text>
+                <Text style={styles.rangeValue}>{formatDayKey(to)}</Text>
+              </View>
+              <View style={styles.rangeIcon}>
+                <CalendarDays size={18} color={ui.brand} strokeWidth={2.2} />
+              </View>
+            </PressableScale>
+            {dateError ? <Text style={styles.error}>{dateError}</Text> : null}
+            <View style={styles.chips}>
+              {presets.map((p) => (
+                <TechChoiceChip
+                  key={p.key}
+                  label={p.label}
+                  selected={from === p.from && to === p.to}
+                  onPress={() => pickRange(p.from, p.to)}
+                />
+              ))}
             </View>
-            <View style={[styles.rangeCell, styles.rangeCellEnd]}>
-              <Text style={styles.rangeLabel}>TO</Text>
-              <Text style={styles.rangeValue}>{formatDayKey(to)}</Text>
-            </View>
-          </View>
 
-          <Text style={styles.label}>Type</Text>
-          <View style={styles.quickRow}>
-            {TYPES.map((t) => (
-              <Pressable
-                key={t.key}
-                accessibilityRole="button"
-                accessibilityState={{ selected: type === t.key }}
-                accessibilityLabel={`${t.label} leave`}
-                style={[styles.chip, type === t.key && styles.chipOn]}
-                onPress={() => setType(t.key)}
-              >
-                <Text style={[styles.chipText, type === t.key && styles.chipTextOn]}>{t.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <Text style={styles.label}>Reason (optional)</Text>
-          <TextInput
-            {...textInputDefaults}
-            style={[styles.input, styles.area]}
-            value={reason}
-            onChangeText={setReason}
-            placeholder="Short note for admin"
-            multiline
-          />
-
-          <Button title="Submit request" variant="premium" onPress={() => void submit()} loading={saving} />
-        </GlassPanel>
-
-        <GlassSectionLabel
-          title="Your requests"
-          hint={
-            leaves.length
-              ? `${leaves.length} total${pendingCount ? ` · ${pendingCount} pending` : ''}`
-              : undefined
-          }
-        />
-        {leaves.length === 0 ? (
-          <GlassPanel tone="mint">
-            <Text style={styles.emptyTitle}>No leave requests yet</Text>
-            <Text style={styles.empty}>Submit above when you need time off.</Text>
-          </GlassPanel>
-        ) : (
-          leaves.map((l) => {
-            const tone = statusTone(l.status);
-            return (
-              <GlassPanel key={l.id} padded={false} style={styles.rowPanel} tone="light">
-                <View style={styles.row}>
-                  <View style={styles.rowBody}>
-                    <View style={styles.rowTop}>
-                      <Text style={styles.rowTitle}>
-                        {l.from === l.to ? formatDayKey(l.from) : `${formatDayKey(l.from)} – ${formatDayKey(l.to)}`}
-                      </Text>
-                      <View style={[styles.statusPill, { backgroundColor: tone.bg }]}>
-                        <Text style={[styles.statusText, { color: tone.text }]}>{tone.label}</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.rowSub}>
-                      {l.type.charAt(0).toUpperCase() + l.type.slice(1)}
-                      {l.reason ? ` · ${l.reason}` : ''}
-                    </Text>
-                    {l.adminNote ? (
-                      <Text style={styles.adminNote}>Admin: {l.adminNote}</Text>
-                    ) : null}
-                  </View>
-                  {l.status === 'pending' ? (
-                    <Button
-                      title={cancellingId === l.id ? '…' : 'Cancel'}
-                      variant="danger"
-                      size="sm"
-                      fullWidth={false}
-                      loading={cancellingId === l.id}
-                      disabled={Boolean(cancellingId)}
-                      onPress={() => void cancelLeave(l.id)}
-                      style={styles.cancelBtn}
+            {leaveTypes.length ? (
+              <>
+                <Text style={[styles.label, styles.labelSpaced]}>{copy.techLeaveType}</Text>
+                <View style={styles.chips}>
+                  {leaveTypes.map((t) => (
+                    <TechChoiceChip
+                      key={t.key}
+                      label={t.label}
+                      selected={type === t.key}
+                      onPress={() => setType(t.key as LeaveType)}
                     />
-                  ) : null}
+                  ))}
                 </View>
-              </GlassPanel>
-            );
-          })
+              </>
+            ) : null}
+
+            <Input
+              label={copy.techLeaveReason}
+              value={reason}
+              onChangeText={setReason}
+              placeholder={copy.techLeaveReasonPlaceholder}
+              multiline
+              maxLength={500}
+              containerStyle={styles.reason}
+            />
+            <Button title={copy.techLeaveSubmit} onPress={() => void submit()} loading={saving} />
+          </View>
+        </FadeSlideIn>
+
+        <FadeSlideIn delay={stagger(1)} slideFrom={14}>
+          <View style={styles.listHead}>
+            <Text style={styles.listTitle} accessibilityRole="header">
+              {copy.techLeaveListTitle}
+            </Text>
+            {listHint ? <Text style={styles.listHint}>{listHint}</Text> : null}
+          </View>
+        </FadeSlideIn>
+
+        {leaves.length === 0 ? (
+          <FadeSlideIn delay={stagger(2)} slideFrom={14}>
+            <View style={[styles.card, styles.empty]}>
+              <Text style={styles.emptyTitle}>{copy.techLeaveEmptyTitle}</Text>
+              <Text style={styles.emptyText}>{copy.techLeaveEmptyText}</Text>
+            </View>
+          </FadeSlideIn>
+        ) : (
+          leaves.map((l, i) => (
+            <FadeSlideIn key={l.id} delay={stagger(i + 2)} slideFrom={12} disabled={i > 6}>
+              <LeaveRow leave={l} onCancel={() => setCancelId(l.id)} />
+            </FadeSlideIn>
+          ))
         )}
       </TechScreenScroll>
+      {sheets}
     </TechScreen>
   );
 }
 
+function LeaveRow({ leave, onCancel }: { leave: LeaveRequest; onCancel: () => void }) {
+  const copy = useCustomerUiCopy();
+  const settings = useBusinessSettings();
+  const details = [leaveTypeLabel(leave.type, settings), dayCount(copy, daysInclusive(leave.from, leave.to)), leave.reason]
+    .filter(Boolean)
+    .join(' · ');
+  return (
+    <View style={[styles.card, styles.row]}>
+      <View style={styles.rowMain}>
+        <View style={styles.rowIcon}>
+          <CalendarDays size={18} color={ui.brand} strokeWidth={2.1} />
+        </View>
+        <View style={styles.flex}>
+          <View style={styles.rowTop}>
+            <Text style={styles.rowTitle} numberOfLines={1}>
+              {rangeLabel(leave.from, leave.to)}
+            </Text>
+            <StatusBadge label={leaveStatusLabel(copy, leave.status)} tone={STATUS_TONE[leave.status] ?? 'neutral'} />
+          </View>
+          <Text style={styles.rowSub}>{details}</Text>
+          {leave.adminNote ? (
+            <Text style={styles.adminNote}>{fillCopy(copy.techLeaveAdminNote, { note: leave.adminNote })}</Text>
+          ) : null}
+        </View>
+      </View>
+      {leave.status === 'pending' ? (
+        <Button title={copy.techLeaveCancelAction} variant="dangerOutline" size="md" onPress={onCancel} style={styles.rowCancel} />
+      ) : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  content: { padding: spacing.md, paddingBottom: TECH_TAB_BAR_PAD + 24, gap: 12 },
-  cardTitle: { fontFamily: fonts.displaySemi, fontSize: 18, color: colors.ink },
-  hint: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, marginBottom: 8, lineHeight: 18 },
-  label: { marginTop: 6, fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted },
-  input: {
-    borderWidth: formField.borderWidth,
-    borderColor: formField.borderColor,
-    borderRadius: formField.radius,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    fontFamily: fonts.body,
-    fontSize: 15,
-    color: colors.ink,
-    backgroundColor: formField.bg,
-    minHeight: 48,
+  content: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: TECH_TAB_BAR_PAD + spacing.lg },
+  flex: { flex: 1, minWidth: 0 },
+  card: {
+    padding: spacing.md,
+    borderRadius: radii.card,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
+    ...ui.shadow,
   },
-  area: { minHeight: 72, textAlignVertical: 'top' },
+  cardTitle: { fontFamily: fonts.displayExtra, fontSize: 18, letterSpacing: -0.35, color: ui.text },
+  cardHint: { marginTop: 4, fontFamily: fonts.body, fontSize: 13, lineHeight: 19, color: ui.textSecondary },
+  labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md },
+  label: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: ui.textTertiary,
+  },
+  labelSpaced: { marginTop: spacing.md },
+  daysPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radii.pill, backgroundColor: ui.brandSoft },
+  daysText: { fontFamily: fonts.bodyBold, fontSize: 12, color: ui.brand },
   range: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
-    padding: 12,
-    borderRadius: 16,
-    backgroundColor: colors.mint,
-  },
-  rangeCell: { flex: 1 },
-  rangeCellEnd: { alignItems: 'flex-end' },
-  rangeLabel: { fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 0.8, color: colors.muted },
-  rangeValue: { marginTop: 2, fontFamily: fonts.displayExtra, fontSize: 17, color: colors.forest },
-  rangeMid: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: colors.white,
-  },
-  rangeDays: { fontFamily: fonts.bodyBold, fontSize: 11.5, color: colors.forest },
-  quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 14,
-    backgroundColor: surfaces.glassInput,
-    borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
-  },
-  chipOn: { backgroundColor: colors.forest, borderColor: colors.lime },
-  chipText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
-  chipTextOn: { color: colors.white },
-  emptyTitle: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 14,
-    color: colors.ink,
-    textAlign: 'center',
-  },
-  empty: {
-    marginTop: 4,
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.muted,
-    textAlign: 'center',
-  },
-  rowPanel: { borderRadius: premium.radiusCard },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 10,
-    padding: 14,
+    marginTop: spacing.sm,
+    minHeight: 64,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: radii.control,
+    backgroundColor: ui.surfaceMuted,
+    borderWidth: 1.5,
+    borderColor: ui.surfaceMuted,
   },
-  rowBody: { flex: 1, minWidth: 0 },
-  rowTop: {
-    flexDirection: 'row',
+  rangeError: { borderColor: colors.error, backgroundColor: colors.errorBg },
+  rangeCell: { flex: 1 },
+  rangeLabel: { fontFamily: fonts.bodySemi, fontSize: 11.5, color: ui.textTertiary },
+  rangeValue: { marginTop: 2, fontFamily: fonts.displayExtra, fontSize: 17, letterSpacing: -0.2, color: ui.text },
+  rangeIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: colors.white,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
+    justifyContent: 'center',
   },
-  rowTitle: { flex: 1, fontFamily: fonts.bodySemi, fontSize: 14, color: colors.ink },
-  statusPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
+  error: { marginTop: 6, fontFamily: fonts.bodySemi, fontSize: 12.5, color: colors.error },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 },
+  reason: { marginTop: spacing.md },
+  listHead: { marginTop: spacing.lg, marginBottom: spacing.sm, marginLeft: 2 },
+  listTitle: { fontFamily: fonts.displayExtra, fontSize: 17, letterSpacing: -0.35, color: ui.text },
+  listHint: { marginTop: 3, fontFamily: fonts.body, fontSize: 12.5, color: ui.textSecondary },
+  empty: { alignItems: 'center', paddingVertical: spacing.lg },
+  emptyTitle: { fontFamily: fonts.bodyBold, fontSize: 14.5, color: ui.text, textAlign: 'center' },
+  emptyText: { marginTop: 4, fontFamily: fonts.body, fontSize: 13, color: ui.textSecondary, textAlign: 'center' },
+  row: { marginBottom: spacing.sm, padding: 14 },
+  rowMain: { flexDirection: 'row', gap: 12 },
+  rowIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    backgroundColor: ui.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  statusText: { fontFamily: fonts.bodySemi, fontSize: 11 },
-  rowSub: { marginTop: 4, fontFamily: fonts.body, fontSize: 12, color: colors.muted },
-  adminNote: {
-    marginTop: 4,
-    fontFamily: fonts.bodyMedium,
-    fontSize: 12,
-    color: colors.forest,
-  },
-  cancelBtn: {
-    minWidth: 88,
-    paddingHorizontal: 4,
-  },
+  rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  rowTitle: { flex: 1, fontFamily: fonts.bodyBold, fontSize: 15, color: ui.text },
+  rowSub: { marginTop: 4, fontFamily: fonts.body, fontSize: 12.5, lineHeight: 17, color: ui.textSecondary },
+  adminNote: { marginTop: 4, fontFamily: fonts.bodyMedium, fontSize: 12.5, color: ui.brand },
+  rowCancel: { marginTop: 12 },
 });

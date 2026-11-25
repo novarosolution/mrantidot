@@ -9,12 +9,33 @@ import {
   type ReactNode,
 } from 'react';
 import axios from 'axios';
+import { Platform } from 'react-native';
 import { api, clearApiCache, setUnauthorizedHandler } from '@/lib/api';
 import { config } from '@/lib/config';
 import { normalizeLoginEmail } from '@/lib/email';
 import { formatLoginIdentifier } from '@/lib/phone';
 import { clearSession, getToken, getUser, setToken, setUser, type StoredUser } from '@/lib/storage';
+import { WEB_ADMIN_ONLY_MESSAGE } from '@/lib/webAdmin';
 import type { User } from '@/types/api';
+
+/** The web build is the admin panel only — any other role is never kept signed in there. */
+const WEB_ADMINS_ONLY = Platform.OS === 'web';
+
+function blockedOnWeb(user: { role?: string } | null | undefined): boolean {
+  return WEB_ADMINS_ONLY && !!user && user.role !== 'admin';
+}
+
+/** Thrown by login / register / OTP on web when the account is not an admin (the session is not kept). */
+export class WebAdminOnlyError extends Error {
+  constructor() {
+    super(WEB_ADMIN_ONLY_MESSAGE);
+    this.name = 'WebAdminOnlyError';
+  }
+}
+
+export function isWebAdminOnlyError(err: unknown): err is WebAdminOnlyError {
+  return err instanceof WebAdminOnlyError || (err instanceof Error && err.name === 'WebAdminOnlyError');
+}
 
 interface AuthContextValue {
   user: StoredUser | null;
@@ -53,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const persistSession = useCallback(async (sessionToken: string, sessionUser: User) => {
+    if (blockedOnWeb(sessionUser)) throw new WebAdminOnlyError();
     await setToken(sessionToken);
     await setUser(sessionUser);
     setTokenState(sessionToken);
@@ -82,6 +104,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (epoch !== authEpoch.current) return;
       if (loginInFlight.current > 0) return;
+      if (blockedOnWeb(data.user)) {
+        await logout();
+        return;
+      }
       await setUser(data.user);
       setUserState(data.user);
     } catch (err) {
@@ -109,6 +135,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const [storedToken, storedUser] = await Promise.all([getToken(), getUser()]);
         if (cancelled) return;
+        if (blockedOnWeb(storedUser)) {
+          // A non-admin session left in this browser — drop it instead of opening the admin panel.
+          await clearSession();
+          return;
+        }
         if (storedToken) {
           setTokenState(storedToken);
           if (storedUser) setUserState(storedUser);

@@ -21,7 +21,7 @@ import type {
   TechnicianDetailResponse,
   TechnicianMetricKey,
 } from '@/types/api';
-import { colors, fonts, premium, shadows, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, premium, shadows, spacing, surfaces, ui } from '@/constants/theme';
 
 function monthOptions(current: string): string[] {
   const [y, m] = current.split('-').map(Number);
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
     borderRadius: premium.radiusButton,
     backgroundColor: colors.white,
     borderWidth: 1.5,
-    borderColor: colors.limeBright,
+    borderColor: ui.border,
   },
   exportText: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest },
   kpiRow: {

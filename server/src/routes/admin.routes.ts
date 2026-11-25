@@ -4,52 +4,73 @@ import { body, param, validationResult } from 'express-validator';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { asyncHandler } from '../middleware/error';
 import { User, sanitizeUser, type IUser } from '../models/User';
-import { Booking } from '../models/Booking';
 import { Offer } from '../models/Offer';
-import { Review } from '../models/Review';
-import { Service } from '../models/Service';
-import { formatBooking, formatReview } from '../utils/format';
+import { Review, adminReviewReply } from '../models/Review';
+import { formatReview } from '../utils/format';
 import { AppError } from '../utils/AppError';
 import { getAdminConfig } from '../utils/adminUser';
 import { normalizePhone } from '../utils/phone';
 import { formatAttendance } from '../models/TechnicianAttendance';
+import { upsertAttendance } from '../utils/attendance';
 import {
-  buildAttendanceCalendar,
-  computeAttendanceAnalytics,
-  computeJobAnalytics,
-  loadAttendanceForRange,
-  monthRange,
-  parseMonthParam,
-  todayDateKey,
-  upsertAttendance,
-} from '../utils/attendance';
+  buildAdminExport,
+  exportSummary,
+  parseExportRange,
+  pickDatasets,
+  streamExportCsv,
+  streamExportJson,
+} from '../utils/adminExport';
+import { revalidateWebsite } from '../utils/websiteRevalidate';
+import { getBusinessSettings } from '../utils/businessSettings';
+import { offerStatsFor, recentOfferBookings } from '../utils/offerStats';
+import { cleanTechnicianCoverage, COVERAGE_FIELDS } from '../utils/technicianFit';
+import { adminManageRouter, customerAddresses } from './adminManage.routes';
+import { recomputeTechnicianRating } from './reviews.routes';
 import {
-  buildJobVisitsForBookings,
-  computeJobVisitAnalytics,
-} from '../utils/jobVisit';
-import {
-  buildAttendanceTrend,
-  buildJobsTrend,
-  computeTechStatusBreakdown,
-  monthDateRange,
-} from '../utils/technicianAnalytics';
-import {
-  formatPaySummary,
-  payConfigFromUser,
-  resolveTechEarning,
-} from '../utils/techPay';
-import { buildAdminExport } from '../utils/adminExport';
+  customerDetail,
+  listCustomers,
+  listOffers,
+  listReviews,
+  listTechnicians,
+  listUsers,
+  payroll,
+  technicianBookings,
+  technicianDetail,
+} from '../utils/adminLists';
 
 export const adminRouter = Router();
 
 adminRouter.use(requireAuth, requireRole('admin'));
 
-/** Full business data export — JSON + CSV sheets (no passwords / live OTPs). */
+// Notes, tags, addresses, review replies, offer copy / delete, technician fit — routes/adminManage.routes.ts.
+adminRouter.use(adminManageRouter);
+
+/**
+ * Business data export (no passwords / live OTPs, no row cap — rows are streamed):
+ *   ?summary=1                         row counts per dataset for the range (nothing heavy)
+ *   ?format=csv&dataset=bookings       one dataset as CSV
+ *   ?format=json&datasets=a,b          JSON backup of the chosen datasets (all when omitted)
+ *   + from / to (YYYY-MM-DD, IST) and dateField=visit|created for bookings
+ *   no params                          the old full bundle (older app builds)
+ */
 adminRouter.get(
   '/export',
-  asyncHandler(async (_req, res) => {
-    const bundle = await buildAdminExport();
-    res.json(bundle);
+  asyncHandler(async (req, res) => {
+    const query = req.query as Record<string, unknown>;
+    const range = parseExportRange(query);
+    if (query.summary === '1' || query.summary === 'true') {
+      res.json(await exportSummary(range));
+      return;
+    }
+    if (query.format === 'csv') {
+      await streamExportCsv(res, query.dataset, range);
+      return;
+    }
+    if (query.format === 'json') {
+      await streamExportJson(res, pickDatasets(query.datasets), range);
+      return;
+    }
+    res.json(await buildAdminExport());
   }),
 );
 
@@ -70,13 +91,11 @@ function isEnvAdmin(user: IUser): boolean {
   return user.role === 'admin' && normalizePhone(user.phone) === getAdminConfig().phone;
 }
 
+/** Paged users: role, status, q, sort — see utils/adminLists.ts (listUsers). */
 adminRouter.get(
   '/users',
   asyncHandler(async (req, res) => {
-    const role = req.query.role as string | undefined;
-    const filter = role ? { role } : {};
-    const users = await User.find(filter).sort({ name: 1 });
-    res.json({ users: users.map((u) => sanitizeUser(u)) });
+    res.json(await listUsers(req.query as Record<string, unknown>));
   }),
 );
 
@@ -108,6 +127,9 @@ adminRouter.post(
   body('payFlat').optional().isFloat({ min: 0 }),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
+    if (req.body.role === 'admin') await assertPrimaryAdmin(req.user!.id);
+    const coverage =
+      req.body.role === 'technician' ? cleanTechnicianCoverage(req.body as Record<string, unknown>, undefined, await getBusinessSettings()) : {};
     const phone = normalizePhone(req.body.phone);
     const existing = await User.findOne({ $or: [{ phone }, { email: req.body.email }] });
     if (existing) {
@@ -136,9 +158,17 @@ adminRouter.post(
               req.body.payFlat !== undefined
                 ? Math.max(0, Math.round(Number(req.body.payFlat)))
                 : 0,
+            ...coverage,
           }
         : {}),
     });
+    res.locals.activity = {
+      summary: `Created ${user.role} account for ${user.name}`,
+      targetId: String(user._id),
+      targetType: 'user',
+      targetLabel: user.name,
+      fields: Object.keys(req.body).filter((k) => k !== 'password').concat('password'),
+    };
     res.status(201).json({ user: sanitizeUser(user) });
   }),
 );
@@ -163,6 +193,8 @@ adminRouter.patch(
     if (!user) {
       throw new AppError(404, 'User not found');
     }
+    await assertCanEditAccount(req.user!.id, user, req.body as Record<string, unknown>);
+    const before = accountSnapshot(user);
     if (isEnvAdmin(user)) {
       if (req.body.role && req.body.role !== 'admin') {
         throw new AppError(400, 'Cannot change role of primary admin');
@@ -215,6 +247,10 @@ adminRouter.patch(
       user.displayRating = v === null || v === '' ? null : Number(v);
     }
     if (user.role === 'technician' || req.body.role === 'technician') {
+      if (COVERAGE_FIELDS.some((f) => req.body[f] !== undefined)) {
+        const coverage = cleanTechnicianCoverage(req.body as Record<string, unknown>, user, await getBusinessSettings());
+        Object.assign(user, coverage);
+      }
       if (req.body.payMode === 'percent' || req.body.payMode === 'flat') {
         user.payMode = req.body.payMode;
       }
@@ -232,6 +268,7 @@ adminRouter.patch(
       user.phone = phone;
     }
     await user.save();
+    res.locals.activity = accountChangeNote(before, user, req.user!.id);
     const json = sanitizeUser(user) as Record<string, unknown>;
     if (isEnvAdmin(user)) json.protected = true;
     res.json({ user: json });
@@ -248,8 +285,17 @@ adminRouter.patch(
     if (!user) {
       throw new AppError(404, 'User not found');
     }
+    // Admins may change their own password; other admins' passwords only the primary admin resets.
+    const self = String(user._id) === req.user!.id;
+    if (user.role === 'admin' && !self) await assertPrimaryAdmin(req.user!.id);
     user.passwordHash = await bcrypt.hash(req.body.password, 12);
     await user.save();
+    res.locals.activity = {
+      summary: self ? 'Changed own password' : `Reset the password for ${user.name}`,
+      targetType: 'user',
+      targetLabel: user.name,
+      fields: ['password'],
+    };
     res.json({ ok: true });
   }),
 );
@@ -266,193 +312,35 @@ adminRouter.delete(
     if (isEnvAdmin(user)) {
       throw new AppError(400, 'Cannot disable primary admin account');
     }
+    if (user.role === 'admin') await assertPrimaryAdmin(req.user!.id);
     user.disabled = true;
     user.available = false;
     await user.save();
+    res.locals.activity = {
+      summary: `Disabled ${user.name}'s ${user.role} account`,
+      targetType: 'user',
+      targetLabel: user.name,
+      fields: ['disabled'],
+    };
     res.json({ user: sanitizeUser(user) });
   }),
 );
 
+/** Technician roster (paged when `page` / `limit` is sent) — see utils/adminLists.ts (listTechnicians). */
 adminRouter.get(
   '/technicians',
   asyncHandler(async (req, res) => {
-    const filter: Record<string, unknown> = { role: 'technician' };
-    if (req.query.available === 'true') {
-      filter.available = { $ne: false };
-      filter.disabled = { $ne: true };
-    }
-    const technicians = await User.find(filter).sort({ name: 1 });
-    const techIds = technicians.map((t) => t._id);
-
-    const agg =
-      techIds.length > 0
-        ? await Booking.aggregate([
-            { $match: { technicianId: { $in: techIds } } },
-            {
-              $group: {
-                _id: '$technicianId',
-                activeJobs: {
-                  $sum: {
-                    $cond: [
-                      {
-                        $in: [
-                          '$status',
-                          ['confirmed', 'in_progress', 'awaiting_verification'],
-                        ],
-                      },
-                      1,
-                      0,
-                    ],
-                  },
-                },
-                completedJobs: {
-                  $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] },
-                },
-                lastJobDate: { $max: '$schedule.date' },
-              },
-            },
-          ])
-        : [];
-
-    const aggMap = new Map(agg.map((r) => [String(r._id), r]));
-
-    const enriched = technicians.map((t) => {
-      const stats = aggMap.get(t._id.toString());
-      return {
-        ...sanitizeUser(t),
-        activeJobs: (stats?.activeJobs as number) ?? 0,
-        completedJobs: (stats?.completedJobs as number) ?? 0,
-        lastJobDate: stats?.lastJobDate as string | undefined,
-      };
-    });
-
-    res.json({ technicians: enriched });
+    res.json(await listTechnicians(req.query as Record<string, unknown>));
   }),
 );
 
+/** One month of a technician's jobs (+ open jobs) with all-time totals — utils/adminLists.ts (technicianDetail). */
 adminRouter.get(
   '/technicians/:id/detail',
   param('id').isMongoId(),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
-    const technician = await User.findOne({ _id: req.params.id, role: 'technician' });
-    if (!technician) {
-      throw new AppError(404, 'Technician not found');
-    }
-
-    const month = parseMonthParam(
-      typeof req.query.month === 'string' ? req.query.month : undefined,
-    );
-    const { from, to } = monthRange(month);
-    const today = todayDateKey();
-
-    const bookings = await Booking.find({ technicianId: technician._id })
-      .populate('serviceId')
-      .populate('customerId', '-passwordHash')
-      .sort({ 'schedule.date': 1, createdAt: -1 });
-
-    const formattedBookings = bookings.map((b) => formatBooking(b));
-
-    const calendar: Record<string, number> = {};
-    let activeJobs = 0;
-    let completedJobs = 0;
-    let cancelledJobs = 0;
-    let earnings = 0;
-    let lastJobDate: string | undefined;
-    const techPay = payConfigFromUser(technician);
-
-    for (const b of bookings) {
-      const date = b.schedule?.date;
-      if (date) {
-        calendar[date] = (calendar[date] ?? 0) + 1;
-        if (!lastJobDate || date > lastJobDate) lastJobDate = date;
-      }
-      if (['confirmed', 'in_progress', 'awaiting_verification'].includes(b.status)) {
-        activeJobs += 1;
-      } else if (b.status === 'completed') {
-        completedJobs += 1;
-        earnings += resolveTechEarning(b, techPay);
-      } else if (b.status === 'cancelled') {
-        cancelledJobs += 1;
-      }
-    }
-
-    const reviewCount = await Review.countDocuments({
-      technicianId: technician._id,
-      hidden: { $ne: true },
-    });
-
-    const reviews = await Review.find({
-      technicianId: technician._id,
-      hidden: { $ne: true },
-    })
-      .sort({ createdAt: -1 })
-      .limit(10);
-
-    const attendanceRecords = await loadAttendanceForRange(technician._id, from, to);
-    const attendance = buildAttendanceCalendar(attendanceRecords, from, to, today);
-    const attendanceStats = computeAttendanceAnalytics(attendance, today);
-    const jobStats = computeJobAnalytics(bookings, month);
-    const visitStats = computeJobVisitAnalytics(bookings, today, month);
-    const jobVisits = buildJobVisitsForBookings(bookings, today, month);
-
-    const { start: monthStart, end: monthEnd } = monthDateRange(month);
-
-    const [
-      pendingBookingsRaw,
-      globalPendingCount,
-      globalPendingPeriodCount,
-    ] = await Promise.all([
-      Booking.find({ status: 'pending' })
-        .sort({ createdAt: -1 })
-        .limit(10)
-        .populate('serviceId')
-        .populate('customerId', '-passwordHash')
-        .populate('technicianId', '-passwordHash'),
-      Booking.countDocuments({ status: 'pending' }),
-      Booking.countDocuments({
-        status: 'pending',
-        createdAt: { $gte: monthStart, $lt: monthEnd },
-      }),
-    ]);
-
-    const statusBreakdown = computeTechStatusBreakdown(bookings, month);
-    const attendanceTrend = buildAttendanceTrend(attendance, month, today);
-    const jobsTrend = buildJobsTrend(bookings, month, techPay);
-
-    res.json({
-      technician: sanitizeUser(technician),
-      bookings: formattedBookings,
-      stats: {
-        totalJobs: bookings.length,
-        activeJobs,
-        completedJobs,
-        cancelledJobs,
-        earnings,
-        lastJobDate,
-        reviewCount,
-        paySummary: formatPaySummary(techPay),
-      },
-      reviews: reviews.map((r) => formatReview(r)),
-      calendar,
-      month,
-      attendance,
-      attendanceRecords: attendanceRecords.map((r) => formatAttendance(r)),
-      jobVisits,
-      analytics: {
-        ...attendanceStats,
-        ...jobStats,
-        ...visitStats,
-      },
-      globalPending: {
-        count: globalPendingCount,
-        periodCount: globalPendingPeriodCount,
-        bookings: pendingBookingsRaw.map((b) => formatBooking(b)),
-      },
-      statusBreakdown,
-      attendanceTrend,
-      jobsTrend,
-    });
+    res.json(await technicianDetail(req.params.id, req.query.month));
   }),
 );
 
@@ -479,56 +367,26 @@ adminRouter.put(
 
     const status =
       req.body.status === 'present' ? 'came' : req.body.status === 'leave' ? 'leave' : 'not_came';
+    const word = req.body.status === 'present' ? 'present' : req.body.status === 'leave' ? 'on leave' : 'absent';
+    res.locals.activity = {
+      summary: `Marked ${technician.name} ${word} on ${req.params.date}`,
+      targetLabel: technician.name,
+      fields: ['attendance'],
+    };
     res.json({ attendance: formatAttendance(record), date: req.params.date, status });
   }),
 );
 
-/** Team payroll for a date range — sum of locked/computed job earnings. */
+/**
+ * Team payroll for a month or any range, optional per-job breakdown — utils/adminLists.ts (payroll). Each
+ * row also has adjustments / paid / due for the range (utils/payrollLedger.ts; payouts and adjustments
+ * are managed by routes/payroll.routes.ts).
+ */
 adminRouter.get(
   '/payroll',
   asyncHandler(async (req, res) => {
-    const month = parseMonthParam(
-      typeof req.query.month === 'string' ? req.query.month : undefined,
-    );
-    const { from, to } =
-      typeof req.query.from === 'string' && typeof req.query.to === 'string'
-        ? { from: req.query.from, to: req.query.to }
-        : monthRange(month);
-
-    const techs = await User.find({ role: 'technician' }).sort({ name: 1 });
-    const completed = await Booking.find({
-      status: 'completed',
-      technicianId: { $in: techs.map((t) => t._id) },
-      'schedule.date': { $gte: from, $lte: to },
-    }).select('technicianId amount technicianEarning schedule.status schedule.date');
-
-    const rows = techs.map((tech) => {
-      const pay = payConfigFromUser(tech);
-      const jobs = completed.filter((b) => String(b.technicianId) === String(tech._id));
-      const earnings = jobs.reduce((sum, b) => sum + resolveTechEarning(b, pay), 0);
-      return {
-        technicianId: String(tech._id),
-        name: tech.name,
-        phone: tech.phone,
-        available: tech.available !== false,
-        disabled: tech.disabled === true,
-        paySummary: formatPaySummary(pay),
-        jobsCompleted: jobs.length,
-        earnings,
-      };
-    });
-
-    const totalEarnings = rows.reduce((s, r) => s + r.earnings, 0);
-    const totalJobs = rows.reduce((s, r) => s + r.jobsCompleted, 0);
-
-    res.json({
-      from,
-      to,
-      month,
-      totalEarnings,
-      totalJobs,
-      technicians: rows.sort((a, b) => b.earnings - a.earnings),
-    });
+    const { withPayrollLedger } = await import('../utils/payrollLedger');
+    res.json(await withPayrollLedger(await payroll(req.query as Record<string, unknown>)));
   }),
 );
 
@@ -545,115 +403,37 @@ adminRouter.get(
   }),
 );
 
+/** Paged customers with spend / VIP (rule from Business settings) — utils/adminLists.ts (listCustomers). */
 adminRouter.get(
   '/customers',
-  asyncHandler(async (_req, res) => {
-    const customers = await User.find({ role: 'customer' }).sort({ name: 1 });
-    const customerIds = customers.map((c) => c._id);
-
-    const agg = await Booking.aggregate([
-      { $match: { customerId: { $in: customerIds } } },
-      {
-        $group: {
-          _id: '$customerId',
-          bookingCount: { $sum: 1 },
-          totalSpend: {
-            $sum: {
-              $cond: [{ $eq: ['$status', 'completed'] }, '$amount.total', 0],
-            },
-          },
-          lastBookingAt: { $max: '$createdAt' },
-        },
-      },
-    ]);
-
-    const aggMap = new Map(agg.map((r) => [String(r._id), r]));
-
-    const enriched = customers.map((c) => {
-      const stats = aggMap.get(c._id.toString());
-      const bookingCount = (stats?.bookingCount as number) ?? 0;
-      const totalSpend = (stats?.totalSpend as number) ?? 0;
-      let statusTag: 'active' | 'inactive' | 'vip' = 'active';
-      if (bookingCount === 0) statusTag = 'inactive';
-      else if (totalSpend >= 2000 || bookingCount >= 3) statusTag = 'vip';
-
-      return {
-        ...sanitizeUser(c),
-        bookingCount,
-        totalSpend,
-        lastBookingAt: stats?.lastBookingAt,
-        statusTag,
-      };
-    });
-
-    const summary = {
-      total: enriched.length,
-      new: enriched.filter((c) => {
-        const createdAt = (c as Record<string, unknown>).createdAt;
-        const created = createdAt ? new Date(String(createdAt)) : null;
-        if (!created) return false;
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        return created >= weekAgo;
-      }).length,
-      vip: enriched.filter((c) => c.statusTag === 'vip').length,
-    };
-
-    res.json({ customers: enriched, summary });
+  asyncHandler(async (req, res) => {
+    res.json(await listCustomers(req.query as Record<string, unknown>));
   }),
 );
 
 adminRouter.get(
   '/customers/:id',
+  param('id').isMongoId().withMessage('Invalid customer id'),
+  (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
-    const customer = await User.findOne({ _id: req.params.id, role: 'customer' });
-    if (!customer) {
-      res.status(404).json({ error: 'Customer not found' });
-      return;
-    }
-
-    const bookings = await Booking.find({ customerId: customer._id })
-      .populate('serviceId')
-      .populate('technicianId', '-passwordHash')
-      .sort({ createdAt: -1 });
-
-    const spendAgg = await Booking.aggregate([
-      { $match: { customerId: customer._id, status: 'completed' } },
-      { $group: { _id: null, total: { $sum: '$amount.total' } } },
-    ]);
-
-    res.json({
-      customer: sanitizeUser(customer),
-      bookings: bookings.map((b) => formatBooking(b)),
-      totalSpend: spendAgg[0]?.total ?? 0,
-      bookingCount: bookings.length,
-    });
+    res.json(await customerDetail(req.params.id));
   }),
 );
 
 adminRouter.get(
   '/technicians/:id/bookings',
+  param('id').isMongoId().withMessage('Invalid technician id'),
+  (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
-    const tech = await User.findOne({ _id: req.params.id, role: 'technician' });
-    if (!tech) {
-      res.status(404).json({ error: 'Technician not found' });
-      return;
-    }
-
-    const bookings = await Booking.find({ technicianId: tech._id })
-      .populate('serviceId')
-      .populate('customerId', '-passwordHash')
-      .sort({ 'schedule.date': 1, createdAt: -1 });
-
-    res.json({ bookings: bookings.map((b) => formatBooking(b)) });
+    res.json(await technicianBookings(req.params.id, req.query as Record<string, unknown>));
   }),
 );
 
+/** Paged offers: status (active / inactive / expired), q, sort — utils/adminLists.ts (listOffers). */
 adminRouter.get(
   '/offers',
-  asyncHandler(async (_req, res) => {
-    const offers = await Offer.find().sort({ createdAt: -1 });
-    res.json({ offers: offers.map((o) => o.toJSON()) });
+  asyncHandler(async (req, res) => {
+    res.json(await listOffers(req.query as Record<string, unknown>));
   }),
 );
 
@@ -666,7 +446,9 @@ adminRouter.get(
     if (!offer) {
       throw new AppError(404, 'Offer not found');
     }
-    res.json({ offer: offer.toJSON() });
+    // Usage from the bookings that carry the code (utils/offerStats.ts) and the latest of them.
+    const [stats, recent] = await Promise.all([offerStatsFor([offer.code]), recentOfferBookings(offer.code, 5)]);
+    res.json({ offer: offer.toJSON(), stats: stats.get(offer.code), recent });
   }),
 );
 
@@ -682,8 +464,10 @@ adminRouter.post(
   body('minOrderAmount').optional({ nullable: true }).isFloat({ min: 0 }),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
+    const code = String(req.body.code).toUpperCase().trim();
+    if (await Offer.exists({ code })) throw new AppError(409, `${code} already exists — pick another code`, 'CONFLICT');
     const offer = await Offer.create({
-      code: String(req.body.code).toUpperCase().trim(),
+      code,
       discount: req.body.discount,
       discountType: req.body.discountType ?? 'fixed',
       description: req.body.description.trim(),
@@ -692,6 +476,8 @@ adminRouter.post(
       maxUses: req.body.maxUses ?? undefined,
       minOrderAmount: req.body.minOrderAmount ?? undefined,
     });
+    res.locals.activity = { summary: `Created offer ${offer.code}`, targetId: String(offer._id), targetLabel: offer.code };
+    revalidateWebsite(['offers']);
     res.status(201).json({ offer: offer.toJSON() });
   }),
 );
@@ -733,6 +519,12 @@ adminRouter.patch(
     if (!offer) {
       throw new AppError(404, 'Offer not found');
     }
+    const onlyActive = typeof req.body.active === 'boolean' && Object.keys(req.body).length === 1;
+    res.locals.activity = {
+      summary: onlyActive ? `Switched offer ${offer.code} ${offer.active ? 'on' : 'off'}` : `Updated offer ${offer.code}`,
+      targetLabel: offer.code,
+    };
+    revalidateWebsite(['offers']);
     res.json({ offer: offer.toJSON() });
   }),
 );
@@ -746,43 +538,17 @@ adminRouter.delete(
     if (!offer) {
       throw new AppError(404, 'Offer not found');
     }
+    res.locals.activity = { summary: `Switched offer ${offer.code} off`, targetLabel: offer.code, fields: ['active'] };
+    revalidateWebsite(['offers']);
     res.json({ offer: offer.toJSON() });
   }),
 );
 
+/** Paged reviews with average + star breakdown over all matches — utils/adminLists.ts (listReviews). */
 adminRouter.get(
   '/reviews',
   asyncHandler(async (req, res) => {
-    const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '50'), 10) || 50, 1), 100);
-    const reviews = await Review.find().sort({ createdAt: -1 }).limit(limit);
-    const bookingIds = [...new Set(reviews.map((r) => r.bookingId.toString()))];
-    const bookings = await Booking.find({ _id: { $in: bookingIds } }).select('serviceId customerId');
-    const bookingMap = new Map(bookings.map((b) => [b._id.toString(), b]));
-    const serviceIds = [...new Set(bookings.map((b) => b.serviceId.toString()))];
-    const customerIds = [...new Set(bookings.map((b) => b.customerId.toString()))];
-    const [services, customers] = await Promise.all([
-      Service.find({ _id: { $in: serviceIds } }).select('name'),
-      User.find({ _id: { $in: customerIds } }).select('name'),
-    ]);
-    const serviceNameById = new Map(services.map((s) => [s._id.toString(), s.name]));
-    const customerNameById = new Map(
-      customers.map((c) => [c._id.toString(), c.name?.split(' ')[0] ?? 'Customer']),
-    );
-
-    res.json({
-      reviews: reviews.map((r) => {
-        const base = formatReview(r);
-        const booking = bookingMap.get(r.bookingId.toString());
-        const serviceId = booking?.serviceId?.toString();
-        return {
-          ...base,
-          customerName: booking
-            ? (customerNameById.get(booking.customerId.toString()) ?? 'Customer')
-            : 'Customer',
-          serviceName: serviceId ? (serviceNameById.get(serviceId) ?? 'Service') : 'Service',
-        };
-      }),
-    });
+    res.json(await listReviews(req.query as Record<string, unknown>));
   }),
 );
 
@@ -801,14 +567,123 @@ adminRouter.patch(
       throw new AppError(404, 'Review not found');
     }
 
-    const agg = await Review.aggregate([
-      { $match: { technicianId: review.technicianId, hidden: { $ne: true } } },
-      { $group: { _id: null, avg: { $avg: '$stars' } } },
-    ]);
-    await User.findByIdAndUpdate(review.technicianId, {
-      rating: Math.round((agg[0]?.avg ?? 0) * 10) / 10,
-    });
+    await recomputeTechnicianRating(review.technicianId);
+    revalidateWebsite(['testimonials']);
+    res.locals.activity = {
+      summary: `${review.hidden ? 'Hid' : 'Showed'} a ${review.stars}★ review (booking #${String(review.bookingId).slice(-6).toUpperCase()})`,
+      fields: ['hidden'],
+    };
+    res.json({ review: { ...formatReview(review), reply: adminReviewReply(review.reply) } });
+  }),
+);
 
-    res.json({ review: formatReview(review) });
+/* ---------- E2: admin accounts, customer addresses, people search ---------- */
+
+const PRIMARY_ADMIN_ONLY = 'Only the primary admin can manage admin accounts';
+
+/** The env-configured admin (ADMIN_PHONE) is the primary admin. */
+async function isPrimaryAdminId(userId: string): Promise<boolean> {
+  const actor = await User.findById(userId).select('role phone');
+  return Boolean(actor && isEnvAdmin(actor));
+}
+
+async function assertPrimaryAdmin(actorId: string): Promise<void> {
+  if (!(await isPrimaryAdminId(actorId))) throw new AppError(403, PRIMARY_ADMIN_ONLY, 'PRIMARY_ADMIN_ONLY');
+}
+
+/**
+ * Editing an admin account, or promoting someone to admin, is for the primary admin only. Other admins may
+ * still edit their own profile (name, phone, email, city) — but not their own role or access.
+ */
+async function assertCanEditAccount(actorId: string, target: IUser, body: Record<string, unknown>): Promise<void> {
+  const promotes = body.role === 'admin' && target.role !== 'admin';
+  if (target.role !== 'admin' && !promotes) return;
+  if (await isPrimaryAdminId(actorId)) return;
+  const self = String(target._id) === actorId;
+  const roleChange = typeof body.role === 'string' && body.role !== target.role;
+  const accessChange = typeof body.disabled === 'boolean' && body.disabled !== (target.disabled === true);
+  if (self && !roleChange && !accessChange) return;
+  throw new AppError(403, PRIMARY_ADMIN_ONLY, 'PRIMARY_ADMIN_ONLY');
+}
+
+const ACCOUNT_FIELDS = [
+  'name',
+  'phone',
+  'email',
+  'city',
+  'role',
+  'available',
+  'disabled',
+  'displayRating',
+  'payMode',
+  'payPercent',
+  'payFlat',
+  ...COVERAGE_FIELDS,
+] as const;
+
+type AccountSnapshot = Record<(typeof ACCOUNT_FIELDS)[number], unknown>;
+
+function accountSnapshot(user: IUser): AccountSnapshot {
+  const u = user as unknown as Record<string, unknown>;
+  return Object.fromEntries(ACCOUNT_FIELDS.map((f) => [f, u[f] ?? null])) as AccountSnapshot;
+}
+
+/** Activity entry for a user edit — role and access changes spelled out, other fields by name (never values). */
+function accountChangeNote(before: AccountSnapshot, user: IUser, actorId: string) {
+  const after = accountSnapshot(user);
+  const fields = ACCOUNT_FIELDS.filter((f) => JSON.stringify(before[f]) !== JSON.stringify(after[f]));
+  if (fields.length === 0) return { skip: true };
+  const whose = String(user._id) === actorId ? 'own account' : `${user.name}'s account`;
+  let summary: string;
+  if (fields.includes('role')) summary = `Changed ${user.name}'s role from ${String(before.role)} to ${user.role}`;
+  else if (fields.includes('disabled')) summary = user.disabled ? `Disabled ${user.name}'s account` : `Re-enabled ${user.name}'s account`;
+  else summary = `Updated ${whose} (${fields.join(', ')})`;
+  return { summary, targetType: 'user', targetLabel: user.name, fields: [...fields] };
+}
+
+/** GET /admin/customers/:id/addresses → { addresses } — a customer's saved addresses (default first). */
+adminRouter.get(
+  '/customers/:id/addresses',
+  param('id').isMongoId(),
+  (req, res, next) => runValidation(req, res, next),
+  asyncHandler(async (req, res) => {
+    const customer = await User.findOne({ _id: req.params.id, role: 'customer' }).select('_id');
+    if (!customer) throw new AppError(404, 'Customer not found');
+    // Default first; `inServiceArea` false when Business settings → Service area doesn't cover it.
+    res.json({ addresses: await customerAddresses(customer._id) });
+  }),
+);
+
+/**
+ * GET /admin/user-search?q&role&limit&includeDisabled=1 → { users: [{ id, name, phone, email, role, city, disabled }] }
+ * Light people search for pickers (book for a customer, broadcast to one person). Name, email or phone digits.
+ */
+adminRouter.get(
+  '/user-search',
+  asyncHandler(async (req, res) => {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 60) : '';
+    const roles = ['customer', 'technician', 'admin'];
+    const role = typeof req.query.role === 'string' && roles.includes(req.query.role) ? req.query.role : undefined;
+    const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '20'), 10) || 20, 1), 50);
+    const filter: Record<string, unknown> = {};
+    if (role) filter.role = role;
+    if (req.query.includeDisabled !== '1') filter.disabled = { $ne: true };
+    if (q) {
+      const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      const digits = q.replace(/\D/g, '');
+      filter.$or = [{ name: rx }, { email: rx }, { phone: digits.length >= 3 ? new RegExp(digits) : rx }];
+    }
+    const users = await User.find(filter).sort({ name: 1 }).limit(limit).select('name phone email role city disabled');
+    res.json({
+      users: users.map((u) => ({
+        id: String(u._id),
+        name: u.name,
+        phone: u.phone,
+        email: u.email,
+        role: u.role,
+        city: u.city,
+        disabled: u.disabled === true,
+      })),
+    });
   }),
 );

@@ -64,6 +64,7 @@ export const techRoutes = {
   job: (id: string) => `/(tech)/job/${id}` as const,
   analytics: '/(tech)/analytics',
   leave: '/(tech)/leave',
+  notifications: '/(tech)/notifications',
 } as const;
 
 /* ─── Shared (catalog / book / review) ─────────────────────────────────── */
@@ -71,12 +72,13 @@ export const techRoutes = {
 export const sharedRoutes = {
   service: (id: string) => `/service/${id}` as const,
   browse: (type: string) => `/browse/${type}` as const,
-  book: (serviceId: string, extras?: { coupon?: string }) =>
+  book: (serviceId: string, extras?: { coupon?: string; option?: string }) =>
     ({
       pathname: '/book/[serviceId]',
       params: {
         serviceId,
         ...(extras?.coupon ? { coupon: extras.coupon } : {}),
+        ...(extras?.option ? { option: extras.option } : {}),
       },
     }) as const,
   bookPath: (serviceId: string) => `/book/${serviceId}` as const,
@@ -95,16 +97,30 @@ export const adminRoutes = {
   home: ADMIN_HOME,
   team: ADMIN_TEAM,
   bookings: '/(admin)/bookings',
-  bookingsFiltered: (params: { status?: string; serviceId?: string }) =>
+  /** Bookings list opened with filters (only the filters given are passed). Dates are YYYY-MM-DD. */
+  bookingsFiltered: (params: {
+    status?: string;
+    serviceId?: string;
+    technicianId?: string;
+    customerId?: string;
+    paymentStatus?: string;
+    from?: string;
+    to?: string;
+    q?: string;
+  }) =>
     ({
       pathname: '/(admin)/bookings',
-      params: {
-        ...(params.status ? { status: params.status } : {}),
-        ...(params.serviceId ? { serviceId: params.serviceId } : {}),
-      },
+      params: Object.fromEntries(
+        Object.entries(params).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].length > 0),
+      ),
     }) as const,
+  /** New booking made by an admin on a customer's behalf (optionally for a chosen customer). */
+  bookingCreate: '/(admin)/booking-create',
+  bookingCreateFor: (customerId?: string) =>
+    ({ pathname: '/(admin)/booking-create', params: customerId ? { customerId } : {} }) as const,
   reports: '/(admin)/reports',
   services: '/(admin)/services',
+  serviceOrder: '/(admin)/service-order',
   serviceEdit: '/(admin)/service-edit',
   offers: '/(admin)/offers',
   offerEdit: '/(admin)/offer-edit',
@@ -122,6 +138,28 @@ export const adminRoutes = {
   leave: '/(admin)/leave',
   payroll: '/(admin)/payroll',
   dataExport: '/(admin)/data-export',
+  businessSettings: '/(admin)/settings-business',
+  activity: '/(admin)/activity',
+  broadcast: '/(admin)/broadcast',
+  /* Website (public site) */
+  website: '/(admin)/website',
+  websitePages: '/(admin)/website/pages',
+  websitePhotos: '/(admin)/website/photos',
+  websiteLists: '/(admin)/website/lists',
+  websiteSettings: '/(admin)/website/settings',
+  websiteBlog: '/(admin)/website/blog',
+  websiteBlogEdit: '/(admin)/website/blog-edit',
+  websiteGallery: '/(admin)/website/gallery',
+  websiteTeam: '/(admin)/website/team',
+  websiteTeamEdit: '/(admin)/website/team-edit',
+  websiteTestimonials: '/(admin)/website/testimonials',
+  websiteTestimonialEdit: '/(admin)/website/testimonial-edit',
+  websiteMessages: '/(admin)/website/messages',
+  websiteSubscribers: '/(admin)/website/subscribers',
+  /** Deleted website items (restore within 30 days). */
+  websiteTrash: '/(admin)/website/trash',
+  /** Global search (phones; the desktop web opens the command palette instead). */
+  search: '/(admin)/search',
 } as const;
 
 export type AdminRoute = (typeof adminRoutes)[keyof typeof adminRoutes] | ReturnType<
@@ -146,11 +184,16 @@ export function homeRouteForRole(role: UserRole | string): string {
 export function adminBackFallback(pathname?: string): string {
   if (!pathname) return ADMIN_TEAM;
 
+  if (pathname.includes('/website/blog-edit')) return adminRoutes.websiteBlog;
+  if (pathname.includes('/website/team-edit')) return adminRoutes.websiteTeam;
+  if (pathname.includes('/website/testimonial-edit')) return adminRoutes.websiteTestimonials;
+  if (pathname.includes('/website/')) return adminRoutes.website;
   if (pathname.includes('/service-edit')) return adminRoutes.services;
   if (pathname.includes('/offer-edit')) return adminRoutes.offers;
   if (pathname.includes('/user-edit')) return adminRoutes.users;
   if (pathname.includes('/customer/')) return adminRoutes.customers;
   if (pathname.includes('/technician/')) return adminRoutes.technicians;
+  if (pathname.includes('/booking-create')) return adminRoutes.bookings;
   if (pathname.includes('/booking/')) return adminRoutes.bookings;
   if (pathname.includes('/notifications')) return ADMIN_TEAM;
   if (pathname.includes('/settings')) return ADMIN_TEAM;

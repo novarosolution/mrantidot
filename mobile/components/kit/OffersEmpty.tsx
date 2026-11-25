@@ -1,23 +1,24 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { TicketPercent } from 'lucide-react-native';
 import { Button } from '@/components/ui/Button';
-import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { colors, fonts, radii, spacing, ui } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 export function OffersEmpty({ hint }: { hint?: string }) {
+  const copy = useCustomerUiCopy();
   return (
     <View style={styles.wrap}>
       <View style={styles.card}>
         <View style={styles.icon}>
           <TicketPercent size={28} color={ui.brand} strokeWidth={1.9} />
         </View>
-        <Text style={styles.title}>No offers right now</Text>
-        <Text style={styles.message}>
-          {hint?.trim() ||
-            'New coupons and seasonal deals will show up here. Book a service anytime at regular pricing.'}
+        <Text style={styles.title} accessibilityRole="header">
+          {copy.offersEmptyTitle}
         </Text>
+        <Text style={styles.message}>{hint?.trim() || copy.offersEmptyMessage}</Text>
         <Button
-          title="Browse services"
+          title={copy.offersBrowseLabel}
           variant="premium"
           onPress={() => appPush(customerRoutes.services)}
           style={styles.btn}
@@ -30,7 +31,7 @@ export function OffersEmpty({ hint }: { hint?: string }) {
 const styles = StyleSheet.create({
   wrap: { flex: 1, justifyContent: 'center', padding: spacing.md, paddingTop: spacing.xl },
   card: {
-    borderRadius: 22,
+    borderRadius: radii.card,
     maxWidth: 340,
     alignSelf: 'center',
     width: '100%',

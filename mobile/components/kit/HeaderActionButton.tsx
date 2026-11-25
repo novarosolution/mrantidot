@@ -1,13 +1,13 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, StyleSheet } from 'react-native';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { IconGradients } from '@/constants/appIcons';
-import { colors, shadows } from '@/constants/theme';
+import { StyleSheet, View } from 'react-native';
+import { GlassSurface } from '@/components/ui/GlassSurface';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { ui } from '@/constants/theme';
+import { webTitle } from '@/lib/webKeys';
 
-/** Circular header action — consistent across tab screens. */
+/** Circular glass header action — same treatment as the home bell, consistent across screens. */
 export function HeaderActionButton({
-  icon,
+  icon: Icon,
   onPress,
   accessibilityLabel,
 }: {
@@ -15,18 +15,21 @@ export function HeaderActionButton({
   onPress: () => void;
   accessibilityLabel?: string;
 }) {
+  // The wrapper carries the browser tooltip for this icon-only button (web).
   return (
-    <Pressable
-      style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
-      onPress={onPress}
-      hitSlop={8}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? 'Action'}
-    >
-      <LinearGradient colors={[...IconGradients.forest]} style={styles.grad} start={{ x: 0.2, y: 0 }} end={{ x: 0.9, y: 1 }}>
-        <PremiumIcon icon={icon} variant="plain" size="lg" color={colors.white} strokeWidth={2.3} />
-      </LinearGradient>
-    </Pressable>
+    <View ref={webTitle(accessibilityLabel)}>
+      <PressableScale
+        scaleTo={0.92}
+        onPress={onPress}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel ?? 'Action'}
+      >
+        <GlassSurface style={styles.btn} intensity={30} tintOpacity={0.78}>
+          <Icon size={20} color={ui.brand} strokeWidth={2.1} />
+        </GlassSurface>
+      </PressableScale>
+    </View>
   );
 }
 
@@ -35,13 +38,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    overflow: 'hidden',
-    ...shadows.card,
-  },
-  grad: {
-    flex: 1,
+    borderWidth: 1,
+    borderColor: ui.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pressed: { opacity: 0.92, transform: [{ scale: 0.97 }] },
 });

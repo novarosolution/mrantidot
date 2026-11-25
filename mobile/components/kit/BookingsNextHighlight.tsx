@@ -1,5 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { ArrowRight, CalendarClock, MapPin } from 'lucide-react-native';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import { StatusPill } from '@/components/ui/StatusPill';
@@ -11,8 +12,10 @@ import {
   isBookingLive,
 } from '@/lib/booking-helpers';
 import { useBookingCopy } from '@/lib/schedule-copy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import type { Booking } from '@/types/api';
-import { colors, fonts, gradients, spacing, ui } from '@/constants/theme';
+import { colors, fonts, gradients, radii, spacing, ui } from '@/constants/theme';
+import { localDateKey } from '@/lib/dates';
 
 /** Premium next-visit hero — dark brand card with schedule, address, and CTA. */
 export function BookingsNextHighlight({
@@ -23,14 +26,21 @@ export function BookingsNextHighlight({
   onPress?: () => void;
 }) {
   const copy = useBookingCopy();
+  const labels = useCustomerUiCopy();
   const live = isBookingLive(booking.status);
+  // "Happening now" only for today's visit — an older job that is still open just reads "In progress".
+  const liveLabel = booking.schedule?.date === localDateKey() ? copy.liveNowLabel : copy.liveOngoingLabel;
+  const name = bookingServiceName(booking, labels);
 
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
-      style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}
+      disabled={!onPress}
+      scaleTo={0.985}
+      haptic="tap"
+      containerStyle={styles.wrap}
       accessibilityRole="button"
-      accessibilityLabel={`${copy.listNextVisitLabel}: ${bookingServiceName(booking)}`}
+      accessibilityLabel={`${copy.listNextVisitLabel}: ${name}`}
     >
       <LinearGradient
         colors={[...gradients.premiumHero]}
@@ -45,7 +55,7 @@ export function BookingsNextHighlight({
           <View style={styles.badge}>
             {live ? <View style={styles.liveDot} /> : null}
             <Text style={styles.badgeText}>
-              {live ? 'Happening now' : copy.listNextVisitLabel}
+              {live ? liveLabel : copy.listNextVisitLabel}
             </Text>
           </View>
           <StatusPill status={booking.status} />
@@ -53,11 +63,11 @@ export function BookingsNextHighlight({
 
         <View style={styles.main}>
           <View style={styles.icon}>
-            <ServiceIcon iconKey={bookingServiceIconKey(booking)} size={28} color={colors.white} />
+            <ServiceIcon iconKey={bookingServiceIconKey(booking)} size={40} color={colors.white} />
           </View>
           <View style={styles.body}>
             <Text style={styles.name} numberOfLines={2}>
-              {bookingServiceName(booking)}
+              {name}
             </Text>
             <Text style={styles.ref}>{bookingRef(booking.id)}</Text>
           </View>
@@ -67,7 +77,7 @@ export function BookingsNextHighlight({
           <View style={styles.metaRow}>
             <CalendarClock size={14} color={colors.limeOnDark} strokeWidth={2.2} />
             <Text style={styles.metaText} numberOfLines={1}>
-              {bookingScheduleDisplay(booking)}
+              {bookingScheduleDisplay(booking, labels)}
             </Text>
           </View>
           {booking.address ? (
@@ -81,13 +91,13 @@ export function BookingsNextHighlight({
         </View>
 
         <View style={styles.cta}>
-          <Text style={styles.ctaText}>{live ? 'Track live visit' : 'View visit details'}</Text>
+          <Text style={styles.ctaText}>{live ? labels.bookingsTrackLive : labels.bookingsViewVisit}</Text>
           <View style={styles.ctaIcon}>
             <ArrowRight size={16} color={ui.brand} strokeWidth={2.5} />
           </View>
         </View>
       </LinearGradient>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -96,9 +106,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     marginBottom: spacing.md,
   },
-  pressed: { opacity: 0.96, transform: [{ scale: 0.985 }] },
   card: {
-    borderRadius: 24,
+    borderRadius: radii.card,
     padding: 18,
     overflow: 'hidden',
     shadowColor: colors.deep,

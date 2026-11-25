@@ -2,7 +2,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fonts, premium, spacing } from '@/constants/theme';
+import { colors, fonts, premium, spacing, ui } from '@/constants/theme';
 
 export type MetricDetailRow = {
   key: string;
@@ -61,7 +61,11 @@ export function MetricDetailSheet({
                         {row.subtitle}
                       </Text>
                     ) : null}
-                    {row.meta ? <Text style={styles.rowMeta}>{row.meta}</Text> : null}
+                    {row.meta ? (
+                    <Text style={styles.rowMeta} numberOfLines={2}>
+                      {row.meta}
+                    </Text>
+                  ) : null}
                   </View>
                   {row.onPress ? (
                     <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size="md" color={colors.muted} />
@@ -71,11 +75,19 @@ export function MetricDetailSheet({
             )}
           </ScrollView>
           {actionLabel && onAction ? (
-            <Pressable style={styles.action} onPress={onAction}>
+            <Pressable
+              style={({ pressed }) => [styles.action, pressed && styles.btnPressed]}
+              onPress={onAction}
+              accessibilityRole="button"
+            >
               <Text style={styles.actionText}>{actionLabel}</Text>
             </Pressable>
           ) : null}
-          <Pressable style={styles.cancel} onPress={onClose}>
+          <Pressable
+            style={({ pressed }) => [styles.cancel, pressed && styles.btnPressed]}
+            onPress={onClose}
+            accessibilityRole="button"
+          >
             <Text style={styles.cancelText}>Close</Text>
           </Pressable>
         </Pressable>
@@ -85,11 +97,11 @@ export function MetricDetailSheet({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(8,14,10,0.45)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: colors.white,
-    borderTopLeftRadius: premium.radiusCard,
-    borderTopRightRadius: premium.radiusCard,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     maxHeight: '82%',
@@ -112,10 +124,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: ui.border,
   },
   rowPressed: { opacity: 0.7 },
+  btnPressed: { opacity: 0.8 },
   rowBody: { flex: 1, minWidth: 0 },
   rowTitle: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.ink },
   rowSub: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 2 },
@@ -132,8 +145,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingVertical: 14,
     borderRadius: 14,
-    backgroundColor: colors.bg,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.border,
     alignItems: 'center',
   },
-  cancelText: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.muted },
+  cancelText: { fontFamily: fonts.bodySemi, fontSize: 14, color: ui.text },
 });

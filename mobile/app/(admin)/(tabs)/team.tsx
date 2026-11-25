@@ -1,16 +1,21 @@
-import { StyleSheet, View } from 'react-native';
-import { AdminHubLink } from '@/components/kit/AdminHubLink';
+import { StyleSheet, Text, View } from 'react-native';
+import { ArrowUpDown, BriefcaseBusiness, CalendarPlus, Globe, Megaphone, ScrollText, UserPlus, UserRoundPlus } from 'lucide-react-native';
+import { AdminHubGroup, AdminHubLink } from '@/components/kit/AdminHubLink';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { AdminScreenHeader } from '@/components/kit/AdminScreenHeader';
 import { AdminTabScreen } from '@/components/kit/AdminScreenKit';
 import { AdminSectionTitle } from '@/components/kit/AdminListShell';
-import { Button } from '@/components/ui/Button';
 import { AppIcons } from '@/constants/appIcons';
 import { AppIconImages, AppImageIcons } from '@/constants/appImageIcons';
 import { useAuth } from '@/context/AuthContext';
 import { adminRoutes, appPush, type RouteInput } from '@/lib/routes';
+import { stagger } from '@/lib/motion';
 import { useUnreadNotifications } from '@/lib/useUnreadNotifications';
+import { useWebsiteSummary } from '@/lib/useWebsiteSummary';
 import { userInitial } from '@/lib/userInitials';
-import { spacing } from '@/constants/theme';
+import { useWideWebLayout } from '@/lib/webAdmin';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 import type { LucideIcon } from 'lucide-react-native';
 import type { ImageSourcePropType } from 'react-native';
 
@@ -50,9 +55,27 @@ const OPERATIONS_LINKS: HubLink[] = [
     desc: 'Revenue, trends & performance',
     href: adminRoutes.reports,
   },
+  {
+    icon: Megaphone,
+    label: 'Broadcast',
+    desc: 'Send a notice to customers or technicians',
+    href: adminRoutes.broadcast,
+  },
+  {
+    icon: ScrollText,
+    label: 'Activity log',
+    desc: 'Who changed what, and when',
+    href: adminRoutes.activity,
+  },
 ];
 
 const CONTENT_LINKS: HubLink[] = [
+  {
+    icon: Globe,
+    label: 'Website',
+    desc: 'Pages, photos, blog, team & messages',
+    href: adminRoutes.website,
+  },
   {
     icon: Hub.homeContent,
     image: HubImg.homeContent,
@@ -75,6 +98,12 @@ const CONTENT_LINKS: HubLink[] = [
     label: 'Services catalog',
     desc: 'Pricing, categories & availability',
     href: adminRoutes.services,
+  },
+  {
+    icon: ArrowUpDown,
+    label: 'Arrange services',
+    desc: 'Order & which services show on home',
+    href: adminRoutes.serviceOrder,
   },
   {
     icon: Hub.offers,
@@ -132,6 +161,13 @@ const PEOPLE_LINKS: HubLink[] = [
 
 const SYSTEM_LINKS: HubLink[] = [
   {
+    icon: BriefcaseBusiness,
+    label: 'Business settings',
+    desc: 'Tax, time slots, booking rules, lists, service area, payments & app status',
+    href: adminRoutes.businessSettings,
+    featured: true,
+  },
+  {
     icon: AppIcons.ui.download,
     image: AppImageIcons.file,
     label: 'Data export',
@@ -147,111 +183,132 @@ const SYSTEM_LINKS: HubLink[] = [
   },
 ];
 
+const SECTIONS: { title: string; hint: string; links: HubLink[] }[] = [
+  { title: 'Operations', hint: 'Jobs, alerts & performance', links: OPERATIONS_LINKS },
+  { title: 'Content & catalog', hint: 'What customers see in the app', links: CONTENT_LINKS },
+  { title: 'People', hint: 'Roster, leave, pay & accounts', links: PEOPLE_LINKS },
+  { title: 'System', hint: 'Export & admin account', links: SYSTEM_LINKS },
+];
+
 export default function TeamHubScreen() {
   const { user } = useAuth();
   const { unreadCount } = useUnreadNotifications();
+  const { summary: websiteSummary } = useWebsiteSummary();
   const initial = userInitial(user?.name);
+  // Desktop: the sidebar calls this page "All tools", and the groups sit in two columns.
+  const wide = useWideWebLayout();
+
+  const renderSection = (section: (typeof SECTIONS)[number], i: number) => (
+    <FadeSlideIn key={section.title} delay={stagger(i + 1)} slideFrom={14}>
+      <AdminSectionTitle title={section.title} hint={section.hint} />
+      <AdminHubGroup>
+        {section.links.map((l) => (
+          <AdminHubLink
+            key={l.label}
+            icon={l.icon}
+            label={l.label}
+            desc={l.desc}
+            badge={
+              l.href === adminRoutes.notifications
+                ? unreadCount
+                : l.href === adminRoutes.website
+                  ? websiteSummary?.newMessages
+                  : undefined
+            }
+            onPress={() => appPush(l.href)}
+          />
+        ))}
+      </AdminHubGroup>
+    </FadeSlideIn>
+  );
 
   return (
     <AdminTabScreen
       header={
         <AdminScreenHeader
-          title="Manage"
+          title={wide ? 'All tools' : 'Manage'}
           subtitle="Content, people & operations"
-          eyebrow="CONTROL"
+          eyebrow={wide ? 'ALL TOOLS' : 'CONTROL'}
           userInitial={initial}
           unreadCount={unreadCount}
         />
       }
     >
-      <AdminSectionTitle title="Operations" hint="Jobs, alerts & performance" />
-      <View style={styles.links}>
-        {OPERATIONS_LINKS.map((l) => (
-          <AdminHubLink
-            key={typeof l.href === 'string' ? l.href : l.label}
-            icon={l.icon}
-            image={l.image}
-            label={l.label}
-            desc={l.desc}
-            onPress={() => appPush(l.href)}
+      <FadeSlideIn delay={stagger(0)} slideFrom={14}>
+        <View style={styles.addRow}>
+          {wide ? <AddTile icon={CalendarPlus} label="New booking" onPress={() => appPush(adminRoutes.bookingCreate)} /> : null}
+          <AddTile
+            icon={UserPlus}
+            label="Add technician"
+            onPress={() =>
+              appPush({ pathname: adminRoutes.userEdit, params: { role: 'technician', returnTo: adminRoutes.team } })
+            }
           />
-        ))}
-      </View>
-
-      <AdminSectionTitle title="Content & catalog" hint="Promo, home, brand & catalog" />
-      <View style={styles.links}>
-        {CONTENT_LINKS.map((l) => (
-          <AdminHubLink
-            key={l.label}
-            icon={l.icon}
-            image={l.image}
-            label={l.label}
-            desc={l.desc}
-            featured={l.featured}
-            onPress={() => appPush(l.href)}
+          <AddTile
+            icon={UserRoundPlus}
+            label="Add customer"
+            onPress={() =>
+              appPush({ pathname: adminRoutes.userEdit, params: { role: 'customer', returnTo: adminRoutes.team } })
+            }
           />
-        ))}
-      </View>
+        </View>
+      </FadeSlideIn>
 
-      <AdminSectionTitle title="People" hint="Roster, roles & customer accounts" />
-      <View style={styles.links}>
-        {PEOPLE_LINKS.map((l) => (
-          <AdminHubLink
-            key={typeof l.href === 'string' ? l.href : l.label}
-            icon={l.icon}
-            image={l.image}
-            label={l.label}
-            desc={l.desc}
-            onPress={() => appPush(l.href)}
-          />
-        ))}
-      </View>
-
-      <AdminSectionTitle title="System" hint="Export & admin account" />
-      <View style={styles.links}>
-        {SYSTEM_LINKS.map((l) => (
-          <AdminHubLink
-            key={typeof l.href === 'string' ? l.href : l.label}
-            icon={l.icon}
-            image={l.image}
-            label={l.label}
-            desc={l.desc}
-            onPress={() => appPush(l.href)}
-          />
-        ))}
-      </View>
-
-      <View style={styles.addBlock}>
-        <Button
-          title="Add technician"
-          variant="premium"
-          onPress={() =>
-            appPush({
-              pathname: adminRoutes.userEdit,
-              params: { role: 'technician', returnTo: adminRoutes.team },
-            })
-          }
-        />
-        <Button
-          title="Add customer"
-          variant="secondary"
-          onPress={() =>
-            appPush({
-              pathname: adminRoutes.userEdit,
-              params: { role: 'customer', returnTo: adminRoutes.team },
-            })
-          }
-        />
-      </View>
+      {wide ? (
+        <View style={styles.cols}>
+          <View style={styles.col}>{[0, 2].map((i) => renderSection(SECTIONS[i], i))}</View>
+          <View style={styles.col}>{[1, 3].map((i) => renderSection(SECTIONS[i], i))}</View>
+        </View>
+      ) : (
+        SECTIONS.map(renderSection)
+      )}
     </AdminTabScreen>
   );
 }
 
+function AddTile({ icon: Icon, label, onPress }: { icon: LucideIcon; label: string; onPress: () => void }) {
+  return (
+    <PressableScale
+      containerStyle={styles.addCell}
+      style={styles.addTile}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <View style={styles.addIcon}>
+        <Icon size={18} color={colors.white} strokeWidth={2.2} />
+      </View>
+      <Text style={styles.addLabel} numberOfLines={1}>
+        {label}
+      </Text>
+    </PressableScale>
+  );
+}
+
 const styles = StyleSheet.create({
-  links: { paddingHorizontal: spacing.md, gap: spacing.sm },
-  addBlock: {
-    marginTop: spacing.lg,
-    marginHorizontal: spacing.md,
-    gap: spacing.sm,
+  cols: { flexDirection: 'row', alignItems: 'flex-start' },
+  col: { flex: 1, minWidth: 0 },
+  addRow: { flexDirection: 'row', gap: 10, paddingHorizontal: spacing.md, marginTop: spacing.xs },
+  addCell: { flex: 1 },
+  addTile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
+    ...ui.shadow,
   },
+  addIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: ui.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addLabel: { flex: 1, fontFamily: fonts.bodyBold, fontSize: 13.5, color: ui.text },
 });

@@ -1,134 +1,119 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { memo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { GlassPanel } from '@/components/kit/GlassScreenKit';
-import { AppIcons } from '@/constants/appIcons';
+import { StyleSheet, Text, View } from 'react-native';
+import { Star } from 'lucide-react-native';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import { ServiceTypeBadges } from '@/components/kit/ServiceTypeBadges';
 import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
+import { PressableScale } from '@/components/ui/PressableScale';
 import type { Service } from '@/types/api';
 import { serviceDisplayRating, serviceRealRating } from '@/lib/ratings';
-import { adminType, colors, customerType, spacing, surfaces } from '@/constants/theme';
+import { adminType, colors, fonts, spacing, ui } from '@/constants/theme';
 
+/** One catalog row — tap anywhere to edit, the switch takes the service live / off. */
 function AdminServiceListCardComponent({
   service,
   onPress,
-  onEdit,
   onToggleActive,
 }: {
   service: Service;
   index: number;
   onPress: () => void;
-  onEdit: () => void;
+  /** @deprecated The whole card opens the editor now. */
+  onEdit?: () => void;
   onToggleActive: () => void;
 }) {
   const inactive = service.active === false;
   const real = serviceRealRating(service.stats);
   const display = serviceDisplayRating(service);
+  const booked = service.stats?.bookingCount;
 
   return (
-    <GlassPanel style={[styles.shell, inactive && styles.inactive]} padded={false} tone="light" goldEdge intensity={38}>
-      <View style={styles.row}>
-        <Pressable style={({ pressed }) => [styles.main, pressed && styles.pressed]} onPress={onPress}>
-          <LinearGradient
-            colors={inactive ? ['rgba(243,244,242,0.9)', 'rgba(232,236,230,0.85)'] : ['rgba(238,248,230,0.92)', 'rgba(216,237,200,0.78)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.icon, inactive && styles.iconMuted]}
-          >
-            <ServiceIcon iconKey={service.iconKey} size={22} color={inactive ? colors.muted : colors.forest} />
-          </LinearGradient>
-          <View style={styles.body}>
-            <View style={styles.titleRow}>
-              <Text style={styles.name} numberOfLines={1}>
-                {service.name}
-              </Text>
-              {inactive ? <Text style={styles.badgeOff}>Off</Text> : <Text style={styles.badgeOn}>Live</Text>}
-            </View>
-            <ServiceTypeBadges types={service.serviceTypes} max={3} />
-            <View style={styles.metaRow}>
-              <Text style={styles.price}>₹{service.basePrice}</Text>
-              <Text style={styles.meta}>★ {display.toFixed(1)}</Text>
-              {real != null ? <Text style={styles.metaReal}>{real.toFixed(1)} real</Text> : null}
-              {service.stats ? <Text style={styles.meta}>{service.stats.bookingCount} booked</Text> : null}
-            </View>
-          </View>
-        </Pressable>
-        <View style={styles.actions}>
-          <ToggleSwitch value={!inactive} onToggle={onToggleActive} />
-          <Pressable
-            style={styles.editBtn}
-            onPress={onEdit}
-            hitSlop={6}
-            accessibilityRole="button"
-            accessibilityLabel="Edit service"
-          >
-            <PremiumIcon icon={AppIcons.ui.edit} variant="plain" size="sm" color={colors.forest} strokeWidth={2.2} />
-          </Pressable>
-          <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size="sm" color={colors.muted} />
-        </View>
+    <PressableScale
+      style={styles.card}
+      containerStyle={styles.cardWrap}
+      scaleTo={0.98}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${service.name}, ${inactive ? 'off' : 'live'}. Edit service`}
+    >
+      <View style={[styles.icon, inactive && styles.iconOff]}>
+        <ServiceIcon iconKey={service.iconKey} size={34} color={inactive ? ui.textTertiary : colors.forest} />
       </View>
-    </GlassPanel>
+
+      <View style={styles.body}>
+        <Text style={[styles.name, inactive && styles.nameOff]} numberOfLines={1}>
+          {service.name}
+        </Text>
+        <ServiceTypeBadges types={service.serviceTypes} max={2} />
+        <View style={styles.metaRow}>
+          <Text style={[styles.price, inactive && styles.nameOff]} numberOfLines={1}>
+            ₹{service.basePrice}
+          </Text>
+          <View style={styles.dot} />
+          <Star size={12} color={ui.text} fill={ui.text} strokeWidth={0} />
+          <Text style={styles.meta}>{display.toFixed(1)}</Text>
+          {booked != null ? (
+            <>
+              <View style={styles.dot} />
+              <Text style={styles.meta} numberOfLines={1}>
+                {booked} booked
+              </Text>
+            </>
+          ) : null}
+        </View>
+        {real != null ? (
+          <Text style={styles.real} numberOfLines={1}>
+            Customer reviews average {real.toFixed(1)}
+          </Text>
+        ) : null}
+      </View>
+
+      <View style={styles.side}>
+        <ToggleSwitch
+          value={!inactive}
+          onToggle={onToggleActive}
+          accessibilityLabel={inactive ? `Make ${service.name} live` : `Turn off ${service.name}`}
+        />
+        <Text style={[styles.state, inactive ? styles.stateOff : styles.stateOn]}>{inactive ? 'Off' : 'Live'}</Text>
+      </View>
+    </PressableScale>
   );
 }
 
 export const AdminServiceListCard = memo(AdminServiceListCardComponent);
 
 const styles = StyleSheet.create({
-  shell: { marginBottom: spacing.sm, borderRadius: 20 },
-  inactive: { opacity: 0.76 },
-  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: spacing.md, paddingTop: spacing.sm + 10 },
-  main: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 12, minWidth: 0 },
-  pressed: { opacity: 0.94 },
+  cardWrap: { marginBottom: spacing.sm },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
+    ...ui.shadow,
+  },
   icon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    width: 52,
+    height: 52,
+    borderRadius: 15,
+    backgroundColor: ui.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconMuted: { borderColor: 'rgba(226,230,224,0.85)' },
+  iconOff: { backgroundColor: ui.surfaceMuted },
   body: { flex: 1, minWidth: 0, gap: 5 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  name: { ...adminType.listTitle, flex: 1, fontSize: 15 },
-  badgeOff: {
-    ...customerType.pillLabel,
-    color: colors.error,
-    backgroundColor: 'rgba(251,231,225,0.72)',
-    borderWidth: 1,
-    borderColor: 'rgba(192,73,46,0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  badgeOn: {
-    ...customerType.pillLabel,
-    color: colors.forest,
-    backgroundColor: 'rgba(238,248,230,0.72)',
-    borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 3 },
-  price: { ...adminType.listPrice },
-  meta: { ...adminType.listMeta },
-  metaReal: { ...adminType.chipText, ...adminType.listMeta, color: colors.forest },
-  actions: { alignItems: 'flex-end', gap: 8, paddingTop: 2 },
-  editBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: 'rgba(238,248,230,0.65)',
-    borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  name: { ...adminType.listTitle, fontSize: 15, color: ui.text },
+  nameOff: { color: ui.textTertiary },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  price: { fontFamily: fonts.bodyBold, fontSize: 14.5, color: ui.text },
+  dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: ui.textTertiary, marginHorizontal: 2 },
+  meta: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: ui.textSecondary },
+  real: { fontFamily: fonts.bodyMedium, fontSize: 11.5, color: ui.brand },
+  side: { alignItems: 'center', gap: 4 },
+  state: { fontFamily: fonts.bodyBold, fontSize: 10.5, letterSpacing: 0.4 },
+  stateOn: { color: ui.brand },
+  stateOff: { color: ui.textTertiary },
 });

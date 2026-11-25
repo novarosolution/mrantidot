@@ -2,6 +2,13 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { ListEmptyRetry } from './ListEmptyRetry';
 import { colors } from '@/constants/theme';
+import { DEFAULT_CUSTOMER_UI_COPY } from '@/constants/customerUiCopy';
+
+/**
+ * This boundary sits above the content providers (they unmount when it catches), so it uses the
+ * built-in defaults of the admin's error copy rather than the live CMS values.
+ */
+const COPY = DEFAULT_CUSTOMER_UI_COPY;
 
 type Props = { children: ReactNode };
 type State = { error: Error | null };
@@ -23,10 +30,10 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <View style={styles.wrap}>
           <ListEmptyRetry
-            title="Something went wrong"
+            title={COPY.systemErrorTitle}
             message={detail}
             onRetry={() => this.setState({ error: null })}
-            retryLabel="Try again"
+            retryLabel={COPY.systemRetry}
           />
         </View>
       );

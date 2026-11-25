@@ -26,6 +26,8 @@ export function HomeCategoryFilter({
             key={c.label}
             style={({ pressed }) => [pressed && { transform: [{ scale: 0.96 }] }]}
             onPress={() => onSelect(c.label)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
           >
             <View style={[styles.chip, on && styles.chipOn]}>
               <Text style={[styles.chipText, on && styles.chipTextOn]}>{c.label}</Text>
@@ -58,8 +60,8 @@ const styles = StyleSheet.create({
     borderColor: ui.border,
   },
   chipOn: {
-    backgroundColor: ui.text,
-    borderColor: ui.text,
+    backgroundColor: ui.brand,
+    borderColor: ui.brand,
   },
   chipText: {
     fontFamily: fonts.bodySemi,

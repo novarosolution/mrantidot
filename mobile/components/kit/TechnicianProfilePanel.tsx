@@ -1,266 +1,237 @@
-import { techRoutes, appPush } from '@/lib/routes';
-import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import Toast from 'react-native-toast-message';
+import { LogOut } from 'lucide-react-native';
+import { type ReactNode } from 'react';
+import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { AnalyticsStatGrid, type AnalyticsStatItem } from '@/components/kit/AnalyticsStatGrid';
-import { AttendanceAnalyticsCard } from '@/components/kit/AttendanceAnalyticsCard';
-import { TechnicianDayCalendar } from '@/components/kit/TechnicianDayCalendar';
-import { TechManageHub } from '@/components/kit/TechManageHub';
 import { TechSectionTitle } from '@/components/kit/TechPageKit';
 import { TechProfileHero } from '@/components/kit/TechProfileHero';
-import { TechScreenScroll, techScreenStyles } from '@/components/kit/TechScreenKit';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { TECH_TAB_BAR_PAD, TechScreenScroll } from '@/components/kit/TechScreenKit';
+import { TechAttendanceCalendar } from '@/components/tech/TechAttendanceCalendar';
+import { TechAttendanceSummary } from '@/components/tech/TechAttendanceSummary';
+import { TechQuickActions } from '@/components/tech/TechQuickActions';
+import { TechBlockSkeleton } from '@/components/tech/TechSkeletons';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { AppIcons } from '@/constants/appIcons';
-import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
-import { bookingVisitDate } from '@/lib/booking-helpers';
-import { displayUserName } from '@/lib/profile-display';
-import type { Booking, BookingCopyConfig, DayAttendanceStatus, TechnicianStats, User } from '@/types/api';
-import { homeShadow } from '@/components/kit/homeUi';
-import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { stagger } from '@/lib/motion';
+import { formatPhoneDisplay } from '@/lib/profile-display';
+import { appPush, techRoutes } from '@/lib/routes';
+import { useTechCopy } from '@/lib/tech-copy';
+import type { Booking, DayAttendanceStatus, TechnicianStats } from '@/types/api';
+import { colors, fonts, radii, spacing, ui } from '@/constants/theme';
 
+/**
+ * Technician profile body: identity + key stats, shortcuts, pay rule, performance, the month's
+ * attendance and visits, the attendance calendar and sign out. Sections enter one after another.
+ */
 export function TechnicianProfilePanel({
-  copy,
-  user,
+  name,
+  phone,
+  city,
   stats,
+  monthStats,
+  monthStatsLoading,
   bookings,
   attendance,
-  calendar,
   month,
   todayStatus,
-  onDuty = false,
+  onDuty,
+  notice,
   refreshing,
   onRefresh,
   onMonthChange,
   onLogout,
 }: {
-  copy: BookingCopyConfig;
-  user: User | null;
+  name: string;
+  phone?: string;
+  city?: string;
+  /** Current-month stats: hero, performance tiles, pay rule. */
   stats: TechnicianStats | null;
+  /** Stats for the month shown in the calendar (attendance & visits). */
+  monthStats: TechnicianStats | null;
+  monthStatsLoading: boolean;
   bookings: Booking[];
   attendance: Record<string, DayAttendanceStatus>;
-  calendar: Record<string, number>;
   month: string;
   todayStatus: DayAttendanceStatus;
-  onDuty?: boolean;
+  onDuty: boolean;
+  /** Inline notice when jobs / attendance could not be refreshed. */
+  notice?: ReactNode;
   refreshing: boolean;
   onRefresh: () => void;
   onMonthChange: (month: string) => void;
-  onLogout?: () => void;
+  onLogout: () => void;
 }) {
-  const verifyJob = bookings.find((b) => b.status === 'awaiting_verification');
+  const booking = useTechCopy();
+  const copy = useCustomerUiCopy();
+  const verifyJobs = bookings.filter((b) => b.status === 'awaiting_verification');
   const activeJob = bookings.find((b) => b.status === 'in_progress');
-  const openJobs = bookings.filter((b) => !['completed', 'cancelled'].includes(b.status)).length;
+  const openCount = bookings.filter((b) => !['completed', 'cancelled'].includes(b.status)).length;
 
   const statItems: AnalyticsStatItem[] = stats
     ? [
         {
           key: 'assigned',
-          label: 'Assigned',
+          label: copy.techStatAssigned,
           value: String(stats.assigned),
           icon: AppIcons.techStats.assigned,
-          iconBg: colors.soft,
-          iconColor: colors.forest,
+          iconBg: ui.brandSoft,
+          iconColor: ui.brand,
           onPress: () => appPush(techRoutes.home),
         },
         {
           key: 'active',
-          label: 'Active',
+          label: copy.techStatActive,
           value: String(stats.inProgress),
           icon: AppIcons.techStats.active,
           iconBg: colors.mint,
           iconColor: colors.green,
-          onPress: () => activeJob && appPush(techRoutes.job(activeJob.id)),
+          onPress: activeJob ? () => appPush(techRoutes.job(activeJob.id)) : undefined,
         },
         {
           key: 'verify',
-          label: 'Verify',
+          label: copy.techActionVerify,
           value: String(stats.awaitingVerification ?? 0),
           icon: AppIcons.techStats.verify,
-          iconBg: '#E8F5EC',
-          iconColor: colors.forest,
-          onPress: () => verifyJob && appPush(techRoutes.job(verifyJob.id)),
+          iconBg: ui.brandSoft,
+          iconColor: ui.brand,
+          onPress: verifyJobs[0] ? () => appPush(techRoutes.job(verifyJobs[0].id)) : undefined,
         },
         {
           key: 'done',
-          label: 'Completed',
+          label: copy.techStatCompleted,
           value: String(stats.completed),
           icon: AppIcons.techStats.done,
-          iconBg: colors.soft,
-          iconColor: colors.forest,
+          iconBg: ui.brandSoft,
+          iconColor: ui.brand,
         },
       ]
     : [];
 
+  let section = 0;
+  const enter = () => stagger(section++);
+
   return (
     <TechScreenScroll
-      contentContainerStyle={techScreenStyles.scrollEmpty}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />
-      }
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ui.brand} />}
     >
-      <TechProfileHero
-        compact
-        showStats={true}
-        name={displayUserName(user)}
-        phone={user?.phone}
-        city={user?.city}
-        stats={stats}
-        todayStatus={todayStatus}
-        onDuty={onDuty}
-      />
-
-      <View style={styles.block}>
-        <TechManageHub
-          activeJobId={activeJob?.id}
-          verifyJobId={verifyJob?.id}
-          verifyCount={bookings.filter((b) => b.status === 'awaiting_verification').length}
-          jobCount={openJobs}
+      <FadeSlideIn delay={enter()} slideFrom={14}>
+        <TechProfileHero
+          name={name}
+          phone={formatPhoneDisplay(phone)}
+          city={city}
+          stats={stats}
+          todayStatus={todayStatus}
+          onDuty={onDuty}
         />
-      </View>
+      </FadeSlideIn>
+
+      <FadeSlideIn delay={enter()} slideFrom={14} style={styles.block}>
+        <Text style={styles.kicker}>{copy.techQuickActionsTitle}</Text>
+        <TechQuickActions
+          activeJobId={activeJob?.id}
+          verifyJobId={verifyJobs[0]?.id}
+          verifyCount={verifyJobs.length}
+          openCount={openCount}
+        />
+      </FadeSlideIn>
 
       {stats?.paySummary ? (
-        <View style={styles.block}>
-          <View style={styles.payShell}>
-            <View style={styles.payCard}>
-              <Text style={styles.payLabel}>Pay rule</Text>
-              <Text style={styles.payValue}>{stats.paySummary}</Text>
-              <Text style={styles.payHint}>Set by admin · applied when a job is completed</Text>
-            </View>
+        <FadeSlideIn delay={enter()} slideFrom={14} style={styles.block}>
+          <View style={styles.payCard}>
+            <Text style={styles.kickerFlat}>{copy.techPayRuleTitle}</Text>
+            <Text style={styles.payValue}>{stats.paySummary}</Text>
+            <Text style={styles.payHint}>{copy.techPayRuleHint}</Text>
           </View>
-        </View>
+        </FadeSlideIn>
       ) : null}
 
       {stats ? (
-        <View style={styles.block}>
-          <TechSectionTitle title={copy.techPerformanceTitle} hint="Tap a metric to open related work" />
+        <FadeSlideIn delay={enter()} slideFrom={14} style={styles.block}>
+          <TechSectionTitle title={booking.techPerformanceTitle} hint={copy.techPerformanceHint} flush />
           <AnalyticsStatGrid items={statItems} />
-        </View>
+        </FadeSlideIn>
       ) : null}
 
-      {stats?.analytics ? (
-        <View style={styles.block}>
-          <TechSectionTitle title="Attendance & visits" hint="Presence and visit performance" />
-          <AttendanceAnalyticsCard analytics={stats.analytics} />
-        </View>
+      {monthStatsLoading || monthStats?.analytics ? (
+        <FadeSlideIn delay={enter()} slideFrom={14} style={styles.block}>
+          <TechSectionTitle title={copy.techAttendanceTitle} hint={copy.techAttendanceHint} flush />
+          {monthStats?.analytics && !monthStatsLoading ? (
+            <TechAttendanceSummary analytics={monthStats.analytics} />
+          ) : (
+            <TechBlockSkeleton height={196} />
+          )}
+        </FadeSlideIn>
       ) : null}
 
-      <View style={styles.block}>
-        <TechSectionTitle title={copy.techScheduleTitle} hint="Assigned visits this month" />
-        <TechnicianDayCalendar
-          calendar={calendar}
+      <FadeSlideIn delay={enter()} slideFrom={14} style={styles.block}>
+        <TechSectionTitle title={booking.techScheduleTitle} hint={copy.techScheduleHint} flush />
+        {notice}
+        <TechAttendanceCalendar
+          month={month}
+          onMonthChange={onMonthChange}
           attendance={attendance}
           bookings={bookings}
-          onPressBooking={(id) => appPush(techRoutes.job(id))}
-          monthKey={month}
-          onMonthChange={onMonthChange}
+          onPressJob={(id) => appPush(techRoutes.job(id))}
         />
-      </View>
+      </FadeSlideIn>
 
-      {onLogout ? (
-        <Pressable style={({ pressed }) => [styles.logout, pressed && styles.logoutPressed]} onPress={onLogout}>
-          <PremiumIcon
-            icon={AppIcons.techProfile.logout}
-            variant="soft"
-            size="md"
-            color={colors.error}
-            bg={colors.errorBg}
-            boxSize={38}
-          />
-          <Text style={styles.logoutText}>Sign out</Text>
-        </Pressable>
-      ) : null}
+      <FadeSlideIn delay={enter()} slideFrom={14} style={styles.block}>
+        <PressableScale
+          onPress={onLogout}
+          style={styles.logout}
+          accessibilityRole="button"
+          accessibilityLabel={copy.techSignOut}
+        >
+          <LogOut size={18} color={colors.error} strokeWidth={2.2} />
+          <Text style={styles.logoutText}>{copy.techSignOut}</Text>
+        </PressableScale>
+      </FadeSlideIn>
     </TechScreenScroll>
   );
 }
 
-export async function loadTechnicianProfileData(month: string) {
-  const [statsRes, bookingsRes, attRes] = await Promise.all([
-    api.get<TechnicianStats>('/stats/technician', { ...screenLoadConfig, params: { month } }),
-    api.get<{ bookings: Booking[] }>('/bookings', screenLoadConfig),
-    api.get<{
-      attendance: Record<string, DayAttendanceStatus>;
-      todayStatus: DayAttendanceStatus;
-      onDuty?: boolean;
-    }>('/attendance/me', { ...screenLoadConfig, params: { month } }),
-  ]);
-
-  const cal: Record<string, number> = {};
-  for (const b of bookingsRes.data.bookings) {
-    const d = bookingVisitDate(b);
-    if (!d) continue;
-    cal[d] = (cal[d] ?? 0) + 1;
-  }
-
-  return {
-    stats: statsRes.data,
-    bookings: bookingsRes.data.bookings,
-    attendance: attRes.data.attendance,
-    todayStatus: attRes.data.todayStatus ?? statsRes.data.todayStatus ?? ('pending' as DayAttendanceStatus),
-    onDuty: Boolean(attRes.data.onDuty),
-    calendar: cal,
-  };
-}
-
-export async function checkInTechnician(copy: Pick<BookingCopyConfig, 'techOnDutyBadge'>) {
-  try {
-    await api.post('/attendance/check-in');
-    Toast.show({ type: 'success', text1: copy.techOnDutyBadge.replace('● ', '') });
-  } catch (err) {
-    Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not check in') });
-    throw err;
-  }
-}
-
-export async function markTechnicianAbsent(copy: Pick<BookingCopyConfig, 'techOffDutyBadge'>) {
-  try {
-    await api.post('/attendance/mark-absent');
-    Toast.show({ type: 'success', text1: copy.techOffDutyBadge });
-  } catch (err) {
-    Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not update attendance') });
-    throw err;
-  }
-}
-
 const styles = StyleSheet.create({
+  /** Clear the docked tab bar (design rule: every tab scroll ends with the tab-bar pad). */
+  content: { paddingBottom: TECH_TAB_BAR_PAD + spacing.md },
   block: { paddingHorizontal: spacing.md, marginBottom: spacing.md },
-  payShell: {
-    borderRadius: premium.radiusCard,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 10,
-    elevation: 2,
+  kicker: {
+    marginBottom: spacing.sm,
+    marginLeft: 2,
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: ui.textTertiary,
+  },
+  kickerFlat: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: ui.textTertiary,
   },
   payCard: {
-    borderRadius: premium.radiusCard,
+    padding: spacing.md,
+    borderRadius: radii.card,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
-    padding: spacing.md,
-    overflow: 'hidden',
+    borderColor: ui.hairline,
+    ...ui.shadow,
   },
-  payLabel: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted },
-  payValue: {
-    marginTop: 4,
-    fontFamily: fonts.displayExtra,
-    fontSize: 16,
-    color: colors.forest,
-    letterSpacing: -0.2,
-  },
-  payHint: { marginTop: 4, fontFamily: fonts.body, fontSize: 11, color: colors.muted },
+  payValue: { marginTop: 4, fontFamily: fonts.displayExtra, fontSize: 17, letterSpacing: -0.2, color: ui.brand },
+  payHint: { marginTop: 4, fontFamily: fonts.body, fontSize: 12, color: ui.textSecondary },
   logout: {
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    paddingVertical: spacing.md,
-    borderRadius: premium.radiusCard,
+    gap: 8,
+    minHeight: 52,
+    borderRadius: radii.control,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: '#F0D0C8',
-    ...homeShadow.soft,
+    borderColor: ui.border,
   },
-  logoutPressed: { opacity: 0.92, transform: [{ scale: 0.99 }] },
-  logoutText: { fontFamily: fonts.bodySemi, fontSize: 15, color: colors.error },
+  logoutText: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.error },
 });

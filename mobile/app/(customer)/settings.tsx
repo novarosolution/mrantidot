@@ -4,10 +4,9 @@ import { StyleSheet, Text, View } from 'react-native';
 import { appToast } from '@/lib/toast';
 import { Button } from '@/components/ui/Button';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
-import { UserAccountCard } from '@/components/kit/UserAccountCard';
 import { IconInput } from '@/components/kit/IconInput';
 import { AddressLocateButton } from '@/components/kit/AddressLocateButton';
-import { GlassPanel, GlassScreen, GlassSectionLabel } from '@/components/kit/GlassScreenKit';
+import { GlassPanel, GlassScreen, GlassSectionLabel, TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { useAuth } from '@/context/AuthContext';
@@ -16,7 +15,10 @@ import { api } from '@/lib/api';
 import { isRealCity } from '@/lib/location';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { displayUserEmail, isProfileIncomplete } from '@/lib/profile-display';
-import { fonts, spacing, ui as themeUi } from '@/constants/theme';
+import { radii, spacing, typeScale, ui as themeUi } from '@/constants/theme';
+import { haptic } from '@/lib/motion';
+
+type Field = 'name' | 'email' | 'phone';
 
 export default function SettingsScreen() {
   const ui = useCustomerUiCopy();
@@ -27,6 +29,8 @@ export default function SettingsScreen() {
   const [city, setCity] = useState(user?.city ?? '');
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [loading, setLoading] = useState(false);
+  /** Inline field errors — shown after the first save attempt, cleared as the customer types. */
+  const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
 
   const syncFromUser = useCallback(() => {
     if (!user) return;
@@ -50,18 +54,25 @@ export default function SettingsScreen() {
     const loc = await detectAddress();
     if (isRealCity(loc?.city)) {
       setCity(loc!.city);
-      appToast.success('Location updated', loc!.area ? `${loc!.area}, ${loc!.city}` : loc!.city);
+      appToast.success(ui.settingsLocationUpdated, loc!.area ? `${loc!.area}, ${loc!.city}` : loc!.city);
     }
+  }
+
+  function validate(): Partial<Record<Field, string>> {
+    const next: Partial<Record<Field, string>> = {};
+    if (!name.trim()) next.name = ui.settingsNameRequired;
+    if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) next.email = ui.settingsEmailInvalid;
+    const digits = phone.replace(/\D/g, '');
+    if (phone.trim() && (digits.length < 10 || digits.length > 12)) next.phone = ui.settingsPhoneInvalid;
+    return next;
   }
 
   async function save() {
     if (loading) return;
-    if (!name.trim()) {
-      appToast.error('Please enter your name');
-      return;
-    }
-    if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) {
-      appToast.error('Please enter a valid email');
+    const found = validate();
+    setErrors(found);
+    if (Object.keys(found).length > 0) {
+      haptic('warning');
       return;
     }
     setLoading(true);
@@ -73,7 +84,8 @@ export default function SettingsScreen() {
         ...(phone.trim() ? { phone: phone.trim() } : {}),
       });
       await refreshMe();
-      appToast.success('Profile updated');
+      haptic('success');
+      appToast.success(ui.settingsSaved);
     } catch {
       // toast from interceptor
     } finally {
@@ -83,48 +95,61 @@ export default function SettingsScreen() {
 
   return (
     <GlassScreen
+      // Clear the docked tab bar so "Save changes" can scroll fully into view.
+      contentContainerStyle={styles.scrollPad}
       header={
         <CustomerPageHeader
           variant="premium"
           title={ui.settingsScreenTitle}
-          subtitle="Your account & preferences"
+          subtitle={ui.settingsSubtitle}
           showBack={!isProfileIncomplete(user)}
         />
       }
     >
-      <GlassPanel padded={false}>
-        <View style={styles.accountWrap}>
-          <UserAccountCard compact embedded />
-          {isProfileIncomplete(user) ? (
-            <Text style={styles.completeHint}>Complete your profile below for a smoother booking experience.</Text>
-          ) : null}
+      {/* The profile tab already shows who you are; here the only extra is a nudge to finish setup. */}
+      {isProfileIncomplete(user) ? (
+        <View style={styles.callout}>
+          <AppIcons.ui.info size={18} color={themeUi.brand} strokeWidth={2.2} />
+          <Text style={styles.calloutText}>{ui.settingsCompleteHint}</Text>
         </View>
-      </GlassPanel>
-      <GlassSectionLabel title="Profile details" hint="Update your contact information" />
+      ) : null}
+      <GlassSectionLabel title={ui.settingsDetailsTitle} hint={ui.settingsDetailsHint} />
       <GlassPanel>
         <IconInput
-          label="Full name"
+          label={ui.settingsFieldName}
           value={name}
-          onChangeText={setName}
+          error={errors.name}
+          onChangeText={(v) => {
+            setName(v);
+            if (errors.name) setErrors((e) => ({ ...e, name: undefined }));
+          }}
           leftIcon={<PremiumIcon icon={AppIcons.ui.user} variant="plain" size="md" color={themeUi.textTertiary} />}
         />
         <IconInput
-          label="Email"
+          label={ui.settingsFieldEmail}
           value={email}
-          onChangeText={setEmail}
+          error={errors.email}
+          onChangeText={(v) => {
+            setEmail(v);
+            if (errors.email) setErrors((e) => ({ ...e, email: undefined }));
+          }}
           autoCapitalize="none"
           keyboardType="email-address"
           leftIcon={<PremiumIcon icon={AppIcons.ui.mail} variant="plain" size="md" color={themeUi.textTertiary} />}
         />
         <IconInput
-          label="Phone"
+          label={ui.settingsFieldPhone}
           value={phone}
-          onChangeText={setPhone}
+          error={errors.phone}
+          onChangeText={(v) => {
+            setPhone(v);
+            if (errors.phone) setErrors((e) => ({ ...e, phone: undefined }));
+          }}
           keyboardType="phone-pad"
           leftIcon={<PremiumIcon icon={AppIcons.techProfile.phone} variant="plain" size="md" color={themeUi.textTertiary} />}
         />
         <IconInput
-          label="City"
+          label={ui.settingsFieldCity}
           value={city}
           onChangeText={setCity}
           leftIcon={<PremiumIcon icon={AppIcons.techProfile.location} variant="plain" size="md" color={themeUi.textTertiary} />}
@@ -133,24 +158,22 @@ export default function SettingsScreen() {
       </GlassPanel>
 
       <View style={styles.btnWrap}>
-        <Button title="Save changes" variant="premium" onPress={save} loading={loading} />
+        <Button title={ui.settingsSave} variant="premium" onPress={save} loading={loading} />
       </View>
     </GlassScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  accountWrap: {
-    padding: spacing.md,
-    gap: spacing.xs,
+  scrollPad: { paddingBottom: TAB_BAR_SCROLL_PAD },
+  callout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 14,
+    borderRadius: radii.card,
+    backgroundColor: themeUi.brandSoft,
   },
-  completeHint: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: themeUi.brand,
-    textAlign: 'center',
-    lineHeight: 17,
-    paddingHorizontal: spacing.sm,
-  },
+  calloutText: { ...typeScale.caption, flex: 1, lineHeight: 19, color: themeUi.text },
   btnWrap: { marginTop: spacing.xs },
 });

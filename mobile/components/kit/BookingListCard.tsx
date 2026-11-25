@@ -1,6 +1,7 @@
 import { memo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Calendar, ChevronRight, MapPin } from 'lucide-react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { Calendar, ChevronRight, MapPin, Users } from 'lucide-react-native';
 import { ServiceIcon } from '@/components/ServiceIcon';
 import { StatusPill } from '@/components/ui/StatusPill';
 import {
@@ -12,8 +13,10 @@ import {
   isSchedulePending,
 } from '@/lib/booking-helpers';
 import type { Booking } from '@/types/api';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { fillCopy } from '@/constants/customerUiCopy';
 import { formatRupeeFull } from '@/components/kit/format';
-import { colors, fonts, statusColors, ui } from '@/constants/theme';
+import { colors, fonts, radii, statusColors, typeScale, ui } from '@/constants/theme';
 
 function stepProgress(booking: Booking): number | null {
   const steps = booking.steps ?? [];
@@ -27,17 +30,23 @@ export const BookingListCard = memo(function BookingListCard({
   showCustomer,
   hideAmount,
   hint,
+  hintTone = 'status',
   compact,
 }: {
   booking: Booking;
-  onPress?: () => void;
+  /** Receives the booking, so a list can pass one stable callback and keep cards memoised. */
+  onPress?: (booking: Booking) => void;
   showCustomer?: boolean;
   hideAmount?: boolean;
   hint?: string;
+  /** 'warning' paints the hint amber when it needs the customer's action. */
+  hintTone?: 'status' | 'warning';
   compact?: boolean;
 }) {
+  const labels = useCustomerUiCopy();
   const iconKey = bookingServiceIconKey(booking);
-  const name = bookingServiceName(booking);
+  const name = bookingServiceName(booking, labels);
+  const when = bookingScheduleDisplay(booking, labels);
   const customer = showCustomer ? bookingCustomerName(booking) : null;
   const accent = statusColors[booking.status]?.text ?? ui.brand;
   const accentBg = statusColors[booking.status]?.bg ?? colors.soft;
@@ -46,16 +55,19 @@ export const BookingListCard = memo(function BookingListCard({
   const isLive = booking.status === 'in_progress' || booking.status === 'awaiting_verification';
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+    <PressableScale
+      onPress={onPress ? () => onPress(booking) : undefined}
+      disabled={!onPress}
+      scaleTo={0.985}
+      containerStyle={styles.cardWrap}
+      style={styles.card}
       accessibilityRole="button"
-      accessibilityLabel={`${name}, ${bookingScheduleDisplay(booking)}`}
+      accessibilityLabel={`${name}, ${when}`}
     >
       <View style={styles.inner}>
         <View style={styles.top}>
           <View style={styles.iconWrap}>
-            <ServiceIcon iconKey={iconKey} size={28} variant="premium" boxSize={52} />
+            <ServiceIcon iconKey={iconKey} size={36} variant="premium" boxSize={56} />
             {isLive ? <View style={styles.liveDot} /> : null}
           </View>
 
@@ -78,9 +90,18 @@ export const BookingListCard = memo(function BookingListCard({
                 <Calendar size={12} color={ui.brand} strokeWidth={2.2} />
               </View>
               <Text style={styles.meta} numberOfLines={1}>
-                {bookingScheduleDisplay(booking)}
+                {when}
               </Text>
             </View>
+
+            {booking.visitContact ? (
+              <View style={styles.forChip}>
+                <Users size={11} color={ui.brand} strokeWidth={2.4} />
+                <Text style={styles.forChipText} numberOfLines={1}>
+                  {fillCopy(labels.bookingForChip, { name: booking.visitContact.name })}
+                </Text>
+              </View>
+            ) : null}
 
             {!compact && booking.address ? (
               <View style={styles.metaRow}>
@@ -106,12 +127,12 @@ export const BookingListCard = memo(function BookingListCard({
 
             {schedulePending && !hint ? (
               <View style={[styles.callout, { backgroundColor: accentBg }]}>
-                <Text style={[styles.calloutText, { color: accent }]}>Visit time being confirmed</Text>
+                <Text style={[styles.calloutText, { color: accent }]}>{labels.bookingsTimeConfirming}</Text>
               </View>
             ) : null}
             {hint ? (
-              <View style={[styles.callout, { backgroundColor: accentBg }]}>
-                <Text style={[styles.calloutText, { color: accent }]}>{hint}</Text>
+              <View style={[styles.callout, { backgroundColor: hintTone === 'warning' ? colors.amberBg : accentBg }]}>
+                <Text style={[styles.calloutText, { color: hintTone === 'warning' ? colors.warning : accent }]}>{hint}</Text>
               </View>
             ) : null}
           </View>
@@ -131,14 +152,14 @@ export const BookingListCard = memo(function BookingListCard({
           </View>
         </View>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 });
 
 const styles = StyleSheet.create({
+  cardWrap: { marginBottom: 12 },
   card: {
-    marginBottom: 12,
-    borderRadius: 20,
+    borderRadius: radii.card,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.hairline,
@@ -147,7 +168,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 16,
   },
-  pressed: { opacity: 0.94, transform: [{ scale: 0.99 }] },
   inner: { minWidth: 0 },
   top: { flexDirection: 'row', gap: 12, padding: 14, paddingBottom: 12 },
   iconWrap: { position: 'relative' },
@@ -169,14 +189,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
-  name: {
-    flex: 1,
-    fontFamily: fonts.display,
-    fontSize: 16,
-    lineHeight: 21,
-    letterSpacing: -0.3,
-    color: ui.text,
-  },
+  name: { ...typeScale.rowTitleLg, flex: 1, fontFamily: fonts.display, color: ui.text },
   customer: {
     marginTop: 3,
     fontFamily: fonts.bodySemi,
@@ -217,6 +230,18 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: ui.textSecondary,
   },
+  forChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 5,
+    marginTop: 8,
+    paddingHorizontal: 9,
+    height: 24,
+    borderRadius: 999,
+    backgroundColor: ui.brandSoft,
+  },
+  forChipText: { fontFamily: fonts.bodySemi, fontSize: 11.5, color: ui.brand },
   progressTrack: {
     height: 4,
     borderRadius: 2,

@@ -1,32 +1,41 @@
-import { Alert } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
+import { haptic } from '@/lib/motion';
 import type { Booking, BookingStatus } from '@/types/api';
 import { spacing } from '@/constants/theme';
+import { confirmAsync } from '@/lib/confirm';
 
-/** Admin controls to advance, complete, or cancel any live booking stage. */
+/**
+ * Admin controls to advance, complete, or cancel any live booking stage.
+ * Cancelling needs a reason, so it opens the screen's cancel sheet (`onCancel`); without it the button is hidden.
+ */
 export function AdminBookingActions({
   booking,
   onUpdated,
   busy,
   setBusy,
   onAssign,
+  onCancel,
 }: {
   booking: Booking;
   onUpdated: () => Promise<void>;
   busy: string | null;
   setBusy: (v: string | null) => void;
   onAssign?: () => void;
+  /** Opens the cancel-with-reason sheet. */
+  onCancel?: () => void;
 }) {
   async function setStatus(status: BookingStatus) {
     setBusy(status);
     try {
       await api.patch(`/bookings/${booking.id}/status`, { status });
+      haptic('success');
       Toast.show({ type: 'success', text1: 'Process updated' });
       await onUpdated();
     } catch {
       // error toast shown by the api interceptor
+      haptic('error');
     } finally {
       setBusy(null);
     }
@@ -36,23 +45,12 @@ export function AdminBookingActions({
     setBusy('complete');
     try {
       await api.patch(`/bookings/${booking.id}/complete`);
+      haptic('success');
       Toast.show({ type: 'success', text1: 'Booking completed' });
       await onUpdated();
     } catch {
       // error toast shown by the api interceptor
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function cancelBooking() {
-    setBusy('cancel');
-    try {
-      await api.patch(`/bookings/${booking.id}/cancel`);
-      Toast.show({ type: 'success', text1: 'Booking cancelled' });
-      await onUpdated();
-    } catch {
-      // error toast shown by the api interceptor
+      haptic('error');
     } finally {
       setBusy(null);
     }
@@ -79,10 +77,14 @@ export function AdminBookingActions({
         title: 'Force start job',
         key: 'in_progress',
         onPress: () => {
-          Alert.alert('Start job?', 'Marks job in progress and skips start OTP.', [
-            { text: 'Back', style: 'cancel' },
-            { text: 'Start', onPress: () => void setStatus('in_progress') },
-          ]);
+          void confirmAsync({
+            title: 'Start job?',
+            message: 'Marks job in progress and skips start OTP.',
+            confirmLabel: 'Start',
+            cancelLabel: 'Back',
+          }).then((ok) => {
+            if (ok) void setStatus('in_progress');
+          });
         },
       });
     }
@@ -93,10 +95,13 @@ export function AdminBookingActions({
       title: 'Send for verification',
       key: 'awaiting_verification',
       onPress: () => {
-        Alert.alert('Send for verification?', 'Customer will enter the completion code.', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Continue', onPress: () => void setStatus('awaiting_verification') },
-        ]);
+        void confirmAsync({
+          title: 'Send for verification?',
+          message: 'Customer will enter the completion code.',
+          confirmLabel: 'Continue',
+        }).then((ok) => {
+          if (ok) void setStatus('awaiting_verification');
+        });
       },
     });
   }
@@ -107,25 +112,23 @@ export function AdminBookingActions({
       key: 'complete',
       variant: 'premium',
       onPress: () => {
-        Alert.alert('Complete booking?', 'Overrides customer OTP and marks job done.', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Complete', onPress: () => void markCompleted() },
-        ]);
+        void confirmAsync({
+          title: 'Complete booking?',
+          message: 'Overrides customer OTP and marks job done.',
+          confirmLabel: 'Complete',
+        }).then((ok) => {
+          if (ok) void markCompleted();
+        });
       },
     });
   }
 
-  if (!['completed', 'cancelled'].includes(booking.status)) {
+  if (onCancel && !['completed', 'cancelled'].includes(booking.status)) {
     actions.push({
       title: 'Cancel booking',
       key: 'cancel',
       variant: 'secondary',
-      onPress: () => {
-        Alert.alert('Cancel this booking?', 'Customer and technician will be notified.', [
-          { text: 'Keep', style: 'cancel' },
-          { text: 'Cancel booking', style: 'destructive', onPress: () => void cancelBooking() },
-        ]);
-      },
+      onPress: onCancel,
     });
   }
 
@@ -139,7 +142,7 @@ export function AdminBookingActions({
           title={a.title}
           variant={a.variant ?? 'sky'}
           onPress={a.onPress}
-          loading={busy === a.key || busy === 'complete' || busy === 'cancel'}
+          loading={busy === a.key || busy === 'complete'}
           style={{ marginTop: spacing.sm }}
         />
       ))}

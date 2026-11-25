@@ -1,15 +1,35 @@
 import '../types/express';
 import { Router } from 'express';
 import { body, param, validationResult } from 'express-validator';
-import { Review } from '../models/Review';
+import { Types } from 'mongoose';
+import { Review, publicReviewReply } from '../models/Review';
 import { Booking } from '../models/Booking';
 import { User } from '../models/User';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { AppError } from '../utils/AppError';
 import { asyncHandler } from '../middleware/error';
 import { formatReview } from '../utils/format';
+import { getBusinessSettings } from '../utils/businessSettings';
 
 export const reviewsRouter = Router();
+
+/**
+ * Review tags must be ones the admin offers (Business settings → Lists → Review tags). Matching ignores
+ * case and spacing and stores the admin's wording; unknown tags (e.g. from an app with an older list) are
+ * dropped instead of failing the review.
+ */
+async function allowedReviewTags(raw: unknown): Promise<string[]> {
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+  const { lists } = await getBusinessSettings();
+  const byKey = new Map(lists.reviewTags.map((t) => [t.trim().toLowerCase(), t]));
+  const out: string[] = [];
+  for (const tag of raw) {
+    if (typeof tag !== 'string') continue;
+    const match = byKey.get(tag.trim().toLowerCase());
+    if (match && !out.includes(match)) out.push(match);
+  }
+  return out.slice(0, 20);
+}
 
 function runValidation(
   req: Parameters<typeof validationResult>[0],
@@ -24,16 +44,20 @@ function runValidation(
   next();
 }
 
-async function recomputeTechnicianRating(technicianId: unknown): Promise<void> {
-  if (!technicianId) return;
+/**
+ * A technician's real rating = average of their visible reviews (0 when none). Run after a review is
+ * added, hidden / shown or deleted. Returns the new rating.
+ */
+export async function recomputeTechnicianRating(technicianId: unknown): Promise<number> {
+  if (!technicianId) return 0;
+  const id = new Types.ObjectId(String(technicianId));
   const agg = await Review.aggregate([
-    { $match: { technicianId, hidden: { $ne: true } } },
+    { $match: { technicianId: id, hidden: { $ne: true } } },
     { $group: { _id: null, avg: { $avg: '$stars' }, count: { $sum: 1 } } },
   ]);
-  const avg = agg[0]?.avg ?? 0;
-  await User.findByIdAndUpdate(technicianId, {
-    rating: Math.round(avg * 10) / 10,
-  });
+  const rating = Math.round((agg[0]?.avg ?? 0) * 10) / 10;
+  await User.findByIdAndUpdate(id, { rating });
+  return rating;
 }
 
 reviewsRouter.post(
@@ -69,6 +93,8 @@ reviewsRouter.post(
       throw new AppError(400, 'Review already exists for this booking');
     }
 
+    const tags = await allowedReviewTags(req.body.tags);
+
     let review;
     try {
       review = await Review.create({
@@ -76,7 +102,7 @@ reviewsRouter.post(
         technicianId: booking.technicianId,
         customerId: booking.customerId,
         stars: req.body.stars,
-        tags: req.body.tags ?? [],
+        tags,
         comment: req.body.comment,
         photos: req.body.photos ?? [],
       });
@@ -103,7 +129,7 @@ reviewsRouter.get(
       technicianId: req.params.id,
       hidden: { $ne: true },
     }).sort({ createdAt: -1 });
-    res.json({ reviews: reviews.map((r) => formatReview(r)) });
+    res.json({ reviews: reviews.map((r) => ({ ...formatReview(r), reply: publicReviewReply(r.reply) })) });
   }),
 );
 
@@ -134,6 +160,6 @@ reviewsRouter.get(
       ...(role === 'admin' ? {} : { hidden: { $ne: true } }),
     });
     // No review yet is a normal state for this existence check, not an error — 200 + null.
-    res.json({ review: review ? formatReview(review) : null });
+    res.json({ review: review ? { ...formatReview(review), reply: publicReviewReply(review.reply) } : null });
   }),
 );

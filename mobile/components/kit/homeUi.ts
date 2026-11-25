@@ -48,15 +48,34 @@ export const homeShadow = {
 };
 
 /** Admin aliases — same depth language as customer home. */
+/** Admin + technician cards — one quiet depth, matching the white customer theme. */
 export const adminShadow = {
-  soft: homeShadow.soft,
-  card: homeShadow.card,
-  tile: homeShadow.tile,
+  soft: {
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 1,
+  } satisfies ViewStyle,
+  card: {
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 2,
+  } satisfies ViewStyle,
+  tile: {
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 1,
+  } satisfies ViewStyle,
   hero: {
     shadowColor: colors.deep,
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.22,
-    shadowRadius: 22,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 6,
   } satisfies ViewStyle,
 };

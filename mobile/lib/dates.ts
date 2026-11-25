@@ -1,3 +1,6 @@
+import { getBusinessSettings } from '@/lib/businessSettings';
+import type { BusinessSettings, SettingsSlotGroup } from '@/types/api';
+
 export function localDateKey(d: Date = new Date()): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -40,6 +43,7 @@ export function nextBookableDays(count = 6): {
   return days;
 }
 
+/** Built-in 2-hour windows (the default Business settings slots). Settings-aware code uses `bookingSlotGroups` etc. */
 export const BOOKING_SLOTS = [
   '00:00-02:00',
   '02:00-04:00',
@@ -138,4 +142,143 @@ export function formatScheduleLabel(
     return `${dateLabel} · ${formatTime12h(schedule.time)}`;
   }
   return `${dateLabel} · ${formatSlotLabel(slot)}`;
+}
+
+/* ─── Admin-managed booking rules (Business settings → Time slots / Booking rules) ───────────────
+ * Pass `settings` from `useBusinessSettings()` inside components so they re-render on change;
+ * without it the latest known copy is used. Times are the device clock, like the helpers above.
+ */
+
+const pickSettings = (s?: BusinessSettings) => s ?? getBusinessSettings();
+
+function dateFromKey(dateKey: string, time = '00:00'): Date {
+  const [y, mo, d] = dateKey.split('-').map((n) => parseInt(n, 10));
+  const [h, m] = time.split(':').map((n) => parseInt(n, 10));
+  return new Date(y ?? 1970, (mo ?? 1) - 1, d ?? 1, h || 0, m || 0);
+}
+
+/** Minutes from `now` until `time` (HH:mm) on `dateKey`; negative once it has started. */
+export function minutesUntilStart(dateKey: string, time: string, now: Date = new Date()): number {
+  return Math.round((dateFromKey(dateKey, time).getTime() - now.getTime()) / 60_000);
+}
+
+/** Days from today to `dateKey` (0 = today). */
+export function daysFromToday(dateKey: string, now: Date = new Date()): number {
+  const today = dateFromKey(localDateKey(now));
+  return Math.round((dateFromKey(dateKey).getTime() - today.getTime()) / 86_400_000);
+}
+
+/** Within the booking horizon (today … today + `booking.horizonDays`). */
+export function isWithinBookingHorizon(dateKey: string, s?: BusinessSettings, now: Date = new Date()): boolean {
+  const days = daysFromToday(dateKey, now);
+  return days >= 0 && days <= pickSettings(s).booking.horizonDays;
+}
+
+/**
+ * Can a visit starting at `time` on `dateKey` still be booked? Not started, at least
+ * `booking.leadMinutes` away, and within the horizon — the same rules the server enforces.
+ */
+export function isTimeBookable(dateKey: string, time: string, s?: BusinessSettings, now: Date = new Date()): boolean {
+  const st = pickSettings(s);
+  if (!isWithinBookingHorizon(dateKey, st, now)) return false;
+  const until = minutesUntilStart(dateKey, time, now);
+  return until > 0 && until >= st.booking.leadMinutes;
+}
+
+/** True when `slot` is an active window that can still be booked on `dateKey`. */
+export function isSlotBookable(dateKey: string, slot: string, s?: BusinessSettings, now: Date = new Date()): boolean {
+  const st = pickSettings(s);
+  const win = st.slots.find((x) => x.active && x.key === slot);
+  return Boolean(win) && isTimeBookable(dateKey, win!.from, st, now);
+}
+
+/** Active windows (keys, in order) still bookable on `dateKey`. */
+export function bookableSlotsForDate(dateKey: string, s?: BusinessSettings, now: Date = new Date()): string[] {
+  const st = pickSettings(s);
+  return st.slots.filter((x) => x.active && isTimeBookable(dateKey, x.from, st, now)).map((x) => x.key);
+}
+
+/** True when a custom HH:mm falls inside an active window (windows past midnight included). */
+export function isTimeInActiveWindow(time: string, s?: BusinessSettings): boolean {
+  return pickSettings(s).slots.some((x) => x.active && (x.from < x.to ? time >= x.from && time < x.to : time >= x.from || time < x.to));
+}
+
+/** Active windows grouped night / morning / afternoon / evening — `titleKey` is the admin-editable group name. */
+export function bookingSlotGroups(s?: BusinessSettings): {
+  group: SettingsSlotGroup;
+  titleKey: 'webSlotNight' | 'webSlotMorning' | 'webSlotAfternoon' | 'webSlotEvening';
+  title: string;
+  slots: string[];
+}[] {
+  const order: { group: SettingsSlotGroup; titleKey: 'webSlotNight' | 'webSlotMorning' | 'webSlotAfternoon' | 'webSlotEvening'; title: string }[] = [
+    { group: 'morning', titleKey: 'webSlotMorning', title: 'Morning' },
+    { group: 'afternoon', titleKey: 'webSlotAfternoon', title: 'Afternoon' },
+    { group: 'evening', titleKey: 'webSlotEvening', title: 'Evening' },
+    { group: 'night', titleKey: 'webSlotNight', title: 'Night' },
+  ];
+  const active = pickSettings(s).slots.filter((x) => x.active);
+  return order
+    .map((g) => ({ ...g, slots: active.filter((x) => x.group === g.group).map((x) => x.key) }))
+    .filter((g) => g.slots.length > 0);
+}
+
+/**
+ * Days for the customer date picker: up to `booking.pickerDays` days, from today, that still have at least
+ * one bookable window (today drops out once its last window is too close), never past the horizon.
+ */
+export function bookingPickerDays(s?: BusinessSettings, now: Date = new Date()): ReturnType<typeof nextBookableDays> {
+  const st = pickSettings(s);
+  const want = Math.max(1, st.booking.pickerDays);
+  const span = Math.min(st.booking.horizonDays + 1, want + 4);
+  const out = nextBookableDays(span).filter((d) => bookableSlotsForDate(d.date, st, now).length > 0).slice(0, want);
+  return out.map((d, i) => ({ ...d, dayIdx: i }));
+}
+
+/** Default window for a date: 10 AM – 12 PM when bookable, else the first bookable one. */
+export function defaultSlotForDate(dateKey: string, s?: BusinessSettings, now: Date = new Date()): string | undefined {
+  const open = bookableSlotsForDate(dateKey, s, now);
+  return open.includes(DEFAULT_BOOKING_SLOT) ? DEFAULT_BOOKING_SLOT : open[0];
+}
+
+/** Earliest bookable visit within the picker days, or undefined when nothing is open. */
+export function firstBookableSlot(s?: BusinessSettings, now: Date = new Date()): { date: string; slot: string } | undefined {
+  for (const d of bookingPickerDays(s, now)) {
+    const slot = bookableSlotsForDate(d.date, s, now)[0];
+    if (slot) return { date: d.date, slot };
+  }
+  return undefined;
+}
+
+/** Hours until a booking's visit starts (schedule slot start, or custom time); undefined without a date. */
+export function hoursUntilVisit(
+  schedule?: { date?: string; slot?: string; time?: string } | null,
+  now: Date = new Date(),
+): number | undefined {
+  if (!schedule?.date) return undefined;
+  const start = schedule.slot && schedule.slot !== 'custom' ? schedule.slot.split('-')[0] : schedule.time;
+  if (!start) return undefined;
+  return minutesUntilStart(schedule.date, start, now) / 60;
+}
+
+/** Customer may still reschedule: outside `booking.rescheduleCutoffHours` and under `booking.maxReschedules`. */
+export function canRescheduleVisit(
+  booking: { schedule?: { date?: string; slot?: string; time?: string } | null; rescheduleCount?: number },
+  s?: BusinessSettings,
+  now: Date = new Date(),
+): boolean {
+  const { rescheduleCutoffHours, maxReschedules } = pickSettings(s).booking;
+  if (maxReschedules > 0 && (booking.rescheduleCount ?? 0) >= maxReschedules) return false;
+  const hours = hoursUntilVisit(booking.schedule, now);
+  return rescheduleCutoffHours <= 0 || hours === undefined || hours >= rescheduleCutoffHours;
+}
+
+/** Customer may still cancel: outside `booking.cancelCutoffHours` of the visit (0 = until work starts). */
+export function canCancelVisit(
+  booking: { schedule?: { date?: string; slot?: string; time?: string } | null },
+  s?: BusinessSettings,
+  now: Date = new Date(),
+): boolean {
+  const { cancelCutoffHours } = pickSettings(s).booking;
+  const hours = hoursUntilVisit(booking.schedule, now);
+  return cancelCutoffHours <= 0 || hours === undefined || hours >= cancelCutoffHours;
 }

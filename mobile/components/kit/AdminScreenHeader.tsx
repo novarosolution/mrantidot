@@ -1,9 +1,11 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { Bell } from 'lucide-react-native';
+import { Bell, Search } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PremiumAppHeader } from '@/components/kit/PremiumAppHeader';
-import { colors, fonts } from '@/constants/theme';
+import { colors, fonts, ui } from '@/constants/theme';
 import { adminRoutes, appPush } from '@/lib/routes';
+import { useWideWebLayout } from '@/lib/webAdmin';
+import { webTitle } from '@/lib/webKeys';
 
 const ACTION = 44;
 
@@ -15,6 +17,7 @@ export function AdminScreenHeader({
   eyebrow = 'OPERATIONS',
   onBellPress = () => appPush(adminRoutes.notifications),
   onProfilePress = () => appPush(adminRoutes.settings),
+  onSearchPress = () => appPush(adminRoutes.search),
 }: {
   title: string;
   subtitle?: string;
@@ -23,54 +26,64 @@ export function AdminScreenHeader({
   eyebrow?: string;
   onBellPress?: () => void;
   onProfilePress?: () => void;
+  /** Global search (phones; the desktop top bar has the search field). */
+  onSearchPress?: () => void;
 }) {
   const letter = userInitial.slice(0, 1).toUpperCase();
   const badge = unreadCount > 99 ? '99+' : String(unreadCount);
+  // Desktop browser: the sidebar (notifications + badge) and the top bar (account menu) already have these.
+  const wideWeb = useWideWebLayout();
 
-  return (
-    <PremiumAppHeader
-      eyebrow={eyebrow}
-      title={title}
-      subtitle={subtitle}
-      right={
-        <View style={styles.actions}>
-          <Pressable
-            style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
-            onPress={onBellPress}
-            accessibilityRole="button"
-            accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
-            hitSlop={8}
-          >
-            <Bell size={20} color={colors.white} strokeWidth={2.1} />
-            {unreadCount > 0 ? (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{badge}</Text>
-              </View>
-            ) : (
-              <View style={styles.ping} />
-            )}
-          </Pressable>
+  const actions = wideWeb ? undefined : (
+    <View style={styles.actions}>
+      <Pressable
+        ref={webTitle('Search')}
+        style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
+        onPress={onSearchPress}
+        accessibilityRole="button"
+        accessibilityLabel="Search bookings, customers and more"
+        hitSlop={8}
+      >
+        <Search size={20} color={ui.text} strokeWidth={2} />
+      </Pressable>
 
-          <Pressable
-            style={({ pressed }) => [styles.avatarShell, pressed && styles.pressed]}
-            onPress={onProfilePress}
-            accessibilityRole="button"
-            accessibilityLabel="Open settings"
-            hitSlop={8}
-          >
-            <LinearGradient
-              colors={[colors.white, colors.soft]}
-              style={styles.avatarBtn}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Text style={styles.avatarText}>{letter}</Text>
-            </LinearGradient>
-          </Pressable>
-        </View>
-      }
-    />
+      <Pressable
+        ref={webTitle('Notifications')}
+        style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
+        onPress={onBellPress}
+        accessibilityRole="button"
+        accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+        hitSlop={8}
+      >
+        <Bell size={20} color={ui.text} strokeWidth={2} />
+        {unreadCount > 0 ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badge}</Text>
+          </View>
+        ) : null}
+      </Pressable>
+
+      <Pressable
+        ref={webTitle('Account settings')}
+        style={({ pressed }) => [styles.avatarShell, pressed && styles.pressed]}
+        onPress={onProfilePress}
+        accessibilityRole="button"
+        accessibilityLabel="Open settings"
+        hitSlop={8}
+      >
+        <LinearGradient
+          colors={[colors.forestMid, colors.forest]}
+          style={styles.avatarBtn}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Text style={styles.avatarText}>{letter}</Text>
+        </LinearGradient>
+      </Pressable>
+    </View>
   );
+
+  return <PremiumAppHeader eyebrow={eyebrow} title={title} subtitle={subtitle} right={actions} />;
 }
 
 const styles = StyleSheet.create({
@@ -79,65 +92,49 @@ const styles = StyleSheet.create({
     width: ACTION,
     height: ACTION,
     borderRadius: ACTION / 2,
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.32)',
+    borderColor: ui.border,
   },
   avatarShell: {
     borderRadius: ACTION / 2,
-    shadowColor: colors.deep,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
-    shadowRadius: 8,
-    elevation: 3,
+    padding: 2,
+    backgroundColor: ui.brandSoft,
   },
   avatarBtn: {
-    width: ACTION,
-    height: ACTION,
-    borderRadius: ACTION / 2,
+    width: ACTION - 4,
+    height: ACTION - 4,
+    borderRadius: (ACTION - 4) / 2,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.75)',
   },
-  pressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
+  pressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
   badge: {
     position: 'absolute',
-    top: -2,
-    right: -2,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
+    top: -3,
+    right: -3,
+    minWidth: 19,
+    height: 19,
+    borderRadius: 10,
     backgroundColor: colors.error,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
     borderWidth: 2,
-    borderColor: colors.forest,
+    borderColor: colors.white,
   },
   badgeText: {
     fontFamily: fonts.bodyBold,
-    fontSize: 9,
+    fontSize: 9.5,
     color: colors.white,
-  },
-  ping: {
-    position: 'absolute',
-    top: 9,
-    right: 10,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.limeBright,
-    borderWidth: 1.5,
-    borderColor: colors.forest,
   },
   avatarText: {
     fontFamily: fonts.displayExtra,
-    fontSize: 17,
-    color: colors.forestDeep,
+    fontSize: 16,
+    color: colors.white,
     letterSpacing: -0.2,
   },
 });

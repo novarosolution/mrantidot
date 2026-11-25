@@ -1,6 +1,10 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { Dimensions, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
+import { Dimensions, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { useBusinessSettings } from '@/lib/businessSettings';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { haptic } from '@/lib/motion';
 import { AppIcons } from '@/constants/appIcons';
 import { AppIconImages } from '@/constants/appImageIcons';
 import {
@@ -8,7 +12,7 @@ import {
   PROPERTY_TYPE_LABELS,
   type PropertyTypeKey,
 } from '@/constants/propertyTypes';
-import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { colors, fonts, radii, spacing, typeScale, ui } from '@/constants/theme';
 
 const PROPERTY_ICONS: Record<PropertyTypeKey, LucideIcon> = {
   '1bhk': AppIcons.property.home,
@@ -54,30 +58,34 @@ export function PropertyTypePicker({
   onChange: (next: PropertyTypeKey) => void;
   contentInset?: number;
 }) {
+  // Re-render when the admin changes the property list (names, order, on/off).
+  useBusinessSettings();
+  const copy = useCustomerUiCopy();
   const width = tileWidth(contentInset);
+  const groupTitles = [copy.propertyGroupHome, copy.propertyGroupBusiness];
 
   return (
     <View style={styles.wrap}>
-      {PROPERTY_TYPE_GROUPS.map((group) => (
+      {PROPERTY_TYPE_GROUPS.map((group, gi) => (
+        group.keys.length === 0 ? null : (
         <View key={group.title} style={styles.group}>
-          <Text style={styles.groupTitle}>{group.title}</Text>
+          <Text style={styles.groupTitle}>{groupTitles[gi] ?? group.title}</Text>
           <View style={styles.grid}>
             {group.keys.map((key) => {
               const icon = PROPERTY_ICONS[key] ?? AppIcons.property.home;
               const image = PROPERTY_IMAGES[key] ?? AppIconImages.property.home;
               const selected = value === key;
               return (
-                <Pressable
+                <PressableScale
                   key={key}
-                  accessibilityRole="button"
+                  accessibilityRole="radio"
                   accessibilityState={{ selected }}
-                  style={({ pressed }) => [
-                    styles.tile,
-                    { width },
-                    selected && styles.tileSelected,
-                    pressed && styles.pressed,
-                  ]}
-                  onPress={() => onChange(key)}
+                  accessibilityLabel={PROPERTY_TYPE_LABELS[key]}
+                  style={[styles.tile, { width }, selected && styles.tileSelected]}
+                  onPress={() => {
+                    if (!selected) haptic('select');
+                    onChange(key);
+                  }}
                 >
                   <View style={[styles.iconWrap, selected && styles.iconWrapSelected]}>
                     <PremiumIcon
@@ -97,11 +105,12 @@ export function PropertyTypePicker({
                       <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={12} color={colors.white} strokeWidth={3} />
                     </View>
                   ) : null}
-                </Pressable>
+                </PressableScale>
               );
             })}
           </View>
         </View>
+        )
       ))}
     </View>
   );
@@ -110,11 +119,7 @@ export function PropertyTypePicker({
 const styles = StyleSheet.create({
   wrap: { gap: spacing.lg, width: '100%' },
   group: { gap: spacing.sm, width: '100%' },
-  groupTitle: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 13,
-    color: ui.textSecondary,
-  },
+  groupTitle: { ...typeScale.captionStrong, color: ui.textSecondary },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -124,7 +129,7 @@ const styles = StyleSheet.create({
   tile: {
     minHeight: 96,
     padding: 12,
-    borderRadius: 14,
+    borderRadius: radii.control,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: ui.border,
@@ -165,5 +170,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pressed: { opacity: 0.92 },
 });

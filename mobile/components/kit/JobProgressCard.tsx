@@ -1,101 +1,85 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text, View } from 'react-native';
+import { fillCopy } from '@/constants/customerUiCopy';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
-import { homeShadow } from '@/components/kit/homeUi';
-import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+import { LiveBadge } from '@/components/ui/LiveBadge';
+import { useReducedMotion } from '@/lib/a11yPrefs';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { motion } from '@/lib/motion';
+import { colors, fonts, premium, spacing } from '@/constants/theme';
 
+/**
+ * Treatment-step progress (tech job + admin booking). The bar grows with a native-driver `scaleX`
+ * from its left edge — no width animation on the JS thread. Callers wrap it in their own entrance.
+ */
 export function JobProgressCard({
   done,
   total,
   live,
-  label = 'Treatment progress',
+  label,
 }: {
   done: number;
   total: number;
   live?: boolean;
   label?: string;
 }) {
-  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-  const animPct = useRef(new Animated.Value(0)).current;
-  const enter = useRef(new Animated.Value(0)).current;
+  const copy = useCustomerUiCopy();
+  const reduced = useReducedMotion();
+  const ratio = total > 0 ? Math.min(1, Math.max(0, done / total)) : 0;
+  const pct = Math.round(ratio * 100);
+  const scale = useRef(new Animated.Value(reduced ? ratio : 0)).current;
 
   useEffect(() => {
-    Animated.timing(enter, {
-      toValue: 1,
-      duration: 400,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [enter]);
+    if (reduced) {
+      scale.setValue(ratio);
+      return;
+    }
+    const anim = Animated.spring(scale, { toValue: ratio, ...motion.spring, useNativeDriver: true });
+    anim.start();
+    return () => anim.stop();
+  }, [ratio, reduced, scale]);
 
-  useEffect(() => {
-    Animated.spring(animPct, {
-      toValue: pct,
-      friction: 9,
-      tension: 50,
-      useNativeDriver: false,
-    }).start();
-  }, [animPct, pct]);
-
-  const fillWidth = animPct.interpolate({
-    inputRange: [0, 100],
-    outputRange: ['0%', '100%'],
-  });
+  const title = label ?? copy.techProgressTreatment;
+  const count = fillCopy(copy.techProgressSteps, { done, total });
 
   return (
-    <Animated.View
-      style={[
-        styles.shell,
-        { opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] },
-      ]}
-    >
-      <GlassPanel style={styles.card} padded={false} tone="light" intensity={42} goldEdge>
-        <View style={styles.inner}>
-          <View style={styles.head}>
-            <Text style={styles.title}>{label}</Text>
-            {live ? (
-              <View style={styles.liveBadge}>
-                <View style={styles.liveDot} />
-                <Text style={styles.liveText}>Live</Text>
-              </View>
-            ) : null}
-          </View>
-
-          <View style={styles.track}>
-            <Animated.View style={[styles.fillWrap, { width: fillWidth }]}>
-              <LinearGradient
-                colors={[colors.limeBright, colors.forestMid, colors.forest]}
-                style={styles.fill}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              />
-            </Animated.View>
-          </View>
-
-          <View style={styles.metaRow}>
-            <Text style={styles.meta}>
-              {done} of {total} steps
-            </Text>
-            <Text style={styles.pct}>{pct}%</Text>
-          </View>
+    <GlassPanel style={styles.card} padded={false} tone="light">
+      <View
+        style={styles.inner}
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel={title}
+        accessibilityValue={{ min: 0, max: 100, now: pct, text: `${count}, ${pct}%` }}
+      >
+        <View style={styles.head}>
+          <Text style={styles.title}>{title}</Text>
+          {live ? <LiveBadge label={copy.techLiveBadge} /> : null}
         </View>
-      </GlassPanel>
-    </Animated.View>
+
+        <View style={styles.track}>
+          <Animated.View style={[styles.fill, { transform: [{ scaleX: scale }] }]}>
+            <LinearGradient
+              colors={[colors.limeBright, colors.forestMid, colors.forest]}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            />
+          </Animated.View>
+        </View>
+
+        <View style={styles.metaRow}>
+          <Text style={styles.meta}>{count}</Text>
+          <Text style={styles.pct}>{pct}%</Text>
+        </View>
+      </View>
+    </GlassPanel>
   );
 }
 
 const styles = StyleSheet.create({
-  shell: {
-    borderRadius: premium.radiusCard,
-    ...homeShadow.card,
-  },
-  card: {
-    borderRadius: premium.radiusCard,
-  },
-  inner: {
-    padding: spacing.md,
-  },
+  card: { borderRadius: premium.radiusCard },
+  inner: { padding: spacing.md },
   head: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -103,32 +87,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   title: { fontFamily: fonts.display, fontSize: 15, color: colors.ink },
-  liveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: colors.soft,
-    borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.forest,
-  },
-  liveText: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.forest },
   track: {
     height: 10,
     borderRadius: 5,
     backgroundColor: colors.soft,
     overflow: 'hidden',
   },
-  fillWrap: { height: '100%' },
-  fill: { flex: 1, borderRadius: 5 },
+  /** Full-width bar scaled from the left edge; the track's rounded clip shapes its ends. */
+  fill: { ...StyleSheet.absoluteFill, transformOrigin: 'left' },
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

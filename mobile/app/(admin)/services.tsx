@@ -1,25 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
+import { FlatList, RefreshControl } from 'react-native';
 import { AdminAddButton } from '@/components/kit/AdminAddButton';
-import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { AdminEntrance, AdminListShell, adminListShellStyles, useListEntrance } from '@/components/kit/AdminListShell';
 import { AdminFilterChips } from '@/components/kit/AdminPageKit';
 import { AdminServiceListCard } from '@/components/kit/AdminServiceListCard';
 import { AdminServiceTypeGrid } from '@/components/kit/AdminServiceTypeGrid';
+import { AdminServiceTypesSkeleton } from '@/components/kit/AdminSkeletons';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
 import { api, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
+import { haptic } from '@/lib/motion';
 import { adminRoutes, appPush } from '@/lib/routes';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { SERVICE_TYPE_LABELS } from '@/constants/serviceTypes';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import type { Service, ServiceTypeKey } from '@/types/api';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors } from '@/constants/theme';
+import { confirmAsync, notify } from '@/lib/confirm';
 
 type ServiceFilter = 'all' | 'active' | 'inactive';
 type BrowseMode = 'types' | 'list';
@@ -30,6 +30,8 @@ export default function AdminServicesScreen() {
   const [selectedType, setSelectedType] = useState<ServiceTypeKey | 'all'>('all');
   const [listFilter, setListFilter] = useState<ServiceFilter>('all');
   const { loading, error, refreshing, runLoad, reload, refresh } = useScreenLoad();
+  // The list view mounts later (after a type is picked) — its rows animate on that first open.
+  const entrance = useListEntrance(!loading && browseMode === 'list');
 
   const load = useCallback(async (opts?: { skipCache?: boolean }) => {
     const { data } = await api.get<{ services: Service[] }>('/services', {
@@ -59,28 +61,23 @@ export default function AdminServicesScreen() {
 
   const toggleActive = useCallback((s: Service) => {
     const next = s.active === false;
-    Alert.alert(
-      next ? 'Restore service?' : 'Deactivate service?',
-      next ? 'Service will appear for customers again.' : 'Customers will no longer see this service.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: next ? 'Restore' : 'Deactivate',
-          style: next ? 'default' : 'destructive',
-          onPress: () => {
-            void (async () => {
-              setServices((prev) => prev.map((x) => (x.id === s.id ? { ...x, active: next } : x)));
-              try {
-                await api.patch(`/services/${s.id}`, { active: next });
-              } catch {
-                setServices((prev) => prev.map((x) => (x.id === s.id ? { ...x, active: s.active } : x)));
-                Alert.alert('Error', `Could not ${next ? 'restore' : 'deactivate'} service`);
-              }
-            })();
-          },
-        },
-      ],
-    );
+    void confirmAsync({
+      title: next ? 'Restore service?' : 'Deactivate service?',
+      message: next ? 'Service will appear for customers again.' : 'Customers will no longer see this service.',
+      confirmLabel: next ? 'Restore' : 'Deactivate',
+      destructive: !next,
+    }).then(async (ok) => {
+      if (!ok) return;
+      setServices((prev) => prev.map((x) => (x.id === s.id ? { ...x, active: next } : x)));
+      try {
+        await api.patch(`/services/${s.id}`, { active: next });
+        haptic('success');
+      } catch {
+        setServices((prev) => prev.map((x) => (x.id === s.id ? { ...x, active: s.active } : x)));
+        haptic('error');
+        notify('Error', `Could not ${next ? 'restore' : 'deactivate'} service`);
+      }
+    });
   }, []);
 
   function openType(type: ServiceTypeKey | 'all') {
@@ -97,7 +94,13 @@ export default function AdminServicesScreen() {
     appPush(id ? { pathname: adminRoutes.serviceEdit, params: { id } } : adminRoutes.serviceEdit);
   }
 
-  if (loading) return <Spinner fullScreen />;
+  if (loading) {
+    return (
+      <AdminListShell title="Services" subtitle="Loading catalog…" rightAction={<AdminAddButton onPress={() => openEdit()} />}>
+        <AdminServiceTypesSkeleton />
+      </AdminListShell>
+    );
+  }
 
   if (error) {
     return (
@@ -122,7 +125,6 @@ export default function AdminServicesScreen() {
       <AdminListShell
         title="Services"
         subtitle={`${activeCount} active · ${services.length} total`}
-        showBack={false}
         rightAction={<AdminAddButton onPress={() => openEdit()} />}
       >
         <AdminServiceTypeGrid
@@ -142,23 +144,15 @@ export default function AdminServicesScreen() {
       onBack={backToTypes}
       backFallback={adminRoutes.services}
       headerExtra={
-        <View style={styles.headerExtra}>
-          <Pressable style={styles.backTypes} onPress={backToTypes}>
-            <PremiumIcon icon={AppIcons.ui.chevronLeft} variant="plain" size="md" color={colors.forest} />
-            <Text style={styles.backTypesText}>Pest types</Text>
-          </Pressable>
-          <View style={styles.chips}>
-            <AdminFilterChips
-              chips={[
-                { key: 'all', label: 'All' },
-                { key: 'active', label: 'Active' },
-                { key: 'inactive', label: 'Inactive' },
-              ]}
-              selected={listFilter}
-              onSelect={(key) => setListFilter(key as ServiceFilter)}
-            />
-          </View>
-        </View>
+        <AdminFilterChips
+          chips={[
+            { key: 'all', label: 'All' },
+            { key: 'active', label: 'Active' },
+            { key: 'inactive', label: 'Inactive' },
+          ]}
+          selected={listFilter}
+          onSelect={(key) => setListFilter(key as ServiceFilter)}
+        />
       }
     >
       <FlatList
@@ -183,35 +177,17 @@ export default function AdminServicesScreen() {
           />
         }
         renderItem={({ item, index }) => (
-          <AdminServiceListCard
-            service={item}
-            index={index}
-            onPress={() => openEdit(item.id)}
-            onEdit={() => openEdit(item.id)}
-            onToggleActive={() => toggleActive(item)}
-          />
+          <AdminEntrance index={index} play={entrance(index)}>
+            <AdminServiceListCard
+              service={item}
+              index={index}
+              onPress={() => openEdit(item.id)}
+              onEdit={() => openEdit(item.id)}
+              onToggleActive={() => toggleActive(item)}
+            />
+          </AdminEntrance>
         )}
       />
     </AdminListShell>
   );
 }
-
-const styles = StyleSheet.create({
-  headerExtra: {
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.bg,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2F0D8',
-  },
-  backTypes: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.md,
-  },
-  backTypesText: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.forest },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
-});

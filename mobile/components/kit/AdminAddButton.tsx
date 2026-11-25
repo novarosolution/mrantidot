@@ -3,12 +3,14 @@ import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { colors } from '@/constants/theme';
+import { webTitle } from '@/lib/webKeys';
 
 /** Circular add action for admin list headers. */
 export function AdminAddButton({ onPress, label = 'Add' }: { label?: string; onPress: () => void }) {
   return (
     <Pressable
-      style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}
+      ref={webTitle(label)}
+      style={(state) => [styles.wrap, (state as { hovered?: boolean }).hovered && styles.hovered, state.pressed && styles.pressed]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
@@ -54,4 +56,5 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.35)',
   },
   pressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
+  hovered: { opacity: 0.92, transform: [{ scale: 1.04 }] },
 });

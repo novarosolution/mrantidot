@@ -6,8 +6,25 @@ import { requireAuth, requireRole } from '../middleware/auth';
 import { ensureDefaultPaymentMethods } from '../utils/ensurePaymentMethods';
 import { AppError } from '../utils/AppError';
 import { asyncHandler } from '../middleware/error';
+import { customerText, getBusinessSettings } from '../utils/businessSettings';
 
 export const paymentMethodsRouter = Router();
+
+/** Payment types switched on in Business settings → Payments. Saved methods of other types are hidden. */
+async function activePaymentTypes(): Promise<Set<string>> {
+  const { payments } = await getBusinessSettings();
+  return new Set(payments.methods.filter((m) => m.active).map((m) => m.key));
+}
+
+async function assertTypeActive(type: unknown): Promise<void> {
+  if (typeof type !== 'string') return;
+  if ((await activePaymentTypes()).has(type)) return;
+  throw new AppError(
+    400,
+    await customerText('cartPaymentUnavailable', 'That payment option isn’t available right now. Please choose another.'),
+    'PAYMENT_UNAVAILABLE',
+  );
+}
 
 paymentMethodsRouter.use(requireAuth, requireRole('customer'));
 
@@ -28,8 +45,11 @@ paymentMethodsRouter.get(
   '/',
   asyncHandler(async (req, res) => {
     await ensureDefaultPaymentMethods(req.user!.id);
-    const methods = await PaymentMethod.find({ customerId: req.user!.id }).sort({ isDefault: -1, createdAt: -1 });
-    res.json({ paymentMethods: methods.map((m) => m.toJSON()) });
+    const [methods, active] = await Promise.all([
+      PaymentMethod.find({ customerId: req.user!.id }).sort({ isDefault: -1, createdAt: -1 }),
+      activePaymentTypes(),
+    ]);
+    res.json({ paymentMethods: methods.filter((m) => active.has(m.type)).map((m) => m.toJSON()) });
   }),
 );
 
@@ -41,6 +61,7 @@ paymentMethodsRouter.post(
   body('isDefault').optional().isBoolean(),
   (req, res, next) => runValidation(req, res, next),
   asyncHandler(async (req, res) => {
+    await assertTypeActive(req.body.type);
     if (req.body.isDefault) {
       await PaymentMethod.updateMany({ customerId: req.user!.id }, { isDefault: false });
     }
@@ -66,6 +87,7 @@ paymentMethodsRouter.patch(
   asyncHandler(async (req, res) => {
     const method = await PaymentMethod.findOne({ _id: req.params.id, customerId: req.user!.id });
     if (!method) throw new AppError(404, 'Payment method not found');
+    if (req.body.type !== undefined && req.body.type !== method.type) await assertTypeActive(req.body.type);
     if (req.body.isDefault) {
       await PaymentMethod.updateMany({ customerId: req.user!.id }, { isDefault: false });
     }

@@ -1,9 +1,14 @@
 import { useEffect, useRef } from 'react';
-import { ActivityIndicator, Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { ArrowRight, MapPin, ShieldCheck } from 'lucide-react-native';
 import { AuthSplashLayout } from '@/components/kit/auth/AuthScreenKit';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
-import { colors, fonts, ui } from '@/constants/theme';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { colors, fonts, radii, ui } from '@/constants/theme';
+import { getReducedMotion, useAmbientLoop } from '@/lib/a11yPrefs';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { motion } from '@/lib/motion';
 
 type Phase = 'detecting' | 'found' | 'denied';
 
@@ -19,37 +24,46 @@ function LaunchStatus({
   areaLabel?: string;
   onContinue?: () => void;
 }) {
+  const copy = useCustomerUiCopy();
   const fade = useRef(new Animated.Value(0)).current;
-  const progress = useRef(new Animated.Value(0)).current;
+  /** 0 → 1 fill of the thin rail, drawn as a native-driven scaleX from the left edge. */
+  const progress = useRef(new Animated.Value(0.2)).current;
 
   useEffect(() => {
+    if (getReducedMotion()) {
+      fade.setValue(1);
+      return;
+    }
     fade.setValue(0.4);
-    Animated.timing(fade, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    Animated.timing(fade, { toValue: 1, duration: motion.duration.slow, easing: motion.easing.out, useNativeDriver: true }).start();
   }, [fade, phase]);
 
   useEffect(() => {
-    if (phase !== 'detecting') {
-      Animated.timing(progress, { toValue: 1, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(progress, { toValue: 0.85, duration: 1600, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
-        Animated.timing(progress, { toValue: 0.2, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
+    if (phase === 'detecting') return;
+    Animated.timing(progress, { toValue: 1, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, [phase, progress]);
 
+  // Indeterminate sweep while we look for the area (still with Reduce Motion).
+  useAmbientLoop(
+    () =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(progress, { toValue: 0.85, duration: 1600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(progress, { toValue: 0.2, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ]),
+      ),
+    [progress],
+    phase === 'detecting',
+  );
+
   const title =
-    phase === 'found' && cityLabel ? `Serving ${cityLabel}` : phase === 'denied' ? 'Location is off' : 'Finding your area…';
-  const body =
-    phase === 'found'
-      ? areaLabel || 'Verified technicians are ready nearby'
+    phase === 'found' && cityLabel
+      ? fillCopy(copy.launchFoundTitle, { city: cityLabel })
       : phase === 'denied'
-        ? 'You can set your city anytime from home'
-        : 'Matching trusted experts near you';
+        ? copy.launchDeniedTitle
+        : copy.launchFindingTitle;
+  const body =
+    phase === 'found' ? areaLabel || copy.launchFoundBody : phase === 'denied' ? copy.launchDeniedBody : copy.launchFindingBody;
   const Icon = phase === 'denied' ? ShieldCheck : MapPin;
 
   return (
@@ -72,19 +86,13 @@ function LaunchStatus({
         </View>
       </Animated.View>
       <View style={styles.track}>
-        <Animated.View
-          style={[styles.fill, { width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]}
-        />
+        <Animated.View style={[styles.fill, { transform: [{ scaleX: progress }] }]} />
       </View>
       {phase === 'denied' && onContinue ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onContinue}
-          style={({ pressed }) => [styles.continueBtn, pressed && styles.pressed]}
-        >
-          <Text style={styles.continueText}>Continue</Text>
+        <PressableScale accessibilityRole="button" haptic="tap" onPress={onContinue} style={styles.continueBtn}>
+          <Text style={styles.continueText}>{copy.launchContinue}</Text>
           <ArrowRight size={18} color={ui.brand} strokeWidth={2.4} />
-        </Pressable>
+        </PressableScale>
       ) : null}
     </View>
   );
@@ -93,7 +101,7 @@ function LaunchStatus({
 /** App start screen — brand splash while we detect the customer's area. */
 export function LocationLaunchScreen({
   brandName,
-  tagline = 'Trusted pest control & home services',
+  tagline,
   trustChips,
   cityLabel,
   areaLabel,
@@ -108,12 +116,13 @@ export function LocationLaunchScreen({
   phase: Phase;
   onContinue?: () => void;
 }) {
+  const copy = useCustomerUiCopy();
   return (
     <>
       <FocusStatusBar style="light" />
       <AuthSplashLayout
         brandName={brandName}
-        tagline={tagline}
+        tagline={tagline?.trim() || copy.launchTaglineFallback}
         trustBadges={trustChips}
         footer={<LaunchStatus phase={phase} cityLabel={cityLabel} areaLabel={areaLabel} onContinue={onContinue} />}
       />
@@ -129,7 +138,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 18,
+    borderRadius: radii.control,
     backgroundColor: colors.white,
   },
   statusIcon: {
@@ -150,16 +159,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.18)',
     overflow: 'hidden',
   },
-  fill: { height: '100%', borderRadius: 2, backgroundColor: colors.limeOnDark },
+  fill: { height: '100%', width: '100%', transformOrigin: 'left', backgroundColor: colors.limeOnDark },
   continueBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     height: 52,
-    borderRadius: 16,
+    borderRadius: radii.control,
     backgroundColor: colors.white,
   },
-  continueText: { fontFamily: fonts.bodyBold, fontSize: 15.5, color: ui.brand },
-  pressed: { opacity: 0.85 },
+  continueText: { fontFamily: fonts.bodyBold, fontSize: 15, color: ui.brand },
 });

@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 import { IUser } from '../models/User';
 import { IService } from '../models/Service';
-import { IBooking } from '../models/Booking';
+import { IBooking, type IAdminNote, type IBookingAdjustment, type IOrderChange } from '../models/Booking';
 import { IReview } from '../models/Review';
 import { PROPERTY_TYPE_LABELS } from '../constants/propertyTypes';
 import {
@@ -69,9 +69,15 @@ function sanitizeStepsForCustomer(
   });
 }
 
+/**
+ * Who a technician calls for the visit: the person at the property when the booking is for someone else,
+ * otherwise the account holder. `bookedForOther` lets the app label it ("On-site contact").
+ */
 function customerContactForTech(
   customer: ReturnType<typeof formatUser> | string | undefined,
-): { name: string; phone?: string } | undefined {
+  visitContact?: { name: string; phone: string },
+): { name: string; phone?: string; bookedForOther?: boolean } | undefined {
+  if (visitContact?.name) return { name: visitContact.name, phone: visitContact.phone, bookedForOther: true };
   if (!customer || typeof customer !== 'object') return undefined;
   return { name: customer.name, phone: customer.phone };
 }
@@ -128,6 +134,7 @@ function formatBookingForTechnician(
 ): Record<string, unknown> {
   const customer = customerContactForTech(
     base.customer as ReturnType<typeof formatUser> | string | undefined,
+    base.visitContact as { name: string; phone: string } | undefined,
   );
   const status = String(base.status ?? '');
   const amount = base.amount as { total?: number } | undefined;
@@ -158,6 +165,8 @@ function formatBookingForTechnician(
     status: base.status,
     assignmentMode: base.assignmentMode,
     paymentMethod: base.paymentMethod,
+    // Paid / unpaid only (e.g. collect payment on site) — no notes or references.
+    paymentStatus: base.paymentStatus,
     steps: base.steps,
     problemPhotos: base.problemPhotos,
     otpRequired: otpRequiredForBooking(booking),
@@ -183,10 +192,16 @@ export function formatBookingForRole(
       ? (base.technician as Record<string, unknown>)
       : undefined;
     const visitActive = ['confirmed', 'in_progress', 'awaiting_verification'].includes(String(base.status));
+    const cancelledBy = base.cancelledBy as { role?: string } | undefined;
     return {
       ...base,
       customerId: undefined,
       customer: undefined,
+      // Ops-only fields: internal notes, who in the team did what, and an admin's cancel reason.
+      adminNotes: undefined,
+      createdByAdmin: undefined,
+      cancelledBy: cancelledBy?.role ? { role: cancelledBy.role } : undefined,
+      cancelReason: cancelledBy?.role === 'customer' ? base.cancelReason : undefined,
       technicianId: undefined,
       technician: tech
         ? {
@@ -199,6 +214,13 @@ export function formatBookingForRole(
           }
         : undefined,
       technicianEarning: undefined,
+      // Bill lines only (label + amount) — why an admin added them and the order history stay internal.
+      adjustments: (base.adjustments as { id: string; label: string; amount: number }[]).map(({ id, label, amount }) => ({
+        id,
+        label,
+        amount,
+      })),
+      orderHistory: undefined,
       assignmentMode: undefined,
       steps: sanitizeStepsForCustomer(base.steps as unknown[]),
       workOtp: formatWorkOtpForCustomer(booking),
@@ -273,8 +295,39 @@ export function formatBooking(booking: IBooking & { populate?: unknown }) {
     propertyTypeLabel: doc.propertyType
       ? PROPERTY_TYPE_LABELS[doc.propertyType as keyof typeof PROPERTY_TYPE_LABELS]
       : undefined,
+    // Size/package picked at booking (label + price locked then).
+    option: doc.option?.label ? { key: doc.option.key, label: doc.option.label, price: doc.option.price } : undefined,
     address: doc.address,
+    // Set only when the visit is for someone other than the account holder.
+    visitContact: doc.visitContact?.name
+      ? { name: doc.visitContact.name, phone: doc.visitContact.phone }
+      : undefined,
     amount: doc.amount,
+    // Admin bill lines: + extra charge / − discount (before GST). Customers get label + amount only.
+    adjustments: Array.isArray(doc.adjustments)
+      ? (doc.adjustments as IBookingAdjustment[]).map((a) => ({
+          id: String(a._id),
+          label: a.label,
+          amount: a.amount,
+          reason: a.reason || undefined,
+          byName: a.byName || undefined,
+          at: isoDate(a.at),
+        }))
+      : [],
+    // Admin edits of the order, oldest first (admin view only).
+    orderHistory: Array.isArray(doc.orderHistory)
+      ? (doc.orderHistory as IOrderChange[]).map((h) => ({
+          id: String(h._id),
+          at: isoDate(h.at),
+          by: oid(h.by),
+          byName: h.byName || 'Admin',
+          totalBefore: h.totalBefore,
+          totalAfter: h.totalAfter,
+          changes: Array.isArray(h.changes) ? h.changes : [],
+          note: h.note || undefined,
+          notified: h.notified === true,
+        }))
+      : [],
     technicianEarning:
       typeof doc.technicianEarning === 'number' ? doc.technicianEarning : undefined,
     paymentMethod: doc.paymentMethod,
@@ -286,6 +339,32 @@ export function formatBooking(booking: IBooking & { populate?: unknown }) {
     workStartedAt: isoDate(doc.workStartedAt),
     workCompletedAt: isoDate(doc.workCompletedAt),
     otpRequired: otpRequiredForBooking(booking),
+    rescheduleCount: typeof doc.rescheduleCount === 'number' ? doc.rescheduleCount : 0,
+    preferredTechnicianId: oid(doc.preferredTechnicianId),
+    paymentStatus: doc.paymentStatus ?? 'unpaid',
+    paidAt: isoDate(doc.paidAt),
+    paidVia: doc.paidVia || undefined,
+    paymentRef: doc.paymentRef || undefined,
+    refundedAt: isoDate(doc.refundedAt),
+    cancelReason: doc.cancelReason || undefined,
+    cancelledAt: isoDate(doc.cancelledAt),
+    cancelledBy: doc.cancelledBy?.role
+      ? { id: oid(doc.cancelledBy.id), role: doc.cancelledBy.role, name: doc.cancelledBy.name || undefined }
+      : undefined,
+    // Internal admin notes — formatBookingForRole strips them for customers and technicians.
+    adminNotes: Array.isArray(doc.adminNotes)
+      ? (doc.adminNotes as IAdminNote[]).map((n) => ({
+          id: String(n._id),
+          text: n.text,
+          by: oid(n.by),
+          byName: n.byName || 'Admin',
+          at: isoDate(n.at),
+        }))
+      : [],
+    createdByAdmin: doc.createdByAdmin?.name
+      ? { id: oid(doc.createdByAdmin.id), name: doc.createdByAdmin.name }
+      : undefined,
+    source: doc.source,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };

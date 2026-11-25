@@ -13,6 +13,7 @@ import { ArrowRight, CircleCheck, Eye, EyeOff, type LucideIcon } from 'lucide-re
 import { AuthLoginShell, AuthFormSection, AuthFooterText } from '@/components/kit/auth/AuthScreenKit';
 import { colors, fonts, premiumType, spacing, ui } from '@/constants/theme';
 import { textInputDefaults, textInputStyles } from '@/components/ui/textInputDefaults';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 export type AuthFieldProps = {
   label: string;
@@ -46,6 +47,7 @@ export function AuthField({
   keyboardType = 'default',
   autoCapitalize = 'none',
 }: AuthFieldProps) {
+  const copy = useCustomerUiCopy();
   const [focused, setFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const filled = value.trim().length > 0;
@@ -54,7 +56,7 @@ export function AuthField({
     <View style={styles.field}>
       <View style={styles.labelRow}>
         <Text style={[styles.fieldLabel, focused && styles.fieldLabelFocused]}>{label}</Text>
-        {optional ? <Text style={styles.optional}>Optional</Text> : null}
+        {optional ? <Text style={styles.optional}>{copy.authFieldOptional}</Text> : null}
       </View>
       <View
         style={[
@@ -199,7 +201,7 @@ export const authScreenStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   field: { marginBottom: 16 },
   labelRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 },
-  fieldLabel: { fontFamily: fonts.bodySemi, fontSize: 13.5, color: ui.text },
+  fieldLabel: { fontFamily: fonts.bodySemi, fontSize: 13, color: ui.text },
   fieldLabelFocused: { color: ui.brand },
   optional: { fontFamily: fonts.bodyMedium, fontSize: 12, color: ui.textTertiary },
   fieldCard: {
@@ -234,7 +236,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    height: 56,
+    height: 52,
     borderRadius: 16,
     backgroundColor: ui.brand,
     shadowColor: ui.brand,
@@ -245,5 +247,5 @@ const styles = StyleSheet.create({
   },
   primaryPressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
   primaryBusy: { opacity: 0.85 },
-  primaryText: { fontFamily: fonts.bodyBold, fontSize: 16, letterSpacing: 0.1, color: colors.white },
+  primaryText: { fontFamily: fonts.bodyBold, fontSize: 15, letterSpacing: 0.1, color: colors.white },
 });

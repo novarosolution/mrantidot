@@ -1,8 +1,7 @@
-import type { LucideIcon } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Animated,
-  Dimensions,
+  FlatList,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -10,19 +9,25 @@ import {
   Text,
   TextInput,
   View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
+  type ListRenderItem,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Check, ChevronDown, LayoutGrid, Search, X } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ServiceIcon } from '@/components/ServiceIcon';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/AdminActionSheet';
+import { SEARCH_BAND } from '@/components/kit/HomeSearchBar';
+import { PremiumAurora } from '@/components/kit/PremiumAurora';
 import { PestImage } from '@/components/kit/ServiceThumb';
-import { AppIcons } from '@/constants/appIcons';
+import { ServiceListRow } from '@/components/kit/ServiceListRow';
+import { TrustNote } from '@/components/kit/TrustNote';
 import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { ServiceRowsSkeleton } from '@/components/kit/ScreenSkeletons';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { fillCopy } from '@/constants/customerUiCopy';
 import { textInputDefaults } from '@/components/ui/textInputDefaults';
 import { useAppContent } from '@/context/AppContentContext';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
@@ -34,72 +39,79 @@ import { serviceDisplayRating } from '@/lib/ratings';
 import { SERVICE_TYPE_KEYS, SERVICE_TYPE_LABELS, type ServiceTypeKey } from '@/constants/serviceTypes';
 import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
 import type { Service, ServiceStats } from '@/types/api';
-import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { colors, fonts, radii, typeScale, ui } from '@/constants/theme';
 import { sharedRoutes, appPush } from '@/lib/routes';
+import { serviceStartPrice } from '@/lib/serviceDisplay';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { haptic, stagger } from '@/lib/motion';
 
 type SortKey = 'popular' | 'rating' | 'price';
-type ViewKey = 'grid' | 'list';
 
-const SORTS: { key: SortKey; label: string }[] = [
-  { key: 'popular', label: 'Popular' },
-  { key: 'rating', label: 'Top rated' },
-  { key: 'price', label: 'Price' },
-];
+const SORT_KEYS: SortKey[] = ['popular', 'rating', 'price'];
 
-const SPOT_TAGS = ['MOST POPULAR', 'TRENDING', 'TOP CHOICE'];
-const SPOT_CARD_W = 300;
-const SPOT_GAP = 12;
+const H_PAD = 16;
+const PEST_TILE = 68;
 
-const INK = ui.text;
-const MUTED = ui.textSecondary;
-const FAINT = ui.textTertiary;
-const BORDER = ui.hairline;
-const SCREEN_BG = ui.surfaceMuted;
-const BRAND = ui.brand;
+/** List rows: the filter bar (sticky) first, then services — or one empty-state row. */
+type Row = { kind: 'filters' } | { kind: 'service'; service: Service; index: number } | { kind: 'empty' };
+const FILTERS_ROW: Row = { kind: 'filters' };
+const EMPTY_ROW: Row = { kind: 'empty' };
 
-function serviceRating(service: Service): number {
-  return serviceDisplayRating(service);
+const rowKey = (r: Row) => (r.kind === 'service' ? r.service.id : r.kind);
+const openService = (s: Service) => appPush(sharedRoutes.service(s.id));
+const bookService = (s: Service) => appPush(sharedRoutes.bookPath(s.id));
+
+/** Small dropdown-style button that opens a picker sheet. */
+function FilterPill({ label, active = false, onPress }: { label: string; active?: boolean; onPress: () => void }) {
+  return (
+    <PressableScale
+      style={[styles.pill, active && styles.pillOn]}
+      onPress={onPress}
+      haptic="tap"
+      hitSlop={4}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Text style={[styles.pillText, active && styles.pillTextOn]} numberOfLines={1}>
+        {label}
+      </Text>
+      <ChevronDown size={14} color={active ? ui.brand : ui.textSecondary} strokeWidth={2.4} />
+    </PressableScale>
+  );
 }
 
-function durationLabel(service: Service): string {
-  const steps = service.stepTemplate?.length ?? 0;
-  return steps > 0 ? `~${Math.max(30, steps * 15)} min` : '~45 min';
-}
-
-function categoryIcon(category?: string): LucideIcon {
-  switch (category) {
-    case 'residential':
-      return AppIcons.property.home;
-    case 'commercial':
-      return AppIcons.property.apartment;
-    case 'cleaning':
-      return AppIcons.ui.sparkles;
-    default:
-      return AppIcons.ui.brand;
-  }
-}
-
-function formatBookings(count: number): string {
-  if (count >= 1000) return `${(count / 1000).toFixed(1).replace('.0', '')}k+ bookings`;
-  return `${count} ${count === 1 ? 'booking' : 'bookings'}`;
+/** First paint: pest tiles + a few service rows as shimmer shapes (no spinner). */
+function CatalogSkeleton() {
+  return (
+    <View>
+      <View style={[styles.pestRow, styles.skelPests]}>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <View key={i} style={styles.pestItem}>
+            <Skeleton width={PEST_TILE} height={PEST_TILE} radius={radii.card} />
+            <Skeleton width={48} height={10} radius={5} style={styles.skelLabel} />
+          </View>
+        ))}
+      </View>
+      <ServiceRowsSkeleton rows={4} />
+    </View>
+  );
 }
 
 export default function ServicesListScreen() {
   const { content, homeConfig } = useAppContent();
   const copy = useCustomerUiCopy();
+  const defaultCategory = homeConfig.categoryChips[0]?.label ?? 'All';
   const [services, setServices] = useState<Service[]>([]);
   const [statsMap, setStatsMap] = useState<Record<string, ServiceStats>>({});
   const [q, setQ] = useState('');
   const debouncedQ = useDebouncedValue(q, 300);
-  const [categoryLabel, setCategoryLabel] = useState(homeConfig.categoryChips[0]?.label ?? 'All');
+  const [categoryLabel, setCategoryLabel] = useState(defaultCategory);
   const [serviceType, setServiceType] = useState<'all' | ServiceTypeKey>('all');
   const [sort, setSort] = useState<SortKey>('popular');
-  const [view, setView] = useState<ViewKey>('grid');
-  const [spotIdx, setSpotIdx] = useState(0);
+  const [sheet, setSheet] = useState<'sort' | 'category' | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const scrollY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     setCategoryLabel((prev) => {
@@ -123,13 +135,16 @@ export default function ServicesListScreen() {
     setStatsMap(map);
   }, [debouncedQ]);
 
+  // Pick up admin changes (new offers, hidden services…) when the customer comes back to this screen.
+  useStaleFocusRefresh(() => load().catch(() => undefined), 20_000);
+
   useEffect(() => {
     setLoading(true);
     safeAsync(async () => {
       try {
         await load();
       } catch (err) {
-        setLoadError(getApiErrorMessage(err, 'Could not load services'));
+        setLoadError(getApiErrorMessage(err, copy.servicesLoadFailed));
         setServices([]);
       } finally {
         setLoading(false);
@@ -159,44 +174,34 @@ export default function ServicesListScreen() {
       filtered = filtered.filter((s) => s.serviceTypes?.includes(serviceType));
     }
     return [...filtered].sort((a, b) => {
-      if (sort === 'price') return a.basePrice - b.basePrice;
-      if (sort === 'rating') return serviceRating(b) - serviceRating(a);
+      if (sort === 'price') return serviceStartPrice(a) - serviceStartPrice(b);
+      if (sort === 'rating') return serviceDisplayRating(b) - serviceDisplayRating(a);
       return (statsMap[b.id]?.bookingCount ?? 0) - (statsMap[a.id]?.bookingCount ?? 0);
     });
   }, [services, selectedChip, serviceType, sort, statsMap]);
 
+  /** The two most-booked services get a "Popular" label. */
   const popularIds = useMemo(() => {
     const ranked = [...services].sort(
       (a, b) => (statsMap[b.id]?.bookingCount ?? 0) - (statsMap[a.id]?.bookingCount ?? 0),
     );
-    return new Set(ranked.slice(0, 3).map((s) => s.id));
+    return new Set(
+      ranked
+        .filter((s) => (statsMap[s.id]?.bookingCount ?? 0) > 0)
+        .slice(0, 2)
+        .map((s) => s.id),
+    );
   }, [services, statsMap]);
 
-  const spotlight = useMemo(() => {
-    return [...services]
-      .sort((a, b) => (statsMap[b.id]?.bookingCount ?? 0) - (statsMap[a.id]?.bookingCount ?? 0))
-      .slice(0, 3);
-  }, [services, statsMap]);
-
-  const avgRating = useMemo(() => {
-    const rated = services.map(serviceRating).filter((r) => r > 0);
-    if (rated.length === 0) return null;
-    return rated.reduce((a, b) => a + b, 0) / rated.length;
-  }, [services]);
-
-  const totalBookings = useMemo(
-    () => Object.values(statsMap).reduce((a, s) => a + (s.bookingCount ?? 0), 0),
-    [statsMap],
-  );
-
-  const hasFilters = q.length > 0 || categoryLabel !== 'All' || serviceType !== 'all';
+  const categoryActive = categoryLabel !== defaultCategory;
+  const hasFilters = q.length > 0 || categoryActive || serviceType !== 'all';
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await load();
     } catch (err) {
-      setLoadError(getApiErrorMessage(err, 'Could not refresh services'));
+      setLoadError(getApiErrorMessage(err, copy.servicesRefreshFailed));
     } finally {
       setRefreshing(false);
     }
@@ -204,372 +209,173 @@ export default function ServicesListScreen() {
 
   function resetFilters() {
     setQ('');
-    setCategoryLabel(homeConfig.categoryChips[0]?.label ?? 'All');
+    setCategoryLabel(defaultCategory);
     setServiceType('all');
     setSort('popular');
   }
 
-  const onSpotScroll = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const i = Math.min(2, Math.max(0, Math.round(e.nativeEvent.contentOffset.x / (SPOT_CARD_W + SPOT_GAP))));
-      if (i !== spotIdx) setSpotIdx(i);
-    },
-    [spotIdx],
-  );
-
   const pageSubtitle =
-    homeConfig.servicesSubtitle?.trim() || content.branding.tagline || 'Trusted pest control & home services';
+    homeConfig.servicesSubtitle?.trim() || content.branding.tagline?.trim() || copy.launchTaglineFallback;
+  const title = copy.servicesScreenTitle?.trim() || homeConfig.sectionTitles.services;
 
   const hero = (
     <View style={styles.hero}>
-      <View style={styles.heroRow}>
-        <View style={styles.heroLeft}>
-          <Text style={styles.heroTitle}>
-            {copy.servicesScreenTitle?.trim() || homeConfig.sectionTitles.services}
-          </Text>
-          <Text style={styles.heroSub} numberOfLines={2}>
-            {pageSubtitle}
-          </Text>
-          {avgRating ? (
-            <View style={styles.heroMetaRow}>
-              <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={11} color={INK} fill={INK} />
-              <Text style={styles.heroMeta}>
-                {avgRating.toFixed(1)} avg{totalBookings > 0 ? ` · ${formatBookings(totalBookings)}` : ''}
-              </Text>
-            </View>
-          ) : null}
-        </View>
-      </View>
+      <PremiumAurora tone="light" base={false} topFade />
+      {/* The list below is white, so melt the aurora into it instead of ending on a hard edge. */}
+      <LinearGradient colors={['rgba(255,255,255,0)', colors.white]} style={styles.heroFade} pointerEvents="none" />
+      <Text style={styles.heroTitle} accessibilityRole="header">
+        {title}
+      </Text>
+      <Text style={styles.heroSub} numberOfLines={2}>
+        {pageSubtitle}
+      </Text>
     </View>
   );
 
   const searchBar = (
     <View style={styles.searchWrap}>
-      <View style={styles.searchCard}>
-        <View style={styles.searchInner}>
-          <PremiumIcon icon={AppIcons.ui.search} variant="plain" size={19} color={MUTED} strokeWidth={1.9} />
-          <TextInput
-            {...textInputDefaults}
-            value={q}
-            onChangeText={setQ}
-            placeholder={homeConfig.searchPlaceholder || 'Search services…'}
-            placeholderTextColor={FAINT}
-            style={styles.searchInput}
-            returnKeyType="search"
-            onSubmitEditing={() => safeAsync(load)}
-          />
-          {hasFilters ? (
-            <Pressable style={({ pressed }) => [styles.resetBtn, pressed && styles.pressedSm]} onPress={resetFilters}>
-              <PremiumIcon icon={AppIcons.ui.close} variant="plain" size={12} color={BRAND} strokeWidth={2.4} />
-              <Text style={styles.resetText}>RESET</Text>
-            </Pressable>
-          ) : (
-            <View style={styles.filterBadge}>
-              <PremiumIcon icon={AppIcons.ui.filters} variant="plain" size={16} color={BRAND} strokeWidth={1.9} />
-            </View>
-          )}
-        </View>
+      <View style={styles.searchField}>
+        <Search size={18} color={ui.textSecondary} strokeWidth={2.1} />
+        <TextInput
+          {...textInputDefaults}
+          value={q}
+          onChangeText={setQ}
+          placeholder={homeConfig.searchPlaceholder || copy.servicesSearchPlaceholder}
+          placeholderTextColor={ui.textTertiary}
+          style={styles.searchInput}
+          returnKeyType="search"
+          onSubmitEditing={() => safeAsync(load)}
+        />
+        {q.length > 0 ? (
+          <Pressable
+            style={styles.clearX}
+            onPress={() => setQ('')}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={copy.homeSearchClear}
+          >
+            <X size={13} color={colors.white} strokeWidth={3} />
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
 
-  const categoryChips = (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.chipScroll}
-      contentContainerStyle={styles.chipRow}
-    >
-      {homeConfig.categoryChips.map((c) => {
-        const on = c.label === categoryLabel;
-        const Icon = categoryIcon(c.category);
-        return (
-          <Pressable
-            key={c.label}
-            onPress={() => setCategoryLabel(c.label)}
-            style={({ pressed }) => [styles.catChip, on && styles.catChipOn, pressed && styles.pressedSm]}
-          >
-            <View style={[styles.catChipIcon, on && styles.catChipIconOn]}>
-              <PremiumIcon icon={Icon} variant="plain" size={15} color={on ? colors.white : BRAND} strokeWidth={2} />
-            </View>
-            <Text style={[styles.catChipText, on && styles.catChipTextOn]}>{c.label}</Text>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
-  );
-
-  const pestChips =
+  /** One visual filter: pest art tiles ("All" first). */
+  const pestRow =
     availableTypes.length > 0 ? (
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.pestScroll}
-        contentContainerStyle={styles.chipRow}
+        contentContainerStyle={styles.pestRow}
       >
         {(['all', ...availableTypes] as const).map((k) => {
           const on = serviceType === k;
-          const label = k === 'all' ? 'All types' : SERVICE_TYPE_LABELS[k];
+          const label = k === 'all' ? copy.servicesAllLabel : SERVICE_TYPE_LABELS[k];
           return (
-            <Pressable
+            <PressableScale
               key={k}
-              onPress={() => setServiceType(k === 'all' ? 'all' : k)}
-              style={({ pressed }) => [styles.pestChip, on && styles.pestChipOn, pressed && styles.pressedSm]}
+              containerStyle={styles.pestItem}
+              style={styles.pestItemInner}
+              scaleTo={0.94}
+              onPress={() => {
+                if (k !== serviceType) haptic('select');
+                setServiceType(k);
+              }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={k === 'all' ? copy.servicesAllTypesA11y : label}
             >
-              {k === 'all' ? (
-                <PremiumIcon icon={AppIcons.ui.layoutGrid} variant="plain" size={13} color={on ? colors.white : BRAND} strokeWidth={2} />
-              ) : (
-                <PestImage source={SERVICE_TYPE_META[k].image} size={16} />
-              )}
-              <Text style={[styles.pestChipText, on && styles.pestChipTextOn]}>{label}</Text>
-            </Pressable>
+              <View style={[styles.pestTile, on && styles.pestTileOn]}>
+                {k === 'all' ? (
+                  <LayoutGrid size={26} color={on ? ui.brand : ui.text} strokeWidth={2} />
+                ) : (
+                  <PestImage source={SERVICE_TYPE_META[k].image} size={46} />
+                )}
+              </View>
+              <Text style={[styles.pestLabel, on && styles.pestLabelOn]} numberOfLines={1}>
+                {label}
+              </Text>
+            </PressableScale>
           );
         })}
       </ScrollView>
     ) : null;
 
-  const spotlightBlock =
-    !hasFilters && spotlight.length > 0 ? (
-      <View style={styles.spotBlock}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={SPOT_CARD_W + SPOT_GAP}
-          decelerationRate="fast"
-          onScroll={onSpotScroll}
-          scrollEventThrottle={32}
-          contentContainerStyle={styles.spotRow}
-        >
-          {spotlight.map((s, i) => {
-            const rating = serviceRating(s);
-            const bookings = statsMap[s.id]?.bookingCount ?? 0;
-            return (
-              <Pressable key={s.id} onPress={() => appPush(sharedRoutes.service(s.id))}>
-                <View style={styles.spotCard}>
-                  <View style={styles.spotTop}>
-                    <View style={styles.spotTag}>
-                      <Text style={styles.spotTagText}>{SPOT_TAGS[i] ?? 'FEATURED'}</Text>
-                    </View>
-                    {rating > 0 ? (
-                      <View style={styles.spotRateRow}>
-                        <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={11} color={BRAND} fill={BRAND} />
-                        <Text style={styles.spotRate}>
-                          {rating.toFixed(1)}
-                          {bookings > 0 ? ` · ${formatBookings(bookings)}` : ''}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  <View style={styles.spotMain}>
-                    <View style={styles.spotIcon}>
-                      <ServiceIcon iconKey={s.iconKey} size={26} variant="premium" boxSize={52} color={BRAND} />
-                    </View>
-                    <View style={styles.spotInfo}>
-                      <Text style={styles.spotName} numberOfLines={2}>
-                        {s.name}
-                      </Text>
-                      <Text style={styles.spotSub} numberOfLines={1}>
-                        {durationLabel(s)}
-                        {s.category ? ` · ${s.category[0].toUpperCase()}${s.category.slice(1)}` : ''}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.spotFooter}>
-                    <View>
-                      <Text style={styles.fromLabelDark}>FROM</Text>
-                      <Text style={styles.spotPrice}>₹{s.basePrice}</Text>
-                    </View>
-                    <Pressable
-                      style={({ pressed }) => [styles.spotBook, pressed && styles.pressedSm]}
-                      onPress={() => appPush(sharedRoutes.bookPath(s.id))}
-                      hitSlop={6}
-                    >
-                      <Text style={styles.spotBookText}>BOOK</Text>
-                      <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={13} color={colors.white} strokeWidth={2.6} />
-                    </Pressable>
-                  </View>
-                </View>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-        <View style={styles.dotsRow}>
-          {spotlight.map((s, i) => (
-            <View key={s.id} style={[styles.dot, spotIdx === i && styles.dotOn]} />
-          ))}
-        </View>
-      </View>
-    ) : null;
-
-  const sortBar = (
-    <View style={styles.sortBar}>
-      <View style={styles.sortLeft}>
-        <Text style={styles.countLabel}>
-          {visibleServices.length} {visibleServices.length === 1 ? 'service' : 'services'}
-        </Text>
-        <View style={styles.countBar} />
-      </View>
-      <View style={styles.sortRight}>
-        <View style={styles.segment}>
-          {SORTS.map((s) => {
-            const on = sort === s.key;
-            return (
-              <Pressable key={s.key} onPress={() => setSort(s.key)} style={[styles.segBtn, on && styles.segBtnOn]}>
-                <Text style={[styles.segText, on && styles.segTextOn]}>{s.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <Pressable
-          style={({ pressed }) => [styles.viewToggle, pressed && styles.pressedSm]}
-          onPress={() => setView(view === 'grid' ? 'list' : 'grid')}
-        >
-          {view === 'grid' ? (
-            <PremiumIcon icon={AppIcons.ui.rows} variant="plain" size={16} color={MUTED} strokeWidth={1.9} />
-          ) : (
-            <PremiumIcon icon={AppIcons.ui.layoutGrid} variant="plain" size={16} color={MUTED} strokeWidth={1.9} />
-          )}
-        </Pressable>
-      </View>
-    </View>
-  );
-
-  const trustBanner = (
-    <View style={styles.trustCard}>
-      <PremiumIcon icon={AppIcons.ui.shieldCheck} variant="mint" size={22} color={BRAND} strokeWidth={1.8} boxSize={46} />
-      <View style={styles.trustBody}>
-        <Text style={styles.trustTitle}>Every booking is protected</Text>
-        <Text style={styles.trustSub}>100% satisfaction guarantee on all {services.length} services</Text>
-        <View style={styles.trustChips}>
-          {content.trust.badges.slice(0, 3).map((b) => (
-            <View key={b} style={styles.trustChip}>
-              <Text style={styles.trustChipText}>{b}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-    </View>
-  );
-
-  const listHeader = (
-    <View>
-      {hero}
-      {searchBar}
-      {categoryChips}
-      {pestChips}
-      {spotlightBlock}
-      {sortBar}
-    </View>
-  );
-
-  const gridCardW = (Dimensions.get('window').width - spacing.md * 2 - 12) / 2;
-
-  const renderGridItem = ({ item }: { item: Service }) => {
-    const rating = serviceRating(item);
-    return (
-      <Pressable
-        style={({ pressed }) => [styles.card, { width: gridCardW }, pressed && styles.pressedCard]}
-        onPress={() => appPush(sharedRoutes.service(item.id))}
-      >
-        {popularIds.has(item.id) ? (
-          <View style={styles.popBadge}>
-            <Text style={styles.popBadgeText}>POPULAR</Text>
-          </View>
+  const sortLabels: Record<SortKey, string> = {
+    popular: copy.servicesSortPopular,
+    rating: copy.servicesSortRating,
+    price: copy.servicesSortPrice,
+  };
+  const sortLabel = sortLabels[sort];
+  const filterRow = (
+    <View style={styles.filterRow}>
+      <Text style={styles.count}>
+        {visibleServices.length === 1 ? copy.servicesCountOne : fillCopy(copy.servicesCountMany, { count: visibleServices.length })}
+      </Text>
+      <View style={styles.pills}>
+        {homeConfig.categoryChips.length > 1 ? (
+          <FilterPill
+            label={categoryActive ? categoryLabel : copy.servicesCategoryLabel}
+            active={categoryActive}
+            onPress={() => setSheet('category')}
+          />
         ) : null}
-        <View style={styles.cardIcon}>
-          <ServiceIcon iconKey={item.iconKey} size={24} variant="premium" boxSize={52} color={BRAND} />
-        </View>
-        <View style={styles.cardBody}>
-          <Text style={styles.cardName} numberOfLines={2}>
-            {item.name}
-          </Text>
-          <View style={styles.cardMetaRow}>
-            <View style={styles.cardMeta}>
-              <PremiumIcon icon={AppIcons.ui.clock} variant="plain" size={11} color={FAINT} strokeWidth={2} />
-              <Text style={styles.cardMetaText}>{durationLabel(item)}</Text>
-            </View>
-            {rating > 0 ? (
-              <View style={styles.cardMeta}>
-                <PremiumIcon icon={AppIcons.ui.star} variant="plain" size={11} color={BRAND} fill={BRAND} />
-                <Text style={styles.cardMetaRating}>{rating.toFixed(1)}</Text>
-              </View>
-            ) : null}
-          </View>
-        </View>
-        <View style={styles.perforation}>
-          <View style={[styles.notch, styles.notchLeft]} />
-          <View style={[styles.notch, styles.notchRight]} />
-        </View>
-        <View style={styles.cardFooter}>
-          <View>
-            <Text style={styles.fromLabel}>FROM</Text>
-            <Text style={styles.cardPrice}>₹{item.basePrice}</Text>
-          </View>
-          <Pressable
-            style={({ pressed }) => [styles.bookPill, pressed && styles.pressedSm]}
-            onPress={() => appPush(sharedRoutes.bookPath(item.id))}
-            hitSlop={6}
-          >
-            <Text style={styles.bookPillText}>BOOK</Text>
-            <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={12} color={colors.white} strokeWidth={2.6} />
-          </Pressable>
-        </View>
-      </Pressable>
+        <FilterPill label={sortLabel} onPress={() => setSheet('sort')} />
+      </View>
+    </View>
+  );
+
+  const rows = useMemo<Row[]>(
+    () =>
+      visibleServices.length > 0
+        ? [FILTERS_ROW, ...visibleServices.map((service, index) => ({ kind: 'service' as const, service, index }))]
+        : [FILTERS_ROW, EMPTY_ROW],
+    [visibleServices],
+  );
+  const total = visibleServices.length;
+  const renderRow: ListRenderItem<Row> = ({ item }) => {
+    if (item.kind === 'filters') return <View style={styles.stickyBar}>{filterRow}</View>;
+    if (item.kind === 'empty') return emptyBlock;
+    return (
+      // First screenful slides in one after another; rows further down render as-is.
+      <FadeSlideIn delay={stagger(item.index)} slideFrom={12} disabled={item.index > 6}>
+        <ServiceListRow
+          service={item.service}
+          badge={popularIds.has(item.service.id) ? copy.servicesPopularBadge : undefined}
+          showDivider={item.index < total - 1}
+          onPress={openService}
+          onBook={bookService}
+        />
+      </FadeSlideIn>
     );
   };
 
-  const renderListItem = ({ item }: { item: Service }) => {
-    const rating = serviceRating(item);
-    return (
-      <Pressable
-        style={({ pressed }) => [styles.rowCard, pressed && styles.pressedCard]}
-        onPress={() => appPush(sharedRoutes.service(item.id))}
-      >
-        <View style={styles.rowIcon}>
-          <ServiceIcon iconKey={item.iconKey} size={22} variant="premium" boxSize={48} color={BRAND} />
-        </View>
-        <View style={styles.rowBody}>
-          <View style={styles.rowNameRow}>
-            <Text style={styles.rowName} numberOfLines={1}>
-              {item.name}
-            </Text>
-            {popularIds.has(item.id) ? (
-              <View style={styles.hotBadge}>
-                <Text style={styles.hotBadgeText}>HOT</Text>
-              </View>
-            ) : null}
-          </View>
-          <Text style={styles.rowMeta} numberOfLines={1}>
-            {durationLabel(item)}
-            {rating > 0 ? '  ·  ' : ''}
-            {rating > 0 ? <Text style={styles.rowRating}>★ {rating.toFixed(1)}</Text> : null}
-          </Text>
-        </View>
-        <View style={styles.rowRight}>
-          <Text style={styles.rowPrice}>₹{item.basePrice}</Text>
-          <Pressable
-            style={({ pressed }) => [styles.rowBook, pressed && styles.pressedSm]}
-            onPress={() => appPush(sharedRoutes.bookPath(item.id))}
-            hitSlop={8}
-          >
-            <Text style={styles.rowBookText}>BOOK</Text>
-            <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={11} color={BRAND} strokeWidth={2.6} />
-          </Pressable>
-        </View>
-      </Pressable>
-    );
-  };
+  const tick = <Check size={18} color={ui.brand} strokeWidth={2.6} />;
+  const sortOptions: ActionSheetOption[] = SORT_KEYS.map((k) => ({
+    key: k,
+    label: sortLabels[k],
+    icon: sort === k ? tick : undefined,
+    onPress: () => setSort(k),
+  }));
+  const categoryOptions: ActionSheetOption[] = homeConfig.categoryChips.map((c) => ({
+    key: c.label,
+    label: c.label,
+    icon: c.label === categoryLabel ? tick : undefined,
+    onPress: () => setCategoryLabel(c.label),
+  }));
 
   const emptyBlock = (
     <View style={styles.emptyWrap}>
       <EmptyState
-        title={hasFilters ? 'No services found' : 'No services'}
-        message={hasFilters ? 'Try a different search or clear the filters' : 'Check back soon.'}
+        title={hasFilters ? copy.servicesEmptyTitle : copy.homeEmptyNoServicesTitle}
+        message={hasFilters ? copy.servicesEmptyMessage : copy.homeEmptyNoServicesMessage}
       />
       {hasFilters ? (
-        <Pressable style={({ pressed }) => [styles.clearBtn, pressed && styles.pressedSm]} onPress={resetFilters}>
-          <Text style={styles.clearBtnText}>Clear filters</Text>
-        </Pressable>
+        <PressableScale style={styles.clearBtn} onPress={resetFilters} haptic="tap" accessibilityRole="button">
+          <Text style={styles.clearBtnText}>{copy.servicesClearFilters}</Text>
+        </PressableScale>
       ) : null}
     </View>
   );
@@ -578,367 +384,151 @@ export default function ServicesListScreen() {
     <View style={styles.rootShell}>
       <FocusStatusBar style="dark" />
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      {loading && services.length === 0 ? (
-        <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
-          {hero}
-          {searchBar}
-          <Spinner />
-        </ScrollView>
-      ) : loadError && services.length === 0 ? (
-        <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
-          {hero}
-          {searchBar}
-          <ListEmptyRetry
-            message={loadError}
-            onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
+        {loading && services.length === 0 ? (
+          <ScrollView style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+            {hero}
+            {searchBar}
+            <CatalogSkeleton />
+          </ScrollView>
+        ) : loadError && services.length === 0 ? (
+          <ScrollView style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+            {hero}
+            {searchBar}
+            <ListEmptyRetry message={loadError} onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))} />
+          </ScrollView>
+        ) : (
+          <FlatList<Row>
+            style={styles.list}
+            data={rows}
+            keyExtractor={rowKey}
+            {...CUSTOMER_LIST_PERF}
+            // Clipping detaches rows that are mid-entrance (translated) and can leave blank cells on iOS.
+            removeClippedSubviews={false}
+            keyboardShouldPersistTaps="handled"
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ui.brand} />}
+            ListHeaderComponent={
+              <View>
+                {hero}
+                {searchBar}
+                {pestRow}
+              </View>
+            }
+            // The count + category/sort bar (first row) pins to the top while the list scrolls under it.
+            stickyHeaderIndices={[1]}
+            ListFooterComponent={visibleServices.length > 0 ? <TrustNote style={styles.trust} /> : null}
+            contentContainerStyle={styles.listContent}
+            renderItem={renderRow}
           />
-        </ScrollView>
-      ) : (
-        <Animated.FlatList
-          key={view}
-          data={visibleServices}
-          keyExtractor={(item) => item.id}
-          numColumns={view === 'grid' ? 2 : 1}
-          columnWrapperStyle={view === 'grid' ? styles.column : undefined}
-          {...CUSTOMER_LIST_PERF}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BRAND} />
-          }
-          ListHeaderComponent={listHeader}
-          ListFooterComponent={visibleServices.length > 0 ? trustBanner : null}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={emptyBlock}
-          renderItem={view === 'grid' ? renderGridItem : renderListItem}
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-            useNativeDriver: true,
-          })}
-          scrollEventThrottle={16}
-        />
-      )}
+        )}
       </SafeAreaView>
+
+      <AdminActionSheet visible={sheet === 'sort'} title={copy.servicesSortTitle} options={sortOptions} onClose={() => setSheet(null)} />
+      <AdminActionSheet
+        visible={sheet === 'category'}
+        title={copy.servicesCategoryLabel}
+        options={categoryOptions}
+        onClose={() => setSheet(null)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  rootShell: { flex: 1, backgroundColor: SCREEN_BG },
+  // White root so the status-bar strip matches the header wash; the list below is white too.
+  rootShell: { flex: 1, backgroundColor: colors.white },
   safe: { flex: 1, backgroundColor: 'transparent' },
+  list: { backgroundColor: colors.white },
   listContent: { paddingBottom: TAB_BAR_SCROLL_PAD, flexGrow: 1 },
-  column: { justifyContent: 'space-between', paddingHorizontal: spacing.md, marginBottom: 12 },
-  pressedSm: { transform: [{ scale: 0.94 }] },
-  pressedCard: { transform: [{ scale: 0.97 }] },
 
-  hero: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
-  heroRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  heroLeft: { flex: 1, paddingRight: 12 },
-  heroTitle: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 26,
-    lineHeight: 32,
-    letterSpacing: -0.7,
-    color: INK,
-  },
-  heroMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
-  heroMeta: { fontFamily: fonts.bodySemi, fontSize: 11.5, color: MUTED },
-  heroSub: { marginTop: 4, fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: MUTED },
+  hero: { paddingHorizontal: H_PAD, paddingTop: 12, paddingBottom: 18, overflow: 'hidden' },
+  heroFade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 34 },
+  heroTitle: { ...typeScale.display, fontSize: 24, lineHeight: 30, color: ui.text },
+  heroSub: { ...typeScale.caption, marginTop: 3, color: ui.textSecondary },
 
-  searchWrap: { paddingHorizontal: 20 },
-  searchCard: {
-    borderRadius: 14,
-    backgroundColor: ui.surfaceMuted,
-    borderWidth: 1,
-    borderColor: ui.surfaceMuted,
-  },
-  searchInner: {
+  searchWrap: { paddingHorizontal: H_PAD },
+  /** Grey field — same as the home search band. */
+  searchField: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingLeft: 16,
-    paddingRight: 6,
-    paddingVertical: 5,
+    height: 46,
+    paddingHorizontal: 14,
+    borderRadius: radii.pill,
+    backgroundColor: SEARCH_BAND,
+    borderWidth: 1,
+    borderColor: 'rgba(17,26,21,0.06)',
   },
   searchInput: {
     flex: 1,
     minWidth: 0,
-    fontFamily: fonts.bodySemi,
+    fontFamily: fonts.bodyMedium,
     fontSize: 15,
-    color: INK,
-    paddingVertical: 13,
+    color: ui.text,
+    paddingVertical: 0,
   },
-  filterBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    backgroundColor: ui.brandSoft,
-    borderWidth: 1,
-    borderColor: ui.hairline,
+  clearX: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: ui.textTertiary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  resetBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: ui.brandSoft,
-    borderWidth: 1,
-    borderColor: ui.hairline,
-    borderRadius: 13,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-  },
-  resetText: { fontFamily: fonts.bodyBold, fontSize: 11, color: BRAND, letterSpacing: 0.4 },
 
-  chipScroll: { marginTop: 14, flexGrow: 0 },
-  pestScroll: { marginTop: 9, flexGrow: 0 },
-  chipRow: { paddingHorizontal: 20, gap: 8 },
-  catChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 999,
-    paddingVertical: 7,
-    paddingLeft: 8,
-    paddingRight: 15,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: ui.hairline,
-  },
-  catChipOn: {
-    backgroundColor: BRAND,
-    borderColor: BRAND,
-  },
-  catChipIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: ui.brandSoft,
+  pestScroll: { marginTop: 18, flexGrow: 0 },
+  pestRow: { paddingHorizontal: H_PAD, gap: 12 },
+  pestItem: { width: PEST_TILE },
+  pestItemInner: { alignItems: 'center' },
+  skelPests: { marginTop: 20 },
+  skelLabel: { marginTop: 8, alignSelf: 'center' },
+  pestTile: {
+    width: PEST_TILE,
+    height: PEST_TILE,
+    borderRadius: radii.card,
+    backgroundColor: ui.band,
+    borderWidth: 2,
+    borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  catChipIconOn: { backgroundColor: 'rgba(255,255,255,0.18)' },
-  catChipText: { fontFamily: fonts.bodyBold, fontSize: 13, color: ui.text },
-  catChipTextOn: { color: colors.white },
-  pestChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: 999,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: ui.hairline,
-  },
-  pestChipOn: { backgroundColor: BRAND, borderColor: BRAND },
-  pestChipText: { fontFamily: fonts.bodyBold, fontSize: 12, color: BRAND },
-  pestChipTextOn: { color: colors.white },
+  pestTileOn: { borderColor: ui.brand, backgroundColor: ui.brandSoft, ...ui.shadow },
+  pestLabel: { marginTop: 7, fontFamily: fonts.bodyMedium, fontSize: 12, color: ui.textSecondary },
+  pestLabelOn: { fontFamily: fonts.bodyBold, color: ui.brand },
 
-  spotBlock: { marginTop: 16 },
-  spotRow: { paddingHorizontal: 20, gap: SPOT_GAP },
-  spotCard: {
-    width: SPOT_CARD_W,
-    borderRadius: 22,
-    padding: 18,
-    overflow: 'hidden',
+  stickyBar: {
     backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: ui.hairline,
-    ...ui.shadow,
+    paddingTop: 18,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: ui.border,
   },
-  spotTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  spotTag: {
-    backgroundColor: ui.brandSoft,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  spotTagText: { fontFamily: fonts.bodyBold, fontSize: 9.5, letterSpacing: 1.2, color: BRAND },
-  spotRateRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  spotRate: { fontFamily: fonts.bodyBold, fontSize: 11, color: MUTED },
-  spotMain: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 13 },
-  spotIcon: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  spotInfo: { flex: 1, minWidth: 0 },
-  spotName: { fontFamily: fonts.displayExtra, fontSize: 17, lineHeight: 20, color: INK },
-  spotSub: { marginTop: 3, fontFamily: fonts.bodySemi, fontSize: 11, color: MUTED },
-  spotFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 },
-  fromLabelDark: { fontFamily: fonts.bodyBold, fontSize: 9.5, letterSpacing: 1.1, color: FAINT },
-  spotPrice: { fontFamily: fonts.displayExtra, fontSize: 20, color: INK },
-  spotBook: {
+  filterRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    backgroundColor: BRAND,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 11,
-  },
-  spotBookText: { fontFamily: fonts.bodyBold, fontSize: 11.5, letterSpacing: 0.8, color: colors.white },
-  dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 9 },
-  dot: { width: 6, height: 6, borderRadius: 999, backgroundColor: ui.hairline },
-  dotOn: { width: 20, backgroundColor: BRAND },
-
-  sortBar: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     gap: 12,
-    paddingHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 14,
+    paddingHorizontal: H_PAD,
   },
-  sortLeft: { flexShrink: 0 },
-  countLabel: { fontFamily: fonts.displayExtra, fontSize: 19, letterSpacing: -0.2, color: INK },
-  countBar: { width: 26, height: 3, borderRadius: 2, marginTop: 6, backgroundColor: BRAND },
-  sortRight: { flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
-  segment: { flexDirection: 'row', backgroundColor: ui.surfaceMuted, borderRadius: 999, padding: 3 },
-  segBtn: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
-  segBtnOn: { backgroundColor: BRAND },
-  segText: { fontFamily: fonts.bodyBold, fontSize: 11, color: MUTED },
-  segTextOn: { color: colors.white },
-  viewToggle: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: BORDER,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  card: {
-    position: 'relative',
-    overflow: 'hidden',
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: ui.hairline,
-    borderRadius: 22,
-    padding: 14,
-    gap: 10,
-    ...ui.shadow,
-  },
-  popBadge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderBottomLeftRadius: 14,
-    backgroundColor: BRAND,
-    zIndex: 2,
-  },
-  popBadgeText: { fontFamily: fonts.bodyBold, fontSize: 8.5, letterSpacing: 1, color: colors.white },
-  cardIcon: {
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
-  cardBody: { minHeight: 54 },
-  cardName: { fontFamily: fonts.bodyBold, fontSize: 14.5, lineHeight: 19, color: INK },
-  cardMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 5 },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cardMetaText: { fontFamily: fonts.bodySemi, fontSize: 11, color: FAINT },
-  cardMetaRating: { fontFamily: fonts.bodyBold, fontSize: 11, color: BRAND },
-  perforation: {
-    marginHorizontal: -14,
-    borderTopWidth: 1.5,
-    borderColor: ui.hairline,
-    borderStyle: 'dashed',
-    position: 'relative',
-  },
-  notch: {
-    position: 'absolute',
-    top: -6,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: SCREEN_BG,
-    borderWidth: 1,
-    borderColor: BORDER,
-  },
-  notchLeft: { left: -6 },
-  notchRight: { right: -6 },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  fromLabel: { fontFamily: fonts.bodyBold, fontSize: 9.5, letterSpacing: 1, color: ui.textTertiary },
-  cardPrice: { fontFamily: fonts.displayExtra, fontSize: 17, color: INK },
-  bookPill: {
+  count: { ...typeScale.section, fontSize: 16, lineHeight: 22, color: ui.text },
+  pills: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
+  pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    borderRadius: 13,
+    gap: 4,
+    height: 36,
     paddingHorizontal: 13,
-    paddingVertical: 9,
-    backgroundColor: BRAND,
-  },
-  bookPillText: { fontFamily: fonts.bodyBold, fontSize: 10.5, letterSpacing: 0.8, color: colors.white },
-
-  rowCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 13,
+    borderRadius: radii.pill,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: ui.hairline,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginHorizontal: spacing.md,
-    marginBottom: 10,
-    ...ui.shadow,
+    borderColor: ui.border,
   },
-  rowIcon: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowBody: { flex: 1, minWidth: 0 },
-  rowNameRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  rowName: { flexShrink: 1, fontFamily: fonts.bodyBold, fontSize: 14, color: INK },
-  hotBadge: {
-    backgroundColor: ui.brandSoft,
-    borderRadius: 999,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-  },
-  hotBadgeText: { fontFamily: fonts.bodyBold, fontSize: 8, letterSpacing: 0.8, color: BRAND },
-  rowMeta: { marginTop: 3, fontFamily: fonts.bodySemi, fontSize: 11, color: FAINT },
-  rowRating: { fontFamily: fonts.bodyBold, color: BRAND },
-  rowRight: { alignItems: 'flex-end' },
-  rowPrice: { fontFamily: fonts.displayExtra, fontSize: 15, color: INK },
-  rowBook: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  rowBookText: { fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 0.5, color: BRAND },
+  pillOn: { backgroundColor: ui.brandSoft, borderColor: ui.brand },
+  pillText: { ...typeScale.captionStrong, fontSize: 12.5, flexShrink: 1, color: ui.text },
+  pillTextOn: { color: ui.brand },
 
-  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, paddingVertical: 36 },
-  clearBtn: {
-    borderRadius: 999,
-    paddingHorizontal: 20,
-    paddingVertical: 11,
-    backgroundColor: BRAND,
-  },
-  clearBtnText: { fontFamily: fonts.bodyBold, fontSize: 12.5, color: colors.white },
+  trust: { marginHorizontal: H_PAD, marginTop: 8 },
 
-  trustCard: {
-    flexDirection: 'row',
-    gap: 13,
-    marginHorizontal: spacing.md,
-    marginTop: 14,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: ui.hairline,
-    borderRadius: 22,
-    padding: 16,
-    ...ui.shadow,
-  },
-  trustBody: { flex: 1, minWidth: 0 },
-  trustTitle: { fontFamily: fonts.bodyBold, fontSize: 14.5, color: ui.text },
-  trustSub: { marginTop: 3, fontFamily: fonts.bodySemi, fontSize: 12, lineHeight: 17, color: ui.textSecondary },
-  trustChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 9 },
-  trustChip: {
-    backgroundColor: ui.brandSoft,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  trustChipText: { fontFamily: fonts.bodyBold, fontSize: 10.5, color: BRAND },
+  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, paddingVertical: 36 },
+  clearBtn: { borderRadius: radii.pill, paddingHorizontal: 22, minHeight: 44, justifyContent: 'center', backgroundColor: ui.brand },
+  clearBtnText: { ...typeScale.captionStrong, fontFamily: fonts.bodyBold, color: colors.white },
 });

@@ -2,7 +2,7 @@ import '../types/express';
 import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import bcrypt from 'bcryptjs';
-import { User, sanitizeUser } from '../models/User';
+import { User, sanitizeUser, type IUser } from '../models/User';
 import { AppError } from '../utils/AppError';
 import { signToken } from '../utils/token';
 import { ensureDefaultPaymentMethods } from '../utils/ensurePaymentMethods';
@@ -10,6 +10,7 @@ import { normalizePhone, phoneLookupVariants } from '../utils/phone';
 import { normalizeLoginEmail } from '../utils/email';
 import {
   findEnvAdminForLogin,
+  getAdminConfig,
   isAcceptedAdminPassword,
   isEnvAdminIdentifier,
   isLegacyAdminIdentifier,
@@ -60,6 +61,16 @@ async function findUserForLogin(identifier: string) {
   return User.findOne({
     email: { $regex: new RegExp(`^${escapeRegex(lower)}$`, 'i') },
   }).select('+passwordHash');
+}
+
+/**
+ * Signed-in user payload (login and /me). Admins also get `isPrimaryAdmin` — the env-configured
+ * account, the only one that may manage other admin accounts.
+ */
+function sessionUser(user: IUser): Record<string, unknown> {
+  const json = sanitizeUser(user);
+  if (user.role === 'admin') json.isPrimaryAdmin = normalizePhone(user.phone) === getAdminConfig().phone;
+  return json;
 }
 
 function runValidation(
@@ -189,7 +200,7 @@ authRouter.post(
     if (!publicUser) {
       throw new AppError(401, 'Invalid credentials');
     }
-    res.json({ token, user: sanitizeUser(publicUser) });
+    res.json({ token, user: sessionUser(publicUser) });
   }),
 );
 
@@ -255,7 +266,7 @@ authRouter.get(
     if (!user) {
       throw new AppError(401, 'User not found');
     }
-    res.json({ user: sanitizeUser(user) });
+    res.json({ user: sessionUser(user) });
   }),
 );
 
@@ -304,6 +315,6 @@ authRouter.patch(
       throw new AppError(404, 'User not found');
     }
 
-    res.json({ user: sanitizeUser(user) });
+    res.json({ user: sessionUser(user) });
   }),
 );

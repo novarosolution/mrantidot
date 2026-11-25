@@ -1,9 +1,12 @@
-import { type ReactNode } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { useRef, type ReactNode } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { glassSkin } from '@/components/kit/GlassScreenKit';
-import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { SheetModal } from '@/components/ui/SheetModal';
+import { useWideWebLayout } from '@/lib/webAdmin';
+import { colors, radii, spacing, typeScale, ui } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { haptic } from '@/lib/motion';
 
 export interface ActionSheetOption {
   key: string;
@@ -15,8 +18,12 @@ export interface ActionSheetOption {
 }
 
 /**
- * Bottom-sheet picker / confirmation that replaces Alert.alert for richer,
- * on-brand admin actions (assign technician, confirm cancel/disable, etc).
+ * White bottom-sheet picker / confirmation (instead of a native alert) — options sit in one grouped
+ * list with hairline dividers; Cancel is a separate pill below, iOS action-sheet style.
+ *
+ * Picking an option closes the sheet first and runs the option's `onPress` only once the sheet is
+ * gone, so an option may safely open another sheet, the camera or the photo library.
+ * On a wide browser it is a centred dialog that closes on Escape.
  */
 export function AdminActionSheet({
   visible,
@@ -24,7 +31,7 @@ export function AdminActionSheet({
   message,
   options,
   onClose,
-  cancelLabel = 'Cancel',
+  cancelLabel,
 }: {
   visible: boolean;
   title: string;
@@ -34,107 +41,116 @@ export function AdminActionSheet({
   cancelLabel?: string;
 }) {
   const insets = useSafeAreaInsets();
+  const dialog = useWideWebLayout();
+  const copy = useCustomerUiCopy();
+  const pending = useRef<(() => void) | null>(null);
+
+  const runPending = () => {
+    const next = pending.current;
+    pending.current = null;
+    next?.();
+  };
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        {Platform.OS !== 'web' ? (
-          <BlurView intensity={18} tint="dark" style={StyleSheet.absoluteFill} />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, styles.webBackdrop]} pointerEvents="none" />
-        )}
-        <Pressable
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}
-          onPress={(e) => e.stopPropagation()}
+    <SheetModal
+      visible={visible}
+      onClose={() => {
+        pending.current = null;
+        onClose();
+      }}
+      onDismissed={runPending}
+      dialogWidth={460}
+      dialogStyle={styles.dialogPad}
+      header={
+        <View style={styles.head}>
+          <Text style={styles.title} accessibilityRole="header">
+            {title}
+          </Text>
+          {message ? <Text style={styles.message}>{message}</Text> : null}
+        </View>
+      }
+    >
+      <View style={[styles.body, { paddingBottom: dialog ? spacing.md : Math.max(insets.bottom, spacing.md) }]}>
+        <ScrollView style={styles.list} contentContainerStyle={styles.listInner} bounces={false}>
+          {options.map((opt, i) => (
+            <PressableScale
+              key={opt.key}
+              scaleTo={0.985}
+              style={styles.option}
+              onPress={() => {
+                haptic(opt.destructive ? 'warning' : 'select');
+                pending.current = opt.onPress;
+                onClose();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={opt.subtitle ? `${opt.label}. ${opt.subtitle}` : opt.label}
+            >
+              {i > 0 ? <View style={styles.divider} /> : null}
+              {opt.icon ? <View style={styles.optionIcon}>{opt.icon}</View> : null}
+              <View style={styles.optionText}>
+                <Text style={[styles.optionLabel, opt.destructive && styles.destructive]}>{opt.label}</Text>
+                {opt.subtitle ? <Text style={styles.optionSub}>{opt.subtitle}</Text> : null}
+              </View>
+            </PressableScale>
+          ))}
+        </ScrollView>
+        <PressableScale
+          style={styles.cancel}
+          onPress={() => {
+            pending.current = null;
+            onClose();
+          }}
+          accessibilityRole="button"
         >
-          {Platform.OS !== 'web' ? (
-            <BlurView intensity={48} tint="light" style={StyleSheet.absoluteFill} />
-          ) : null}
-          <View style={styles.sheetTint} pointerEvents="none" />
-          <View style={styles.sheetBody}>
-            <View style={styles.handle} />
-            <Text style={styles.title}>{title}</Text>
-            {message ? <Text style={styles.message}>{message}</Text> : null}
-            <ScrollView style={styles.list} bounces={false}>
-              {options.map((opt) => (
-                <Pressable
-                  key={opt.key}
-                  style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
-                  onPress={() => {
-                    onClose();
-                    opt.onPress();
-                  }}
-                >
-                  {opt.icon ? <View style={styles.optionIcon}>{opt.icon}</View> : null}
-                  <View style={styles.optionText}>
-                    <Text style={[styles.optionLabel, opt.destructive && styles.destructive]}>
-                      {opt.label}
-                    </Text>
-                    {opt.subtitle ? <Text style={styles.optionSub}>{opt.subtitle}</Text> : null}
-                  </View>
-                </Pressable>
-              ))}
-            </ScrollView>
-            <Pressable style={styles.cancel} onPress={onClose}>
-              <Text style={styles.cancelText}>{cancelLabel}</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+          <Text style={styles.cancelText}>{cancelLabel ?? copy.systemCancel}</Text>
+        </PressableScale>
+      </View>
+    </SheetModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(4,56,19,0.28)', justifyContent: 'flex-end' },
-  webBackdrop: { backgroundColor: 'rgba(4,56,19,0.45)' },
-  sheet: {
-    ...glassSkin.sheet,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    ...premium.shadowSoft,
+  dialogPad: { paddingTop: 20 },
+  head: { paddingHorizontal: spacing.md + 4, paddingTop: 4 },
+  title: { ...typeScale.section, fontSize: 19, lineHeight: 25, color: ui.text },
+  message: { ...typeScale.caption, marginTop: 4, lineHeight: 19, color: ui.textSecondary },
+  body: { paddingHorizontal: spacing.md },
+  list: { marginTop: 14, maxHeight: 380 },
+  listInner: {
+    borderRadius: radii.card,
+    backgroundColor: ui.surfaceMuted,
+    overflow: 'hidden',
   },
-  sheetTint: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: surfaces.glassPanelTint,
-  },
-  sheetBody: { zIndex: 1 },
-  handle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(216,237,200,0.95)',
-    marginBottom: spacing.md,
-  },
-  title: { fontFamily: fonts.displayExtra, fontSize: 17, color: colors.ink },
-  message: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, marginTop: 6, lineHeight: 19 },
-  list: { marginTop: spacing.md, maxHeight: 360 },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.55)',
-    borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
-    marginBottom: 8,
+    minHeight: 56,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
-  optionPressed: { opacity: 0.88, transform: [{ scale: 0.99 }] },
-  optionIcon: { width: 36, alignItems: 'center' },
+  divider: {
+    position: 'absolute',
+    top: 0,
+    left: 16,
+    right: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: ui.border,
+  },
+  optionIcon: { width: 28, alignItems: 'center' },
   optionText: { flex: 1 },
-  optionLabel: { fontFamily: fonts.bodySemi, fontSize: 15, color: colors.ink },
-  optionSub: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 2 },
+  optionLabel: { ...typeScale.rowTitle, color: ui.text },
+  optionSub: { ...typeScale.caption, fontSize: 12.5, marginTop: 2, color: ui.textSecondary },
   destructive: { color: colors.error },
   cancel: {
-    marginTop: spacing.sm,
+    marginTop: 10,
     alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.62)',
+    justifyContent: 'center',
+    height: 52,
+    borderRadius: radii.control,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.border,
+    backgroundColor: colors.white,
   },
-  cancelText: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.forest },
+  cancelText: { ...typeScale.button, color: ui.text },
 });

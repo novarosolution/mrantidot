@@ -1,8 +1,8 @@
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
-  Alert,
   Linking,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -12,9 +12,20 @@ import {
   View,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { AdminListShell, AdminSectionTitle, adminListShellStyles } from '@/components/kit/AdminListShell';
+import {
+  AdminEntrance,
+  AdminListShell,
+  AdminSectionTitle,
+  useListEntrance,
+} from '@/components/kit/AdminListShell';
+import { AdminProfileSkeleton } from '@/components/kit/AdminSkeletons';
 import { JobVisitCard } from '@/components/kit/JobVisitCard';
 import { MetricDetailSheet } from '@/components/kit/MetricDetailSheet';
+import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/AdminActionSheet';
+import { chooseAsync, confirmAsync } from '@/lib/confirm';
+import { AdminAddLeaveSheet } from '@/components/admin/AdminAddLeaveSheet';
+import { TechnicianCoverageCard } from '@/components/admin/TechnicianCoverageCard';
+import { formatDayKey } from '@/components/admin/DateRangePicker';
 import { TechnicianAnalyticsTab } from '@/components/kit/TechnicianAnalyticsTab';
 import { TechnicianDayCalendar } from '@/components/kit/TechnicianDayCalendar';
 import {
@@ -24,10 +35,10 @@ import {
 } from '@/components/kit/TechnicianProfileKit';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
 import { type BadgeTone } from '@/components/ui/StatusBadge';
-import { api, screenLoadConfig } from '@/lib/api';
+import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
 import { localDateKey } from '@/lib/dates';
+import { haptic } from '@/lib/motion';
 import { ADMIN_LIST_PERF } from '@/lib/listConfig';
 import { adminRoutes, appPush } from '@/lib/routes';
 import { paramString } from '@/lib/routeParams';
@@ -35,7 +46,8 @@ import { buildMetricDetailRows, metricSheetMeta } from '@/lib/technician-metrics
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { isAccountDisabled } from '@/lib/user-helpers';
 import type { Booking, TechnicianDetailResponse, TechnicianMetricKey, User } from '@/types/api';
-import { colors, fonts, spacing } from '@/constants/theme';
+import type { TechnicianUser } from '@/types/adminManage';
+import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 type MetricSheetState = {
   visible: boolean;
@@ -92,10 +104,18 @@ export default function AdminTechnicianDetailScreen() {
   const [viewMode, setViewMode] = useState<TechnicianViewMode>('calendar');
   const [month, setMonth] = useState(() => localDateKey().slice(0, 7));
   const [listStatusFilter, setListStatusFilter] = useState<string | null>(null);
+  /** Web only — the day whose attendance sheet is open (browsers have no multi-button alert). */
+  const [attendanceDate, setAttendanceDate] = useState<string | null>(null);
+  /** Add-leave sheet (open with an optional first day). */
+  const [leaveSheet, setLeaveSheet] = useState<{ open: boolean; date?: string }>({ open: false });
   const [metricSheet, setMetricSheet] = useState<MetricSheetState>({
     visible: false,
     key: 'active',
   });
+  // Sections animate on the first paint only — switching Calendar / Analytics / List (which
+  // remounts parts of the tree) never replays them. Job rows stagger on the first List visit.
+  const firstPaint = useListEntrance(Boolean(detail));
+  const entrance = useListEntrance(Boolean(detail) && viewMode === 'list');
 
   const load = useCallback(async () => {
     if (!id) throw new Error('Technician not found');
@@ -140,45 +160,94 @@ export default function AdminTechnicianDetailScreen() {
     }
   }
 
+  function setAttendance(date: string, status: 'present' | 'absent' | 'leave') {
+    if (!id) return;
+    void api
+      .put(`/admin/technicians/${id}/attendance/${date}`, { status }, { skipErrorToast: true })
+      .then(() => {
+        haptic('success');
+        Toast.show({
+          type: 'success',
+          text1: status === 'present' ? 'Marked as came' : status === 'absent' ? 'Marked as absent' : 'Marked as leave',
+          text2: formatDayKey(date, true),
+        });
+        return load();
+      })
+      .catch((err) => {
+        haptic('error');
+        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not update attendance') });
+      });
+  }
+
+  /** A day off without a leave request: confirm first — it changes attendance and auto-assign. */
+  function markLeave(date: string) {
+    const name = detail?.technician.name ?? 'this technician';
+    void confirmAsync({
+      title: `Mark ${formatDayKey(date, true)} as leave?`,
+      message: `Attendance shows leave for this day and auto-assign skips ${name}. To notify ${name} and record the leave type, use Add leave instead.`,
+      confirmLabel: 'Mark leave',
+      cancelLabel: 'Back',
+    }).then((ok) => {
+      if (ok) setAttendance(date, 'leave');
+    });
+  }
+
+  type DayAction = 'present' | 'absent' | 'leave' | 'add_leave';
+
+  /** Past days and today: came / absent / leave. Future days: leave (one day) or a full leave entry. */
+  function dayActions(date: string): { label: string; value: DayAction }[] {
+    const future = date > today;
+    return future
+      ? [
+          { label: 'Mark this day as leave', value: 'leave' },
+          { label: 'Add leave from this day…', value: 'add_leave' },
+        ]
+      : [
+          { label: 'Mark came', value: 'present' },
+          { label: 'Absent', value: 'absent' },
+          { label: 'Mark leave', value: 'leave' },
+        ];
+  }
+
+  function runDayAction(date: string, action: DayAction) {
+    // iOS drops an alert presented while the previous one is still closing — give it a moment.
+    if (action === 'leave') setTimeout(() => markLeave(date), Platform.OS === 'ios' ? 350 : 0);
+    else if (action === 'add_leave') setLeaveSheet({ open: true, date });
+    else setAttendance(date, action);
+  }
+
   function overrideAttendance(date: string) {
     if (!id) return;
-    Alert.alert('Update attendance', date, [
-      {
-        text: 'Mark came',
-        onPress: () =>
-          void api
-            .put(`/admin/technicians/${id}/attendance/${date}`, { status: 'present' })
-            .then(() => {
-              Toast.show({ type: 'success', text1: 'Marked as came' });
-              return load();
-            })
-            .catch(() => undefined),
-      },
-      {
-        text: 'Absent',
-        onPress: () =>
-          void api
-            .put(`/admin/technicians/${id}/attendance/${date}`, { status: 'absent' })
-            .then(() => {
-              Toast.show({ type: 'success', text1: 'Marked as absent' });
-              return load();
-            })
-            .catch(() => undefined),
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    if (Platform.OS === 'web') {
+      setAttendanceDate(date);
+      return;
+    }
+    void chooseAsync<DayAction>({
+      title: date > today ? 'Plan time off' : 'Update attendance',
+      message: formatDayKey(date, true),
+      options: dayActions(date),
+    }).then((action) => {
+      if (action) runDayAction(date, action);
+    });
   }
 
   function handleViewModeChange(mode: TechnicianViewMode) {
+    if (mode !== viewMode) haptic('select');
     if (mode === 'list') setListStatusFilter(null);
     setViewMode(mode);
   }
 
-  if (loading && !detail) return <Spinner fullScreen />;
+  if (loading && !detail) {
+    return (
+      <AdminListShell title="Technician" subtitle="Technician profile" backFallback={adminRoutes.technicians}>
+        <AdminProfileSkeleton variant="technician" />
+      </AdminListShell>
+    );
+  }
 
   if (error || !detail) {
     return (
-      <AdminListShell title="Technician" subtitle="Error">
+      <AdminListShell title="Technician" subtitle="Error" backFallback={adminRoutes.technicians}>
         <ListEmptyRetry message={error ?? 'Technician not found'} onRetry={() => void reload(load, error ?? undefined)} />
       </AdminListShell>
     );
@@ -218,8 +287,14 @@ export default function AdminTechnicianDetailScreen() {
           params: { id: technician.id, returnTo: adminRoutes.technician(technician.id) },
         })
       }
-      onPending={() => appPush(adminRoutes.bookingsFiltered({ status: 'pending' }))}
-      onAssign={() => appPush(adminRoutes.bookings)}
+      // This technician's jobs that are not started yet.
+      onPending={() =>
+        appPush(adminRoutes.bookingsFiltered({ technicianId: technician.id, status: 'pending,confirmed' }))
+      }
+      // Open jobs with no technician yet — assign one of them to this technician.
+      onAssign={() =>
+        appPush(adminRoutes.bookingsFiltered({ technicianId: 'unassigned', status: 'pending,confirmed' }))
+      }
     />
   );
 
@@ -246,15 +321,66 @@ export default function AdminTechnicianDetailScreen() {
     />
   );
 
+  const attendanceOptions: ActionSheetOption[] = attendanceDate
+    ? dayActions(attendanceDate).map((a) => ({
+        key: a.value,
+        label: a.label,
+        onPress: () => runDayAction(attendanceDate, a.value),
+      }))
+    : [];
+  const attendanceSheetEl =
+    Platform.OS === 'web' ? (
+      <AdminActionSheet
+        visible={attendanceDate != null}
+        title={attendanceDate && attendanceDate > today ? 'Plan time off' : 'Update attendance'}
+        message={attendanceDate ? formatDayKey(attendanceDate, true) : undefined}
+        onClose={() => setAttendanceDate(null)}
+        options={attendanceOptions}
+      />
+    ) : null;
+
+  const leaveSheetEl = (
+    <AdminAddLeaveSheet
+      visible={leaveSheet.open}
+      technician={{ id: technician.id, name: technician.name }}
+      initialDate={leaveSheet.date}
+      onClose={() => setLeaveSheet({ open: false })}
+      onCreated={() => void load().catch(() => undefined)}
+    />
+  );
+
   const reviewsBlock =
     reviews.length > 0 ? (
-      <View style={styles.reviewsBlock}>
-        <AdminSectionTitle title="Recent reviews" hint="Customer feedback for this technician" />
-        {reviews.map((r) => (
-          <TechnicianReviewCard key={r.id} stars={r.stars} comment={r.comment} tags={r.tags} />
-        ))}
-      </View>
+      <AdminEntrance index={3} play={firstPaint(3)}>
+        <View style={styles.reviewsBlock}>
+          {/* flush: the block already carries the 16pt gutter (the title used to sit at 32pt). */}
+          <AdminSectionTitle flush title="Recent reviews" hint="Customer feedback for this technician" />
+          {reviews.map((r) => (
+            <TechnicianReviewCard key={r.id} stars={r.stars} comment={r.comment} tags={r.tags} />
+          ))}
+        </View>
+      </AdminEntrance>
     ) : null;
+
+  const profileBlock = (
+    <AdminEntrance index={0} play={firstPaint(0)}>
+      <View style={styles.profileWrap}>
+        {profileHeader}
+        {viewMode !== 'analytics' ? (
+          <TechnicianCoverageCard
+            coverage={technician as TechnicianUser}
+            onEdit={() =>
+              appPush({
+                pathname: adminRoutes.userEdit,
+                params: { id: technician.id, returnTo: adminRoutes.technician(technician.id) },
+              })
+            }
+            onAddLeave={() => setLeaveSheet({ open: true })}
+          />
+        ) : null}
+      </View>
+    </AdminEntrance>
+  );
 
   if (viewMode === 'analytics') {
     return (
@@ -269,18 +395,22 @@ export default function AdminTechnicianDetailScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            <View style={styles.profileWrap}>{profileHeader}</View>
-            <TechnicianAnalyticsTab
-              detail={detail}
-              month={month}
-              today={today}
-              onMonthChange={setMonth}
-              onMetricPress={openMetric}
-              onOpenBooking={openBooking}
-            />
+            {profileBlock}
+            <AdminEntrance index={1} play={firstPaint(1)}>
+              <TechnicianAnalyticsTab
+                detail={detail}
+                month={month}
+                today={today}
+                onMonthChange={setMonth}
+                onMetricPress={openMetric}
+                onOpenBooking={openBooking}
+              />
+            </AdminEntrance>
           </ScrollView>
         </AdminListShell>
         {metricSheetEl}
+        {attendanceSheetEl}
+        {leaveSheetEl}
       </>
     );
   }
@@ -298,23 +428,29 @@ export default function AdminTechnicianDetailScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            <View style={styles.profileWrap}>{profileHeader}</View>
-            <AdminSectionTitle title="Schedule" hint="Tap a day to view jobs or update attendance" />
-            <View style={styles.calendarWrap}>
-              <TechnicianDayCalendar
-                calendar={calendar}
-                attendance={attendance}
-                bookings={bookings}
-                onPressBooking={openBooking}
-                onPressDay={overrideAttendance}
-                monthKey={month}
-                onMonthChange={setMonth}
-              />
-            </View>
+            {profileBlock}
+            <AdminEntrance index={1} play={firstPaint(1)}>
+              <AdminSectionTitle title="Schedule" hint="Tap a day to view jobs or update attendance" />
+            </AdminEntrance>
+            <AdminEntrance index={2} play={firstPaint(2)}>
+              <View style={styles.calendarWrap}>
+                <TechnicianDayCalendar
+                  calendar={calendar}
+                  attendance={attendance}
+                  bookings={bookings}
+                  onPressBooking={openBooking}
+                  onPressDay={overrideAttendance}
+                  monthKey={month}
+                  onMonthChange={setMonth}
+                />
+              </View>
+            </AdminEntrance>
             {reviewsBlock}
           </ScrollView>
         </AdminListShell>
         {metricSheetEl}
+        {attendanceSheetEl}
+        {leaveSheetEl}
       </>
     );
   }
@@ -330,11 +466,17 @@ export default function AdminTechnicianDetailScreen() {
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={
             <>
-              <View style={styles.profileWrap}>{profileHeader}</View>
+              {profileBlock}
               {listStatusFilter ? (
                 <View style={styles.filterBar}>
                   <Text style={styles.filterText}>Filtered by status</Text>
-                  <Pressable onPress={() => setListStatusFilter(null)}>
+                  <Pressable
+                    onPress={() => setListStatusFilter(null)}
+                    hitSlop={8}
+                    style={({ pressed }) => pressed && styles.clearPressed}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear status filter"
+                  >
                     <Text style={styles.filterClear}>Clear</Text>
                   </Pressable>
                 </View>
@@ -344,31 +486,37 @@ export default function AdminTechnicianDetailScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => void refresh(load)} tintColor={colors.green} />
           }
-          contentContainerStyle={
-            sections.length === 0
-              ? [adminListShellStyles.empty, { paddingBottom: TAB_BAR_PAD }]
-              : [adminListShellStyles.list, { paddingBottom: TAB_BAR_PAD }]
-          }
+          // No side padding on the container: the profile header, filter bar, section headers and
+          // rows each bring their own 16pt gutter, matching the calendar and analytics views.
+          contentContainerStyle={[styles.scrollBody, sections.length === 0 && styles.emptyGrow]}
           ListEmptyComponent={
-            <EmptyState
-              title={listStatusFilter ? 'No jobs in this filter' : 'No jobs assigned yet'}
-              message={
-                listStatusFilter
-                  ? 'Try clearing the filter or pick another status from Analytics.'
-                  : 'Assign this technician from the Bookings tab when a customer booking is confirmed.'
-              }
-            />
+            <View style={styles.emptyWrap}>
+              <EmptyState
+                title={listStatusFilter ? 'No jobs in this filter' : 'No jobs assigned yet'}
+                message={
+                  listStatusFilter
+                    ? 'Try clearing the filter or pick another status from Analytics.'
+                    : 'Assign this technician from the Bookings tab when a customer booking is confirmed.'
+                }
+              />
+            </View>
           }
           renderSectionHeader={({ section }) => (
             <Text style={styles.sectionHeader}>{section.title}</Text>
           )}
-          renderItem={({ item }) => (
-            <JobVisitCard booking={item} today={today} onPress={() => openBooking(item.id)} />
+          renderItem={({ item, index }) => (
+            <View style={styles.rowGutter}>
+              <AdminEntrance index={index + 1} play={entrance(index)}>
+                <JobVisitCard booking={item} today={today} onPress={() => openBooking(item.id)} />
+              </AdminEntrance>
+            </View>
           )}
           ListFooterComponent={reviewsBlock}
         />
       </AdminListShell>
       {metricSheetEl}
+      {attendanceSheetEl}
+      {leaveSheetEl}
     </>
   );
 }
@@ -378,6 +526,9 @@ const TAB_BAR_PAD = 96;
 const styles = StyleSheet.create({
   flexList: { flex: 1 },
   scrollBody: { paddingBottom: TAB_BAR_PAD },
+  emptyGrow: { flexGrow: 1 },
+  emptyWrap: { flex: 1, paddingHorizontal: spacing.md },
+  rowGutter: { paddingHorizontal: spacing.md },
   profileWrap: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.sm },
   calendarWrap: { paddingHorizontal: spacing.md },
   filterBar: {
@@ -388,13 +539,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     marginBottom: spacing.sm,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.72)',
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: 'rgba(226,240,216,0.95)',
+    borderColor: ui.hairline,
     marginHorizontal: spacing.md,
   },
   filterText: { fontFamily: fonts.body, fontSize: 12, color: colors.secondaryInk },
   filterClear: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
+  clearPressed: { opacity: 0.6 },
   sectionHeader: {
     fontFamily: fonts.display,
     fontSize: 13,

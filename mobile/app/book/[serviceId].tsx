@@ -1,157 +1,168 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Building2, CalendarClock, Camera, CircleCheck, CreditCard, MapPin, Tag } from 'lucide-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Toast from 'react-native-toast-message';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, LayoutAnimation, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BadgePercent, Building2, Camera, ChevronDown, Clock3, CreditCard, House, Pencil, Phone, Plus, ReceiptText, Users } from 'lucide-react-native';
 import { paramString } from '@/lib/routeParams';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
-import { BookTimePicker } from '@/components/kit/BookTimePicker';
-import { ScheduleDayPicker } from '@/components/kit/ScheduleDayPicker';
-import { ScheduleModeToggle } from '@/components/kit/ScheduleModeToggle';
-import { ScheduleSlotPicker, firstOpenSlot } from '@/components/kit/ScheduleSlotPicker';
-import { AddressCard } from '@/components/kit/AddressCard';
+import { EMPTY_ADDRESS_FORM, addressFormValid, composeAddressLine, composeStreetLine } from '@/components/kit/AddressDetailsForm';
+import { AddressPhotoGrid } from '@/components/kit/AddressPhotoGrid';
+import { BookBillSummary } from '@/components/kit/BookFlowKit';
+import { BookProgress } from '@/components/kit/BookProgress';
 import {
-  AddressDetailsForm,
-  EMPTY_ADDRESS_FORM,
-  addressFormValid,
-  composeAddressLine,
-  type AddressFormValues,
-} from '@/components/kit/AddressDetailsForm';
-import { AddressConfirmBanner, AddressPhotoGrid } from '@/components/kit/AddressPhotoGrid';
-import { AddressLocateButton } from '@/components/kit/AddressLocateButton';
-import { LocationBanner } from '@/components/kit/LocationChip';
-import { ConfirmPhotoStrip } from '@/components/kit/ConfirmStepKit';
-import {
-  BookBillSummary,
-  BookCheckoutBar,
-  BookFlowHeader,
-  BookInfoNote,
-  BookOfferList,
-  BookReviewRow,
-  BookSection,
-  BookServiceSummary,
-} from '@/components/kit/BookFlowKit';
+  CartAddressSheet,
+  CartContactSheet,
+  CartCouponSheet,
+  CartSlotSheet,
+  EMPTY_CART_ADDRESS,
+  scheduleProblem,
+  scheduleTime,
+  type CartAddress,
+  type CartContact,
+  type CartSchedule,
+} from '@/components/kit/CartSheets';
+import { ListActionRow, ListGroup } from '@/components/kit/ListGroup';
 import { PropertyTypePicker } from '@/components/kit/PropertyTypePicker';
 import { BookPaymentPicker } from '@/components/kit/BookPaymentPicker';
-import { PaymentCouponField } from '@/components/kit/PaymentStepKit';
-import { FadeSlideHorizontal } from '@/components/ui/FadeSlideIn';
-import { Input } from '@/components/ui/Input';
+import { ServiceThumb } from '@/components/kit/ServiceThumb';
+import { formatRupeeFull } from '@/components/kit/format';
+import { BottomSheet } from '@/components/ui/BottomSheet';
+import { Button } from '@/components/ui/Button';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { getReducedMotion } from '@/lib/a11yPrefs';
+import { haptic, motion, shakeAnimation, stagger } from '@/lib/motion';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
+import { useAuth } from '@/context/AuthContext';
 import { useLocation } from '@/context/LocationContext';
+import { useBusinessSettings } from '@/lib/businessSettings';
+import { activePaymentMethods, paymentLabel } from '@/lib/settingsLabels';
 import { defaultPaymentType, resolvePaymentMethods } from '@/lib/bookingPayment';
-import { paymentMethodLabel } from '@/lib/booking-helpers';
 import { computePricing } from '@/lib/pricing';
-import { useBookingCopy, getWizardStepLabels } from '@/lib/schedule-copy';
-import { safeGoBack, customerRoutes, sharedRoutes, appReplace } from '@/lib/routes';
+import { useBookingCopy } from '@/lib/schedule-copy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { formatPhoneDisplay } from '@/lib/profile-display';
+import { findOption, formatDuration, serviceDurationMins, servicePriceFor } from '@/lib/serviceDisplay';
+import { safeGoBack, customerRoutes, sharedRoutes, appPush, appReplace } from '@/lib/routes';
 import { uploadImages, type PickedImage } from '@/lib/upload';
+import { appToast } from '@/lib/toast';
 import {
   DEFAULT_BOOKING_SLOT,
+  firstBookableSlot,
   formatBookableDate,
   formatSlotShort12h,
   formatTime12h,
-  isSlotStarted,
-  isTimeStarted,
-  nextBookableDays,
+  isSlotBookable,
+  localDateKey,
 } from '@/lib/dates';
-import type { Offer, PaymentMethodRecord, PropertyTypeKey, SavedAddress, ScheduleMode, Service } from '@/types/api';
-import { propertyTypeLabel } from '@/constants/propertyTypes';
-import { fonts, spacing, ui } from '@/constants/theme';
+import type { Offer, PaymentMethodRecord, PropertyTypeKey, SavedAddress, Service } from '@/types/api';
+import { isPropertyTypeKey, propertyTypeLabel } from '@/constants/propertyTypes';
+import { colors, radii, spacing, typeScale, ui } from '@/constants/theme';
+import { CartSkeleton } from '@/components/kit/ScreenSkeletons';
+import { firstOpenSlot } from '@/components/kit/ScheduleSlotPicker';
 
-export default function BookWizardScreen() {
+type Sheet = 'slot' | 'address' | 'property' | 'payment' | 'coupon' | 'photos' | 'contact' | null;
+type Step = 'address' | 'slot' | 'property' | 'payment';
+
+function initialSchedule(): CartSchedule {
+  const first = firstBookableSlot();
+  return {
+    mode: 'standard',
+    date: first?.date ?? localDateKey(),
+    slot: first?.slot ?? DEFAULT_BOOKING_SLOT,
+    hour: 10,
+    minute: 0,
+    notes: '',
+  };
+}
+
+export default function BookCartScreen() {
   const bookingCopy = useBookingCopy();
-  const bookStepLabels = useMemo(() => getWizardStepLabels(bookingCopy), [bookingCopy]);
-  const { location, locating, detectAddress, displayLabel } = useLocation();
-  const scrollRef = useRef<ScrollView>(null);
-  const params = useLocalSearchParams<{ serviceId: string | string[]; coupon?: string | string[] }>();
+  const copy = useCustomerUiCopy();
+  const settings = useBusinessSettings();
+  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const { location, locating, detectAddress } = useLocation();
+  const params = useLocalSearchParams<{ serviceId: string | string[]; coupon?: string | string[]; option?: string | string[] }>();
   const serviceId = paramString(params.serviceId);
   const couponParam = paramString(params.coupon);
+  const optionParam = paramString(params.option);
+
   const [service, setService] = useState<Service | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [step, setStep] = useState(0);
-  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('standard');
-  const [date, setDate] = useState(() => nextBookableDays(1)[0]!.date);
-  const [slot, setSlot] = useState<string>(DEFAULT_BOOKING_SLOT);
-  const [customHour, setCustomHour] = useState(10);
-  const [customMinute, setCustomMinute] = useState(0);
-  const [scheduleNotes, setScheduleNotes] = useState('');
+  const [sheet, setSheet] = useState<Sheet>(null);
+  const [optionKey, setOptionKey] = useState<string | null>(optionParam ?? null);
+  const [schedule, setSchedule] = useState<CartSchedule>(initialSchedule);
+  const [slotConfirmed, setSlotConfirmed] = useState(false);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
-  const [addressForm, setAddressForm] = useState<AddressFormValues>(EMPTY_ADDRESS_FORM);
+  const [address, setAddress] = useState<CartAddress>(EMPTY_CART_ADDRESS);
   const [propertyType, setPropertyType] = useState<PropertyTypeKey | null>(null);
+  /** null = booking for myself; otherwise the person the technician should call at the property. */
+  const [contact, setContact] = useState<CartContact>(null);
   const [coupon, setCoupon] = useState(couponParam ?? '');
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodRecord[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<'upi_card' | 'pay_after' | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
   const [photoUris, setPhotoUris] = useState<PickedImage[]>([]);
+  const [billOpen, setBillOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [hasSavedPaymentMethods, setHasSavedPaymentMethods] = useState(false);
-
-  const goToStep = useCallback((target: number) => {
-    if (target < step) setStep(target);
-  }, [step]);
+  /** Steps whose sheet was already opened once and closed without finishing. */
+  const prompted = useRef(new Set<Step>());
+  const ctaShake = useRef(new Animated.Value(0)).current;
+  const billTurn = useRef(new Animated.Value(0)).current;
 
   const loadData = async (skipCache = false) => {
     if (!serviceId) {
-      setLoadError('Service not found');
+      setLoadError(copy.serviceInvalidLink);
       return;
     }
     setLoadError(null);
     const cache = skipCache ? { skipCache: true as const } : {};
     const results = await Promise.allSettled([
-      api.get<{ service: Service }>(`/services/${serviceId}`, {
-        ...screenLoadConfig,
-        cacheTtlMs: CACHE_TTL.services,
-        ...cache,
-      }),
-      api.get<{ addresses: SavedAddress[] }>('/addresses', {
-        ...screenLoadConfig,
-        cacheTtlMs: CACHE_TTL.addresses,
-        ...cache,
-      }),
+      api.get<{ service: Service }>(`/services/${serviceId}`, { ...screenLoadConfig, cacheTtlMs: CACHE_TTL.services, ...cache }),
+      api.get<{ addresses: SavedAddress[] }>('/addresses', { ...screenLoadConfig, cacheTtlMs: CACHE_TTL.addresses, ...cache }),
       api.get<{ paymentMethods: PaymentMethodRecord[] }>('/payment-methods', {
         ...screenLoadConfig,
         cacheTtlMs: CACHE_TTL.paymentMethods,
         ...cache,
       }),
-      api.get<{ offers: Offer[] }>('/offers', {
-        ...screenLoadConfig,
-        cacheTtlMs: CACHE_TTL.offers,
-        ...cache,
-      }),
+      api.get<{ offers: Offer[] }>('/offers', { ...screenLoadConfig, cacheTtlMs: CACHE_TTL.offers, ...cache }),
     ]);
 
     const svc = results[0];
-    if (svc.status === 'rejected') {
-      throw svc.reason;
-    }
-    setService(svc.value.data.service);
+    if (svc.status === 'rejected') throw svc.reason;
+    const s = svc.value.data.service;
+    setService(s);
+    // Keep the size picked on the detail page; otherwise start on the cheapest one.
+    setOptionKey((prev) => (prev && s.options?.some((o) => o.key === prev) ? prev : (s.options?.[0]?.key ?? null)));
 
     const addr = results[1];
     if (addr.status === 'fulfilled') {
-      setAddresses(addr.value.data.addresses);
-      // Don't auto-select — user must tap a saved place or fill the form.
+      const list = addr.value.data.addresses;
+      setAddresses(list);
+      // The default saved place is pre-picked, like a real cart — the customer can change it.
+      setAddress((prev) =>
+        prev.savedId || addressFormValid(prev.form)
+          ? prev
+          : { ...prev, savedId: list.find((a) => a.isDefault)?.id ?? list[0]?.id ?? null },
+      );
     }
 
     const pay = results[2];
-    let resolved: PaymentMethodRecord[] = [];
-    if (pay.status === 'fulfilled') {
-      resolved = resolvePaymentMethods(pay.value.data.paymentMethods);
-      setHasSavedPaymentMethods(pay.value.data.paymentMethods.length > 0);
-    } else {
-      resolved = resolvePaymentMethods([]);
-      setHasSavedPaymentMethods(false);
-    }
-    setPaymentMethods(resolved);
-    setPaymentMethod(defaultPaymentType(resolved));
+    const saved = pay.status === 'fulfilled' ? pay.value.data.paymentMethods : [];
+    setHasSavedPaymentMethods(saved.length > 0);
+    setPaymentMethods(saved);
+    // The customer's default, as long as the admin still offers it; otherwise the first offered method.
+    const offered = activePaymentMethods().map((m) => m.key);
+    const preferred = defaultPaymentType(resolvePaymentMethods(saved));
+    setPaymentMethod(offered.includes(preferred) ? preferred : (offered[0] ?? null));
 
     const off = results[3];
-    if (off.status === 'fulfilled') {
-      setOffers(off.value.data.offers);
-    }
+    if (off.status === 'fulfilled') setOffers(off.value.data.offers);
   };
 
   useEffect(() => {
@@ -159,201 +170,147 @@ export default function BookWizardScreen() {
       try {
         await loadData();
       } catch (err) {
-        setLoadError(getApiErrorMessage(err, 'Could not load booking details'));
+        setLoadError(getApiErrorMessage(err, copy.cartLoadFailed));
       }
     });
+    // Load once per service; copy changes must not refetch.
   }, [serviceId]);
 
   useEffect(() => {
     if (couponParam) setCoupon(couponParam);
   }, [couponParam]);
 
+  // A window that can no longer be booked (time passed, lead time) moves to the next open one.
   useEffect(() => {
-    if (selectedAddressId) return;
-    if (!location?.line1 && (!location?.city || location.city === 'your area')) return;
-    setAddressForm((prev) => {
-      if (prev.street.trim() || prev.house.trim()) return prev;
-      return {
-        ...prev,
-        street: location.line1 || '',
-        city: location.city && location.city !== 'your area' ? location.city : '',
-        pincode: location.pincode || '',
-      };
-    });
-  }, [location, selectedAddressId]);
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
-  }, [step]);
-
-  // A slot that already started today can't be requested — move to the next open one.
-  useEffect(() => {
-    if (scheduleMode !== 'standard' || !isSlotStarted(date, slot)) return;
-    const next = firstOpenSlot(date);
+    if (schedule.mode !== 'standard' || isSlotBookable(schedule.date, schedule.slot, settings)) return;
+    const next = firstOpenSlot(schedule.date, 'bookable');
     if (next) {
-      setSlot(next);
-    } else {
-      // The picked day has no open slots left — jump to the next day.
-      const days = nextBookableDays(7);
-      const nextDay = days[days.findIndex((d) => d.date === date) + 1] ?? days[1];
-      if (nextDay) setDate(nextDay.date);
+      setSchedule((s) => ({ ...s, slot: next }));
+      return;
     }
-  }, [date, slot, scheduleMode]);
+    const first = firstBookableSlot(settings);
+    if (first && first.date !== schedule.date) setSchedule((s) => ({ ...s, date: first.date, slot: first.slot }));
+  }, [schedule.date, schedule.slot, schedule.mode, settings]);
 
+  // A home-size package ("2 BHK") already answers the property question — pre-pick it, still changeable.
+  // Wait for the service so an unknown size key (old link) can't pre-pick a property that the
+  // package — which falls back to the first size — doesn't match.
+  useEffect(() => {
+    if (!service || propertyType) return;
+    const picked = findOption(service, optionKey);
+    if (!picked) return;
+    const guess = picked.key.replace(/[^a-z0-9]/gi, '').toLowerCase();
+    if (isPropertyTypeKey(guess)) setPropertyType(guess);
+  }, [service, optionKey, propertyType]);
+
+  const option = service ? findOption(service, optionKey) : undefined;
+  const basePrice = service ? servicePriceFor(service, optionKey) : 0;
+  const gst = settings.tax.gstPercent;
   const pricing = useMemo(
-    () => (service ? computePricing(service.basePrice, coupon, offers) : null),
-    [service, coupon, offers],
+    () => (service ? computePricing(basePrice, coupon, offers, gst) : null),
+    [service, basePrice, coupon, offers, gst],
   );
-
-  // Validate against the real order amount — isValidCoupon defaults to ₹0, where every discount is 0.
   const couponApplied = coupon.trim().length > 0 && (pricing?.coupon ?? 0) > 0;
-  const couponInvalid = coupon.trim().length > 0 && !couponApplied;
-  const durationLabel =
-    service?.stepTemplate?.length
-      ? `~${Math.max(30, service.stepTemplate.length * 15)} min`
-      : '45–60 min';
-
-  const customTime = `${String(customHour).padStart(2, '0')}:${String(customMinute).padStart(2, '0')}`;
-
-  // 12-hour, matching the slot chips — "Today · Oct 5 · 8 PM – 10 PM".
   const scheduleSummary =
-    scheduleMode === 'standard'
-      ? `${formatBookableDate(date)} · ${formatSlotShort12h(slot)}`
-      : `${formatBookableDate(date)} · ${formatTime12h(customTime)}`;
+    schedule.mode === 'standard'
+      ? `${formatBookableDate(schedule.date)} · ${formatSlotShort12h(schedule.slot)}`
+      : `${formatBookableDate(schedule.date)} · ${formatTime12h(scheduleTime(schedule))}`;
 
-  const address = useMemo(() => composeAddressLine(addressForm), [addressForm]);
+  const savedAddress = addresses.find((a) => a.id === address.savedId);
+  const typedAddress = useMemo(() => composeAddressLine(address.form, copy), [address.form, copy]);
+  const addressReady = Boolean(savedAddress) || addressFormValid(address.form);
+  const addressSummary = savedAddress
+    ? [savedAddress.line1, savedAddress.city, savedAddress.pincode].filter(Boolean).join(', ')
+    : typedAddress.trim();
+  const paymentOffered = paymentMethod ? activePaymentMethods(settings).some((m) => m.key === paymentMethod) : false;
 
-  const addressSummary = useMemo(() => {
-    if (address.trim()) return address.trim();
-    const saved = addresses.find((a) => a.id === selectedAddressId);
-    if (saved) {
-      return [saved.line1, saved.city, saved.pincode].filter(Boolean).join(', ');
+  /** Opens a step's sheet; a step the customer already skipped once gets a shake + warning first. */
+  function openStep(step: Step) {
+    if (prompted.current.has(step)) {
+      haptic('warning');
+      if (!getReducedMotion()) shakeAnimation(ctaShake).start();
+    } else {
+      haptic('tap');
     }
-    return '—';
-  }, [address, selectedAddressId, addresses]);
-
-  function validateStep(s: number): boolean {
-    if (s === 0) {
-      if (!date) {
-        Toast.show({ type: 'error', text1: 'Select a date' });
-        return false;
-      }
-      if (scheduleMode === 'standard' && (!slot || isSlotStarted(date, slot))) {
-        Toast.show({ type: 'error', text1: 'Select a time slot that hasn’t started yet' });
-        return false;
-      }
-      if (scheduleMode === 'custom' && isTimeStarted(date, customTime)) {
-        Toast.show({ type: 'error', text1: 'Pick a time later than now' });
-        return false;
-      }
-      return true;
-    }
-    if (s === 1) {
-      if (!propertyType) {
-        Toast.show({ type: 'error', text1: 'Select property type' });
-        return false;
-      }
-      return true;
-    }
-    if (s === 2) {
-      if (!selectedAddressId && !addressFormValid(addressForm)) {
-        Toast.show({ type: 'error', text1: 'Add house/flat, street, and city — or pick a saved place' });
-        return false;
-      }
-      return true;
-    }
-    if (s === 3) {
-      if (!paymentMethod) {
-        Toast.show({ type: 'error', text1: 'Choose a payment method' });
-        return false;
-      }
-      if (couponInvalid) {
-        Toast.show({ type: 'error', text1: 'Invalid coupon code' });
-        return false;
-      }
-      return true;
-    }
-    return true;
+    prompted.current.add(step);
+    setSheet(step);
   }
 
-  function goNext() {
-    if (!validateStep(step)) return;
-    setStep((s) => s + 1);
-  }
+  /** The bar's one button walks the customer through whatever is still missing, then submits. */
+  const nextStep: { label: string; run: () => void } = !addressReady
+    ? { label: copy.cartStepAddress, run: () => openStep('address') }
+    : !slotConfirmed
+      ? { label: copy.cartStepSlot, run: () => openStep('slot') }
+      : !propertyType
+        ? { label: copy.cartStepProperty, run: () => openStep('property') }
+        : !paymentOffered
+          ? { label: copy.cartStepPayment, run: () => openStep('payment') }
+          : { label: bookingCopy.wizardSubmitButton, run: () => void confirm() };
 
-  async function fillAddressFromLocation() {
-    const loc = await detectAddress();
-    if (!loc) return;
-    setSelectedAddressId(null);
-    setAddressForm((prev) => ({
-      ...prev,
-      street: loc.line1 || prev.street,
-      city: loc.city && loc.city !== 'your area' ? loc.city : prev.city,
-      pincode: loc.pincode || prev.pincode,
-    }));
-    Toast.show({
-      type: 'success',
-      text1: 'Location filled',
-      text2: 'Add your house / flat number to finish',
-    });
-  }
-
-  function onAddressFormChange(next: AddressFormValues) {
-    setSelectedAddressId(null);
-    setAddressForm(next);
+  function toggleBill() {
+    if (!getReducedMotion()) {
+      LayoutAnimation.configureNext(LayoutAnimation.create(motion.duration.base, 'easeInEaseOut', 'opacity'));
+      Animated.timing(billTurn, { toValue: billOpen ? 0 : 1, duration: motion.duration.base, useNativeDriver: true }).start();
+    } else {
+      billTurn.setValue(billOpen ? 0 : 1);
+    }
+    haptic('select');
+    setBillOpen((v) => !v);
   }
 
   async function confirm() {
-    if (!service) {
-      Toast.show({ type: 'error', text1: 'Service unavailable' });
+    if (!service || !pricing) return;
+    const problem = scheduleProblem(schedule, settings, copy);
+    if (problem) {
+      haptic('warning');
+      appToast.warning(problem);
+      setSlotConfirmed(false);
+      setSheet('slot');
       return;
     }
-    if (!validateStep(0) || !validateStep(1) || !validateStep(2) || !validateStep(3)) {
+    if (!addressReady || !propertyType || !paymentMethod) return;
+    if (coupon.trim() && !couponApplied) {
+      haptic('warning');
+      appToast.warning(copy.couponInvalid);
+      setSheet('coupon');
       return;
     }
+    haptic('tap');
     setLoading(true);
     try {
       const problemPhotos = photoUris.length > 0 ? await uploadImages(photoUris) : [];
+      const notes = schedule.notes.trim() || undefined;
       const scheduleRequest =
-        scheduleMode === 'standard'
-          ? { date, slot, notes: scheduleNotes.trim() || undefined }
-          : { date, time: customTime, notes: scheduleNotes.trim() || undefined };
+        schedule.mode === 'standard'
+          ? { date: schedule.date, slot: schedule.slot, notes }
+          : { date: schedule.date, time: scheduleTime(schedule), notes };
 
-      let addressId = selectedAddressId;
-      if (!addressId && addressFormValid(addressForm)) {
-        const line1 = [
-          addressForm.house.trim() ? `Flat/House ${addressForm.house.trim()}` : '',
-          addressForm.street.trim(),
-          addressForm.landmark.trim() ? `Landmark: ${addressForm.landmark.trim()}` : '',
-        ]
-          .filter(Boolean)
-          .join(', ');
+      let addressId = savedAddress?.id ?? null;
+      if (!addressId && addressFormValid(address.form)) {
         try {
           const saved = await api.post<{ address: SavedAddress }>('/addresses', {
-            label: addressForm.saveAs,
-            line1,
-            city: addressForm.city.trim(),
-            pincode: addressForm.pincode.trim() || undefined,
+            label: address.form.saveAs,
+            line1: composeStreetLine(address.form, copy),
+            city: address.form.city.trim(),
+            pincode: address.form.pincode.trim() || undefined,
             isDefault: addresses.length === 0,
           });
           addressId = saved.data.address.id;
           setAddresses((prev) => [...prev, saved.data.address]);
-          setSelectedAddressId(addressId);
+          setAddress({ savedId: addressId, form: EMPTY_ADDRESS_FORM });
         } catch {
-          Toast.show({
-            type: 'info',
-            text1: 'Address not saved for later',
-            text2: 'Booking will still use the details you entered',
-          });
+          appToast.info(copy.cartAddressNotSaved, copy.cartAddressNotSavedSub);
         }
       }
 
       const { data } = await api.post<{ booking: { id: string; amount?: { total?: number } } }>('/bookings', {
         serviceId: service.id,
-        scheduleMode,
+        scheduleMode: schedule.mode,
         scheduleRequest,
         propertyType,
-        ...(addressId ? { addressId } : { address: address.trim() }),
+        ...(contact ? { visitContact: contact } : {}),
+        ...(option ? { optionKey: option.key } : {}),
+        ...(addressId ? { addressId } : { address: typedAddress.trim() }),
         paymentMethod,
         couponCode: coupon.trim() || undefined,
         problemPhotos,
@@ -363,327 +320,406 @@ export default function BookWizardScreen() {
         pathname: sharedRoutes.bookSuccess,
         params: {
           bookingId: data.booking.id,
-          serviceName: service.name,
+          serviceName: option ? `${service.name} · ${option.label}` : service.name,
           schedule: scheduleSummary,
-          total: String(data.booking.amount?.total ?? pricing?.total ?? 0),
-          payment: paymentMethod ? paymentMethodLabel(paymentMethod) : '',
+          total: String(data.booking.amount?.total ?? pricing.total),
+          payment: paymentLabel(paymentMethod, settings),
+          ...(contact ? { forName: contact.name } : {}),
         },
       });
     } catch (err) {
-      Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not confirm booking') });
+      haptic('error');
+      appToast.error(getApiErrorMessage(err, copy.cartBookFailed));
     } finally {
       setLoading(false);
     }
   }
 
+  // White premium header — it sets dark status-bar glyphs itself.
+  const header = (
+    <CustomerPageHeader
+      variant="premium"
+      title={copy.cartTitle}
+      subtitle={service?.name}
+      showBack
+      onBack={() => safeGoBack(customerRoutes.services)}
+    />
+  );
+
   if (loadError) {
     return (
       <View style={styles.root}>
-        <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-          <CustomerPageHeader
-            variant="premium"
-            title={bookingCopy.wizardScreenTitle}
-            showBack
-            onBack={() => safeGoBack(customerRoutes.services)}
-          />
-          <ListEmptyRetry
-            message={loadError}
-            onRetry={() => safeAsync(() => loadData(true), undefined, (msg) => setLoadError(msg))}
-          />
+        <SafeAreaView style={styles.flex} edges={['left', 'right']}>
+          {header}
+          <ListEmptyRetry message={loadError} onRetry={() => safeAsync(() => loadData(true), undefined, (msg) => setLoadError(msg))} />
         </SafeAreaView>
       </View>
     );
   }
 
-  if (!service) return <Spinner fullScreen />;
+  if (!service || !pricing) {
+    return (
+      <View style={styles.root}>
+        <SafeAreaView style={styles.flex} edges={['left', 'right']}>
+          {header}
+          <CartSkeleton />
+        </SafeAreaView>
+      </View>
+    );
+  }
 
+  const duration = formatDuration(serviceDurationMins(service));
   const activeOffers = offers.filter((o) => o.active);
-  const included = (service.stepTemplate ?? []).slice(0, 5);
-  const stepTitles = [
-    'Select date & time',
-    'Property type',
-    'Service address',
-    'Payment & offers',
-    bookingCopy.wizardReviewSectionTitle,
-  ];
-  const goBack = () => (step > 0 ? setStep((s) => s - 1) : safeGoBack(customerRoutes.services));
+  const contactLine = [user?.name?.trim(), formatPhoneDisplay(user?.phone)].filter(Boolean).join(', ');
+  const billRotate = billTurn.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
 
   return (
     <View style={styles.root}>
-      <SafeAreaView style={styles.safe} edges={['left', 'right']}>
-        <BookFlowHeader
-          title={stepTitles[step] ?? bookingCopy.wizardScreenTitle}
-          subtitle={`${service.name} · ${durationLabel}`}
-          step={step}
-          totalSteps={bookStepLabels.length}
-          stepLabels={bookStepLabels}
-          onBack={goBack}
-          onStepPress={goToStep}
-        />
+      <SafeAreaView style={styles.flex} edges={['left', 'right']}>
+        {header}
 
-        <ScrollView
-          ref={scrollRef}
-          style={styles.scroll}
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          nestedScrollEnabled
-          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-        >
-          <FadeSlideHorizontal step={step}>
-            {step === 0 ? (
-              <>
-                <BookSection>
-                  <BookServiceSummary service={service} durationLabel={durationLabel} />
-                </BookSection>
+        <ScrollView style={styles.flex} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <FadeSlideIn delay={stagger(0)}>
+            <BookProgress
+              steps={[
+                { key: 'address', label: copy.cartProgressAddress, done: addressReady, onPress: () => openStep('address') },
+                { key: 'slot', label: copy.cartProgressTime, done: slotConfirmed, onPress: () => openStep('slot') },
+                { key: 'property', label: copy.cartProgressProperty, done: Boolean(propertyType), onPress: () => openStep('property') },
+                { key: 'payment', label: copy.cartProgressPayment, done: paymentOffered, onPress: () => openStep('payment') },
+              ]}
+            />
+          </FadeSlideIn>
 
-                <BookSection
-                  title={bookingCopy.scheduleStepTitle}
-                  subtitle="Pick a day — our team confirms the visit time after you book"
-                >
-                  <ScheduleDayPicker
-                    selectedDate={date}
-                    onSelect={(d) => setDate(d)}
-                  />
-                </BookSection>
-
-                <BookSection title="Select a time">
-                  <ScheduleModeToggle
-                    mode={scheduleMode}
-                    onChange={setScheduleMode}
-                    standardLabel={bookingCopy.standardModeLabel}
-                    customLabel={bookingCopy.customModeLabel}
-                  />
-                  <View style={styles.timeBody}>
-                    {scheduleMode === 'standard' ? (
-                      <ScheduleSlotPicker selectedSlot={slot} onSelect={setSlot} date={date} />
-                    ) : (
-                      <>
-                        <BookTimePicker
-                          hour={customHour}
-                          minute={customMinute}
-                          onChange={(h, m) => {
-                            setCustomHour(h);
-                            setCustomMinute(m);
-                          }}
-                        />
-                        <View style={styles.notesWrap}>
-                          <Input
-                            label="Notes"
-                            value={scheduleNotes}
-                            onChangeText={setScheduleNotes}
-                            placeholder={bookingCopy.customNotesPlaceholder}
-                          />
-                        </View>
-                      </>
-                    )}
-                  </View>
-                </BookSection>
-
-                {included.length > 0 ? (
-                  <BookSection title="What's included">
-                    {included.map((item) => (
-                      <View key={item} style={styles.includedRow}>
-                        <CircleCheck size={17} color={ui.brand} strokeWidth={2.1} />
-                        <Text style={styles.includedText}>{item}</Text>
-                      </View>
-                    ))}
-                  </BookSection>
+          {/* The service in the cart, with its size and a way back to change it. */}
+          <FadeSlideIn delay={stagger(1)}>
+            <View style={styles.card}>
+              <View style={styles.item}>
+                {/* Same picture as the catalog row and booking cards (the admin's icon, or the cover photo). */}
+                <ServiceThumb service={service} width={64} radius={radii.control} iconSize={52} />
+                <View style={styles.flex}>
+                  <Text style={styles.itemName} numberOfLines={2}>
+                    {service.name}
+                  </Text>
+                  <Text style={styles.itemMeta}>{option ? `${option.label} · ${duration}` : duration}</Text>
+                </View>
+                <Text style={styles.itemPrice}>{formatRupeeFull(basePrice)}</Text>
+              </View>
+              <View style={styles.itemLinks}>
+                {(service.options?.length ?? 0) > 0 ? (
+                  <Pressable
+                    onPress={() => appPush(sharedRoutes.service(service.id))}
+                    hitSlop={12}
+                    style={styles.linkHit}
+                    accessibilityRole="link"
+                  >
+                    <Text style={styles.linkStrong}>{copy.cartEditPackage}</Text>
+                  </Pressable>
                 ) : null}
-              </>
-            ) : null}
-
-            {step === 1 ? (
-              <BookSection title="What type of property?" subtitle="So the technician can plan the treatment for your space">
-                <PropertyTypePicker value={propertyType} onChange={setPropertyType} contentInset={32} />
-              </BookSection>
-            ) : null}
-
-            {step === 2 ? (
-              <>
-                <BookSection title="Where should we come?" subtitle="Use your location to fill the address in seconds">
-                  <AddressLocateButton loading={locating} onPress={() => void fillAddressFromLocation()} />
-                  {displayLabel ? (
-                    <View style={styles.areaChip}>
-                      <LocationBanner
-                        label={displayLabel}
-                        loading={locating}
-                        hint="Detected area · tap refresh to update"
-                        onRefresh={() => void detectAddress()}
-                        embedded
-                      />
-                    </View>
-                  ) : null}
-                </BookSection>
-
-                {addresses.length > 0 ? (
-                  <BookSection title="Saved addresses">
-                    {addresses.map((a) => (
-                      <AddressCard
-                        key={a.id}
-                        address={a}
-                        selected={selectedAddressId === a.id}
-                        onPress={() => {
-                          setSelectedAddressId(a.id);
-                          setAddressForm(EMPTY_ADDRESS_FORM);
-                        }}
-                      />
-                    ))}
-                  </BookSection>
-                ) : null}
-
-                <BookSection
-                  title={addresses.length > 0 ? 'Or add a new address' : 'Address details'}
-                  subtitle="House / flat number is required · landmark optional"
+                <Pressable
+                  onPress={() => appPush(customerRoutes.services)}
+                  hitSlop={12}
+                  style={[styles.linkHit, styles.addMore]}
+                  accessibilityRole="link"
                 >
-                  <AddressDetailsForm value={addressForm} onChange={onAddressFormChange} />
-                  {addressSummary !== '—' ? (
-                    <View style={styles.confirmWrap}>
-                      <AddressConfirmBanner address={addressSummary} />
-                    </View>
-                  ) : null}
-                </BookSection>
+                  <Plus size={15} color={ui.brand} strokeWidth={2.6} />
+                  <Text style={styles.link}>{copy.cartAddMore}</Text>
+                </Pressable>
+              </View>
+            </View>
+          </FadeSlideIn>
 
-                <BookSection title="Problem photos" subtitle="Optional — helps the technician prepare">
-                  <AddressPhotoGrid photos={photoUris} onChange={setPhotoUris} max={6} />
-                </BookSection>
-              </>
-            ) : null}
+          <FadeSlideIn delay={stagger(1)}>
+            <ListGroup dividerInset={50}>
+              <ListActionRow
+                icon={BadgePercent}
+                title={couponApplied ? fillCopy(copy.cartCouponApplied, { code: coupon.trim().toUpperCase() }) : copy.cartCouponsTitle}
+                sub={
+                  couponApplied
+                    ? fillCopy(copy.cartCouponSaved, { amount: formatRupeeFull(pricing.coupon) })
+                    : activeOffers.length > 0
+                      ? fillCopy(copy.cartCouponsAvailable, { count: activeOffers.length })
+                      : undefined
+                }
+                action={couponApplied ? copy.cartChange : copy.cartViewAll}
+                onPress={() => setSheet('coupon')}
+              />
+            </ListGroup>
+          </FadeSlideIn>
 
-            {step === 3 && pricing ? (
-              <>
-                <BookSection title={activeOffers.length > 0 ? 'Coupons & offers' : 'Coupon code'}>
-                  {activeOffers.length > 0 ? (
-                    <View style={styles.offersWrap}>
-                      <BookOfferList offers={activeOffers} appliedCode={coupon} onApply={setCoupon} />
-                    </View>
-                  ) : null}
-                  <PaymentCouponField
-                    value={coupon}
-                    onChangeText={setCoupon}
-                    invalid={couponInvalid}
-                    applied={couponApplied}
-                  />
-                </BookSection>
+          <FadeSlideIn delay={stagger(2)}>
+            <ListGroup dividerInset={50}>
+              <ListActionRow
+                icon={contact ? Users : Phone}
+                title={contact ? `${contact.name}, ${formatPhoneDisplay(contact.phone)}` : contactLine || copy.cartContactMissing}
+                sub={contact ? copy.cartForRowSub : copy.cartForMe}
+                action={copy.cartChange}
+                onPress={() => setSheet('contact')}
+              />
+              <ListActionRow
+                icon={Building2}
+                title={propertyType ? propertyTypeLabel(propertyType) : copy.cartPropertyMissing}
+                sub={propertyType ? copy.cartPropertyLabel : copy.cartPropertyHint}
+                action={propertyType ? copy.cartChange : undefined}
+                onPress={() => setSheet('property')}
+                missing={!propertyType}
+              />
+              <ListActionRow
+                icon={CreditCard}
+                title={paymentOffered ? paymentLabel(paymentMethod, settings) : copy.cartPaymentMissing}
+                sub={copy.cartPaymentLabel}
+                action={copy.cartChange}
+                onPress={() => setSheet('payment')}
+                missing={!paymentOffered}
+              />
+              <ListActionRow
+                icon={Camera}
+                title={photoUris.length ? fillCopy(copy.cartPhotosAdded, { count: photoUris.length }) : copy.cartPhotosMissing}
+                sub={photoUris.length ? undefined : copy.cartPhotosHint}
+                action={photoUris.length ? copy.cartEdit : copy.cartAdd}
+                onPress={() => setSheet('photos')}
+              />
+            </ListGroup>
+          </FadeSlideIn>
 
-                <BookSection title="Payment method">
-                  <BookPaymentPicker
-                    methods={paymentMethods}
-                    selected={paymentMethod}
-                    onSelect={setPaymentMethod}
-                    showManageLink={hasSavedPaymentMethods}
-                  />
-                </BookSection>
+          <FadeSlideIn delay={stagger(3)}>
+            <View style={styles.card}>
+              <PressableScale
+                onPress={toggleBill}
+                scaleTo={0.985}
+                style={styles.billHead}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: billOpen }}
+              >
+                <ReceiptText size={20} color={ui.text} strokeWidth={2} />
+                <View style={styles.flex}>
+                  <Text style={styles.billTitle}>{fillCopy(copy.cartTotalLabel, { amount: formatRupeeFull(pricing.total) })}</Text>
+                  <Text style={styles.billSub}>
+                    {copy.cartGstNote}
+                    {pricing.coupon > 0 ? ` · ${fillCopy(copy.cartSavedNote, { amount: formatRupeeFull(pricing.coupon) })}` : ''}
+                  </Text>
+                </View>
+                <Animated.View style={{ transform: [{ rotate: billRotate }] }}>
+                  <ChevronDown size={18} color={ui.textTertiary} />
+                </Animated.View>
+              </PressableScale>
+              {billOpen ? (
+                <View style={styles.bill}>
+                  <BookBillSummary amount={pricing} gstPercent={gst} />
+                </View>
+              ) : null}
+            </View>
+          </FadeSlideIn>
 
-                <BookSection title="Payment summary">
-                  <BookBillSummary amount={pricing} />
-                </BookSection>
-              </>
-            ) : null}
-
-            {step === 4 && pricing ? (
-              <>
-                <BookSection>
-                  <BookServiceSummary service={service} durationLabel={durationLabel} />
-                </BookSection>
-
-                <BookSection title="Booking details">
-                  <BookReviewRow
-                    icon={CalendarClock}
-                    label="Requested schedule"
-                    value={scheduleSummary}
-                    onChange={() => setStep(0)}
-                  />
-                  <BookReviewRow
-                    icon={Building2}
-                    label="Property type"
-                    value={propertyType ? propertyTypeLabel(propertyType) : '—'}
-                    onChange={() => setStep(1)}
-                  />
-                  <BookReviewRow
-                    icon={MapPin}
-                    label="Service address"
-                    value={addressSummary}
-                    onChange={() => setStep(2)}
-                  />
-                  <BookReviewRow
-                    icon={CreditCard}
-                    label="Payment method"
-                    value={paymentMethod ? paymentMethodLabel(paymentMethod) : '—'}
-                    onChange={() => setStep(3)}
-                  />
-                  {coupon.trim() ? (
-                    <BookReviewRow
-                      icon={Tag}
-                      label="Coupon applied"
-                      value={coupon.trim().toUpperCase()}
-                      onChange={() => setStep(3)}
-                    />
-                  ) : null}
-                  <BookReviewRow
-                    icon={Camera}
-                    label="Photos"
-                    value={photoUris.length ? `${photoUris.length} attached` : 'None added'}
-                    onChange={() => setStep(2)}
-                    last
-                  />
-                  {photoUris.length > 0 ? (
-                    <View style={styles.photoStrip}>
-                      <ConfirmPhotoStrip photos={photoUris} />
-                    </View>
-                  ) : null}
-                </BookSection>
-
-                <BookSection title="Payment summary">
-                  <BookBillSummary amount={pricing} totalLabel="Estimated total" />
-                </BookSection>
-
-                <BookSection>
-                  <View style={styles.notes}>
-                    <BookInfoNote title="What happens next">{bookingCopy.pendingReviewNote}</BookInfoNote>
-                    <BookInfoNote title="Cancellation">
-                      You can cancel from My Bookings any time before the technician starts work.
-                    </BookInfoNote>
-                  </View>
-                </BookSection>
-              </>
-            ) : null}
-          </FadeSlideHorizontal>
+          <FadeSlideIn delay={stagger(4)}>
+            <View style={styles.policy}>
+              <Text style={styles.policyTitle} accessibilityRole="header">
+                {copy.cartPolicyTitle}
+              </Text>
+              <Text style={styles.policyText}>{bookingCopy.wizardCancellationNote}</Text>
+              <Text style={[styles.policyTitle, styles.policyGap]} accessibilityRole="header">
+                {bookingCopy.wizardNextStepsTitle}
+              </Text>
+              <Text style={styles.policyText}>{bookingCopy.pendingReviewNote}</Text>
+              <Pressable onPress={() => appPush(customerRoutes.terms)} hitSlop={12} style={styles.linkHit} accessibilityRole="link">
+                <Text style={styles.linkUnderline}>{copy.cartReadPolicy}</Text>
+              </Pressable>
+            </View>
+          </FadeSlideIn>
         </ScrollView>
 
-        {pricing ? (
-          <BookCheckoutBar
-            total={pricing.total}
-            savings={pricing.coupon}
-            caption={step === 4 ? 'Estimated total · incl. taxes' : 'incl. taxes'}
-            actionTitle={step === 4 ? bookingCopy.wizardSubmitButton : bookingCopy.wizardContinueButton}
-            onAction={step === 4 ? confirm : goNext}
-            loading={loading}
-            disabled={(step === 3 && couponInvalid) || (step >= 3 && !paymentMethod) || (step === 1 && !propertyType)}
-          />
-        ) : null}
+        {/* Address + slot ride above the button, like a real checkout. */}
+        <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          {addressReady ? (
+            <PressableScale scaleTo={0.985} style={styles.bottomRow} onPress={() => setSheet('address')} accessibilityRole="button">
+              <House size={17} color={ui.text} strokeWidth={2} />
+              <Text style={styles.bottomText} numberOfLines={1}>
+                <Text style={styles.bottomStrong}>{savedAddress?.label || address.form.saveAs || copy.cartAddressFallback}</Text>
+                {' - '}
+                {addressSummary}
+              </Text>
+              <Pencil size={15} color={ui.textSecondary} strokeWidth={2} />
+            </PressableScale>
+          ) : null}
+          {slotConfirmed ? (
+            <PressableScale scaleTo={0.985} style={styles.bottomRow} onPress={() => setSheet('slot')} accessibilityRole="button">
+              <Clock3 size={17} color={ui.text} strokeWidth={2} />
+              <Text style={styles.bottomText} numberOfLines={1}>
+                {scheduleSummary}
+              </Text>
+              <Pencil size={15} color={ui.textSecondary} strokeWidth={2} />
+            </PressableScale>
+          ) : null}
+          {/* Total rides beside the button, so the price never scrolls out of sight. */}
+          <View style={styles.ctaRow}>
+            <View style={styles.ctaTotal}>
+              <Text style={styles.ctaTotalValue} numberOfLines={1}>
+                {formatRupeeFull(pricing.total)}
+              </Text>
+              <Text style={styles.ctaTotalSub} numberOfLines={1}>
+                {pricing.coupon > 0 ? fillCopy(copy.cartSavedNote, { amount: formatRupeeFull(pricing.coupon) }) : copy.cartGstNote}
+              </Text>
+            </View>
+            <Animated.View style={[styles.ctaButton, { transform: [{ translateX: ctaShake }] }]}>
+              <Button title={nextStep.label} variant="premium" onPress={nextStep.run} loading={loading} />
+            </Animated.View>
+          </View>
+          <Text style={styles.terms}>
+            {copy.cartTermsLine.split(/(\{terms\}|\{privacy\})/).map((part, i) =>
+              part === '{terms}' ? (
+                <Text key={i} style={styles.termsLink} onPress={() => appPush(customerRoutes.terms)} suppressHighlighting>
+                  {copy.cartTermsLink}
+                </Text>
+              ) : part === '{privacy}' ? (
+                <Text key={i} style={styles.termsLink} onPress={() => appPush(customerRoutes.privacy)} suppressHighlighting>
+                  {copy.cartPrivacyLink}
+                </Text>
+              ) : (
+                part
+              ),
+            )}
+          </Text>
+        </View>
       </SafeAreaView>
+
+      <CartSlotSheet
+        visible={sheet === 'slot'}
+        onClose={() => setSheet(null)}
+        value={schedule}
+        durationLabel={duration}
+        onCommit={(next) => {
+          setSchedule(next);
+          setSlotConfirmed(true);
+          setSheet(null);
+        }}
+      />
+
+      <CartContactSheet
+        visible={sheet === 'contact'}
+        onClose={() => setSheet(null)}
+        value={contact}
+        onCommit={(next) => {
+          setContact(next);
+          setSheet(null);
+        }}
+      />
+
+      <CartAddressSheet
+        visible={sheet === 'address'}
+        onClose={() => setSheet(null)}
+        addresses={addresses}
+        value={address}
+        location={location}
+        locating={locating}
+        detectAddress={detectAddress}
+        onCommit={(next) => {
+          setAddress(next);
+          setSheet(null);
+        }}
+      />
+
+      <BottomSheet
+        visible={sheet === 'property'}
+        onClose={() => setSheet(null)}
+        title={bookingCopy.wizardPropertyTitle}
+        hint={bookingCopy.wizardPropertySubtitle}
+        footer={<Button title={copy.cartDone} variant="premium" disabled={!propertyType} onPress={() => setSheet(null)} />}
+      >
+        <PropertyTypePicker value={propertyType} onChange={setPropertyType} />
+      </BottomSheet>
+
+      <BottomSheet
+        visible={sheet === 'payment'}
+        onClose={() => setSheet(null)}
+        title={bookingCopy.wizardPaymentTitle}
+        footer={<Button title={copy.cartDone} variant="premium" disabled={!paymentOffered} onPress={() => setSheet(null)} />}
+      >
+        <BookPaymentPicker
+          methods={paymentMethods}
+          selected={paymentMethod}
+          onSelect={setPaymentMethod}
+          showManageLink={hasSavedPaymentMethods}
+        />
+      </BottomSheet>
+
+      <CartCouponSheet
+        visible={sheet === 'coupon'}
+        onClose={() => setSheet(null)}
+        offers={activeOffers}
+        value={coupon}
+        basePrice={basePrice}
+        onCommit={(code) => {
+          setCoupon(code);
+          setSheet(null);
+        }}
+      />
+
+      <BottomSheet
+        visible={sheet === 'photos'}
+        onClose={() => setSheet(null)}
+        title={bookingCopy.wizardPhotosTitle}
+        hint={bookingCopy.wizardPhotosSubtitle}
+        footer={<Button title={copy.cartDone} variant="premium" onPress={() => setSheet(null)} />}
+      >
+        <AddressPhotoGrid photos={photoUris} onChange={setPhotoUris} max={6} />
+      </BottomSheet>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: ui.surfaceMuted },
-  safe: { flex: 1, backgroundColor: 'transparent' },
-  scroll: { flex: 1 },
-  container: { paddingTop: 8, paddingBottom: 40 },
-  timeBody: { marginTop: 18 },
-  notesWrap: { marginTop: spacing.md },
-  includedRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 6 },
-  includedText: { flex: 1, fontFamily: fonts.bodyMedium, fontSize: 14, lineHeight: 20, color: ui.text },
-  areaChip: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: ui.hairline,
+  root: { flex: 1, backgroundColor: ui.canvas },
+  flex: { flex: 1, minWidth: 0 },
+  content: { padding: spacing.md, gap: 12, paddingBottom: 24 },
+  card: {
+    backgroundColor: colors.white,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: ui.hairline,
+    overflow: 'hidden',
+    ...ui.shadow,
   },
-  confirmWrap: { marginTop: spacing.md },
-  offersWrap: { marginBottom: 14 },
-  photoStrip: { marginTop: 10 },
-  notes: { gap: 10 },
+  item: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
+  itemName: { ...typeScale.rowTitleLg, color: ui.text },
+  itemMeta: { ...typeScale.caption, marginTop: 3, color: ui.textSecondary },
+  itemPrice: { ...typeScale.price, color: ui.text },
+  itemLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: ui.border,
+  },
+  linkHit: { minHeight: 44, justifyContent: 'center' },
+  addMore: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' },
+  link: { ...typeScale.bodyStrong, color: ui.brand },
+  linkStrong: { ...typeScale.bodyStrong, fontFamily: typeScale.button.fontFamily, color: ui.text, textDecorationLine: 'underline' },
+  linkUnderline: { ...typeScale.captionStrong, color: ui.text, textDecorationLine: 'underline' },
+  billHead: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 16, minHeight: 60 },
+  billTitle: { ...typeScale.rowTitle, color: ui.text },
+  billSub: { ...typeScale.caption, fontSize: 12.5, marginTop: 2, color: ui.textSecondary },
+  bill: { paddingHorizontal: 14, paddingBottom: 14 },
+  policy: { paddingHorizontal: 4, paddingTop: 6 },
+  policyTitle: { ...typeScale.section, fontSize: 17, lineHeight: 23, color: ui.text },
+  policyGap: { marginTop: 16 },
+  policyText: { ...typeScale.caption, marginTop: 6, lineHeight: 20, color: ui.textSecondary },
+  bottom: {
+    paddingHorizontal: spacing.md,
+    paddingTop: 6,
+    gap: 6,
+    backgroundColor: colors.white,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: ui.border,
+  },
+  ctaRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingTop: 4 },
+  ctaTotal: { minWidth: 92 },
+  ctaTotalValue: { ...typeScale.price, fontSize: 22, lineHeight: 28, color: ui.text },
+  ctaTotalSub: { ...typeScale.caption, fontSize: 12, marginTop: 1, color: ui.textSecondary },
+  ctaButton: { flex: 1 },
+  bottomRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
+  bottomText: { ...typeScale.caption, flex: 1, color: ui.textSecondary },
+  bottomStrong: { fontFamily: typeScale.button.fontFamily, color: ui.text },
+  terms: { ...typeScale.micro, fontFamily: typeScale.caption.fontFamily, textAlign: 'center', color: ui.textTertiary, marginTop: 4 },
+  termsLink: { fontFamily: typeScale.captionStrong.fontFamily, color: ui.textSecondary, textDecorationLine: 'underline' },
 });

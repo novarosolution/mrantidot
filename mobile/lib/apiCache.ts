@@ -11,6 +11,7 @@ export const CACHE_TTL = {
   offers: 5 * 60 * 1000,
   paymentMethods: 2 * 60 * 1000,
   adminLists: 30 * 1000,
+  website: 60 * 1000,
 } as const;
 
 type CacheEntry = { data: unknown; at: number };
@@ -84,4 +85,6 @@ export function invalidateAfterMutation(url: string): void {
   if (url.includes('/offers')) clearApiCache('/offers');
   if (url.includes('/admin/users')) clearApiCache('/admin/users');
   if (url.includes('/admin/reviews')) clearApiCache('/admin/reviews');
+  // Any website write (layout, blog, gallery, team, messages…) can change what the GETs return.
+  if (url.includes('/website')) clearApiCache('/website');
 }

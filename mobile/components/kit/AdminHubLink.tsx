@@ -1,82 +1,127 @@
+import { Children, isValidElement, type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react-native';
-import { Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { GlassPanel } from '@/components/kit/GlassScreenKit';
-import { adminShadow } from '@/components/kit/homeUi';
-import { AppIcons } from '@/constants/appIcons';
-import { adminType, colors, spacing, ui } from '@/constants/theme';
+import { ChevronRight } from 'lucide-react-native';
+import { StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { adminType, colors, fonts, spacing, ui } from '@/constants/theme';
 
-export function AdminHubLink({
-  icon,
-  image,
-  label,
-  desc,
-  accent = ui.brand,
-  accentBg = ui.brandSoft,
-  featured = false,
-  onPress,
-}: {
-  icon: LucideIcon;
-  image?: ImageSourcePropType;
-  label: string;
-  desc?: string;
-  accent?: string;
-  accentBg?: string;
-  /** Emphasize primary hub entries (e.g. Content). */
-  featured?: boolean;
-  onPress: () => void;
-}) {
+/** White settings-style card that stacks hub rows with inset hairlines. */
+export function AdminHubGroup({ children }: { children: ReactNode }) {
+  const rows = Children.toArray(children);
   return (
-    <Pressable style={({ pressed }) => [styles.wrap, pressed && styles.pressed]} onPress={onPress}>
-      <View style={[styles.shell, featured && styles.shellFeatured]}>
-        <GlassPanel style={styles.card} padded={false} tone={featured ? 'mint' : 'light'} intensity={40}>
-          <View style={styles.inner}>
-            <PremiumIcon
-              icon={icon}
-              image={image}
-              variant={featured ? 'premium' : 'mint'}
-              size="lg"
-              color={featured ? colors.white : accent}
-              bg={accentBg}
-              bgTo={colors.white}
-              boxSize={46}
-            />
-            <View style={styles.body}>
-              <Text style={[styles.label, featured && styles.labelFeatured]}>{label}</Text>
-              {desc ? (
-                <Text style={styles.desc} numberOfLines={2}>
-                  {desc}
-                </Text>
-              ) : null}
-            </View>
-            <PremiumIcon icon={AppIcons.ui.chevronRight} variant="chevron" size="sm" color={ui.brand} />
+    <View style={styles.groupShell}>
+      <View style={styles.group}>
+        {rows.map((row, i) => (
+          <View key={isValidElement(row) && row.key != null ? row.key : i}>
+            {i > 0 ? <View style={styles.divider} /> : null}
+            {row}
           </View>
-        </GlassPanel>
+        ))}
       </View>
-    </Pressable>
+    </View>
   );
 }
 
+/** One hub row — mint icon square, label + hint, optional count badge, chevron. */
+export function AdminHubLink({
+  icon: Icon,
+  label,
+  desc,
+  badge,
+  onPress,
+}: {
+  icon: LucideIcon;
+  /** @deprecated Generated image tiles were dropped for vector icons; accepted for older call sites. */
+  image?: ImageSourcePropType;
+  label: string;
+  desc?: string;
+  /** Small red count pill (e.g. unread notifications). */
+  badge?: number;
+  /** @deprecated Every row now shares one style. */
+  featured?: boolean;
+  onPress: () => void;
+}) {
+  const badgeText = badge && badge > 0 ? (badge > 99 ? '99+' : String(badge)) : null;
+  return (
+    <PressableScale
+      style={styles.row}
+      scaleTo={0.98}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={badgeText ? `${label}, ${badgeText} new` : label}
+    >
+      <View style={styles.iconBox}>
+        <Icon size={19} color={ui.brand} strokeWidth={2} />
+      </View>
+      <View style={styles.body}>
+        <Text style={styles.label} numberOfLines={1}>
+          {label}
+        </Text>
+        {desc ? (
+          <Text style={styles.desc} numberOfLines={1}>
+            {desc}
+          </Text>
+        ) : null}
+      </View>
+      {badgeText ? (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{badgeText}</Text>
+        </View>
+      ) : null}
+      <ChevronRight size={18} color={ui.textTertiary} strokeWidth={2.2} />
+    </PressableScale>
+  );
+}
+
+const ICON = 40;
+
 const styles = StyleSheet.create({
-  wrap: { marginBottom: spacing.sm },
-  shell: {
-    borderRadius: 18,
-    ...adminShadow.card,
+  /** Shadow lives on an unclipped shell — iOS drops shadows on views with overflow hidden. */
+  groupShell: {
+    marginHorizontal: spacing.md,
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    ...ui.shadow,
   },
-  shellFeatured: {
-    ...adminShadow.soft,
+  group: {
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
+    overflow: 'hidden',
   },
-  card: { borderRadius: 18 },
-  pressed: { opacity: 0.92, transform: [{ scale: 0.995 }] },
-  inner: {
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: ui.border,
+    marginLeft: spacing.md + ICON + 14,
+  },
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    paddingVertical: 14,
+    paddingVertical: 13,
     paddingHorizontal: spacing.md,
+    backgroundColor: colors.white,
   },
-  body: { flex: 1, minWidth: 0, gap: 2 },
-  label: { ...adminType.hubLabel, color: ui.text },
-  labelFeatured: { color: ui.brand },
-  desc: { ...adminType.hubDesc, marginTop: 0, color: ui.textSecondary },
+  iconBox: {
+    width: ICON,
+    height: ICON,
+    borderRadius: 12,
+    backgroundColor: ui.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  body: { flex: 1, minWidth: 0 },
+  label: { ...adminType.hubLabel, fontSize: 14.5, color: ui.text },
+  desc: { ...adminType.hubDesc, fontSize: 12, marginTop: 1, color: ui.textSecondary },
+  badge: {
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 6,
+    borderRadius: 11,
+    backgroundColor: colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: { fontFamily: fonts.bodyBold, fontSize: 11, color: colors.white },
 });

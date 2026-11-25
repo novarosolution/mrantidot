@@ -180,10 +180,25 @@ export function GlassContentSheet({
   );
 }
 
-/** Tab bar background — flat white dock with a hairline top edge. */
+/** Corner radius of the docked tab bar's top edge. */
+export const TAB_BAR_RADIUS = 28;
+
+/** Tab bar background — solid white dock, rounded at the top, with a hairline edge. */
 export function GlassTabBarBackground() {
-  return <View style={styles.tabBarShell} />;
+  return <View style={tabBarStyles.bg} />;
 }
+
+const tabBarStyles = StyleSheet.create({
+  bg: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: colors.white,
+    borderTopLeftRadius: TAB_BAR_RADIUS,
+    borderTopRightRadius: TAB_BAR_RADIUS,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 0,
+    borderColor: 'rgba(17,26,21,0.1)',
+  },
+});
 
 /** Shared style tokens for glass surfaces without BlurView (lists, flat styles). */
 export const glassSkin = {
@@ -222,24 +237,29 @@ export const glassSkin = {
   } satisfies ViewStyle,
 };
 
-/** Docked white tab bar (Urban-style) — height grows with the home-indicator inset. */
+/**
+ * Docked tab bar — full-width white bar on the bottom edge with rounded top corners; its height grows
+ * with the home-indicator inset so icons and labels sit above it.
+ */
 export function dockTabBarStyle(bottomInset: number): ViewStyle {
-  const padBottom = Math.max(bottomInset, 10);
   return {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    height: 58 + padBottom,
-    paddingTop: 6,
-    paddingBottom: padBottom,
-    backgroundColor: colors.white,
+    height: 62 + bottomInset,
+    paddingTop: 8,
+    paddingBottom: Math.max(bottomInset - 4, 8),
+    paddingHorizontal: 6,
+    borderTopLeftRadius: TAB_BAR_RADIUS,
+    borderTopRightRadius: TAB_BAR_RADIUS,
+    backgroundColor: 'transparent',
     borderTopWidth: 0,
     elevation: 12,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
+    shadowColor: '#0B1F14',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
   };
 }
 
@@ -320,11 +340,5 @@ const styles = StyleSheet.create({
     color: ui.textSecondary,
     marginTop: 3,
     lineHeight: 17,
-  },
-  tabBarShell: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.white,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: ui.border,
   },
 });

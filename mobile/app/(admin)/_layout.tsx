@@ -1,7 +1,26 @@
 import { Redirect, Stack } from 'expo-router';
+import type { ComponentProps } from 'react';
+import { Platform } from 'react-native';
+import { WebAdminShell } from '@/components/admin/WebAdminShell';
+import { WebDialogHost } from '@/components/admin/WebDialogHost';
 import { Spinner } from '@/components/ui/Spinner';
 import { useAuth } from '@/context/AuthContext';
 import { appHref, authRoutes, homeRouteForRole } from '@/lib/routes';
+import { adminDocumentTitle } from '@/lib/webAdmin';
+
+const IS_WEB = Platform.OS === 'web';
+
+const STACK_OPTIONS = {
+  headerShown: false,
+  animation: 'slide_from_right',
+  contentStyle: { backgroundColor: 'transparent' },
+} as const;
+
+/** Web: same options plus a per-screen browser-tab title (the header is hidden, so native never shows it). */
+const WEB_STACK_OPTIONS: ComponentProps<typeof Stack>['screenOptions'] = ({ route }) => ({
+  ...STACK_OPTIONS,
+  title: adminDocumentTitle(route.name),
+});
 
 export default function AdminLayout() {
   const { user, isLoading } = useAuth();
@@ -14,17 +33,12 @@ export default function AdminLayout() {
     return <Redirect href={appHref(homeRouteForRole(user.role))} />;
   }
 
-  return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        animation: 'slide_from_right',
-        contentStyle: { backgroundColor: 'transparent' },
-      }}
-    >
+  const stack = (
+    <Stack screenOptions={IS_WEB ? WEB_STACK_OPTIONS : STACK_OPTIONS}>
       <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
       <Stack.Screen name="content" />
       <Stack.Screen name="services" />
+      <Stack.Screen name="service-order" />
       <Stack.Screen name="service-edit" />
       <Stack.Screen name="offers" />
       <Stack.Screen name="offer-edit" />
@@ -44,5 +58,15 @@ export default function AdminLayout() {
       <Stack.Screen name="leave" />
       <Stack.Screen name="payroll" />
     </Stack>
+  );
+
+  // Desktop browsers get the sidebar frame (narrow windows keep the phone layout inside it), and every
+  // confirmation in the browser uses the in-app dialog (lib/confirm.ts).
+  if (!IS_WEB) return stack;
+  return (
+    <>
+      <WebAdminShell>{stack}</WebAdminShell>
+      <WebDialogHost />
+    </>
   );
 }

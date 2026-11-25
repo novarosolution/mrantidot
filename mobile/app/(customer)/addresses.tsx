@@ -1,39 +1,55 @@
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { haptic, stagger } from '@/lib/motion';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { ListRowsSkeleton } from '@/components/kit/ScreenSkeletons';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Building2, House, MapPinned, type LucideIcon } from 'lucide-react-native';
+import { ListAddRow, ListFootnote, ListGroup, ListGroupRow, ListSectionTitle } from '@/components/kit/ListGroup';
 import Toast from 'react-native-toast-message';
-import { AddressCard } from '@/components/kit/AddressCard';
+import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/AdminActionSheet';
 import {
   AddressDetailsForm,
   EMPTY_ADDRESS_FORM,
   addressFormValid,
+  composeStreetLine,
   type AddressFormValues,
+  type AddressSaveAs,
 } from '@/components/kit/AddressDetailsForm';
 import { AddressLocateButton } from '@/components/kit/AddressLocateButton';
-import { CardFooterActions } from '@/components/kit/CardFooterActions';
 import { CustomerListShell, listShellStyles } from '@/components/kit/CustomerListShell';
-import { FabButton } from '@/components/kit/FabButton';
+import { TAB_BAR_SCROLL_PAD } from '@/components/kit/GlassScreenKit';
+import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ScreenState } from '@/components/ui/ScreenState';
 import { api, screenLoadConfig } from '@/lib/api';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
-import { CUSTOMER_LIST_PERF } from '@/lib/listConfig';
 import { useLocation } from '@/context/LocationContext';
 import { useScreenLoad } from '@/lib/useScreenLoad';
-import type { SavedAddress } from '@/types/api';
-import { colors, fonts, spacing, ui as themeUi } from '@/constants/theme';
+import type { CustomerUiCopy, SavedAddress } from '@/types/api';
+import { spacing, ui as themeUi } from '@/constants/theme';
+
+/**
+ * Saved addresses only keep one street line ("Flat/House A-1, MG Road, Landmark: Park"). Split it back
+ * into the form's fields for editing; anything unrecognised stays in the street field.
+ */
+function formFromAddress(a: SavedAddress, copy: Pick<CustomerUiCopy, 'addrHousePrefix' | 'addrLandmarkPrefix'>): AddressFormValues {
+  const prefixOf = (template: string) => template.split('{')[0] ?? '';
+  const housePrefix = prefixOf(copy.addrHousePrefix).trim();
+  const landmarkPrefix = prefixOf(copy.addrLandmarkPrefix).trim();
+  let house = '';
+  let landmark = '';
+  const rest: string[] = [];
+  for (const part of a.line1.split(',').map((p) => p.trim()).filter(Boolean)) {
+    if (!house && housePrefix && part.startsWith(housePrefix)) house = part.slice(housePrefix.length).trim();
+    else if (!landmark && landmarkPrefix && part.startsWith(landmarkPrefix)) landmark = part.slice(landmarkPrefix.length).trim();
+    else rest.push(part);
+  }
+  const saveAs: AddressSaveAs = a.label === 'Office' || a.label === 'Other' ? a.label : 'Home';
+  return { house, street: rest.join(', '), landmark, city: a.city ?? '', pincode: a.pincode ?? '', saveAs };
+}
 
 export default function AddressesScreen() {
   const ui = useCustomerUiCopy();
@@ -43,6 +59,11 @@ export default function AddressesScreen() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<AddressFormValues>(EMPTY_ADDRESS_FORM);
   const [saving, setSaving] = useState(false);
+  const [menuFor, setMenuFor] = useState<SavedAddress | null>(null);
+  const [deleteFor, setDeleteFor] = useState<SavedAddress | null>(null);
+  /** Address being edited in the sheet (null = adding a new one). */
+  const [editFor, setEditFor] = useState<SavedAddress | null>(null);
+  const [showErrors, setShowErrors] = useState(false);
 
   const fetchAddresses = useCallback(async () => {
     const { data } = await api.get<{ addresses: SavedAddress[] }>('/addresses', screenLoadConfig);
@@ -53,12 +74,23 @@ export default function AddressesScreen() {
     await fetchAddresses();
   }, [fetchAddresses]);
 
+  useStaleFocusRefresh(() => load().catch(() => undefined), 20_000);
+
   useEffect(() => {
-    void runLoad(load, 'Could not load addresses');
+    void runLoad(load, ui.addressesLoadFailed);
   }, [load, runLoad]);
 
   function openAdd() {
+    setEditFor(null);
+    setShowErrors(false);
     setForm({ ...EMPTY_ADDRESS_FORM, saveAs: 'Home' });
+    setModalOpen(true);
+  }
+
+  function openEdit(a: SavedAddress) {
+    setEditFor(a);
+    setShowErrors(false);
+    setForm(formFromAddress(a, ui));
     setModalOpen(true);
   }
 
@@ -71,32 +103,39 @@ export default function AddressesScreen() {
         city: loc.city && loc.city !== 'your area' ? loc.city : prev.city,
         pincode: loc.pincode || prev.pincode,
       }));
-      Toast.show({ type: 'success', text1: 'Location added', text2: 'Add house / flat number to finish' });
+      Toast.show({ type: 'success', text1: ui.cartLocationFilled, text2: ui.cartLocationFilledSub });
     }
   }
 
   async function saveAddress() {
-    if (!addressFormValid(form)) {
-      Toast.show({ type: 'error', text1: 'Fill house/flat, street, and city' });
+    // Editing an older address may have no separate house number — street + city are enough then.
+    const valid = editFor ? Boolean(form.street.trim() && form.city.trim()) : addressFormValid(form);
+    if (!valid) {
+      setShowErrors(true);
+      haptic('warning');
       return;
     }
     setSaving(true);
     try {
-      const line1 = [
-        form.house.trim() ? `Flat/House ${form.house.trim()}` : '',
-        form.street.trim(),
-        form.landmark.trim() ? `Landmark: ${form.landmark.trim()}` : '',
-      ]
-        .filter(Boolean)
-        .join(', ');
-      await api.post('/addresses', {
-        label: form.saveAs,
-        line1,
-        city: form.city.trim(),
-        pincode: form.pincode.trim() || undefined,
-        isDefault: form.saveAs === 'Home' || addresses.length === 0,
-      });
-      Toast.show({ type: 'success', text1: 'Address saved' });
+      const line1 = composeStreetLine(form, ui);
+      if (editFor) {
+        await api.patch(`/addresses/${editFor.id}`, {
+          label: form.saveAs,
+          line1,
+          city: form.city.trim(),
+          pincode: form.pincode.trim(),
+        });
+      } else {
+        await api.post('/addresses', {
+          label: form.saveAs,
+          line1,
+          city: form.city.trim(),
+          pincode: form.pincode.trim() || undefined,
+          isDefault: form.saveAs === 'Home' || addresses.length === 0,
+        });
+      }
+      haptic('success');
+      Toast.show({ type: 'success', text1: editFor ? ui.addressesUpdatedToast : ui.addressesSavedToast });
       setModalOpen(false);
       await load();
     } catch {
@@ -106,145 +145,136 @@ export default function AddressesScreen() {
     }
   }
 
-  function confirmDelete(addr: SavedAddress) {
-    Alert.alert('Delete address?', addr.line1, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.delete(`/addresses/${addr.id}`);
-            Toast.show({ type: 'success', text1: 'Address removed' });
-            await load();
-          } catch {
-            // interceptor
-          }
-        },
-      },
-    ]);
-  }
-
-  async function setDefault(addr: SavedAddress) {
+  async function deleteAddress(addr: SavedAddress) {
     try {
-      await api.patch(`/addresses/${addr.id}`, { isDefault: true });
-      Toast.show({ type: 'success', text1: 'Default updated' });
+      await api.delete(`/addresses/${addr.id}`);
+      haptic('warning');
+      Toast.show({ type: 'success', text1: ui.addressesRemovedToast });
       await load();
     } catch {
       // interceptor
     }
   }
 
-  const addFab = <FabButton onPress={openAdd} accessibilityLabel="Add address" />;
+  async function setDefault(addr: SavedAddress) {
+    try {
+      await api.patch(`/addresses/${addr.id}`, { isDefault: true });
+      haptic('success');
+      Toast.show({ type: 'success', text1: ui.addressesDefaultToast });
+      await load();
+    } catch {
+      // interceptor
+    }
+  }
+
+  const menuOptions: ActionSheetOption[] = menuFor
+    ? [
+        { key: 'edit', label: ui.addressesEdit, subtitle: ui.addressesEditSub, onPress: () => openEdit(menuFor) },
+        ...(menuFor.isDefault
+          ? []
+          : [{ key: 'default', label: ui.addressesSetDefault, subtitle: ui.addressesSetDefaultSub, onPress: () => void setDefault(menuFor) }]),
+        { key: 'delete', label: ui.addressesDelete, destructive: true, onPress: () => setDeleteFor(menuFor) },
+      ]
+    : [];
 
   return (
     <CustomerListShell
       title={ui.addressesScreenTitle}
-      subtitle={addresses.length ? `${addresses.length} saved · tap + to add` : undefined}
-      rightAction={addFab}
+      subtitle={addresses.length ? fillCopy(ui.addressesSavedSub, { count: addresses.length }) : undefined}
     >
       <ScreenState
         embedded
         loading={loading}
         error={error && addresses.length === 0 ? error : null}
-        onRetry={() => void reload(load, 'Could not load addresses')}
-        loadingLabel="Loading addresses…"
+        onRetry={() => void reload(load, ui.addressesLoadFailed)}
+        skeleton={<ListRowsSkeleton rows={3} tall />}
       >
-        <FlatList
-          data={addresses}
-          keyExtractor={(a) => a.id}
-          {...CUSTOMER_LIST_PERF}
+        <ScrollView
+          contentContainerStyle={addresses.length === 0 ? listShellStyles.empty : styles.list}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => void refresh(load, 'Could not refresh')}
+              onRefresh={() => void refresh(load, ui.homeRefreshFailed)}
               tintColor={themeUi.brand}
             />
           }
-          contentContainerStyle={addresses.length === 0 ? listShellStyles.empty : listShellStyles.list}
-          ListEmptyComponent={<EmptyState title={ui.addressesEmptyTitle} message={ui.addressesEmptyMessage} />}
-          renderItem={({ item }) => (
-            <AddressCard
-              address={item}
-              footer={
-                <CardFooterActions
-                  note={item.isDefault ? 'Used by default when booking' : undefined}
-                  actions={[
-                    ...(item.isDefault ? [] : [{ label: 'Set default', onPress: () => void setDefault(item) }]),
-                    { label: 'Delete', tone: 'danger' as const, onPress: () => confirmDelete(item) },
-                  ]}
-                />
-              }
-            />
+        >
+          <FadeSlideIn delay={stagger(0)} slideFrom={12}>
+            <ListAddRow label={ui.addressesAddButton} onPress={openAdd} />
+          </FadeSlideIn>
+
+          {addresses.length === 0 ? (
+            <EmptyState title={ui.addressesEmptyTitle} message={ui.addressesEmptyMessage} />
+          ) : (
+            <FadeSlideIn delay={stagger(1)} slideFrom={14}>
+              <ListSectionTitle title={ui.addressesSectionTitle} />
+              <ListGroup>
+                {addresses.map((a) => (
+                  <ListGroupRow
+                    key={a.id}
+                    icon={labelIcon(a.label)}
+                    highlighted={a.isDefault}
+                    title={a.label}
+                    badge={a.isDefault ? ui.addressesDefaultBadge : undefined}
+                    lines={[a.line1, [a.city, a.pincode].filter(Boolean).join(' · ')]}
+                    onPress={() => openEdit(a)}
+                    onMore={() => setMenuFor(a)}
+                  />
+                ))}
+              </ListGroup>
+              <ListFootnote>{ui.addressesFootnote}</ListFootnote>
+            </FadeSlideIn>
           )}
-        />
+        </ScrollView>
       </ScreenState>
 
-      <Modal visible={modalOpen} animationType="slide" transparent onRequestClose={() => setModalOpen(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setModalOpen(false)}>
-            <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
-              <View style={styles.handle} />
-              <Text style={styles.modalTitle}>Add address</Text>
-              <Text style={styles.modalSub}>House / flat · landmark optional · save as Home or Other</Text>
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                <AddressLocateButton loading={locating} onPress={() => void useCurrentLocation()} />
-                <View style={styles.formPad}>
-                  <AddressDetailsForm value={form} onChange={setForm} />
-                </View>
-                <Button title="Save address" variant="premium" onPress={() => void saveAddress()} loading={saving} />
-                <Button
-                  title="Cancel"
-                  variant="secondary"
-                  onPress={() => setModalOpen(false)}
-                  style={{ marginTop: spacing.sm }}
-                />
-              </ScrollView>
-            </Pressable>
-          </Pressable>
-        </KeyboardAvoidingView>
-      </Modal>
+      <AdminActionSheet
+        visible={menuFor !== null}
+        title={menuFor?.label ?? ''}
+        message={menuFor ? `${menuFor.line1}, ${menuFor.city}` : undefined}
+        options={menuOptions}
+        onClose={() => setMenuFor(null)}
+      />
+      <AdminActionSheet
+        visible={deleteFor !== null}
+        title={ui.addressesDeleteTitle}
+        message={deleteFor ? `${deleteFor.line1}, ${deleteFor.city}` : undefined}
+        options={
+          deleteFor
+            ? [{ key: 'confirm', label: ui.addressesDelete, destructive: true, onPress: () => void deleteAddress(deleteFor) }]
+            : []
+        }
+        cancelLabel={ui.addressesKeep}
+        onClose={() => setDeleteFor(null)}
+      />
+
+      <BottomSheet
+        visible={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={editFor ? ui.addressesEditSheetTitle : ui.addressesSheetTitle}
+        hint={ui.addressesSheetHint}
+        footer={
+          <Button title={ui.addressesSaveButton} variant="premium" onPress={() => void saveAddress()} loading={saving} />
+        }
+      >
+        <AddressLocateButton loading={locating} onPress={() => void useCurrentLocation()} />
+        <View style={styles.formPad}>
+          <AddressDetailsForm value={form} onChange={setForm} showErrors={showErrors && !editFor} />
+        </View>
+      </BottomSheet>
     </CustomerListShell>
   );
 }
 
+function labelIcon(label: string): LucideIcon {
+  const l = label.trim().toLowerCase();
+  if (l === 'home') return House;
+  if (l === 'office' || l === 'work') return Building2;
+  return MapPinned;
+}
+
 const styles = StyleSheet.create({
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(11, 34, 19, 0.48)',
-    justifyContent: 'flex-end',
-  },
-  modal: {
-    maxHeight: '88%',
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xl,
-    borderWidth: 1,
-    borderColor: themeUi.hairline,
-  },
-  handle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: themeUi.hairline,
-    marginBottom: spacing.md,
-  },
-  modalTitle: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 20,
-    letterSpacing: -0.4,
-    color: themeUi.text,
-  },
-  modalSub: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: themeUi.textSecondary,
-    marginTop: 4,
-    marginBottom: spacing.md,
-  },
-  formPad: { marginTop: spacing.md, marginBottom: spacing.md },
+  list: { padding: spacing.md, paddingBottom: TAB_BAR_SCROLL_PAD },
+  formPad: { marginTop: spacing.md },
 });

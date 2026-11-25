@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode, useEffect, useRef } from 'react';
 import {
   Animated,
@@ -16,7 +15,11 @@ import { ArrowLeft, Lock } from 'lucide-react-native';
 import { safeGoBack, authRoutes } from '@/lib/routes';
 import { BrandLogo } from '@/components/BrandLogo';
 import { AUTH_HERO_GRADIENT, AuthHeroBackdrop } from '@/components/kit/auth/AuthBrandArt';
+import { PremiumAurora } from '@/components/kit/PremiumAurora';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { stagger } from '@/lib/motion';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 
 /* ─── Splash ───────────────────────────────────────────────────────── */
@@ -82,15 +85,7 @@ export function AuthSplashLayout({
 
   return (
     <View style={styles.splashRoot}>
-      <LinearGradient
-        colors={[...AUTH_HERO_GRADIENT]}
-        locations={[0, 0.55, 1]}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={[styles.splashGlow, styles.splashGlowA]} pointerEvents="none" />
-      <View style={[styles.splashGlow, styles.splashGlowB]} pointerEvents="none" />
+      <PremiumAurora topFade={false} />
 
       <View style={[styles.splashStage, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.lg }]}>
         <View style={styles.splashCenter}>
@@ -152,6 +147,7 @@ export function AuthLoginShell({
   children: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  const copy = useCustomerUiCopy();
   const heroH = insets.top + (compact ? HERO_H_COMPACT : HERO_H);
   const tag = brandTag?.trim();
 
@@ -167,7 +163,7 @@ export function AuthLoginShell({
             onPress={() => safeGoBack(authRoutes.login)}
             hitSlop={12}
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel={copy.authBackLabel}
           >
             <ArrowLeft size={20} color={colors.white} strokeWidth={2.3} />
           </Pressable>
@@ -175,7 +171,7 @@ export function AuthLoginShell({
           <View style={styles.backSpacer} />
         )}
 
-        <View style={styles.brandBlock}>
+        <FadeSlideIn slideFrom={14} style={styles.brandBlock}>
           <View style={styles.brandTile}>
             <BrandLogo size={40} animate={false} />
           </View>
@@ -187,7 +183,7 @@ export function AuthLoginShell({
               {tag}
             </Text>
           ) : null}
-        </View>
+        </FadeSlideIn>
       </View>
 
       <View style={styles.sheet}>
@@ -200,8 +196,11 @@ export function AuthLoginShell({
           bounces={false}
         >
           {/* CMS titles were written for the old two-line hero ("Create\naccount") — show them on one line. */}
-          <Text style={styles.title}>{title.replace(/\s*\n\s*/g, ' ')}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          {/* Only the heading animates — the form below must not sit inside an animated view. */}
+          <FadeSlideIn delay={stagger(1)} slideFrom={10}>
+            <Text style={styles.title}>{title.replace(/\s*\n\s*/g, ' ')}</Text>
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          </FadeSlideIn>
           {children}
         </ScrollView>
       </View>
@@ -254,7 +253,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.brand,
     fontSize: 38,
     lineHeight: 44,
-    letterSpacing: -1.2,
+    letterSpacing: -0.8,
     color: colors.white,
     textAlign: 'center',
   },
@@ -306,9 +305,9 @@ const styles = StyleSheet.create({
   },
   brandName: {
     fontFamily: fonts.brand,
-    fontSize: 26,
-    lineHeight: 31,
-    letterSpacing: -0.8,
+    fontSize: 24,
+    lineHeight: 29,
+    letterSpacing: -0.6,
     color: colors.white,
     maxWidth: '64%',
   },
@@ -332,9 +331,9 @@ const styles = StyleSheet.create({
   sheetScroll: { paddingHorizontal: spacing.lg, paddingTop: 26 },
   title: {
     fontFamily: fonts.displayExtra,
-    fontSize: 26,
-    lineHeight: 32,
-    letterSpacing: -0.7,
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: -0.6,
     color: ui.text,
   },
   subtitle: {

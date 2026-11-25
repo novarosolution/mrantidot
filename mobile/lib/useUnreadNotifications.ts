@@ -15,6 +15,7 @@ export function useUnreadNotifications() {
     try {
       const { data } = await api.get<{ unreadCount?: number }>('/notifications', {
         ...screenLoadConfig,
+        params: { limit: 0 }, // counts only, no notification rows
         cacheTtlMs: CACHE_TTL.notifications,
       });
       setUnreadCount(data.unreadCount ?? 0);

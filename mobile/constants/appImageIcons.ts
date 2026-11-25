@@ -70,13 +70,6 @@ export const AppIconImages = {
     profile: AppImageIcons.user,
   },
 
-  quick: {
-    book: AppImageIcons.spray,
-    bookings: AppImageIcons.calendar,
-    offers: AppImageIcons.offer,
-    support: AppImageIcons.help,
-  },
-
   techHub: {
     jobs: AppImageIcons.clipboard,
     active: AppImageIcons.briefcase,

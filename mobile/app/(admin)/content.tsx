@@ -1,33 +1,46 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import axios from 'axios';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
+import type { NativeStackNavigationProp } from 'expo-router';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
 import Toast from 'react-native-toast-message';
-import { AdminCollapsibleCard, AdminFormCard, AdminTabHint } from '@/components/kit/AdminPageKit';
-import { AdminListShell, AdminSectionTitle, adminListShellStyles } from '@/components/kit/AdminListShell';
+import { AdminCollapsibleCard, AdminFormCard, AdminSearchField, AdminTabHint } from '@/components/kit/AdminPageKit';
+import { ADMIN_STICKY_FOOTER_PAD, AdminListShell, AdminSectionTitle } from '@/components/kit/AdminListShell';
 import { AdminSectionTabs, type AdminSectionTab } from '@/components/kit/AdminSectionTabs';
 import { PendingScheduleCard } from '@/components/kit/PendingScheduleCard';
 import { IconInput } from '@/components/kit/IconInput';
+import { StringListEditor } from '@/components/kit/StringListEditor';
+import { MarkdownEditor } from '@/components/kit/MarkdownEditor';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { Button } from '@/components/ui/Button';
 import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
-import { PromoBanner } from '@/components/ui/PromoBanner';
-import { api, screenLoadConfig } from '@/lib/api';
+import { AdminChipsSkeleton, AdminFormSkeleton } from '@/components/kit/AdminSkeletons';
+import { HERO_SLIDE_H, HomeHeroCarousel, promoHeroSlide } from '@/components/kit/HomeHeroCarousel';
+import { PremiumAurora } from '@/components/kit/PremiumAurora';
+import { api, getApiErrorMessage, screenLoadConfig } from '@/lib/api';
+import { chooseAsync, confirmAsync } from '@/lib/confirm';
+import { haptic } from '@/lib/motion';
 import { useAppContent } from '@/context/AppContentContext';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import type { AppConfig, BookingCopyConfig, CustomerUiCopy, HomeConfig, HomePromo, Service } from '@/types/api';
 import { DEFAULT_BOOKING_COPY, BOOKING_COPY_ADMIN_GROUPS, type BookingCopyFieldKey } from '@/constants/bookingCopy';
 import {
   CUSTOMER_UI_ADMIN_GROUPS,
+  WEBSITE_GROUP_META,
+  WEBSITE_UI_ADMIN_GROUPS,
   DEFAULT_CUSTOMER_UI_COPY,
   type CustomerUiFieldKey,
 } from '@/constants/customerUiCopy';
 import { DEFAULT_HOME_CONFIG, DEFAULT_HOME_PROMO } from '@/constants/homeContent';
 import { DEFAULT_APP_CONFIG, mergeAppConfig, mergeHomeConfig } from '@/lib/mergeHomeConfig';
-import { colors, fonts, spacing, surfaces } from '@/constants/theme';
+import { colors, fonts, spacing, surfaces, ui } from '@/constants/theme';
+import { adminContentWidth } from '@/lib/webAdmin';
+import { useBusinessSettings } from '@/lib/businessSettings';
+import { categoryLabel } from '@/lib/settingsLabels';
 
 const CONTENT_TABS: AdminSectionTab[] = [
   { key: 'promo', label: 'Promo', icon: AppIcons.contentTab.promo },
@@ -37,6 +50,7 @@ const CONTENT_TABS: AdminSectionTab[] = [
   { key: 'booking', label: 'Booking', icon: AppIcons.contentTab.booking },
   { key: 'onboard', label: 'Onboard', icon: AppIcons.contentTab.onboard },
   { key: 'legal', label: 'Legal', icon: AppIcons.contentTab.legal },
+  { key: 'website', label: 'Website', icon: AppIcons.contentTab.website },
 ];
 
 const CONTENT_TAB_HINTS: Record<string, { title: string; body: string }> = {
@@ -68,6 +82,10 @@ const CONTENT_TAB_HINTS: Record<string, { title: string; body: string }> = {
     title: 'Legal & help',
     body: 'Terms, privacy policy, FAQ entries, and about page markdown.',
   },
+  website: {
+    title: 'Website',
+    body: 'Text on mrantidot.com — menu, home sections, about, contact, footer and checkout. Phone, email, WhatsApp, hours and FAQ come from the Brand and Legal tabs.',
+  },
 };
 
 const BOOKING_GROUP_META: Record<
@@ -90,12 +108,29 @@ const SCREENS_GROUP_META: Record<
   { title: string; subtitle: string; defaultOpen?: boolean }
 > = {
   home: { title: 'Home chrome', subtitle: 'Greetings, location, empty states & carousel kickers', defaultOpen: true },
-  auth: { title: 'Auth', subtitle: 'Login, register & OTP copy' },
+  catalog: { title: 'Services catalog', subtitle: 'Search, pest filters, sort & empty state' },
+  browse: { title: 'Category page', subtitle: 'Browse-by-pest page titles, sections & help row' },
+  service: { title: 'Service detail', subtitle: 'Sizes, included / excluded, trust, share & book bar' },
+  cart: { title: 'Cart & checkout', subtitle: 'Cart rows, bill, policy, sheets & step buttons' },
+  bookings: { title: 'My bookings', subtitle: 'Bookings list header, sections & card hints' },
+  bookingDetail: { title: 'Booking detail', subtitle: 'Status card, journey, treatment steps, invoice & actions' },
   offers: { title: 'Offers', subtitle: 'Coupons screen titles & empty states' },
   profile: { title: 'Profile', subtitle: 'Quick actions, stats & menu rows' },
+  account: { title: 'Account screens', subtitle: 'Addresses, payments, notifications & settings' },
   help: { title: 'Help', subtitle: 'Support page section labels' },
-  account: { title: 'Account screens', subtitle: 'Addresses, payments, notifications, settings & services' },
+  auth: { title: 'Auth', subtitle: 'Login, register & OTP copy' },
+  onboarding: { title: 'Onboarding buttons', subtitle: 'Skip / Next / Get started and slide art chips' },
+  review: { title: 'Review screen', subtitle: 'Rate & review copy after a visit' },
+  tech: { title: 'Technician app', subtitle: 'Jobs, job screen, check-in, leave & profile copy' },
+  system: { title: 'App status & system', subtitle: 'Maintenance, update, offline and general error messages' },
 };
+
+
+type CopyGroupMeta = { title: string; subtitle: string; defaultOpen?: boolean };
+type CopyGroups = Record<string, readonly (readonly [CustomerUiFieldKey, string])[]>;
+
+const APP_COPY_SECTIONS = { groups: CUSTOMER_UI_ADMIN_GROUPS as CopyGroups, meta: SCREENS_GROUP_META as Record<string, CopyGroupMeta> };
+const WEBSITE_COPY_SECTIONS = { groups: WEBSITE_UI_ADMIN_GROUPS as CopyGroups, meta: WEBSITE_GROUP_META as Record<string, CopyGroupMeta> };
 
 const DEFAULT_CONFIG: HomeConfig = DEFAULT_HOME_CONFIG;
 
@@ -113,21 +148,48 @@ export default function AdminContentScreen() {
   const [services, setServices] = useState<Service[]>([]);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState(CONTENT_TABS[0].key);
+  const [screenQuery, setScreenQuery] = useState('');
+  const [webQuery, setWebQuery] = useState('');
+  const [bookingQuery, setBookingQuery] = useState('');
+  /** Version stamps of the loaded documents — sent back so a save never silently overwrites another admin's. */
+  const [homeVersion, setHomeVersion] = useState<string | undefined>(undefined);
+  const [appVersion, setAppVersion] = useState<string | undefined>(undefined);
+  /** JSON of what the server has — differs from the form while there are unsaved edits. */
+  const [savedHome, setSavedHome] = useState<string | null>(null);
+  const [savedApp, setSavedApp] = useState<string | null>(null);
+  const navigation = useNavigation<NativeStackNavigationProp<Record<string, object | undefined>>>();
+
+  /** Puts a home document from the server into the form and marks it as saved. */
+  const applyHome = useCallback((data: { promo: HomePromo; homeConfig: HomeConfig; updatedAt?: string }) => {
+    const nextPromo = data.promo ?? DEFAULT_PROMO;
+    const nextConfig = mergeHomeConfig(data.homeConfig);
+    setPromo(nextPromo);
+    setHomeConfig(nextConfig);
+    setSavedHome(JSON.stringify({ promo: nextPromo, homeConfig: nextConfig }));
+    setHomeVersion(data.updatedAt);
+  }, []);
+
+  /** Same for the app document. */
+  const applyApp = useCallback((data: { app: AppConfig; updatedAt?: string }) => {
+    const next = mergeAppConfig(data.app);
+    setAppConfig(next);
+    setSavedApp(JSON.stringify(next));
+    setAppVersion(data.updatedAt);
+  }, []);
 
   const load = useCallback(async () => {
     const [homeRes, appRes, svcRes] = await Promise.all([
-      api.get<{ promo: HomePromo; homeConfig: HomeConfig }>('/content/admin/home', screenLoadConfig),
-      api.get<{ app: AppConfig }>('/content/admin/app', screenLoadConfig),
+      api.get<{ promo: HomePromo; homeConfig: HomeConfig; updatedAt?: string }>('/content/admin/home', screenLoadConfig),
+      api.get<{ app: AppConfig; updatedAt?: string }>('/content/admin/app', screenLoadConfig),
       api.get<{ services: Service[] }>('/services', {
         ...screenLoadConfig,
         params: { includeInactive: '1' },
       }),
     ]);
-    setPromo(homeRes.data.promo ?? DEFAULT_PROMO);
-    setHomeConfig(mergeHomeConfig(homeRes.data.homeConfig));
-    setAppConfig(mergeAppConfig(appRes.data.app));
+    applyHome(homeRes.data);
+    applyApp(appRes.data);
     setServices(svcRes.data.services);
-  }, []);
+  }, [applyHome, applyApp]);
 
   useEffect(() => {
     void runLoad(load, 'Could not load content');
@@ -139,25 +201,153 @@ export default function AdminContentScreen() {
     }
   }, [tabParam]);
 
-  async function save() {
+  /* ---------- unsaved changes ---------- */
+  const homeSnapshot = useMemo(() => JSON.stringify({ promo, homeConfig }), [promo, homeConfig]);
+  const appSnapshot = useMemo(() => JSON.stringify(appConfig), [appConfig]);
+  const homeDirty = savedHome !== null && homeSnapshot !== savedHome;
+  const appDirty = savedApp !== null && appSnapshot !== savedApp;
+  const dirty = homeDirty || appDirty;
+
+  const guard = useRef({ dirty: false, saving: false });
+  guard.current = { dirty, saving };
+
+  useEffect(() => {
+    return navigation.addListener('beforeRemove', (e) => {
+      if (!guard.current.dirty || guard.current.saving) return;
+      e.preventDefault();
+      void confirmAsync({
+        title: 'Discard your changes?',
+        message: 'Your app content changes are not saved yet.',
+        confirmLabel: 'Discard',
+        cancelLabel: 'Keep editing',
+        destructive: true,
+      }).then((ok) => {
+        if (!ok) return;
+        guard.current.dirty = false;
+        navigation.dispatch(e.data.action);
+      });
+    });
+  }, [navigation]);
+
+  // A swipe-back can't be stopped half way on iOS — switch it off while there are unsaved changes.
+  useEffect(() => {
+    navigation.setOptions({ gestureEnabled: !dirty });
+  }, [navigation, dirty]);
+
+  // Browser admin: closing or reloading the tab.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !dirty || typeof window === 'undefined') return;
+    const onUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onUnload);
+    return () => window.removeEventListener('beforeunload', onUnload);
+  }, [dirty]);
+
+  const onAbout = useCallback((aboutMarkdown: string) => setAppConfig((a) => ({ ...a, aboutMarkdown })), []);
+  const onTerms = useCallback(
+    (termsMarkdown: string) => setAppConfig((a) => ({ ...a, legal: { ...a.legal, termsMarkdown } })),
+    [],
+  );
+  const onPrivacy = useCallback(
+    (privacyMarkdown: string) => setAppConfig((a) => ({ ...a, legal: { ...a.legal, privacyMarkdown } })),
+    [],
+  );
+
+  /* ---------- saving ---------- */
+  type Part = 'home' | 'app';
+
+  /**
+   * Saves the changed documents. Each carries the version it was loaded at; a 409 means another admin
+   * saved meanwhile, and the admin chooses to load their version or save over it (`force`).
+   */
+  async function save(force: Part[] = []) {
+    if (saving) return;
+    const parts: Part[] = force.length > 0 ? force : [...(homeDirty ? (['home'] as const) : []), ...(appDirty ? (['app'] as const) : [])];
+    if (parts.length === 0) {
+      Toast.show({ type: 'info', text1: 'No changes to save' });
+      return;
+    }
     setSaving(true);
+    guard.current.saving = true;
+    const conflicts: Part[] = [];
+    let failed = false;
     try {
-      const [homeRes, appRes] = await Promise.all([
-        api.patch<{ promo: HomePromo; homeConfig: HomeConfig }>('/content/admin/home', {
-          ...promo,
-          homeConfig,
-        }),
-        api.patch<{ app: AppConfig }>('/content/admin/app', appConfig),
-      ]);
-      setPromo(homeRes.data.promo ?? DEFAULT_PROMO);
-      setHomeConfig(mergeHomeConfig(homeRes.data.homeConfig));
-      setAppConfig(mergeAppConfig(appRes.data.app));
-      await refreshAppContent();
-      Toast.show({ type: 'success', text1: 'Content saved' });
-    } catch {
-      // interceptor handles toast
+      const results = await Promise.allSettled(
+        parts.map((part) =>
+          part === 'home'
+            ? api
+                .patch<{ promo: HomePromo; homeConfig: HomeConfig; updatedAt?: string }>(
+                  '/content/admin/home',
+                  { ...promo, homeConfig, ...(force.includes('home') ? {} : { updatedAt: homeVersion }) },
+                  { skipErrorToast: true },
+                )
+                .then((res) => applyHome(res.data))
+            : api
+                .patch<{ app: AppConfig; updatedAt?: string }>(
+                  '/content/admin/app',
+                  { ...appConfig, ...(force.includes('app') ? {} : { updatedAt: appVersion }) },
+                  { skipErrorToast: true },
+                )
+                .then((res) => applyApp(res.data)),
+        ),
+      );
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled') return;
+        if (axios.isAxiosError(r.reason) && r.reason.response?.status === 409) {
+          conflicts.push(parts[i]);
+        } else {
+          failed = true;
+          Toast.show({ type: 'error', text1: 'Could not save', text2: getApiErrorMessage(r.reason, 'Please try again') });
+        }
+      });
+      if (results.some((r) => r.status === 'fulfilled')) await refreshAppContent();
+      if (conflicts.length === 0 && !failed) {
+        haptic('success');
+        Toast.show({ type: 'success', text1: 'Content saved' });
+      } else if (failed) {
+        haptic('error');
+      }
     } finally {
       setSaving(false);
+      guard.current.saving = false;
+    }
+    if (conflicts.length > 0) await resolveConflict(conflicts);
+  }
+
+  async function resolveConflict(parts: Part[]) {
+    haptic('warning');
+    const what =
+      parts.length === 2 ? 'the home screen and app content' : parts[0] === 'home' ? 'the home screen content' : 'the app content';
+    const choice = await chooseAsync({
+      title: 'Someone else saved meanwhile',
+      message: `Another admin saved ${what} after you opened this screen. Load their version (your unsaved edits there are lost), or save yours over theirs.`,
+      options: [
+        { label: 'Load their version', value: 'reload' },
+        { label: 'Save mine anyway', value: 'overwrite', destructive: true },
+      ],
+      cancelLabel: 'Keep editing',
+    });
+    if (choice === 'reload') {
+      try {
+        await Promise.all(
+          parts.map((part) =>
+            part === 'home'
+              ? api
+                  .get<{ promo: HomePromo; homeConfig: HomeConfig; updatedAt?: string }>('/content/admin/home', screenLoadConfig)
+                  .then((res) => applyHome(res.data))
+              : api
+                  .get<{ app: AppConfig; updatedAt?: string }>('/content/admin/app', screenLoadConfig)
+                  .then((res) => applyApp(res.data)),
+          ),
+        );
+        Toast.show({ type: 'info', text1: 'Loaded the latest version' });
+      } catch (err) {
+        Toast.show({ type: 'error', text1: getApiErrorMessage(err, 'Could not load the latest content') });
+      }
+    } else if (choice === 'overwrite') {
+      await save(parts);
     }
   }
 
@@ -207,28 +397,88 @@ export default function AdminContentScreen() {
     );
   }
 
-  function renderCustomerUiFields(groupKey: keyof typeof CUSTOMER_UI_ADMIN_GROUPS) {
-    const meta = SCREENS_GROUP_META[groupKey];
-    const fields = CUSTOMER_UI_ADMIN_GROUPS[groupKey];
-    return (
-      <AdminCollapsibleCard title={meta.title} subtitle={meta.subtitle} defaultOpen={meta.defaultOpen}>
+  /** Booking tab with a search: every matching field (label, current or default text), grouped by section. */
+  function renderBookingSearchResults(query: string) {
+    const q = query.trim().toLowerCase();
+    const groups = BOOKING_TAB_SECTIONS.map(([groupKey, title]) => ({
+      groupKey,
+      title,
+      fields: BOOKING_COPY_ADMIN_GROUPS[groupKey].filter(([key, label]) =>
+        [label, appConfig.booking?.[key] ?? '', DEFAULT_BOOKING_COPY[key]].some((text) => text.toLowerCase().includes(q)),
+      ),
+    })).filter((g) => g.fields.length > 0);
+    if (groups.length === 0) {
+      return <Text style={styles.searchEmpty}>No field matches “{query.trim()}”.</Text>;
+    }
+    return groups.map(({ groupKey, title, fields }) => (
+      <AdminFormCard key={groupKey}>
+        <Text style={styles.searchGroup}>{title}</Text>
         {fields.map(([key, label]) => (
           <IconInput
             key={key}
             label={label}
-            multiline={
-              key.includes('Subtitle') ||
-              key.includes('Message') ||
-              key.includes('Hint') ||
-              key.includes('Sub') ||
-              key.includes('Body')
-            }
-            value={appConfig.customerUi?.[key] ?? DEFAULT_CUSTOMER_UI_COPY[key]}
-            onChangeText={(value) => patchCustomerUiField(key, value)}
+            multiline={/Subtitle|Hint|Note|Message|Guidance|Toast/.test(key)}
+            value={appConfig.booking?.[key] ?? DEFAULT_BOOKING_COPY[key]}
+            onChangeText={(value) => patchBookingField(key, value)}
           />
         ))}
-      </AdminCollapsibleCard>
+      </AdminFormCard>
+    ));
+  }
+
+  function renderCustomerUiField(key: CustomerUiFieldKey, label: string) {
+    return (
+      <IconInput
+        key={key}
+        label={label}
+        multiline={
+          key.includes('Subtitle') ||
+          key.includes('Message') ||
+          key.includes('Hint') ||
+          key.includes('Sub') ||
+          key.includes('Body') ||
+          key.includes('Line') ||
+          key.includes('Text') ||
+          key.includes('Intro') ||
+          key.includes('Description') ||
+          key.endsWith('List') ||
+          key.endsWith('Points')
+        }
+        value={appConfig.customerUi?.[key] ?? DEFAULT_CUSTOMER_UI_COPY[key]}
+        onChangeText={(value) => patchCustomerUiField(key, value)}
+      />
     );
+  }
+
+  function renderCopyGroups(sections: { groups: CopyGroups; meta: Record<string, CopyGroupMeta> }) {
+    return Object.keys(sections.meta).map((groupKey) => {
+      const meta = sections.meta[groupKey];
+      return (
+        <AdminCollapsibleCard key={groupKey} title={meta.title} subtitle={meta.subtitle} defaultOpen={meta.defaultOpen}>
+          {sections.groups[groupKey].map(([key, label]) => renderCustomerUiField(key, label))}
+        </AdminCollapsibleCard>
+      );
+    });
+  }
+
+  /** Every field whose label, current text or default text contains the query, grouped by screen. */
+  function renderCopySearchResults(query: string, sections: { groups: CopyGroups; meta: Record<string, CopyGroupMeta> }) {
+    const q = query.trim().toLowerCase();
+    const groups = Object.keys(sections.meta).map((g) => ({
+      g,
+      fields: sections.groups[g].filter(([key, label]) =>
+        [label, appConfig.customerUi?.[key] ?? '', DEFAULT_CUSTOMER_UI_COPY[key]].some((s) => s.toLowerCase().includes(q)),
+      ),
+    })).filter((x) => x.fields.length > 0);
+    if (groups.length === 0) {
+      return <Text style={styles.searchEmpty}>No field matches “{query.trim()}”.</Text>;
+    }
+    return groups.map(({ g, fields }) => (
+      <AdminFormCard key={g}>
+        <Text style={styles.searchGroup}>{sections.meta[g].title}</Text>
+        {fields.map(([key, label]) => renderCustomerUiField(key, label))}
+      </AdminFormCard>
+    ));
   }
 
   function setChip(index: number, partial: { label?: string; category?: string }) {
@@ -243,7 +493,16 @@ export default function AdminContentScreen() {
     patchHome({ categoryChips: homeConfig.categoryChips.filter((_, i) => i !== index) });
   }
 
-  if (loading) return <Spinner fullScreen />;
+  if (loading) {
+    return (
+      <AdminListShell title="App content" subtitle="Loading every customer-facing string…">
+        <View style={styles.skeletonTabs}>
+          <AdminChipsSkeleton count={6} />
+        </View>
+        <AdminFormSkeleton preview cards={[3, 2]} />
+      </AdminListShell>
+    );
+  }
 
   if (error) {
     return (
@@ -256,11 +515,17 @@ export default function AdminContentScreen() {
   return (
     <AdminListShell
       title="App content"
-      subtitle="Manage every customer-facing string"
+      subtitle={dirty ? 'Unsaved changes' : 'Manage every customer-facing string'}
       keyboardAvoid
       stickyFooter={
         <StickyActionBar>
-          <Button title="Save all changes" variant="premium" onPress={save} loading={saving} />
+          <Button
+            title={dirty ? 'Save changes' : 'All changes saved'}
+            variant="premium"
+            onPress={() => void save()}
+            loading={saving}
+            disabled={!dirty || saving}
+          />
         </StickyActionBar>
       }
     >
@@ -270,16 +535,14 @@ export default function AdminContentScreen() {
       ) : null}
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={adminListShellStyles.scrollWithFooter}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="always"
         showsVerticalScrollIndicator={false}
       >
         {activeTab === 'promo' ? (
           <>
             <AdminSectionTitle title="Promo banner" hint="Live preview below — save to publish" />
-            <View style={styles.previewShell}>
-              <PromoBanner promo={promo} />
-            </View>
+            <PromoPreview promo={promo} />
             <AdminFormCard>
               <View style={styles.toggleRow}>
                 <View style={styles.flex}>
@@ -478,12 +741,7 @@ export default function AdminContentScreen() {
                 <View key={i} style={styles.chipRow}>
                   <View style={styles.flex}>
                     <IconInput label="Label" value={chip.label} onChangeText={(label) => setChip(i, { label })} />
-                    <IconInput
-                      label="Category slug"
-                      value={chip.category ?? ''}
-                      autoCapitalize="none"
-                      onChangeText={(category) => setChip(i, { category })}
-                    />
+                    <CategoryChipPicker value={chip.category} onChange={(category) => setChip(i, { category })} />
                   </View>
                   <Pressable
                     style={styles.removeBtn}
@@ -503,14 +761,37 @@ export default function AdminContentScreen() {
           <>
             <AdminSectionTitle
               title="Customer screens"
-              hint="Use {brand} where the app name should appear · save to publish"
+              hint="Words in {braces} are filled in by the app ({brand}, {price}, {count}…) — keep them · save to publish"
             />
-            {renderCustomerUiFields('home')}
-            {renderCustomerUiFields('auth')}
-            {renderCustomerUiFields('offers')}
-            {renderCustomerUiFields('profile')}
-            {renderCustomerUiFields('help')}
-            {renderCustomerUiFields('account')}
+            <View style={styles.searchWrap}>
+              <AdminSearchField
+                value={screenQuery}
+                onChangeText={setScreenQuery}
+                placeholder="Find a label, e.g. “Book now” or “cart”"
+              />
+            </View>
+            {screenQuery.trim()
+              ? renderCopySearchResults(screenQuery, APP_COPY_SECTIONS)
+              : renderCopyGroups(APP_COPY_SECTIONS)}
+          </>
+        ) : null}
+
+        {activeTab === 'website' ? (
+          <>
+            <AdminSectionTitle
+              title="Website text"
+              hint="Shown on the website within a minute of saving · {phone}, {year}, {code}, {amount} are filled in automatically"
+            />
+            <View style={styles.searchWrap}>
+              <AdminSearchField
+                value={webQuery}
+                onChangeText={setWebQuery}
+                placeholder="Find a label, e.g. “hero” or “footer”"
+              />
+            </View>
+            {webQuery.trim()
+              ? renderCopySearchResults(webQuery, WEBSITE_COPY_SECTIONS)
+              : renderCopyGroups(WEBSITE_COPY_SECTIONS)}
           </>
         ) : null}
 
@@ -578,26 +859,39 @@ export default function AdminContentScreen() {
         {activeTab === 'booking' ? (
           <>
             <AdminSectionTitle title="Booking & schedule" hint="Tap a section to expand and edit fields" />
-            <AdminFormCard>
-              <Text style={styles.previewLabel}>Customer preview</Text>
-              <PendingScheduleCard
-                variant="customer"
-                title={appConfig.booking?.pendingCustomerTitle ?? DEFAULT_BOOKING_COPY.pendingCustomerTitle}
-                scheduleLabel="Sat, 7 Jun · 10:00 AM – 12:00 PM"
-                hint={appConfig.booking?.pendingCustomerHint ?? DEFAULT_BOOKING_COPY.pendingCustomerHint}
-                modeLabel={appConfig.booking?.standardModeLabel ?? DEFAULT_BOOKING_COPY.standardModeLabel}
+            <View style={styles.searchWrap}>
+              <AdminSearchField
+                value={bookingQuery}
+                onChangeText={setBookingQuery}
+                placeholder="Find a label, e.g. “reschedule” or “code”"
               />
-            </AdminFormCard>
+            </View>
+            {bookingQuery.trim() ? (
+              renderBookingSearchResults(bookingQuery)
+            ) : (
+              <>
+                <AdminFormCard>
+                  <Text style={styles.previewLabel}>Customer preview</Text>
+                  <PendingScheduleCard
+                    variant="customer"
+                    title={appConfig.booking?.pendingCustomerTitle ?? DEFAULT_BOOKING_COPY.pendingCustomerTitle}
+                    scheduleLabel="Sat, 7 Jun · 10:00 AM – 12:00 PM"
+                    hint={appConfig.booking?.pendingCustomerHint ?? DEFAULT_BOOKING_COPY.pendingCustomerHint}
+                    modeLabel={appConfig.booking?.standardModeLabel ?? DEFAULT_BOOKING_COPY.standardModeLabel}
+                  />
+                </AdminFormCard>
 
-            {renderBookingFields('wizard', 'Book wizard', BOOKING_COPY_ADMIN_GROUPS.wizard)}
-            {renderBookingFields('list', 'My bookings list', BOOKING_COPY_ADMIN_GROUPS.list)}
-            {renderBookingFields('success', 'Booking success screen', BOOKING_COPY_ADMIN_GROUPS.success)}
-            {renderBookingFields('pending', 'Customer pending booking', BOOKING_COPY_ADMIN_GROUPS.pending)}
-            {renderBookingFields('detail', 'Booking detail screen', BOOKING_COPY_ADMIN_GROUPS.detail)}
-            {renderBookingFields('trackingSteps', 'Tracking timeline steps', BOOKING_COPY_ADMIN_GROUPS.trackingSteps)}
-            {renderBookingFields('statusGuidance', 'Status messages (customer)', BOOKING_COPY_ADMIN_GROUPS.statusGuidance)}
-            {renderBookingFields('admin', 'Admin schedule actions', BOOKING_COPY_ADMIN_GROUPS.admin)}
-            {renderBookingFields('tech', 'Technician app', BOOKING_COPY_ADMIN_GROUPS.tech)}
+                {renderBookingFields('wizard', 'Book wizard', BOOKING_COPY_ADMIN_GROUPS.wizard)}
+                {renderBookingFields('list', 'My bookings list', BOOKING_COPY_ADMIN_GROUPS.list)}
+                {renderBookingFields('success', 'Booking success screen', BOOKING_COPY_ADMIN_GROUPS.success)}
+                {renderBookingFields('pending', 'Customer pending booking', BOOKING_COPY_ADMIN_GROUPS.pending)}
+                {renderBookingFields('detail', 'Booking detail screen', BOOKING_COPY_ADMIN_GROUPS.detail)}
+                {renderBookingFields('trackingSteps', 'Tracking timeline steps', BOOKING_COPY_ADMIN_GROUPS.trackingSteps)}
+                {renderBookingFields('statusGuidance', 'Status messages (customer)', BOOKING_COPY_ADMIN_GROUPS.statusGuidance)}
+                {renderBookingFields('admin', 'Admin schedule actions', BOOKING_COPY_ADMIN_GROUPS.admin)}
+                {renderBookingFields('tech', 'Technician app', BOOKING_COPY_ADMIN_GROUPS.tech)}
+              </>
+            )}
           </>
         ) : null}
 
@@ -683,25 +977,26 @@ export default function AdminContentScreen() {
           <>
             <AdminSectionTitle title="Legal & help" />
             <AdminFormCard>
-              <IconInput
-                label="About (markdown)"
-                multiline
+              <MarkdownEditor
+                label="About"
                 value={appConfig.aboutMarkdown}
-                onChangeText={(aboutMarkdown) => setAppConfig((a) => ({ ...a, aboutMarkdown }))}
+                onChangeText={onAbout}
+                placeholder="Who you are and what you do…"
+                minHeight={160}
               />
-              <IconInput
-                label="Terms of Service (markdown)"
-                multiline
+              <MarkdownEditor
+                label="Terms of Service"
                 value={appConfig.legal.termsMarkdown}
-                onChangeText={(termsMarkdown) => setAppConfig((a) => ({ ...a, legal: { ...a.legal, termsMarkdown } }))}
+                onChangeText={onTerms}
+                placeholder="Write your terms — use ## for headings"
+                minHeight={220}
               />
-              <IconInput
-                label="Privacy Policy (markdown)"
-                multiline
+              <MarkdownEditor
+                label="Privacy Policy"
                 value={appConfig.legal.privacyMarkdown}
-                onChangeText={(privacyMarkdown) =>
-                  setAppConfig((a) => ({ ...a, legal: { ...a.legal, privacyMarkdown } }))
-                }
+                onChangeText={onPrivacy}
+                placeholder="Write your privacy policy — use ## for headings"
+                minHeight={220}
               />
               <View style={styles.blockHead}>
                 <Text style={styles.blockTitle}>FAQ</Text>
@@ -758,49 +1053,6 @@ export default function AdminContentScreen() {
   );
 }
 
-function StringListEditor({
-  title,
-  items,
-  onChange,
-}: {
-  title: string;
-  items: string[];
-  onChange: (items: string[]) => void;
-}) {
-  return (
-    <View style={styles.listEditor}>
-      <View style={styles.blockHead}>
-        <Text style={styles.label}>{title}</Text>
-        <Pressable style={styles.addPill} onPress={() => onChange([...items, ''])}>
-          <PremiumIcon icon={AppIcons.ui.plus} variant="plain" size="xs" color={colors.green} />
-          <Text style={styles.addPillText}>Add</Text>
-        </Pressable>
-      </View>
-      {items.map((item, i) => (
-        <View key={i} style={styles.tagRow}>
-          <IconInput
-            label={`Item ${i + 1}`}
-            value={item}
-            onChangeText={(v) => {
-              const next = [...items];
-              next[i] = v;
-              onChange(next);
-            }}
-          />
-          <Pressable
-            style={styles.tagRemove}
-            onPress={() => onChange(items.filter((_, idx) => idx !== i))}
-            accessibilityRole="button"
-            accessibilityLabel="Remove list item"
-          >
-            <PremiumIcon icon={AppIcons.ui.close} variant="plain" size="sm" color={colors.muted} />
-          </Pressable>
-        </View>
-      ))}
-    </View>
-  );
-}
-
 function ServiceChips({
   services,
   selectedId,
@@ -827,8 +1079,102 @@ function ServiceChips({
     </ScrollView>
   );
 }
+
+/** Category a home filter chip shows — Business settings → Lists → Categories; "All services" = no filter. */
+function CategoryChipPicker({ value, onChange }: { value?: string; onChange: (category: string) => void }) {
+  const settings = useBusinessSettings();
+  const current = value?.trim() ?? '';
+  const active = settings.lists.categories.filter((c) => c.active);
+  const options = [
+    { key: '', label: 'All services' },
+    ...active.map((c) => ({ key: c.key, label: c.label })),
+    ...(current && !active.some((c) => c.key === current) ? [{ key: current, label: `${categoryLabel(current, settings)} (off)` }] : []),
+  ];
+  return (
+    <View style={styles.catPick}>
+      <Text style={styles.catPickLabel}>Shows</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips} keyboardShouldPersistTaps="handled">
+        {options.map((o) => {
+          const on = o.key === current;
+          return (
+            <Pressable
+              key={o.key || 'all'}
+              style={[styles.chip, on && styles.chipOn]}
+              onPress={() => onChange(o.key)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+            >
+              <Text style={[styles.chipText, on && styles.chipTextOn]}>{o.label}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
+/** What shoppers get: the promo as a slide of the green home header. Drawn even while switched off, with a note. */
+function PromoPreview({ promo }: { promo: HomePromo }) {
+  const copy = useCustomerUiCopy();
+  const width = adminContentWidth(useWindowDimensions().width);
+  const slide = promoHeroSlide({ ...promo, active: true }, copy, () => {});
+  // previewShell sits in a 16pt gutter and has a 1pt border on each side.
+  const innerWidth = width - spacing.md * 2 - 2;
+
+  return (
+    <View>
+      <View style={styles.previewShell}>
+        <PremiumAurora tone="brand" />
+        {slide ? (
+          <HomeHeroCarousel slides={[slide]} width={innerWidth} />
+        ) : (
+          <View style={styles.previewEmpty}>
+            <Text style={styles.previewEmptyText}>Add a headline to see the preview</Text>
+          </View>
+        )}
+      </View>
+      <Text style={styles.previewNote}>
+        {promo.active ? 'Shown as a slide in the green home header.' : 'Switched off — shoppers will not see this.'}
+      </Text>
+    </View>
+  );
+}
+
+/** The Booking tab's sections (same order as on screen) — used by its label search. */
+const BOOKING_TAB_SECTIONS: ReadonlyArray<readonly [keyof typeof BOOKING_COPY_ADMIN_GROUPS, string]> = [
+  ['wizard', 'Book wizard'],
+  ['list', 'My bookings list'],
+  ['success', 'Booking success screen'],
+  ['pending', 'Customer pending booking'],
+  ['detail', 'Booking detail screen'],
+  ['trackingSteps', 'Tracking timeline steps'],
+  ['statusGuidance', 'Status messages (customer)'],
+  ['admin', 'Admin schedule actions'],
+  ['tech', 'Technician app'],
+];
+
 const styles = StyleSheet.create({
+  skeletonTabs: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
   scroll: { flex: 1 },
+  /** Cards and section titles carry their own 16pt gutter — no extra container padding. */
+  scrollContent: { paddingTop: spacing.xs, paddingBottom: ADMIN_STICKY_FOOTER_PAD },
+  searchWrap: { paddingHorizontal: spacing.md, marginBottom: spacing.sm },
+  searchGroup: {
+    marginBottom: 6,
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: ui.textTertiary,
+  },
+  searchEmpty: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.lg,
+    textAlign: 'center',
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: ui.textSecondary,
+  },
   previewShell: {
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,
@@ -836,13 +1182,18 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.hairline,
     backgroundColor: colors.white,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.16,
-    shadowRadius: 20,
-    elevation: 8,
+    ...ui.shadow,
+  },
+  previewEmpty: { height: HERO_SLIDE_H, alignItems: 'center', justifyContent: 'center' },
+  previewEmptyText: { fontFamily: fonts.bodyMedium, fontSize: 14, color: 'rgba(255,255,255,0.85)' },
+  previewNote: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    fontFamily: fonts.body,
+    fontSize: 12.5,
+    color: colors.muted,
   },
   previewLabel: {
     fontFamily: fonts.bodySemi,
@@ -884,6 +1235,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   addPillText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.forest },
+  catPick: { marginBottom: spacing.sm },
+  catPickLabel: { fontFamily: fonts.bodySemi, fontSize: 13, color: ui.text, marginBottom: 8 },
   chipRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -898,19 +1251,6 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: 11,
     backgroundColor: colors.errorBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 26,
-  },
-  listEditor: { marginTop: spacing.sm },
-  tagRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  tagRemove: {
-    width: 38,
-    height: 38,
-    borderRadius: 11,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 26,

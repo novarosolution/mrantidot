@@ -1,11 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { BookingStatus } from '@/types/api';
-import { colors, fonts, surfaces } from '@/constants/theme';
-
-const LABELS: Partial<Record<BookingStatus, string>> = {
-  in_progress: 'In progress',
-  awaiting_verification: 'Awaiting code',
-};
+import { colors, radii, surfaces, typeScale } from '@/constants/theme';
+import { bookingStatusLabel } from '@/lib/booking-helpers';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 /** Distinct, quiet tints per status — readable at a glance on white cards. */
 const PILL_COLORS: Record<BookingStatus, { bg: string; text: string }> = {
@@ -17,11 +14,12 @@ const PILL_COLORS: Record<BookingStatus, { bg: string; text: string }> = {
   cancelled: { bg: colors.errorBg, text: colors.error },
 };
 
-/** Compact booking status badge. */
+/** Compact booking status pill; the label comes from the admin-editable status copy. */
 export function StatusPill({ status }: { status: BookingStatus | string }) {
+  const copy = useCustomerUiCopy();
   const key = status as BookingStatus;
   const palette = PILL_COLORS[key] ?? PILL_COLORS.pending;
-  const label = LABELS[key] ?? status.replace(/_/g, ' ');
+  const label = bookingStatusLabel(key, copy);
 
   return (
     <View style={[styles.pill, { backgroundColor: palette.bg }]}>
@@ -33,11 +31,6 @@ export function StatusPill({ status }: { status: BookingStatus | string }) {
 }
 
 const styles = StyleSheet.create({
-  pill: { alignSelf: 'flex-start', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
-  text: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 0.1,
-    textTransform: 'capitalize',
-  },
+  pill: { alignSelf: 'flex-start', borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 4 },
+  text: { ...typeScale.micro, fontFamily: typeScale.button.fontFamily },
 });

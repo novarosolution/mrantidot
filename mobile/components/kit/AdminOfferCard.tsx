@@ -5,8 +5,11 @@ import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { AppIcons } from '@/constants/appIcons';
 import { ToggleSwitch } from '@/components/kit/ToggleSwitch';
+import { PressableScale } from '@/components/ui/PressableScale';
 import type { Offer } from '@/types/api';
-import { adminType, colors, customerType, spacing, surfaces } from '@/constants/theme';
+import type { OfferStats } from '@/types/adminManage';
+import { formatINR } from '@/components/charts/chartFormat';
+import { adminType, colors, customerType, spacing, ui } from '@/constants/theme';
 
 function formatExpiry(iso?: string) {
   if (!iso) return null;
@@ -27,11 +30,12 @@ export const AdminOfferCard = memo(function AdminOfferCard({
   onEdit,
   onToggle,
 }: {
-  offer: Offer;
+  offer: Offer & { stats?: OfferStats };
   onPress: () => void;
   onEdit: () => void;
   onToggle: () => void;
 }) {
+  const stats = offer.stats;
   const inactive = !offer.active;
   const expired = offer.expiresAt ? new Date(offer.expiresAt) < new Date() : false;
   const maxed = offer.maxUses != null && offer.useCount != null && offer.useCount >= offer.maxUses;
@@ -57,9 +61,16 @@ export const AdminOfferCard = memo(function AdminOfferCard({
   return (
     <GlassPanel style={[styles.shell, inactive && styles.inactive]} padded={false} tone="light" goldEdge intensity={38}>
       <View style={styles.row}>
-        <Pressable style={styles.main} onPress={onPress}>
+        <PressableScale
+          containerStyle={styles.mainWrap}
+          style={styles.main}
+          scaleTo={0.98}
+          onPress={onPress}
+          accessibilityRole="button"
+          accessibilityLabel={`${offer.code}, ${discountLabel}${inactive ? ', inactive' : ''}. Open offer`}
+        >
           <LinearGradient
-            colors={inactive ? ['rgba(232,238,230,0.9)', 'rgba(221,230,216,0.82)'] : ['rgba(238,248,230,0.92)', 'rgba(216,237,200,0.78)']}
+            colors={inactive ? [ui.surfaceMuted, colors.greyBg] : [colors.mint, colors.lime]}
             style={styles.icon}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -89,7 +100,9 @@ export const AdminOfferCard = memo(function AdminOfferCard({
                 {offer.code}
               </Text>
               <View style={styles.discountPill}>
-                <Text style={styles.discount}>{discountLabel}</Text>
+                <Text style={styles.discount} numberOfLines={1}>
+                  {discountLabel}
+                </Text>
               </View>
             </View>
 
@@ -138,8 +151,13 @@ export const AdminOfferCard = memo(function AdminOfferCard({
                 </Text>
               ) : null}
             </View>
+            {stats && stats.uses + stats.cancelled > 0 ? (
+              <Text style={styles.stats} numberOfLines={1}>
+                {formatINR(stats.discountGiven)} given · {formatINR(stats.revenue)} revenue
+              </Text>
+            ) : null}
           </View>
-        </Pressable>
+        </PressableScale>
 
         <View style={styles.actions}>
           <ToggleSwitch
@@ -148,7 +166,7 @@ export const AdminOfferCard = memo(function AdminOfferCard({
             accessibilityLabel={offer.active ? 'Deactivate offer' : 'Activate offer'}
           />
           <Pressable
-            style={styles.editBtn}
+            style={({ pressed }) => [styles.editBtn, pressed && styles.editPressed]}
             onPress={onEdit}
             hitSlop={8}
             accessibilityRole="button"
@@ -169,9 +187,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: spacing.md,
-    paddingTop: spacing.sm + 10,
   },
-  main: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  mainWrap: { flex: 1, minWidth: 0 },
+  main: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   icon: {
     width: 46,
     height: 46,
@@ -179,7 +197,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.hairline,
   },
   body: { flex: 1, minWidth: 0 },
   codeRow: {
@@ -198,9 +216,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: 'rgba(238,248,230,0.72)',
+    backgroundColor: colors.mint,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.hairline,
   },
   discount: {
     ...adminType.chipText,
@@ -223,23 +241,25 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
-  chipOk: { backgroundColor: 'rgba(238,248,230,0.72)', borderColor: surfaces.glassBorderStrong },
-  chipWarn: { backgroundColor: 'rgba(255,244,236,0.78)', borderColor: 'rgba(240,208,200,0.65)' },
-  chipOff: { backgroundColor: 'rgba(243,244,242,0.72)', borderColor: 'rgba(226,230,224,0.85)' },
+  chipOk: { backgroundColor: colors.mint, borderColor: ui.hairline },
+  chipWarn: { backgroundColor: colors.errorBg, borderColor: colors.errorBg },
+  chipOff: { backgroundColor: ui.surfaceMuted, borderColor: ui.border },
   chipText: { ...customerType.pillLabel },
   chipTextOk: { color: colors.forest },
-  chipTextWarn: { color: '#9E3F1C' },
+  chipTextWarn: { color: colors.error },
   chipTextOff: { color: colors.muted },
   meta: { ...adminType.listMeta },
+  stats: { ...adminType.listMeta, marginTop: 6, color: colors.forest },
   actions: { alignItems: 'flex-end', gap: 10, marginLeft: 8 },
   editBtn: {
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: 'rgba(238,248,230,0.65)',
+    backgroundColor: ui.brandSoft,
     borderWidth: 1,
-    borderColor: surfaces.glassBorderStrong,
+    borderColor: ui.hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  editPressed: { opacity: 0.7 },
 });

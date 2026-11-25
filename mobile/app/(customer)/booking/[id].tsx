@@ -1,10 +1,11 @@
-import { useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { paramString } from '@/lib/routeParams';
 import { BookingDetailHero } from '@/components/kit/BookingDetailHero';
+import { BookingVisitContactCard } from '@/components/kit/BookingVisitContactCard';
 import {
   BookingDetailSection,
   BookingPhotoGallery,
@@ -19,13 +20,16 @@ import { BookingTrackingTimeline } from '@/components/kit/BookingTrackingTimelin
 import { RescheduleSheet } from '@/components/kit/RescheduleSheet';
 import { getActiveCustomerOtp, WorkOtpCard } from '@/components/kit/WorkOtpCard';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
-import { useDockTabBarStyle } from '@/components/kit/GlassScreenKit';
+import { AdminActionSheet } from '@/components/kit/AdminActionSheet';
 import { Button } from '@/components/ui/Button';
+import { LiveBadge } from '@/components/ui/LiveBadge';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { PremiumSectionHeader } from '@/components/ui/PremiumSectionHeader';
 import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { type BadgeTone } from '@/components/ui/StatusBadge';
-import { Spinner } from '@/components/ui/Spinner';
+import { BookingDetailSkeleton } from '@/components/kit/ScreenSkeletons';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { haptic, stagger } from '@/lib/motion';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
 import { stepPhotoUrls } from '@/lib/stepPhotos';
@@ -37,13 +41,27 @@ import {
   bookingServiceName,
   canCancelBooking,
   isBookingLive,
+  isRequestedTimePast,
   isSchedulePending,
   isVerificationPhase,
 } from '@/lib/booking-helpers';
 import { getCustomerTrackingSteps, getStatusGuidance, useBookingCopy } from '@/lib/schedule-copy';
 import type { Booking, Review, WorkOtpView } from '@/types/api';
-import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { colors, radii, spacing, typeScale, ui } from '@/constants/theme';
+import { useBusinessSettings } from '@/lib/businessSettings';
+import { canCancelVisit, canRescheduleVisit } from '@/lib/dates';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { formatDuration } from '@/lib/serviceDisplay';
+import { Info } from 'lucide-react-native';
 import { sharedRoutes, appPush } from '@/lib/routes';
+import axios from 'axios';
+import { useAppContent } from '@/context/AppContentContext';
+import { callPhone } from '@/lib/contact';
+
+/** Server code when the visit is inside the admin's cancel cut-off; its message is the editable copy. */
+function isCancelCutoff(err: unknown): boolean {
+  return axios.isAxiosError(err) && (err.response?.data as { code?: string } | undefined)?.code === 'CANCEL_CUTOFF';
+}
 
 function customerTrackingSteps(
   booking: Booking,
@@ -54,14 +72,20 @@ function customerTrackingSteps(
 }
 
 export default function CustomerBookingDetailScreen() {
-  const navigation = useNavigation();
   const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
+  const insets = useSafeAreaInsets();
+  const settings = useBusinessSettings();
   const bookingCopy = useBookingCopy();
+  const labels = useCustomerUiCopy();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [hasReview, setHasReview] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [cancelAsk, setCancelAsk] = useState(false);
+  /** Message from the server when it is too late to cancel in the app (shown in a sheet with "Call us"). */
+  const [cutoffMessage, setCutoffMessage] = useState<string | null>(null);
+  const { content } = useAppContent();
   const [rescheduling, setRescheduling] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [regenerating, setRegenerating] = useState<'start' | 'end' | null>(null);
@@ -70,7 +94,7 @@ export default function CustomerBookingDetailScreen() {
 
   const load = useCallback(async (opts?: { skipCache?: boolean }) => {
     if (!id) {
-      setLoadError('Booking not found');
+      setLoadError(labels.bookingNotFound);
       return;
     }
     setLoadError(null);
@@ -91,7 +115,7 @@ export default function CustomerBookingDetailScreen() {
       try {
         await load();
       } catch (err) {
-        setLoadError(getApiErrorMessage(err, 'Could not load booking'));
+        setLoadError(getApiErrorMessage(err, labels.bookingLoadFailed));
       }
     });
   }, [load]);
@@ -124,20 +148,15 @@ export default function CustomerBookingDetailScreen() {
     }
   }, [load]);
 
-  const dockStyle = useDockTabBarStyle();
+  // The tab bar is hidden for this route in the customer tab layout (no show/hide flash on focus changes).
   useFocusEffect(
     useCallback(() => {
       focusedRef.current = true;
-      // Hide the tab bar so sticky CTAs stay tappable (same as tech job).
-      // Parent = the customer Tabs route that owns this booking stack; its parent is the root stack.
-      const tabsNav = navigation.getParent();
-      tabsNav?.setOptions({ tabBarStyle: { display: 'none' } });
       refresh();
       return () => {
         focusedRef.current = false;
-        tabsNav?.setOptions({ tabBarStyle: dockStyle });
       };
-    }, [navigation, refresh, dockStyle]),
+    }, [refresh]),
   );
 
   const liveStatus = booking ? isBookingLive(booking.status) : false;
@@ -153,7 +172,7 @@ export default function CustomerBookingDetailScreen() {
     setRegenerating(type);
     try {
       await api.post(`/bookings/${id}/regenerate-otp`, { type });
-      Toast.show({ type: 'success', text1: 'New code generated' });
+      Toast.show({ type: 'success', text1: labels.bookingDetailCodeToast });
       await load({ skipCache: true });
     } catch {
       // error toast shown by the api interceptor
@@ -163,24 +182,24 @@ export default function CustomerBookingDetailScreen() {
   }
 
   function confirmCancel() {
-    Alert.alert(bookingCopy.cancelConfirmTitle, bookingCopy.cancelConfirmMessage, [
-      { text: bookingCopy.cancelConfirmKeep, style: 'cancel' },
-      {
-        text: bookingCopy.cancelConfirmAction,
-        style: 'destructive',
-        onPress: () => void doCancel(),
-      },
-    ]);
+    haptic('warning');
+    setCancelAsk(true);
   }
 
   async function doCancel() {
     setCancelling(true);
     try {
-      await api.patch(`/bookings/${id}/cancel`);
-      Toast.show({ type: 'success', text1: 'Booking cancelled' });
+      await api.patch(`/bookings/${id}/cancel`, undefined, { skipErrorToast: true });
+      haptic('success');
+      Toast.show({ type: 'success', text1: labels.bookingDetailCancelledToast });
       await load();
-    } catch {
-      // error toast shown by the api interceptor
+    } catch (err) {
+      haptic('error');
+      if (isCancelCutoff(err)) {
+        setCutoffMessage(getApiErrorMessage(err, labels.bookingDetailCancelFailed));
+      } else {
+        Toast.show({ type: 'error', text1: labels.bookingDetailCancelFailed, text2: getApiErrorMessage(err, labels.systemErrorMessage) });
+      }
     } finally {
       setCancelling(false);
     }
@@ -191,7 +210,12 @@ export default function CustomerBookingDetailScreen() {
     try {
       await api.patch(`/bookings/${id}/reschedule`, { scheduleRequest: { date, slot } });
       setRescheduleOpen(false);
-      Toast.show({ type: 'success', text1: 'Reschedule requested', text2: 'We’ll confirm the new time shortly.' });
+      haptic('success');
+      Toast.show({
+        type: 'success',
+        text1: labels.bookingDetailRescheduledToast,
+        text2: labels.bookingDetailRescheduledToastSub,
+      });
       await load({ skipCache: true });
     } catch {
       // error toast shown by the api interceptor
@@ -203,7 +227,7 @@ export default function CustomerBookingDetailScreen() {
   if (loadError) {
     return (
       <View style={styles.rootShell}><SafeAreaView style={styles.safe} edges={['left', 'right']}>
-        <CustomerPageHeader variant="premium" title="Booking" showBack />
+        <CustomerPageHeader variant="premium" title={bookingCopy.detailScreenTitle} showBack />
         <ListEmptyRetry
           message={loadError}
           onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
@@ -215,8 +239,8 @@ export default function CustomerBookingDetailScreen() {
   if (!booking) {
     return (
       <View style={styles.rootShell}><SafeAreaView style={styles.safe} edges={['left', 'right']}>
-        <CustomerPageHeader variant="premium" title="Your booking" showBack />
-        <Spinner />
+        <CustomerPageHeader variant="premium" title={bookingCopy.detailScreenTitle} showBack />
+        <BookingDetailSkeleton />
       </SafeAreaView></View>
     );
   }
@@ -229,7 +253,19 @@ export default function CustomerBookingDetailScreen() {
     Boolean(booking.workStartedAt) ||
     Boolean(booking.tracking?.some((e) => e.event === 'assigned' || e.event === 'start_otp_sent'));
   const isLive = isBookingLive(booking.status);
-  const statusGuidance = getStatusGuidance(booking.status, bookingCopy);
+  // Who cancelled (and the customer's own reason) replaces the generic "was cancelled" line.
+  const cancelActor = booking.status === 'cancelled' ? booking.cancelledBy?.role : undefined;
+  const ownReason = cancelActor === 'customer' ? booking.cancelReason?.trim() : undefined;
+  const statusGuidance = cancelActor
+    ? [
+        cancelActor === 'customer'
+          ? labels.bookingDetailCancelledByYou
+          : fillCopy(labels.bookingDetailCancelledByTeam, { brand: content.branding.name?.trim() || 'Mr Antidot' }),
+        ownReason ? fillCopy(labels.bookingDetailCancelReason, { reason: ownReason }) : null,
+      ]
+        .filter(Boolean)
+        .join('\n')
+    : getStatusGuidance(booking.status, bookingCopy);
   const timeline = customerTrackingSteps(booking, expertAssigned, bookingCopy);
   const steps = booking.steps ?? [];
   const problemPhotos = booking.problemPhotos ?? [];
@@ -242,9 +278,9 @@ export default function CustomerBookingDetailScreen() {
     booking.status === 'completed' && steps.some((s) => stepPhotoUrls(s).length > 0);
 
   const stepStatusBadge = (status: string, index: number): { label: string; tone: BadgeTone } => {
-    if (status === 'done') return { label: 'Completed', tone: 'success' };
-    if (showLiveProgress && index === activeIndex) return { label: 'In progress', tone: 'info' };
-    return { label: 'Upcoming', tone: 'neutral' };
+    if (status === 'done') return { label: labels.bookingDetailStepCompleted, tone: 'success' };
+    if (showLiveProgress && index === activeIndex) return { label: labels.bookingDetailStepInProgress, tone: 'info' };
+    return { label: labels.bookingDetailStepUpcoming, tone: 'neutral' };
   };
 
   const renderStepCard = (step: (typeof steps)[number], index: number) => {
@@ -266,12 +302,7 @@ export default function CustomerBookingDetailScreen() {
   };
 
   const headerSubtitle = bookingRef(booking.id);
-  const headerRight = isLive ? (
-    <View style={styles.livePill}>
-      <View style={styles.liveDot} />
-      <Text style={styles.livePillText}>{bookingCopy.detailLiveBadge}</Text>
-    </View>
-  ) : null;
+  const headerRight = isLive ? <LiveBadge tone="light" label={bookingCopy.detailLiveBadge} /> : null;
 
   const svcId =
     booking.service && typeof booking.service === 'object' ? booking.service.id : undefined;
@@ -279,14 +310,28 @@ export default function CustomerBookingDetailScreen() {
   const canBookAgain =
     (booking.status === 'cancelled' || booking.status === 'completed') && Boolean(svcId);
   const canReview = booking.status === 'completed' && !hasReview;
-
-  const stickyActionCount = [
-    canReview,
-    canCancelBooking(booking.status),
-    canCancelBooking(booking.status),
-    canBookAgain,
-  ].filter(Boolean).length;
-  const hasStickyActions = stickyActionCount > 0;
+  // Admin cut-offs (Business settings → Booking rules) decide whether the visit can still change.
+  const canCancel = canCancelBooking(booking.status) && canCancelVisit(booking, settings);
+  const canReschedule = canCancelBooking(booking.status) && canRescheduleVisit(booking, settings);
+  const hasStickyActions = canReview || canCancel || canReschedule || canBookAgain;
+  // Why a change isn't offered any more (admin cut-off / reschedule limit) — said once, under the status.
+  const rules = settings.booking;
+  const changeNotes: string[] = [];
+  if (canCancelBooking(booking.status)) {
+    if (!canReschedule) {
+      const limitHit = rules.maxReschedules > 0 && (booking.rescheduleCount ?? 0) >= rules.maxReschedules;
+      changeNotes.push(
+        limitHit
+          ? fillCopy(labels.bookingDetailRescheduleLimit, { count: rules.maxReschedules })
+          : fillCopy(labels.bookingDetailRescheduleCutoff, { window: formatDuration(rules.rescheduleCutoffHours * 60) }),
+      );
+    }
+    if (!canCancel) {
+      changeNotes.push(fillCopy(labels.bookingDetailCancelCutoff, { window: formatDuration(rules.cancelCutoffHours * 60) }));
+    }
+  }
+  // One row of buttons: 52 pt button + bar padding + home indicator, plus breathing room.
+  const stickyPad = 52 + spacing.md + Math.max(insets.bottom, spacing.md) + spacing.lg;
 
   return (
     <View style={styles.rootShell}><SafeAreaView style={styles.safe} edges={['left', 'right']}>
@@ -298,10 +343,7 @@ export default function CustomerBookingDetailScreen() {
         rightAction={headerRight}
       />
       <ScrollView
-        contentContainerStyle={[
-          styles.container,
-          hasStickyActions && { paddingBottom: 56 + stickyActionCount * 52 + spacing.xl },
-        ]}
+        contentContainerStyle={[styles.container, { paddingBottom: hasStickyActions ? stickyPad : insets.bottom + spacing.xl }]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={ui.brand} />
         }
@@ -313,13 +355,39 @@ export default function CustomerBookingDetailScreen() {
           progress={showLiveProgress && steps.length > 0 ? { done: doneCount, total: steps.length } : null}
         />
 
+        {booking.visitContact ? (
+          <BookingVisitContactCard
+            name={booking.visitContact.name}
+            phone={booking.visitContact.phone}
+            title={labels.bookingVisitContactTitle}
+            subtitle={labels.bookingVisitContactSub}
+            canCall={false}
+          />
+        ) : null}
+
+        {changeNotes.length > 0 ? (
+          <FadeSlideIn delay={stagger(1)} style={styles.sectionWrap}>
+            <View style={styles.ruleNote} accessibilityRole="text">
+              <Info size={16} color={colors.amberInk} strokeWidth={2.2} />
+              <View style={styles.ruleNoteBody}>
+                {changeNotes.map((n) => (
+                  <Text key={n} style={styles.ruleNoteText}>
+                    {n}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          </FadeSlideIn>
+        ) : null}
+
         {isSchedulePending(booking) ? (
-          <FadeSlideIn delay={60} style={styles.sectionWrap}>
+          <FadeSlideIn delay={stagger(1)} style={styles.sectionWrap}>
             <PendingScheduleCard
               variant="customer"
               title={bookingCopy.pendingCustomerTitle}
               scheduleLabel={bookingRequestedScheduleDisplay(booking)}
-              hint={bookingCopy.pendingCustomerHint}
+              hint={isRequestedTimePast(booking) ? bookingCopy.pendingPastHint : bookingCopy.pendingCustomerHint}
+              hintTone={isRequestedTimePast(booking) ? 'warning' : 'info'}
               modeLabel={
                 booking.scheduleMode === 'custom'
                   ? bookingCopy.customModeLabel
@@ -332,7 +400,7 @@ export default function CustomerBookingDetailScreen() {
 
         {/* Codes are the customer's main action during a visit — keep them right under the status. */}
         {startOtp && booking.status === 'confirmed' ? (
-          <FadeSlideIn delay={80} style={styles.sectionWrap}>
+          <FadeSlideIn delay={stagger(1)} style={styles.sectionWrap}>
             <WorkOtpCard
               title={bookingCopy.otpStartTitle}
               subtitle={bookingCopy.otpStartSubtitle}
@@ -344,7 +412,7 @@ export default function CustomerBookingDetailScreen() {
         ) : null}
 
         {endOtp && isVerificationPhase(booking.status) ? (
-          <FadeSlideIn delay={80} style={styles.sectionWrap}>
+          <FadeSlideIn delay={stagger(1)} style={styles.sectionWrap}>
             <WorkOtpCard
               title={bookingCopy.otpEndTitle}
               subtitle={bookingCopy.otpEndSubtitle}
@@ -356,7 +424,7 @@ export default function CustomerBookingDetailScreen() {
         ) : null}
 
         {showStageTimeline ? (
-          <FadeSlideIn delay={100}>
+          <FadeSlideIn delay={stagger(2)}>
             <BookingDetailSection title={bookingCopy.trackingSectionTitle} subtitle={bookingCopy.trackingSectionSubtitle}>
               <BookingStageTracker steps={timeline} />
             </BookingDetailSection>
@@ -364,7 +432,7 @@ export default function CustomerBookingDetailScreen() {
         ) : null}
 
         {showLiveProgress && steps.length > 0 ? (
-          <FadeSlideIn delay={110}>
+          <FadeSlideIn delay={stagger(2)}>
             <PremiumSectionHeader
               title={bookingCopy.treatmentStepsTitle}
               subtitle={bookingCopy.treatmentStepsLiveSubtitle}
@@ -374,7 +442,7 @@ export default function CustomerBookingDetailScreen() {
           </FadeSlideIn>
         ) : null}
 
-        <FadeSlideIn delay={120}>
+        <FadeSlideIn delay={stagger(3)}>
           <BookingDetailSection title={bookingCopy.detailDetailsTitle} subtitle={bookingCopy.detailDetailsSubtitle}>
             <BookingFactsCard
               booking={booking}
@@ -389,8 +457,9 @@ export default function CustomerBookingDetailScreen() {
             <View style={styles.priceInset}>
               <BookingPriceBreakdown
                 amount={booking.amount}
+                adjustments={booking.adjustments}
                 compact
-                serviceName={bookingServiceName(booking)}
+                serviceName={bookingServiceName(booking, labels)}
                 serviceDesc={
                   booking.service && typeof booking.service === 'object'
                     ? booking.service.shortDesc
@@ -402,7 +471,7 @@ export default function CustomerBookingDetailScreen() {
         </FadeSlideIn>
 
         {showStepHistory ? (
-          <FadeSlideIn delay={140}>
+          <FadeSlideIn delay={stagger(4)}>
             <PremiumSectionHeader
               title={bookingCopy.treatmentStepsTitle}
               subtitle={bookingCopy.treatmentStepsDoneSubtitle}
@@ -413,13 +482,13 @@ export default function CustomerBookingDetailScreen() {
         ) : null}
 
         {problemPhotos.length > 0 ? (
-          <FadeSlideIn delay={150}>
+          <FadeSlideIn delay={stagger(4)}>
             <BookingPhotoGallery photos={problemPhotos} />
           </FadeSlideIn>
         ) : null}
 
         {(booking.tracking?.length ?? 0) > 0 ? (
-          <FadeSlideIn delay={160}>
+          <FadeSlideIn delay={stagger(5)}>
             <PremiumSectionHeader title={bookingCopy.activitySectionTitle} subtitle={bookingCopy.activitySectionSubtitle} compact />
             <View style={styles.sectionWrap}>
               <BookingTrackingTimeline events={booking.tracking ?? []} />
@@ -428,9 +497,10 @@ export default function CustomerBookingDetailScreen() {
         ) : null}
 
         {booking.status !== 'cancelled' ? (
-          <FadeSlideIn delay={170}>
-            <PremiumSectionHeader title="Invoice" compact />
-            <BookingInvoiceCard bookingId={booking.id} summaryOnly />
+          <FadeSlideIn delay={stagger(6)}>
+            <PremiumSectionHeader title={labels.bookingDetailInvoiceTitle} compact />
+            <BookingInvoiceCard bookingId={booking.id}
+            refreshKey={`${booking.status}|${booking.schedule.date}|${booking.schedule.slot}|${booking.schedule.time ?? ''}|${booking.amount?.total ?? ''}`} summaryOnly />
           </FadeSlideIn>
         ) : null}
       </ScrollView>
@@ -438,9 +508,9 @@ export default function CustomerBookingDetailScreen() {
       {hasStickyActions && (
         <StickyActionBar>
           <View style={styles.ctaRow}>
-            {canCancelBooking(booking.status) && (
+            {canCancel && (
               <Button
-                title="Cancel"
+                title={labels.bookingDetailCancel}
                 variant="secondary"
                 onPress={confirmCancel}
                 loading={cancelling}
@@ -463,17 +533,56 @@ export default function CustomerBookingDetailScreen() {
                 style={styles.ctaHalf}
               />
             )}
-            {canCancelBooking(booking.status) && (
+            {canReschedule && (
               <Button
-                title="Reschedule"
+                title={labels.bookingDetailReschedule}
                 variant="premium"
-                onPress={() => setRescheduleOpen(true)}
+                onPress={() => {
+                  haptic('tap');
+                  setRescheduleOpen(true);
+                }}
                 style={styles.ctaHalf}
               />
             )}
           </View>
         </StickyActionBar>
       )}
+
+      <AdminActionSheet
+        visible={cancelAsk}
+        title={bookingCopy.cancelConfirmTitle}
+        message={bookingCopy.cancelConfirmMessage}
+        cancelLabel={bookingCopy.cancelConfirmKeep || labels.cancelSheetKeep}
+        onClose={() => setCancelAsk(false)}
+        options={[
+          {
+            key: 'cancel',
+            label: bookingCopy.cancelConfirmAction,
+            destructive: true,
+            onPress: () => void doCancel(),
+          },
+        ]}
+      />
+
+      <AdminActionSheet
+        visible={cutoffMessage !== null}
+        title={labels.bookingDetailCancelTooLateTitle}
+        message={cutoffMessage ?? undefined}
+        cancelLabel={labels.systemClose}
+        onClose={() => setCutoffMessage(null)}
+        options={
+          content.support.phone?.trim()
+            ? [
+                {
+                  key: 'call',
+                  label: labels.bookingDetailCallUs,
+                  subtitle: content.support.phone.trim(),
+                  onPress: () => callPhone(content.support.phone, labels),
+                },
+              ]
+            : []
+        }
+      />
 
       <RescheduleSheet
         visible={rescheduleOpen}
@@ -486,9 +595,9 @@ export default function CustomerBookingDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  rootShell: { flex: 1, backgroundColor: ui.surfaceMuted },
+  rootShell: { flex: 1, backgroundColor: ui.canvas },
   safe: { flex: 1, backgroundColor: 'transparent' },
-  container: { paddingBottom: 120 },
+  container: {},
   sectionWrap: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
   priceInset: {
     marginHorizontal: spacing.md,
@@ -498,28 +607,16 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
-  livePill: {
+  ruleNote: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: ui.brandSoft,
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 14,
+    borderRadius: radii.card,
+    backgroundColor: colors.amberBg,
   },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: ui.brand,
-  },
-  livePillText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 10,
-    color: colors.forest,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
+  ruleNoteBody: { flex: 1, gap: 4 },
+  ruleNoteText: { ...typeScale.caption, color: colors.amberInk },
   ctaRow: { flexDirection: 'row', gap: spacing.sm },
   ctaHalf: { flex: 1 },
 });

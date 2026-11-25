@@ -1,52 +1,89 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { PremiumIcon } from '@/components/kit/PremiumIcon';
-import { AppIcons } from '@/constants/appIcons';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Pressable, Share, StyleSheet, Text, View, type ScrollView } from 'react-native';
+import { AppImage } from '@/components/ui/AppImage';
+import { BottomSheet } from '@/components/ui/BottomSheet';
+import { serviceCoverUri } from '@/components/kit/ServiceThumb';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ArrowLeft, Check, CircleCheck, Clock3, Info, Share2, ShieldCheck, Star, X } from 'lucide-react-native';
 import { paramString } from '@/lib/routeParams';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
-import { Spinner } from '@/components/ui/Spinner';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { CustomerPageHeader } from '@/components/kit/CustomerPageHeader';
-import { GlassPanel } from '@/components/kit/GlassScreenKit';
-import { ServiceThumb } from '@/components/kit/ServiceThumb';
+import { PestImage } from '@/components/kit/ServiceThumb';
+import { resolveServiceImage } from '@/constants/serviceImages';
 import { FocusStatusBar } from '@/components/ui/FocusStatusBar';
-import { ArrowLeft, Star } from 'lucide-react-native';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
+import { useReducedMotion } from '@/lib/a11yPrefs';
+import { haptic, motion, shakeAnimation, stagger } from '@/lib/motion';
+import { AppIcons } from '@/constants/appIcons';
+import { SERVICE_TYPE_META } from '@/constants/serviceTypeMeta';
+import { useAppContent } from '@/context/AppContentContext';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { fillCopy } from '@/constants/customerUiCopy';
 import { api, screenLoadConfig } from '@/lib/api';
 import { CACHE_TTL } from '@/lib/apiCache';
 import { useScreenLoad } from '@/lib/useScreenLoad';
 import { formatSocialProof } from '@/lib/display';
 import { serviceDisplayRating } from '@/lib/ratings';
+import { earliestSlotLabel } from '@/lib/earliestSlot';
+import { formatDuration, serviceDurationMins, serviceStartPrice } from '@/lib/serviceDisplay';
+import { formatRupeeFull } from '@/components/kit/format';
 import { safeGoBack, customerRoutes, sharedRoutes, appPush } from '@/lib/routes';
-import type { Service, ServiceReview, ServiceStats } from '@/types/api';
-import { colors, fonts, spacing, ui } from '@/constants/theme';
+import type { Service, ServiceStats, ServiceTypeKey } from '@/types/api';
+import type { ServiceReviewWithReply } from '@/types/adminManage';
 
-function SectionKicker({ label }: { label: string }) {
+type ServiceReview = ServiceReviewWithReply;
+import { colors, fonts, radii, typeScale, ui } from '@/constants/theme';
+import { ServiceDetailSkeleton } from '@/components/kit/ScreenSkeletons';
+
+const PAD = 16;
+
+function reviewDate(iso?: string): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function SectionTitle({ title, sub }: { title: string; sub?: string }) {
   return (
-    <View style={styles.kickerRow}>
-      <Text style={styles.kickerText}>{label}</Text>
+    <View style={styles.sectionHead}>
+      <Text style={styles.sectionTitle} accessibilityRole="header">
+        {title}
+      </Text>
+      {sub ? <Text style={styles.sectionSub}>{sub}</Text> : null}
     </View>
   );
 }
 
-function Stars({ count }: { count: number }) {
+/** Grey band between sections — the Urban-style page rhythm. */
+function Band() {
+  return <View style={styles.band} />;
+}
+
+function ReviewItem({ review: r, first, replyTitle }: { review: ServiceReview; first: boolean; replyTitle: string }) {
+  const text = r.comment?.trim() || (r.tags ?? []).join(', ');
+  const when = reviewDate(r.createdAt);
   return (
-    <View style={styles.starsRow}>
-      {[...Array(5)].map((_, i) => {
-        const on = i < count;
-        const c = on ? ui.brand : ui.brandSoft;
-        return (
-          <PremiumIcon
-            key={i}
-            icon={AppIcons.ui.star}
-            variant="plain"
-            size={11}
-            color={c}
-            fill={c}
-          />
-        );
-      })}
+    <View style={[styles.review, !first && styles.reviewBorder]}>
+      <View style={styles.reviewHead}>
+        <View style={styles.flex}>
+          <Text style={styles.reviewName}>{r.customerName}</Text>
+          {when ? <Text style={styles.reviewDate}>{when}</Text> : null}
+        </View>
+        <View style={styles.reviewStars}>
+          <Star size={11} color={colors.white} fill={colors.white} strokeWidth={1.5} />
+          <Text style={styles.reviewStarsText}>{r.stars}</Text>
+        </View>
+      </View>
+      {text ? <Text style={styles.reviewText}>{text}</Text> : null}
+      {r.reply?.text ? (
+        <View style={styles.reply} accessibilityLabel={`${replyTitle}: ${r.reply.text}`}>
+          <Text style={styles.replyTitle}>{replyTitle}</Text>
+          <Text style={styles.replyText}>{r.reply.text}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -54,18 +91,29 @@ function Stars({ count }: { count: number }) {
 export default function ServiceDetailScreen() {
   const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
   const insets = useSafeAreaInsets();
+  const copy = useCustomerUiCopy();
+  const { content } = useAppContent();
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
+  const includedY = useRef(0);
+  const optionsY = useRef(0);
   const [service, setService] = useState<Service | null>(null);
   const [stats, setStats] = useState<ServiceStats | null>(null);
   const [reviews, setReviews] = useState<ServiceReview[]>([]);
+  const [optionKey, setOptionKey] = useState<string | null>(null);
   const { loading, error, runLoad } = useScreenLoad(!!id);
-
-  const { width: windowWidth } = useWindowDimensions();
+  const earliest = useMemo(() => earliestSlotLabel(), []);
+  const reducedMotion = useReducedMotion();
+  /** Hero art pops in once the service has loaded. */
+  const artIn = useRef(new Animated.Value(0)).current;
+  /** "Pick a size first" — shakes the size grid and shows a line under it. */
+  const sizeShake = useRef(new Animated.Value(0)).current;
+  const [sizeWarning, setSizeWarning] = useState(false);
+  const [allReviewsOpen, setAllReviewsOpen] = useState(false);
 
   const load = useCallback(
     async (skipCache = false) => {
-      if (!id) {
-        throw new Error('Service not found');
-      }
+      if (!id) throw new Error('Service not found');
       const cache = skipCache ? { skipCache: true as const } : { cacheTtlMs: CACHE_TTL.services };
       const [svc, st, rev] = await Promise.allSettled([
         api.get<{ service: Service }>(`/services/${id}`, { ...screenLoadConfig, ...cache }),
@@ -73,7 +121,10 @@ export default function ServiceDetailScreen() {
         api.get<{ reviews: ServiceReview[] }>(`/services/${id}/reviews`, { ...screenLoadConfig, ...cache }),
       ]);
       if (svc.status === 'rejected') throw svc.reason;
-      setService(svc.value.data.service);
+      const s = svc.value.data.service;
+      setService(s);
+      // The cheapest size is picked up front so the price bar is never empty.
+      setOptionKey((prev) => (prev && s.options?.some((o) => o.key === prev) ? prev : (s.options?.[0]?.key ?? null)));
       if (st.status === 'fulfilled') setStats(st.value.data.stats);
       if (rev.status === 'fulfilled') setReviews(rev.value.data.reviews);
     },
@@ -85,174 +136,491 @@ export default function ServiceDetailScreen() {
     void runLoad(() => load());
   }, [id, load, runLoad]);
 
-  if (!id) {
+  useEffect(() => {
+    if (!service) return;
+    if (reducedMotion) {
+      artIn.setValue(1);
+      return;
+    }
+    Animated.spring(artIn, { toValue: 1, ...motion.springSnappy, useNativeDriver: true }).start();
+  }, [service, reducedMotion, artIn]);
+
+  if (!id || (!loading && (error || !service))) {
     return (
       <View style={styles.root}>
-        <CustomerPageHeader
-          variant="premium"
-          title="Service"
-          showBack
-          onBack={() => safeGoBack(customerRoutes.services)}
-        />
+        <CustomerPageHeader variant="premium" title={copy.serviceUnavailableTitle} showBack onBack={() => safeGoBack(customerRoutes.services)} />
         <ListEmptyRetry
-          title="Service unavailable"
-          message="This service link is invalid."
-          onRetry={() => safeGoBack(customerRoutes.services)}
+          title={copy.serviceUnavailableTitle}
+          message={!id ? copy.serviceInvalidLink : (error ?? copy.serviceGone)}
+          onRetry={() => (id ? void runLoad(() => load(true)) : safeGoBack(customerRoutes.services))}
         />
       </View>
     );
   }
 
-  if (loading) return <Spinner fullScreen />;
-
-  if (error || !service) {
+  if (loading || !service) {
+    // Light skeleton → dark status-bar glyphs from the first frame (not only once the page loads).
     return (
       <View style={styles.root}>
-        <CustomerPageHeader
-          variant="premium"
-          title="Service"
-          showBack
-          onBack={() => safeGoBack(customerRoutes.services)}
-        />
-        <ListEmptyRetry
-          title="Service unavailable"
-          message={error ?? 'This service is no longer available. Pull to refresh the catalog.'}
-          onRetry={() => void runLoad(() => load(true))}
-        />
+        <FocusStatusBar style="dark" />
+        <ServiceDetailSkeleton />
       </View>
     );
   }
 
-  const socialProof = formatSocialProof(stats?.bookingCount, serviceDisplayRating(service));
-  const durationLabel = service.stepTemplate?.length
-    ? `~${Math.max(30, service.stepTemplate.length * 15)} min`
-    : '45–60 min';
+  const brand = content.branding.name?.trim() || 'Mr Antidot';
+  const cover = serviceCoverUri(service);
+  const highlights = (service.highlights ?? []).map((h) => h.trim()).filter(Boolean).slice(0, 4);
+  const type = (service.serviceTypes?.[0] ?? 'general') as ServiceTypeKey;
+  const meta = SERVICE_TYPE_META[type] ?? SERVICE_TYPE_META.general;
+  const rating = serviceDisplayRating(service);
+  const socialProof = formatSocialProof(stats?.bookingCount, rating);
+  const options = service.options ?? [];
+  const selected = options.find((o) => o.key === optionKey);
+  const price = selected?.price ?? serviceStartPrice(service);
+  const duration = formatDuration(serviceDurationMins(service));
+  const included = service.included ?? [];
+  const excluded = service.excluded ?? [];
+  const notes = service.notes ?? [];
+  const steps = service.stepTemplate ?? [];
+  const trustBadges = (content.trust.badges ?? []).map((b) => b.trim()).filter(Boolean);
+  const guarantee = content.trust.guaranteeText?.trim();
+
+  const counts = [5, 4, 3, 2, 1].map((n) => ({ n, count: reviews.filter((r) => Math.round(r.stars) === n).length }));
+  const maxCount = Math.max(1, ...counts.map((c) => c.count));
+  const reviewTotal = Math.max(stats?.reviewCount ?? 0, reviews.length);
+
+  const scrollTo = (y: number) => scrollViewRef.current?.scrollTo({ y: Math.max(0, y - insets.top - 60), animated: true });
+
+  function book() {
+    if (!service) return;
+    if (options.length > 0 && !selected) {
+      // Missing size: bring the grid into view, shake it and say why — never a silent scroll.
+      haptic('warning');
+      setSizeWarning(true);
+      scrollTo(optionsY.current);
+      if (!reducedMotion) shakeAnimation(sizeShake).start();
+      return;
+    }
+    haptic('tap');
+    appPush(sharedRoutes.book(service.id, selected ? { option: selected.key } : undefined));
+  }
+
+  function shareService() {
+    if (!service) return;
+    void Share.share({
+      message: fillCopy(copy.serviceShareMessage, {
+        service: service.name,
+        brand,
+        price: formatRupeeFull(serviceStartPrice(service)),
+      }),
+    }).catch(() => undefined);
+  }
+
+  const headerFade = scrollY.interpolate({ inputRange: [140, 200], outputRange: [0, 1], extrapolate: 'clamp' });
+  // Hero stretches to cover the pull-down gap and drifts slower than the page on scroll (parallax).
+  const heroH = cover ? insets.top + 280 : insets.top + 60 + 170 + 18;
+  const heroMotion = reducedMotion
+    ? undefined
+    : {
+        transform: [
+          {
+            translateY: scrollY.interpolate({
+              inputRange: [-200, 0, heroH],
+              outputRange: [-100, 0, heroH * 0.35],
+              extrapolateRight: 'clamp',
+            }),
+          },
+          { scale: scrollY.interpolate({ inputRange: [-200, 0], outputRange: [1 + 200 / heroH, 1], extrapolateRight: 'clamp' }) },
+        ],
+      };
 
   return (
     <View style={styles.root}>
       <FocusStatusBar style="dark" />
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={{ paddingBottom: 130 }}
+      <Animated.ScrollView
+        ref={scrollViewRef}
+        style={styles.flex}
+        contentContainerStyle={{ paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
       >
-        <View style={[styles.hero, { paddingTop: insets.top + 6 }]}>
-          <View style={styles.heroTopRow}>
-            <Pressable
-              style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
-              onPress={() => safeGoBack(customerRoutes.services)}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel="Go back"
+        {/* Admin cover photo full-bleed (or pest art in the type's colour); back/share float on top. */}
+        {cover ? (
+          <Animated.View style={[styles.heroPhoto, { height: heroH, backgroundColor: meta.bg }, heroMotion]}>
+            <AppImage
+              uri={cover}
+              style={StyleSheet.absoluteFill}
+              priority="high"
+              placeholderColor={meta.bg}
+              accessibilityLabel={service.coverImage?.alt || service.name}
+            />
+          </Animated.View>
+        ) : (
+          <Animated.View style={[styles.hero, { paddingTop: insets.top + 60, backgroundColor: meta.bg }, heroMotion]}>
+            <Animated.View
+              style={[
+                styles.heroArt,
+                {
+                  opacity: artIn,
+                  transform: [{ scale: artIn.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] }) }],
+                },
+              ]}
             >
-              <ArrowLeft size={22} color={ui.text} strokeWidth={2.1} />
-            </Pressable>
-          </View>
-          <ServiceThumb
-            service={service}
-            width={windowWidth - 40}
-            height={196}
-            radius={22}
-            iconSize={92}
-          />
-          <Text style={styles.heroTitle}>{service.name}</Text>
-          {socialProof ? (
-            <View style={styles.ratingRow}>
-              <Star size={14} color={ui.star} fill={ui.star} strokeWidth={1.5} />
-              <Text style={styles.rating}>{socialProof}</Text>
-            </View>
-          ) : null}
-          <View style={styles.priceRow}>
-            <Text style={styles.heroPrice}>₹{service.basePrice}</Text>
-            <Text style={styles.priceHint}>starting · per visit</Text>
-          </View>
-        </View>
+              {/* Same picture rule as the catalog, cart and bookings: the admin's icon, else the pest type. */}
+              <PestImage source={resolveServiceImage(service.iconKey, service.serviceTypes) ?? meta.image} size={150} />
+            </Animated.View>
+          </Animated.View>
+        )}
 
-        <View style={styles.highlights}>
-          {[
-            { icon: AppIcons.ui.leaf, title: 'Eco-safe', sub: 'Kid & pet friendly' },
-            { icon: AppIcons.ui.clock, title: durationLabel, sub: 'Visit duration' },
-            { icon: AppIcons.ui.camera, title: 'Photo proof', sub: 'Every step' },
-          ].map((h, i) => (
-            <View key={h.sub} style={[styles.highlight, i > 0 && styles.highlightBorder]}>
-              <PremiumIcon icon={h.icon} variant="plain" size={18} color={ui.brand} strokeWidth={2.1} />
-              <Text style={styles.highlightTitle} numberOfLines={1}>
-                {h.title}
-              </Text>
-              <Text style={styles.highlightSub} numberOfLines={1}>
-                {h.sub}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.section}>
-          <SectionKicker label="ABOUT THIS SERVICE" />
-          <Text style={styles.about}>{service.shortDesc}</Text>
-        </View>
-
-        {(service.stepTemplate?.length ?? 0) > 0 ? (
-          <View style={styles.section}>
-            <SectionKicker label="SERVICE STEPS" />
-            <GlassPanel style={styles.stepsCard} padded={false} tone="clear" intensity={44}>
-              {service.stepTemplate!.map((t, i) => (
-                <View key={t} style={[styles.stepRow, i > 0 && styles.stepRowBorder]}>
-                  <View style={styles.stepNum}>
-                    <Text style={styles.stepNumText}>{String(i + 1).padStart(2, '0')}</Text>
+        <FadeSlideIn delay={stagger(1)} slideFrom={16} style={styles.sheetOverlap}>
+          <View style={[styles.white, styles.sheet]}>
+            <View style={styles.titleRow}>
+              <View style={styles.flex}>
+                <Text style={styles.title} accessibilityRole="header">
+                  {service.name}
+                </Text>
+                {socialProof ? (
+                  <View style={styles.ratingRow}>
+                    <Star size={12} color={colors.amber} fill={colors.amber} strokeWidth={1.5} />
+                    <Text style={styles.ratingText}>{socialProof}</Text>
                   </View>
-                  <Text style={styles.stepText}>{t}</Text>
-                  <PremiumIcon icon={AppIcons.ui.check} variant="plain" size={15} color={ui.brand} strokeWidth={2.6} />
+                ) : null}
+              </View>
+              {earliest ? (
+                <View style={styles.earliest}>
+                  <View style={styles.earliestHead}>
+                    <View style={styles.earliestDot} />
+                    <Text style={styles.earliestLabel}>{copy.serviceEarliestLabel}</Text>
+                  </View>
+                  <Text style={styles.earliestValue}>{earliest}</Text>
                 </View>
-              ))}
-            </GlassPanel>
-          </View>
-        ) : null}
-
-        {reviews.length > 0 ? (
-          <View style={styles.section}>
-            <SectionKicker label="RECENT REVIEWS" />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.reviewsRail}
-              contentContainerStyle={styles.reviewsRailInner}
-            >
-              {reviews.map((r) => (
-                <View key={r.id} style={styles.reviewCard}>
-                  <View style={styles.reviewHead}>
-                    <View style={styles.reviewAvatar}>
-                      <Text style={styles.reviewInitial}>{r.customerName[0]}</Text>
-                    </View>
-                    <View style={styles.reviewNameCol}>
-                      <Text style={styles.reviewName}>{r.customerName}</Text>
-                      <Stars count={r.stars} />
-                    </View>
+              ) : null}
+            </View>
+            <View style={styles.priceCard}>
+              <View style={styles.flex}>
+                <Text style={styles.priceLabel}>{copy.serviceStartsAtLabel}</Text>
+                <Text style={styles.priceBig}>{formatRupeeFull(serviceStartPrice(service))}</Text>
+              </View>
+              <View style={styles.durationPill}>
+                <Clock3 size={14} color={ui.brand} strokeWidth={2.3} />
+                <Text style={styles.durationText}>{duration}</Text>
+              </View>
+            </View>
+            {service.shortDesc ? <Text style={styles.about}>{service.shortDesc}</Text> : null}
+            {highlights.length > 0 ? (
+              <View style={styles.highlights}>
+                {highlights.map((h) => (
+                  <View key={h} style={styles.highlightRow}>
+                    <Check size={15} color={ui.brand} strokeWidth={2.6} />
+                    <Text style={styles.highlightText}>{h}</Text>
                   </View>
-                  <Text style={styles.reviewText} numberOfLines={4}>
-                    {r.comment?.trim() || (r.tags ?? []).join(', ')}
+                ))}
+              </View>
+            ) : null}
+            <View style={styles.facts}>
+              {[
+                { icon: AppIcons.ui.leaf, label: `${copy.serviceFactOneTitle} · ${copy.serviceFactOneSub}` },
+                { icon: AppIcons.ui.camera, label: `${copy.serviceFactThreeTitle} · ${copy.serviceFactThreeSub}` },
+              ].map((f) => (
+                <View key={f.label} style={styles.fact}>
+                  <f.icon size={14} color={ui.brand} strokeWidth={2.2} />
+                  <Text style={styles.factText} numberOfLines={1}>
+                    {f.label}
                   </Text>
                 </View>
               ))}
-            </ScrollView>
+            </View>
+          </View>
+
+        </FadeSlideIn>
+
+        {options.length > 0 ? (
+          <View
+            onLayout={(e) => {
+              optionsY.current = e.nativeEvent.layout.y;
+            }}
+          >
+            <Band />
+            <FadeSlideIn delay={stagger(2)} slideFrom={16}>
+              <View style={styles.white}>
+                <SectionTitle title={copy.serviceOptionsHeading} />
+                <View style={styles.reqHead}>
+                  <View style={styles.reqNum}>
+                    <Text style={styles.reqNumText}>1</Text>
+                  </View>
+                  <Text style={styles.reqTitle}>{service.optionsTitle || copy.serviceOptionsFallbackTitle}</Text>
+                </View>
+                <Animated.View
+                  style={[styles.optionGrid, { transform: [{ translateX: sizeShake }] }]}
+                  accessibilityRole="radiogroup"
+                >
+                  {options.map((o) => {
+                    const on = o.key === optionKey;
+                    return (
+                      <PressableScale
+                        key={o.key}
+                        onPress={() => {
+                          if (o.key !== optionKey) haptic('select');
+                          setOptionKey(o.key);
+                          setSizeWarning(false);
+                        }}
+                        // 2 or 4 sizes read best as a 2-column grid; otherwise three across.
+                        containerStyle={options.length === 2 || options.length === 4 ? styles.optionHalf : styles.optionThird}
+                        style={[styles.option, on && styles.optionOn, sizeWarning && styles.optionWarn]}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: on }}
+                        accessibilityLabel={`${o.label}, ${formatRupeeFull(o.price)}`}
+                      >
+                        <Text style={[styles.optionLabel, on && styles.optionLabelOn]} numberOfLines={2}>
+                          {o.label}
+                        </Text>
+                        <Text style={styles.optionPrice}>{formatRupeeFull(o.price)}</Text>
+                        {o.note ? (
+                          <Text style={styles.optionNote} numberOfLines={2}>
+                            {o.note}
+                          </Text>
+                        ) : null}
+                        {on ? (
+                          <View style={styles.optionTick}>
+                            <Check size={11} color={colors.white} strokeWidth={3.2} />
+                          </View>
+                        ) : null}
+                      </PressableScale>
+                    );
+                  })}
+                </Animated.View>
+                {sizeWarning ? (
+                  <Text style={styles.sizeWarning} accessibilityLiveRegion="polite" accessibilityRole="alert">
+                    {copy.servicePickSizeFirst}
+                  </Text>
+                ) : null}
+                {included.length > 0 ? (
+                  <Pressable onPress={() => scrollTo(includedY.current)} hitSlop={12} accessibilityRole="link" style={styles.linkHit}>
+                    <Text style={styles.link}>{copy.serviceIncludedLink}</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </FadeSlideIn>
           </View>
         ) : null}
-      </ScrollView>
+
+        {notes.length > 0 ? (
+          <FadeSlideIn delay={stagger(3)}>
+            <Band />
+            <View style={styles.white}>
+              <SectionTitle title={copy.serviceNotesTitle} />
+              {notes.map((n) => (
+                <View key={n} style={styles.noteRow}>
+                  <Info size={17} color={ui.textTertiary} strokeWidth={2} />
+                  <Text style={styles.noteText}>{n}</Text>
+                </View>
+              ))}
+            </View>
+          </FadeSlideIn>
+        ) : null}
+
+        {included.length > 0 ? (
+          <View
+            onLayout={(e) => {
+              // Measured on the scroll content's direct child (the band above the card is 8 pt).
+              includedY.current = e.nativeEvent.layout.y + 8;
+            }}
+          >
+          <FadeSlideIn delay={stagger(4)}>
+            <Band />
+            <View style={styles.white}>
+              <SectionTitle title={copy.serviceIncludedTitle} />
+              <View style={styles.tileGrid}>
+                {included.map((item) => (
+                  <View key={item} style={styles.tile}>
+                    <CircleCheck size={20} color={ui.brand} strokeWidth={2.1} />
+                    <Text style={styles.tileText}>{item}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </FadeSlideIn>
+          </View>
+        ) : null}
+
+        {steps.length > 0 ? (
+          <FadeSlideIn delay={stagger(5)}>
+            <Band />
+            <View style={styles.white}>
+              <SectionTitle title={copy.serviceStepsTitle} sub={fillCopy(copy.serviceStepsSub, { duration })} />
+              {steps.map((t, i) => (
+                <View key={`${t}-${i}`} style={styles.stepRow}>
+                  <View style={styles.stepRail}>
+                    <View style={styles.stepNum}>
+                      <Text style={styles.stepNumText}>{i + 1}</Text>
+                    </View>
+                    {i < steps.length - 1 ? <View style={styles.stepLine} /> : null}
+                  </View>
+                  <Text style={styles.stepText}>{t}</Text>
+                </View>
+              ))}
+            </View>
+          </FadeSlideIn>
+        ) : null}
+
+        {excluded.length > 0 ? (
+          <FadeSlideIn delay={stagger(6)}>
+            <Band />
+            <View style={styles.white}>
+              <SectionTitle title={copy.serviceExcludedTitle} />
+              {excluded.map((x) => (
+                <View key={x} style={styles.noteRow}>
+                  <X size={18} color={colors.error} strokeWidth={2.4} />
+                  <Text style={styles.noteText}>{x}</Text>
+                </View>
+              ))}
+            </View>
+          </FadeSlideIn>
+        ) : null}
+
+        {trustBadges.length > 0 || guarantee ? (
+          <FadeSlideIn delay={stagger(6)}>
+            <Band />
+            <View style={styles.white}>
+              <SectionTitle title={fillCopy(copy.serviceWhyTitle, { brand })} />
+              <View style={styles.trustCard}>
+                <View style={styles.flex}>
+                  {trustBadges.slice(0, 4).map((b) => (
+                    <View key={b} style={styles.trustRow}>
+                      <ShieldCheck size={16} color={ui.brand} strokeWidth={2.2} />
+                      <Text style={styles.trustText}>{b}</Text>
+                    </View>
+                  ))}
+                </View>
+                <View style={styles.trustSeal}>
+                  <ShieldCheck size={34} color={colors.white} strokeWidth={2} />
+                </View>
+              </View>
+              {guarantee ? <Text style={styles.guarantee}>{guarantee}</Text> : null}
+            </View>
+          </FadeSlideIn>
+        ) : null}
+
+        {reviews.length > 0 ? (
+          <FadeSlideIn delay={stagger(6)}>
+            <Band />
+            <View style={styles.white}>
+              <View style={styles.ratingSummary}>
+                <View style={styles.ratingBig}>
+                  <View style={styles.ratingBigRow}>
+                    <Star size={22} color={ui.star} fill={ui.star} strokeWidth={1.5} />
+                    <Text style={styles.ratingBigText}>{(rating ?? 0).toFixed(1)}</Text>
+                  </View>
+                  <Text style={styles.ratingBigSub}>
+                    {reviewTotal === 1 ? copy.serviceReviewCountOne : fillCopy(copy.serviceReviewCountMany, { count: reviewTotal })}
+                  </Text>
+                </View>
+                <View style={styles.bars}>
+                  {counts.map((c) => (
+                    <View
+                      key={c.n}
+                      style={styles.barRow}
+                      accessible
+                      accessibilityLabel={fillCopy(copy.serviceStarsA11y, { stars: c.n, count: c.count })}
+                    >
+                      <View style={styles.barLabelRow}>
+                        <Text style={styles.barLabel}>{c.n}</Text>
+                        <Star size={10} color={ui.text} fill={ui.text} strokeWidth={1.5} />
+                      </View>
+                      <View style={styles.barTrack}>
+                        <View style={[styles.barFill, { width: `${(c.count / maxCount) * 100}%` }]} />
+                      </View>
+                      <Text style={styles.barCount}>{c.count}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+              <Text style={styles.reviewsHeading} accessibilityRole="header">
+                {copy.serviceReviewsTitle}
+              </Text>
+              {reviews.slice(0, 5).map((r, i) => (
+                <ReviewItem key={r.id} review={r} first={i === 0} replyTitle={copy.serviceReviewReplyTitle} />
+              ))}
+              {reviews.length > 5 ? (
+                <PressableScale
+                  style={styles.seeAll}
+                  onPress={() => setAllReviewsOpen(true)}
+                  haptic="tap"
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.seeAllText}>{fillCopy(copy.serviceSeeAllReviews, { count: reviews.length })}</Text>
+                </PressableScale>
+              ) : null}
+            </View>
+          </FadeSlideIn>
+        ) : null}
+
+        <Band />
+        <FadeSlideIn delay={stagger(6)}>
+        <View style={[styles.white, styles.shareBlock]}>
+          <Text style={styles.shareText}>{copy.serviceShareText}</Text>
+          <PressableScale
+            containerStyle={styles.shareBtnWrap}
+            style={styles.shareBtn}
+            onPress={shareService}
+            accessibilityRole="button"
+          >
+            <Text style={styles.shareBtnText}>{copy.serviceShareButton}</Text>
+            <Share2 size={15} color={ui.brand} strokeWidth={2.4} />
+          </PressableScale>
+        </View>
+        </FadeSlideIn>
+      </Animated.ScrollView>
+
+      {/* Floating header: buttons always on, white bar + title fade in once the hero scrolls away. */}
+      <View style={[styles.topBar, { height: insets.top + 56 }]} pointerEvents="box-none">
+        <Animated.View style={[styles.topBarBg, { opacity: headerFade }]} />
+        <View style={[styles.topBarRow, { marginTop: insets.top + 6 }]} pointerEvents="box-none">
+          <PressableScale
+            scaleTo={0.92}
+            style={styles.circleBtn}
+            onPress={() => safeGoBack(customerRoutes.services)}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={copy.navBack}
+          >
+            <ArrowLeft size={20} color={ui.text} strokeWidth={2.2} />
+          </PressableScale>
+          <Animated.Text style={[styles.topBarTitle, { opacity: headerFade }]} numberOfLines={1}>
+            {service.name}
+          </Animated.Text>
+          <PressableScale
+            scaleTo={0.92}
+            style={styles.circleBtn}
+            onPress={shareService}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={copy.serviceShareA11y}
+          >
+            <Share2 size={18} color={ui.text} strokeWidth={2.2} />
+          </PressableScale>
+        </View>
+      </View>
+
+      <BottomSheet visible={allReviewsOpen} onClose={() => setAllReviewsOpen(false)} title={copy.serviceAllReviewsTitle}>
+        {reviews.map((r, i) => (
+          <ReviewItem key={r.id} review={r} first={i === 0} replyTitle={copy.serviceReviewReplyTitle} />
+        ))}
+      </BottomSheet>
 
       <StickyActionBar>
         <View style={styles.footerRow}>
-          <View>
-            <Text style={styles.fromLabel}>FROM</Text>
-            <Text style={styles.footerPrice}>₹{service.basePrice}</Text>
+          <View style={styles.flex}>
+            <Text style={styles.footerPrice}>{formatRupeeFull(price)}</Text>
+            <Text style={styles.footerSub} numberOfLines={1}>
+              {selected ? `${selected.label} · ${duration}` : `${copy.serviceFromLabel} · ${duration}`}
+            </Text>
           </View>
-          <Pressable
-            style={({ pressed }) => [styles.bookBtnWrap, pressed && styles.pressed]}
-            onPress={() => appPush(sharedRoutes.bookPath(service.id))}
-          >
-            <View style={styles.bookBtn}>
-              <Text style={styles.bookBtnText}>Book now</Text>
-              <PremiumIcon icon={AppIcons.ui.arrowRight} variant="plain" size={16} color={colors.white} strokeWidth={2.4} fill="none" />
-            </View>
-          </Pressable>
+          <PressableScale containerStyle={styles.bookWrap} style={styles.bookBtn} onPress={book} accessibilityRole="button">
+            <Text style={styles.bookText}>{copy.serviceBookButton}</Text>
+          </PressableScale>
         </View>
       </StickyActionBar>
     </View>
@@ -260,137 +628,264 @@ export default function ServiceDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: ui.surfaceMuted },
-  scroll: { flex: 1 },
-  hero: {
-    paddingHorizontal: 20,
-    paddingBottom: 4,
-    backgroundColor: colors.white,
-  },
-  heroTopRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  backBtn: {
-    width: 40,
-    height: 40,
-    marginLeft: -8,
-    borderRadius: 20,
+  root: { flex: 1, backgroundColor: ui.canvas },
+  flex: { flex: 1, minWidth: 0 },
+  hero: { alignItems: 'center', paddingBottom: 40 },
+  /** The title card slides up over the hero's bottom edge, like a sheet. */
+  sheetOverlap: { marginTop: -26, zIndex: 2 },
+  sheet: { borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingTop: 22 },
+  heroPhoto: { width: '100%', overflow: 'hidden' },
+  highlights: { marginTop: 12, gap: 6 },
+  highlightRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  highlightText: { ...typeScale.body, fontSize: 13.5, flex: 1, color: ui.text },
+  heroArt: {
+    width: 190,
+    height: 170,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backBtnPressed: { backgroundColor: ui.surfaceMuted },
-  heroTitle: {
-    marginTop: 18,
-    fontFamily: fonts.displayExtra,
-    fontSize: 24,
-    lineHeight: 30,
-    letterSpacing: -0.6,
-    color: ui.text,
-  },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
-  rating: { fontFamily: fonts.bodySemi, fontSize: 13.5, color: ui.text },
-  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 7, marginTop: 6 },
-  heroPrice: {
-    fontFamily: fonts.displayExtra,
-    fontSize: 22,
-    letterSpacing: -0.4,
-    color: ui.text,
-  },
-  priceHint: { fontFamily: fonts.body, fontSize: 13, color: ui.textSecondary },
-  highlights: {
+  white: { backgroundColor: colors.white, paddingHorizontal: PAD, paddingVertical: 20 },
+  band: { height: 8, backgroundColor: ui.canvas },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  title: { ...typeScale.title, fontSize: 21, lineHeight: 27, color: ui.text },
+  ratingRow: {
     flexDirection: 'row',
-    marginHorizontal: 20,
-    marginTop: 16,
-    paddingVertical: 14,
-    borderRadius: 18,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: ui.hairline,
-  },
-  highlight: { flex: 1, alignItems: 'center', gap: 4, paddingHorizontal: 6 },
-  highlightBorder: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: ui.border },
-  highlightTitle: { marginTop: 2, fontFamily: fonts.bodyBold, fontSize: 13, color: ui.text },
-  highlightSub: { fontFamily: fonts.body, fontSize: 11, color: ui.textSecondary },
-  section: { paddingHorizontal: 20, paddingTop: 22 },
-  kickerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  kickerText: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 1.4,
-    color: ui.textTertiary,
-  },
-  about: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    color: ui.textSecondary,
-    lineHeight: 22,
-    marginTop: 9,
-  },
-  stepsCard: {
-    marginTop: 11,
-    borderRadius: 22,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-  },
-  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11 },
-  stepRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ui.border },
-  stepNum: {
-    width: 30,
-    height: 30,
-    borderRadius: 11,
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: ui.brandSoft,
+    alignSelf: 'flex-start',
+    gap: 5,
+    marginTop: 8,
+    paddingHorizontal: 9,
+    height: 26,
+    borderRadius: radii.pill,
+    backgroundColor: '#FFF7E2',
   },
-  stepNumText: { fontFamily: fonts.bodyBold, fontSize: 11.5, color: ui.brand },
-  stepText: { flex: 1, fontFamily: fonts.bodySemi, fontSize: 13.5, color: ui.text },
-  reviewsRail: { marginHorizontal: -20, marginTop: 11 },
-  reviewsRailInner: { paddingHorizontal: 20, gap: 10, paddingBottom: 4 },
-  reviewCard: {
-    width: 240,
-    backgroundColor: colors.white,
+  ratingText: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 12.5,
+    color: ui.text,
+  },
+  earliest: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: radii.thumb,
     borderWidth: 1,
     borderColor: ui.border,
-    borderRadius: 16,
-    padding: 14,
+    backgroundColor: colors.white,
+    alignItems: 'flex-start',
   },
-  reviewHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  reviewAvatar: {
-    width: 36,
-    height: 36,
+  earliestHead: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  earliestDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: ui.brand },
+  earliestLabel: { fontFamily: fonts.bodyBold, fontSize: 11, color: ui.brand },
+  earliestValue: { marginTop: 2, fontFamily: fonts.bodySemi, fontSize: 12, color: ui.text },
+  priceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: radii.card,
+    backgroundColor: ui.brandSoft,
+  },
+  priceLabel: { fontFamily: fonts.bodyMedium, fontSize: 12, color: ui.textSecondary },
+  priceBig: { marginTop: 1, fontFamily: fonts.displayExtra, fontSize: 24, lineHeight: 30, letterSpacing: -0.6, color: ui.text },
+  durationPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    height: 32,
+    borderRadius: radii.pill,
+    backgroundColor: colors.white,
+  },
+  durationText: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: ui.text },
+  about: { marginTop: 14, fontFamily: fonts.body, fontSize: 13.5, lineHeight: 20, color: ui.textSecondary },
+  facts: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
+  fact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    height: 30,
+    borderRadius: radii.pill,
+    backgroundColor: ui.brandSoft,
+  },
+  factText: { fontFamily: fonts.bodySemi, fontSize: 12, color: ui.text },
+  sectionHead: { marginBottom: 14 },
+  sectionTitle: { ...typeScale.section, fontSize: 17, lineHeight: 23, color: ui.text },
+  sectionSub: { ...typeScale.caption, marginTop: 3, color: ui.textSecondary },
+  reqHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  reqNum: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    backgroundColor: ui.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reqNumText: { fontFamily: fonts.bodyBold, fontSize: 12, color: ui.textSecondary },
+  reqTitle: { ...typeScale.rowTitle, color: ui.text },
+  optionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  option: {
+    minHeight: 74,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderRadius: radii.control,
+    borderWidth: 1,
+    borderColor: ui.border,
+    backgroundColor: colors.white,
+  },
+  optionHalf: { width: '48.4%' },
+  optionThird: { width: '31.6%' },
+  optionOn: { borderColor: ui.brand, borderWidth: 1.5, backgroundColor: ui.brandSoft },
+  optionWarn: { borderColor: colors.amber },
+  sizeWarning: { ...typeScale.captionStrong, marginTop: 10, color: colors.amberInk },
+  optionLabel: { fontFamily: fonts.bodySemi, fontSize: 13, color: ui.textSecondary, paddingRight: 14 },
+  optionLabelOn: { color: ui.text },
+  optionPrice: { marginTop: 6, fontFamily: fonts.bodyBold, fontSize: 15, color: ui.text },
+  optionNote: { marginTop: 3, fontFamily: fonts.body, fontSize: 11.5, color: ui.textTertiary },
+  optionTick: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: ui.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  linkHit: { alignSelf: 'flex-start', marginTop: 8, paddingVertical: 8 },
+  link: { ...typeScale.bodyStrong, color: ui.brand, textDecorationLine: 'underline' },
+  noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 7 },
+  noteText: { flex: 1, fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: ui.text },
+  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  tile: {
+    width: '48.4%',
+    minHeight: 92,
+    padding: 12,
+    gap: 8,
+    borderRadius: radii.control,
+    backgroundColor: ui.surfaceMuted,
+  },
+  tileText: { fontFamily: fonts.bodySemi, fontSize: 13, lineHeight: 18, color: ui.text },
+  stepRow: { flexDirection: 'row', gap: 12 },
+  stepRail: { width: 26, alignItems: 'center' },
+  stepNum: {
+    width: 26,
+    height: 26,
     borderRadius: 13,
+    backgroundColor: ui.brand,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: ui.brand,
   },
-  reviewInitial: { fontFamily: fonts.displayExtra, fontSize: 14, color: colors.white },
-  reviewNameCol: { gap: 2 },
-  reviewName: { fontFamily: fonts.bodyBold, fontSize: 13, color: ui.text },
-  starsRow: { flexDirection: 'row', gap: 2 },
-  reviewText: {
-    fontFamily: fonts.body,
-    fontSize: 12.5,
-    color: ui.textSecondary,
-    lineHeight: 18,
-    marginTop: 9,
-  },
-  footerRow: {
+  stepNumText: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.white },
+  stepLine: { width: 2, flex: 1, minHeight: 14, backgroundColor: ui.brandSoft, marginVertical: 3 },
+  stepText: { flex: 1, paddingTop: 3, paddingBottom: 16, fontFamily: fonts.bodySemi, fontSize: 14, color: ui.text },
+  trustCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
+    padding: 16,
+    borderRadius: radii.card,
+    backgroundColor: ui.brandSoft,
   },
-  fromLabel: { fontFamily: fonts.bodyBold, fontSize: 9.5, letterSpacing: 1, color: ui.textTertiary },
-  footerPrice: { fontFamily: fonts.displayExtra, fontSize: 22, color: ui.text },
-  bookBtnWrap: { flex: 1 },
+  trustRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5 },
+  trustText: { flex: 1, fontFamily: fonts.bodyMedium, fontSize: 13.5, color: ui.text },
+  trustSeal: {
+    width: 60,
+    height: 60,
+    borderRadius: radii.control,
+    backgroundColor: ui.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guarantee: { marginTop: 12, fontFamily: fonts.body, fontSize: 13, lineHeight: 19, color: ui.textSecondary },
+  ratingSummary: { flexDirection: 'row', alignItems: 'center', gap: 18, marginBottom: 18 },
+  ratingBig: { width: 92 },
+  ratingBigRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ratingBigText: { fontFamily: fonts.displaySemi, fontSize: 30, letterSpacing: -0.8, color: ui.text },
+  ratingBigSub: { marginTop: 2, fontFamily: fonts.bodyMedium, fontSize: 13, color: ui.textSecondary },
+  bars: { flex: 1, gap: 5 },
+  barRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  barLabelRow: { width: 24, flexDirection: 'row', alignItems: 'center', gap: 2 },
+  barLabel: { fontFamily: fonts.bodySemi, fontSize: 12, color: ui.text },
+  barTrack: { flex: 1, height: 5, borderRadius: 3, backgroundColor: ui.surfaceMuted, overflow: 'hidden' },
+  barFill: { height: 5, borderRadius: 3, backgroundColor: ui.text },
+  barCount: { width: 24, textAlign: 'right', fontFamily: fonts.body, fontSize: 12, color: ui.textSecondary },
+  reviewsHeading: { ...typeScale.section, fontSize: 17, lineHeight: 23, color: ui.text, marginBottom: 4 },
+  seeAll: {
+    marginTop: 6,
+    height: 48,
+    borderRadius: radii.control,
+    borderWidth: 1,
+    borderColor: ui.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  seeAllText: { ...typeScale.button, color: ui.brand },
+  review: { paddingVertical: 14 },
+  reviewBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ui.border },
+  reviewHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  reviewName: { fontFamily: fonts.bodyBold, fontSize: 14, color: ui.text },
+  reviewDate: { marginTop: 2, fontFamily: fonts.body, fontSize: 12, color: ui.textTertiary },
+  reviewStars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    height: 22,
+    borderRadius: radii.pill,
+    backgroundColor: ui.brand,
+  },
+  reviewStarsText: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.white },
+  reviewText: { marginTop: 8, fontFamily: fonts.body, fontSize: 13.5, lineHeight: 20, color: ui.text },
+  reply: { marginTop: 10, padding: 12, borderRadius: radii.thumb, backgroundColor: ui.surfaceMuted, borderLeftWidth: 3, borderLeftColor: ui.brand },
+  replyTitle: { fontFamily: fonts.bodySemi, fontSize: 12, color: ui.brand },
+  replyText: { marginTop: 3, fontFamily: fonts.body, fontSize: 13, lineHeight: 19, color: ui.text },
+  shareBlock: { alignItems: 'center', gap: 12 },
+  shareText: { fontFamily: fonts.bodyMedium, fontSize: 13, color: ui.textSecondary },
+  shareBtnWrap: { alignSelf: 'stretch' },
+  shareBtn: {
+    height: 48,
+    borderRadius: radii.control,
+    borderWidth: 1,
+    borderColor: ui.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  shareBtnText: { fontFamily: fonts.bodyBold, fontSize: 14, color: ui.brand },
+  topBar: { position: 'absolute', top: 0, left: 0, right: 0 },
+  topBarBg: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: colors.white,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: ui.border,
+  },
+  topBarRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: PAD },
+  topBarTitle: { flex: 1, fontFamily: fonts.bodyBold, fontSize: 15, color: ui.text },
+  circleBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.pill,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...ui.shadow,
+  },
+  footerRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  footerPrice: { ...typeScale.priceLg, color: ui.text },
+  footerSub: { marginTop: 1, fontFamily: fonts.bodyMedium, fontSize: 12, color: ui.textSecondary },
+  bookWrap: { flexShrink: 0 },
   bookBtn: {
-    flexDirection: 'row',
+    height: 52,
+    paddingHorizontal: 34,
+    borderRadius: radii.control,
+    backgroundColor: ui.brand,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 9,
-    minHeight: 52,
-    borderRadius: 14,
-    backgroundColor: ui.brand,
   },
-  bookBtnText: { fontFamily: fonts.displayExtra, fontSize: 15, color: colors.white },
-  pressed: { transform: [{ scale: 0.98 }], opacity: 0.95 },
-  pressedSm: { transform: [{ scale: 0.92 }] },
-  spacing: { height: spacing.md },
+  bookText: { ...typeScale.button, fontSize: 15, color: colors.white },
 });

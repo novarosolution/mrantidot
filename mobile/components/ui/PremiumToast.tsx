@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import { useEffect, useRef } from 'react';
 import {
   Animated,
+  Easing,
   Platform,
   Pressable,
   StyleSheet,
@@ -15,113 +16,83 @@ import Toast from 'react-native-toast-message';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { colors, fonts, premium, shadows, spacing, surfaces } from '@/constants/theme';
+import { DEFAULT_CUSTOMER_UI_COPY } from '@/constants/customerUiCopy';
+import { colors, fonts, premium, shadows, spacing, surfaces, toastTones } from '@/constants/theme';
+import type { CustomerUiCopy } from '@/types/api';
 
 type ToastVariant = 'success' | 'error' | 'info' | 'warning' | 'offline';
 
 type ToastExtraProps = {
   duration?: number;
+  /** Optional text button next to the close button ("Undo"); pressing it runs `onAction` and hides the toast. */
+  actionLabel?: string;
+  onAction?: () => void;
 };
+
+type CopyKey = 'toastLabelSuccess' | 'toastLabelError' | 'toastLabelInfo' | 'toastLabelWarning' | 'toastLabelOffline';
+
+type ToastCopy = Pick<CustomerUiCopy, CopyKey | 'toastDismiss'>;
+
+function pickToastCopy(c: ToastCopy): ToastCopy {
+  return {
+    toastLabelSuccess: c.toastLabelSuccess,
+    toastLabelError: c.toastLabelError,
+    toastLabelInfo: c.toastLabelInfo,
+    toastLabelWarning: c.toastLabelWarning,
+    toastLabelOffline: c.toastLabelOffline,
+    toastDismiss: c.toastDismiss,
+  };
+}
+
+/**
+ * Toast labels (variant eyebrow + dismiss button). The root toast host in app/_layout.tsx sits inside the
+ * content provider and keeps these in sync with the admin copy through setToastCopy. This file must not
+ * import the content context itself: that closed a require cycle (AppContentContext → api → toast → here).
+ */
+let toastCopy: ToastCopy = pickToastCopy(DEFAULT_CUSTOMER_UI_COPY);
+
+export function setToastCopy(copy: ToastCopy): void {
+  toastCopy = pickToastCopy(copy);
+}
 
 const VARIANT_META: Record<
   ToastVariant,
   {
-    label: string;
+    labelKey: CopyKey;
     icon: LucideIcon;
-    accent: string;
     accentSoft: string;
-    iconColor: string;
     badgeColor: string;
     gradient: readonly [string, string];
     progress: string;
     border: string;
   }
 > = {
-  success: {
-    label: 'Success',
-    icon: AppIcons.toast.success,
-    accent: colors.forest,
-    accentSoft: 'rgba(31,154,62,0.14)',
-    iconColor: colors.forest,
-    badgeColor: colors.green,
-    gradient: [colors.forest, colors.green],
-    progress: colors.green,
-    border: 'rgba(180,220,165,0.95)',
-  },
-  error: {
-    label: 'Error',
-    icon: AppIcons.toast.error,
-    accent: colors.error,
-    accentSoft: colors.errorBg,
-    iconColor: colors.error,
-    badgeColor: colors.error,
-    gradient: ['#9B3412', '#C0492E'],
-    progress: '#C0492E',
-    border: 'rgba(245,180,160,0.9)',
-  },
-  info: {
-    label: 'Info',
-    icon: AppIcons.toast.info,
-    accent: colors.secondaryDark,
-    accentSoft: colors.secondarySoft,
-    iconColor: colors.secondaryInk,
-    badgeColor: colors.secondary,
-    gradient: ['#22685E', '#3A9688'],
-    progress: '#3A9688',
-    border: 'rgba(160,210,200,0.95)',
-  },
-  warning: {
-    label: 'Notice',
-    icon: AppIcons.toast.warn,
-    accent: premium.accentGold,
-    accentSoft: premium.accentGoldBg,
-    iconColor: colors.amberInk,
-    badgeColor: colors.amberInk,
-    gradient: ['#B6841C', '#D4A017'],
-    progress: '#D4A017',
-    border: 'rgba(245,184,46,0.55)',
-  },
-  offline: {
-    label: 'Offline',
-    icon: AppIcons.toast.offline,
-    accent: colors.muted,
-    accentSoft: colors.greyBg,
-    iconColor: colors.ink,
-    badgeColor: '#4B5563',
-    gradient: ['#374151', '#6E8075'],
-    progress: '#6E8075',
-    border: 'rgba(160,175,165,0.85)',
-  },
+  success: { labelKey: 'toastLabelSuccess', icon: AppIcons.toast.success, badgeColor: colors.green, ...toastTones.success },
+  error: { labelKey: 'toastLabelError', icon: AppIcons.toast.error, badgeColor: colors.error, ...toastTones.error },
+  info: { labelKey: 'toastLabelInfo', icon: AppIcons.toast.info, badgeColor: colors.secondary, ...toastTones.info },
+  warning: { labelKey: 'toastLabelWarning', icon: AppIcons.toast.warn, badgeColor: colors.amberInk, ...toastTones.warning },
+  offline: { labelKey: 'toastLabelOffline', icon: AppIcons.toast.offline, badgeColor: toastTones.offline.badge, ...toastTones.offline },
 };
 
+/** Time-left rail: a native-driven scaleX from the left edge (no per-frame layout on the JS thread). */
 function ProgressRail({ color, duration }: { color: string; duration: number }) {
-  const width = useRef(new Animated.Value(1)).current;
+  const progress = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    width.setValue(1);
-    const anim = Animated.timing(width, {
+    progress.setValue(1);
+    const anim = Animated.timing(progress, {
       toValue: 0,
       duration: Math.max(800, duration),
-      useNativeDriver: false,
+      easing: Easing.linear,
+      useNativeDriver: true,
     });
     anim.start();
     return () => anim.stop();
-  }, [duration, width]);
+  }, [duration, progress]);
 
   return (
     <View style={styles.progressTrack}>
-      <Animated.View
-        style={[
-          styles.progressFill,
-          {
-            backgroundColor: color,
-            width: width.interpolate({
-              inputRange: [0, 1],
-              outputRange: ['0%', '100%'],
-            }),
-          },
-        ]}
-      />
+      <Animated.View style={[styles.progressFill, { backgroundColor: color, transform: [{ scaleX: progress }] }]} />
     </View>
   );
 }
@@ -133,6 +104,8 @@ function PremiumToastCard({
   duration,
   onPress,
   onHide,
+  actionLabel,
+  onAction,
 }: {
   variant: ToastVariant;
   title?: string;
@@ -140,8 +113,11 @@ function PremiumToastCard({
   duration: number;
   onPress?: () => void;
   onHide?: () => void;
+  actionLabel?: string;
+  onAction?: () => void;
 }) {
   const meta = VARIANT_META[variant];
+  const label = toastCopy[meta.labelKey];
   const enter = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -183,7 +159,7 @@ function PremiumToastCard({
         }}
         style={({ pressed }) => [styles.press, pressed && styles.pressActive]}
         accessibilityRole="alert"
-        accessibilityLabel={[meta.label, title, message].filter(Boolean).join('. ')}
+        accessibilityLabel={[label, title, message].filter(Boolean).join('. ')}
       >
         <View style={[styles.card, { borderColor: meta.border }]}>
           {Platform.OS !== 'web' ? (
@@ -212,7 +188,7 @@ function PremiumToastCard({
               <PremiumIcon icon={meta.icon} variant="plain" size={18} color={colors.white} strokeWidth={2.35} />
             </LinearGradient>
             <View style={styles.body}>
-              <Text style={[styles.badge, { color: meta.badgeColor }]}>{meta.label}</Text>
+              <Text style={[styles.badge, { color: meta.badgeColor }]}>{label}</Text>
               {title ? (
                 <Text style={styles.title} numberOfLines={2}>
                   {title}
@@ -224,6 +200,23 @@ function PremiumToastCard({
                 </Text>
               ) : null}
             </View>
+            {actionLabel && onAction ? (
+              <Pressable
+                hitSlop={8}
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  onAction();
+                  onHide?.();
+                }}
+                style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}
+                accessibilityRole="button"
+                accessibilityLabel={actionLabel}
+              >
+                <Text style={[styles.actionText, { color: meta.badgeColor }]} numberOfLines={1}>
+                  {actionLabel}
+                </Text>
+              </Pressable>
+            ) : null}
             <Pressable
               hitSlop={10}
               onPress={(e) => {
@@ -232,7 +225,7 @@ function PremiumToastCard({
               }}
               style={styles.dismiss}
               accessibilityRole="button"
-              accessibilityLabel="Dismiss notification"
+              accessibilityLabel={toastCopy.toastDismiss}
             >
               <PremiumIcon icon={AppIcons.ui.close} variant="plain" size={15} color={colors.muted} strokeWidth={2.2} />
             </Pressable>
@@ -255,6 +248,8 @@ function makeRenderer(variant: ToastVariant) {
         duration={duration}
         onPress={params.onPress}
         onHide={params.hide}
+        actionLabel={params.props?.actionLabel}
+        onAction={params.props?.onAction}
       />
     );
   };
@@ -295,6 +290,9 @@ export type AppToastOptions = {
   type?: AppToastType;
   duration?: number;
   onPress?: () => void;
+  /** Text button on the toast, e.g. "Undo" — give the toast a longer `duration` (~8 s) with it. */
+  actionLabel?: string;
+  onAction?: () => void;
 };
 
 /** Preferred in-app toast helper — consistent timing, position, and premium styling. */
@@ -304,6 +302,8 @@ export function appToast({
   type = 'success',
   duration,
   onPress,
+  actionLabel,
+  onAction,
 }: AppToastOptions): void {
   const visibilityTime = duration ?? TOAST_DEFAULTS.visibilityTimeFor(type);
   Toast.show({
@@ -315,7 +315,7 @@ export function appToast({
     autoHide: true,
     swipeable: true,
     onPress,
-    props: { duration: visibilityTime } satisfies ToastExtraProps,
+    props: { duration: visibilityTime, actionLabel, onAction } satisfies ToastExtraProps,
   });
 }
 
@@ -401,6 +401,19 @@ const styles = StyleSheet.create({
     color: colors.muted,
     marginTop: 3,
   },
+  action: {
+    height: 30,
+    paddingHorizontal: 12,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(180,220,165,0.75)',
+    marginTop: 1,
+  },
+  actionPressed: { opacity: 0.7 },
+  actionText: { fontFamily: fonts.bodyBold, fontSize: 13, letterSpacing: 0.1 },
   dismiss: {
     width: 28,
     height: 28,
@@ -418,7 +431,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    borderTopRightRadius: 2,
-    borderBottomRightRadius: 2,
+    width: '100%',
+    transformOrigin: 'left',
   },
 });

@@ -2,7 +2,7 @@ import { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
 import { AppIcons } from '@/constants/appIcons';
-import { colors, customerType, premium, spacing } from '@/constants/theme';
+import { colors, customerType, spacing } from '@/constants/theme';
 
 export function PremiumSectionHeader({
   title,
@@ -12,7 +12,6 @@ export function PremiumSectionHeader({
   rightAction,
   style,
   compact,
-  showRule = false,
 }: {
   title: string;
   subtitle?: string;
@@ -23,7 +22,6 @@ export function PremiumSectionHeader({
   /** Smaller title & spacing for dense home sections. */
   compact?: boolean;
   /** Accent underline — off by default in the white premium theme. */
-  showRule?: boolean;
 }) {
   return (
     <View style={[styles.block, compact && styles.blockCompact, style]}>
@@ -40,12 +38,6 @@ export function PremiumSectionHeader({
           </Pressable>
         ) : null}
       </View>
-      {showRule ? (
-        <View style={styles.rule}>
-          <View style={[styles.ruleAccent, compact && styles.ruleAccentCompact]} />
-          <View style={styles.ruleLine} />
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -71,9 +63,15 @@ const styles = StyleSheet.create({
   },
   titleCompact: {
     ...customerType.sectionTitleCompact,
+    fontSize: 17,
+    lineHeight: 23,
   },
+  /** Grey secondary line — the shared caption style has no colour of its own. */
   subtitle: {
     ...customerType.sectionSubtitle,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: colors.muted,
   },
   link: { ...customerType.sectionLink },
   action: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -88,26 +86,5 @@ const styles = StyleSheet.create({
   actionIconCompact: {
     width: 24,
     height: 24,
-  },
-  rule: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.sm,
-    gap: spacing.sm,
-  },
-  ruleAccent: {
-    width: 32,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: premium.accentGold,
-  },
-  ruleAccentCompact: {
-    width: 24,
-    height: 2,
-  },
-  ruleLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
   },
 });

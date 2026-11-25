@@ -21,6 +21,7 @@ import type { ServiceCategory } from '../models/Service';
 import type { ServiceTypeKey } from '../constants/serviceTypes';
 import type { PropertyTypeKey } from '../constants/propertyTypes';
 import { PROPERTY_TYPE_KEYS } from '../constants/propertyTypes';
+import { defaultServiceContent } from '../constants/serviceContentDefaults';
 
 const SEED_MARKER = 'mrantidot-stage-d';
 
@@ -347,15 +348,19 @@ async function upsertService(entry: SeedService): Promise<IService> {
   const service = await Service.findOneAndUpdate(
     { name: entry.name },
     {
-      name: entry.name,
-      iconKey: entry.iconKey,
-      basePrice: entry.basePrice,
-      shortDesc: entry.shortDesc,
-      stepTemplate: entry.stepTemplate,
-      category: entry.category,
-      serviceTypes: entry.serviceTypes ?? [],
-      active: true,
-      rating: 4.8,
+      $set: {
+        name: entry.name,
+        iconKey: entry.iconKey,
+        basePrice: entry.basePrice,
+        shortDesc: entry.shortDesc,
+        stepTemplate: entry.stepTemplate,
+        category: entry.category,
+        serviceTypes: entry.serviceTypes ?? [],
+        active: true,
+        rating: 4.8,
+      },
+      // Detail content only on first insert, so re-seeding never overwrites the admin's edits.
+      $setOnInsert: defaultServiceContent(entry),
     },
     { upsert: true, new: true },
   );

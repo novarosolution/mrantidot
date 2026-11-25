@@ -228,6 +228,14 @@ export function PremiumIcon({
       boxSize ??
       (variant === 'plain' ? px + 8 : variant === 'premium' ? 52 : variant === 'gradient' ? 48 : 50);
     const r = Math.round(box * 0.3);
+    // The generated JPG tiles have mismatched white/mint backgrounds; a vector icon on one tint stays uniform.
+    if (Icon) {
+      return (
+        <View style={[styles.mintTile, { width: box, height: box, borderRadius: r }, style]}>
+          <Icon size={Math.round(box * 0.46)} color={colors.forest} strokeWidth={2} />
+        </View>
+      );
+    }
     return (
       <View style={[{ width: box, height: box, borderRadius: r, overflow: 'hidden' }, style]}>
         <Image source={image} style={{ width: box, height: box }} resizeMode="cover" />
@@ -377,9 +385,9 @@ export function KitTabBarIcon({
 }) {
   const tint = typeof color === 'string' ? color : colors.forest;
   return (
-    <View style={styles.tabWrap}>
+    <View style={[styles.tabWrap, focused && styles.tabWrapOn]}>
       <Icon
-        size={24}
+        size={22}
         color={tint}
         strokeWidth={focused ? 2.2 : 1.8}
         fill={focused ? softFill(tint, '2E') : 'transparent'}
@@ -390,6 +398,7 @@ export function KitTabBarIcon({
 }
 
 const styles = StyleSheet.create({
+  mintTile: { alignItems: 'center', justifyContent: 'center', backgroundColor: ui.brandSoft },
   softShine: {
     position: 'absolute',
     top: 0,
@@ -414,8 +423,12 @@ const styles = StyleSheet.create({
   tabWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    height: 28,
+    width: 50,
+    height: 30,
+    borderRadius: 15,
   },
+  /** Active tab is shown by its filled icon and tint — no capsule behind it. */
+  tabWrapOn: {},
   tabActiveShell: {
     borderRadius: 13,
     shadowColor: colors.forest,

@@ -8,6 +8,7 @@ import { OtpBoxes } from '@/components/kit/OtpBoxes';
 import { useAuth } from '@/context/AuthContext';
 import { useAppContent } from '@/context/AppContentContext';
 import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
+import { fillCopy } from '@/constants/customerUiCopy';
 import { api, getApiErrorMessage } from '@/lib/api';
 import { formatLoginIdentifier } from '@/lib/phone';
 import { appToast } from '@/lib/toast';
@@ -52,11 +53,11 @@ function OtpScreenBody() {
   async function sendOtp() {
     const normalized = formatLoginIdentifier(phone);
     if (!normalized) {
-      setPhoneError('Required');
+      setPhoneError(ui.authRequired);
       return;
     }
     if (normalized.length < 10) {
-      setPhoneError('Enter a valid mobile number');
+      setPhoneError(ui.otpInvalidPhone);
       return;
     }
     setPhoneError(undefined);
@@ -71,7 +72,7 @@ function OtpScreenBody() {
       setCode('');
       setCodeError(undefined);
     } catch (err) {
-      appToast.error('Could not send code', getApiErrorMessage(err, 'Try password sign-in instead'));
+      appToast.error(ui.otpSendFailed, getApiErrorMessage(err, ui.otpSendFailedSub));
     } finally {
       setSending(false);
     }
@@ -82,15 +83,15 @@ function OtpScreenBody() {
     const trimmedCode = code.trim();
 
     if (!normalizedPhone) {
-      setPhoneError('Required');
+      setPhoneError(ui.authRequired);
       return;
     }
     if (!trimmedCode) {
-      setCodeError('Enter the code');
+      setCodeError(ui.otpEnterCode);
       return;
     }
     if (!sentTo) {
-      appToast.info('Send code first', 'Tap Send code to receive your OTP');
+      appToast.info(ui.otpSendFirstTitle, ui.otpSendFirstBody);
       return;
     }
     if (normalizedPhone !== sentTo) {
@@ -104,15 +105,15 @@ function OtpScreenBody() {
     try {
       const signedIn = await otpVerify(sentTo, trimmedCode);
       if (signedIn.role === 'customer' && isProfileIncomplete(signedIn)) {
-        appToast.info('Complete your profile', 'Add your name and email to finish setup.');
+        appToast.info(ui.authCompleteProfileTitle, ui.authCompleteProfileBody);
         appReplace(customerRoutes.settings);
         return;
       }
       appReplace(homeRouteForRole(signedIn.role));
     } catch (err) {
-      const message = getApiErrorMessage(err, 'Invalid code');
+      const message = getApiErrorMessage(err, ui.otpInvalidCode);
       setCodeError(message);
-      appToast.error('OTP failed', message);
+      appToast.error(ui.otpFailed, message);
     } finally {
       setLoading(false);
     }
@@ -127,19 +128,20 @@ function OtpScreenBody() {
       showBack
       footer={
         <>
-          <Text style={authScreenStyles.footer}>Prefer password? </Text>
+          <Text style={authScreenStyles.footer}>{ui.otpPreferPassword} </Text>
           <Link href={authRoutes.login}>
-            <Text style={authScreenStyles.footerLink}>Sign in</Text>
+            <Text style={authScreenStyles.footerLink}>{ui.authSignInLink}</Text>
           </Link>
         </>
       }
     >
       <AuthField
-        label="Mobile number"
+        label={ui.otpPhoneLabel}
         icon={Smartphone}
         value={phone}
         onChangeText={(t) => {
-          setPhone(t);
+          // phone-pad blocks letters on the soft keyboard, not on a hardware one
+          setPhone(t.replace(/[^\d+]/g, ''));
           if (phoneError) setPhoneError(undefined);
         }}
         placeholder="10-digit mobile number"
@@ -152,8 +154,8 @@ function OtpScreenBody() {
       {sentTo ? (
         <View style={styles.codeBlock}>
           <View style={styles.codeHead}>
-            <Text style={styles.codeLabel}>Enter 4-digit code</Text>
-            <Text style={styles.codeSentTo}>Sent to {maskPhone(sentTo)}</Text>
+            <Text style={styles.codeLabel}>{fillCopy(ui.otpEnterDigits, { count: 4 })}</Text>
+            <Text style={styles.codeSentTo}>{fillCopy(ui.otpSentTo, { phone: maskPhone(sentTo) })}</Text>
           </View>
           <OtpBoxes
             autoFocus
@@ -177,7 +179,7 @@ function OtpScreenBody() {
 
           <AuthPrimaryButton
             title={ui.authOtpButton}
-            loadingTitle="Verifying…"
+            loadingTitle={ui.otpVerifying}
             loading={loading}
             onPress={() => void verify()}
           />
@@ -185,8 +187,8 @@ function OtpScreenBody() {
       ) : (
         <View style={styles.sendWrap}>
           <AuthPrimaryButton
-            title="Send code"
-            loadingTitle="Sending code…"
+            title={ui.otpSendButton}
+            loadingTitle={ui.otpSending}
             loading={sending}
             onPress={() => void sendOtp()}
           />

@@ -1,15 +1,17 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ImageSourcePropType } from 'react-native';
 import { Search, X } from 'lucide-react-native';
 import { PremiumIcon } from '@/components/kit/PremiumIcon';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { AppIcons } from '@/constants/appIcons';
 import { AdminGoldBar } from '@/components/kit/AdminScreenKit';
 import { GlassPanel } from '@/components/kit/GlassScreenKit';
 import { adminShadow } from '@/components/kit/homeUi';
-import { ADMIN_QUICK_COLS, adminGridCellWidth } from '@/lib/adminGrid';
-import { adminSurfaces, adminType, colors, fonts, premium, spacing } from '@/constants/theme';
+import { ADMIN_QUICK_COLS, useAdminGridCellWidth } from '@/lib/adminGrid';
+import { haptic } from '@/lib/motion';
+import { webTitle } from '@/lib/webKeys';
+import { adminSurfaces, adminType, colors, fonts, premium, spacing, ui } from '@/constants/theme';
 
 export function AdminQuickGrid({
   items,
@@ -19,27 +21,27 @@ export function AdminQuickGrid({
   onPress: (key: string) => void;
 }) {
   const cols = items.length === 4 ? 4 : ADMIN_QUICK_COLS;
-  const tileWidth = adminGridCellWidth(cols);
+  // Re-measures on window resize and when the desktop sidebar collapses.
+  const tileWidth = useAdminGridCellWidth(cols);
 
   return (
     <View style={styles.quickGrid}>
-      {items.map(({ key, icon: Icon, label, image }) => (
-        <Pressable
+      {items.map(({ key, icon: Icon, label }) => (
+        <PressableScale
           key={key}
-          style={({ pressed }) => [{ width: tileWidth }, pressed && styles.pressed]}
+          containerStyle={{ width: tileWidth }}
+          style={styles.quickTile}
           onPress={() => onPress(key)}
+          accessibilityRole="button"
+          accessibilityLabel={label}
         >
-          <View style={styles.quickShell}>
-            <GlassPanel style={styles.quickTile} padded={false} tone="clear" intensity={40} goldEdge>
-              <View style={styles.quickInner}>
-                <PremiumIcon icon={Icon} image={image} variant="premium" size={18} color={colors.white} boxSize={44} />
-                <Text style={styles.quickLabel} numberOfLines={1}>
-                  {label}
-                </Text>
-              </View>
-            </GlassPanel>
+          <View style={styles.quickIcon}>
+            <Icon size={21} color={colors.forest} strokeWidth={2} />
           </View>
-        </Pressable>
+          <Text style={styles.quickLabel} numberOfLines={1}>
+            {label}
+          </Text>
+        </PressableScale>
       ))}
     </View>
   );
@@ -49,17 +51,20 @@ export function AdminFilterChips({
   chips,
   selected,
   onSelect,
+  inset,
 }: {
   chips: { key: string; label: string; disabled?: boolean }[];
   selected: string;
   onSelect: (key: string) => void;
+  /** Pad the first chip when the row spans the full screen width. */
+  inset?: boolean;
 }) {
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       style={styles.chipsScroll}
-      contentContainerStyle={styles.chipsWrap}
+      contentContainerStyle={[styles.chipsWrap, inset && { paddingLeft: spacing.md }]}
       keyboardShouldPersistTaps="handled"
     >
       {chips.map((c) => {
@@ -73,26 +78,19 @@ export function AdminFilterChips({
             disabled={locked}
             onPress={() => {
               if (locked) return;
+              haptic('select');
               onSelect(c.key);
             }}
             style={({ pressed }) => [pressed && !locked && styles.chipPressed, locked && styles.chipLocked]}
           >
-            {active ? (
-              <View style={styles.chipActiveShell}>
-                <LinearGradient
-                  colors={[colors.limeBright, colors.forestMid, colors.forest]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={[styles.chip, styles.chipActive, locked && styles.chipActiveLocked]}
-                >
-                  <Text style={[styles.chipText, styles.chipTextActive]}>{c.label}</Text>
-                </LinearGradient>
-              </View>
-            ) : (
-              <View style={[styles.chip, locked && styles.chipDisabled]}>
-                <Text style={[styles.chipText, locked && styles.chipTextDisabled]}>{c.label}</Text>
-              </View>
-            )}
+            <View style={[styles.chip, active && styles.chipActive, locked && styles.chipDisabled]}>
+              <Text
+                style={[styles.chipText, active && styles.chipTextActive, locked && styles.chipTextDisabled]}
+                numberOfLines={1}
+              >
+                {c.label}
+              </Text>
+            </View>
           </Pressable>
         );
       })}
@@ -112,12 +110,12 @@ export function AdminSearchField({
   const [focused, setFocused] = useState(false);
   return (
     <View style={[styles.search, focused && styles.searchFocused]}>
-      <Search size={18} color={focused ? colors.forest : colors.muted} strokeWidth={2.2} />
+      <Search size={18} color={focused ? ui.brand : ui.textTertiary} strokeWidth={2.2} />
       <TextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={colors.muted}
+        placeholderTextColor={ui.textTertiary}
         style={styles.searchInput}
         autoCorrect={false}
         autoCapitalize="none"
@@ -128,7 +126,14 @@ export function AdminSearchField({
         accessibilityLabel={placeholder}
       />
       {value ? (
-        <Pressable onPress={() => onChangeText('')} hitSlop={10} accessibilityLabel="Clear search" style={styles.searchClear}>
+        <Pressable
+          ref={webTitle('Clear search')}
+          onPress={() => onChangeText('')}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Clear search"
+          style={styles.searchClear}
+        >
           <X size={13} color={colors.white} strokeWidth={3} />
         </Pressable>
       ) : null}
@@ -151,8 +156,12 @@ export function AdminStatStrip({
           <View style={styles.stripRow}>
             {items.map((item, index) => (
               <View key={item.label} style={[styles.stripCell, index < items.length - 1 && styles.stripBorder]}>
-                <Text style={[styles.stripValue, { color: item.color ?? colors.forest }]}>{item.value}</Text>
-                <Text style={styles.stripLabel}>{item.label}</Text>
+                <Text style={[styles.stripValue, item.color ? { color: item.color } : null]} numberOfLines={1}>
+                  {item.value}
+                </Text>
+                <Text style={styles.stripLabel} numberOfLines={1}>
+                  {item.label}
+                </Text>
               </View>
             ))}
           </View>
@@ -171,41 +180,45 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     width: '100%',
   },
-  quickShell: {
+  quickTile: {
+    alignItems: 'center',
+    gap: 9,
+    paddingTop: 14,
+    paddingBottom: 12,
     borderRadius: 18,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: ui.hairline,
     ...adminShadow.tile,
   },
-  quickTile: {
-    borderRadius: 18,
-  },
-  quickInner: {
+  quickIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: ui.brandSoft,
     alignItems: 'center',
-    paddingVertical: spacing.sm + 2,
-    paddingTop: spacing.sm + 8,
-    gap: 8,
+    justifyContent: 'center',
   },
-  pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
-  quickLabel: { ...adminType.quickLabel, color: colors.ink },
+  quickLabel: { ...adminType.quickLabel, fontSize: 12, color: ui.text },
   search: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     height: 48,
     paddingHorizontal: 14,
-    borderRadius: 16,
+    borderRadius: 14,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: adminSurfaces.cardBorder,
+    borderColor: ui.border,
     marginBottom: spacing.sm,
-    ...adminShadow.soft,
   },
-  searchFocused: { borderColor: colors.forest },
-  searchInput: { flex: 1, fontFamily: fonts.body, fontSize: 15, color: colors.ink, paddingVertical: 0 },
+  searchFocused: { borderColor: ui.brand },
+  searchInput: { flex: 1, fontFamily: fonts.body, fontSize: 15, color: ui.text, paddingVertical: 0 },
   searchClear: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: colors.muted,
+    backgroundColor: ui.textTertiary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -217,30 +230,27 @@ const styles = StyleSheet.create({
     paddingRight: spacing.md,
   },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    height: 36,
+    justifyContent: 'center',
+    paddingHorizontal: 15,
     borderRadius: 999,
-    backgroundColor: adminSurfaces.chipBg,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: adminSurfaces.chipBorder,
-  },
-  chipActiveShell: {
-    borderRadius: 999,
-    ...adminShadow.soft,
+    borderColor: ui.border,
   },
   chipActive: {
-    borderWidth: 0,
+    backgroundColor: ui.text,
+    borderColor: ui.text,
   },
   chipPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
   chipLocked: { opacity: 0.72 },
   chipDisabled: {
-    backgroundColor: 'rgba(238,242,238,0.9)',
-    borderColor: 'rgba(92,138,99,0.18)',
+    backgroundColor: ui.surfaceMuted,
+    borderColor: ui.hairline,
   },
-  chipActiveLocked: { opacity: 0.85 },
-  chipText: { ...adminType.chipText, color: colors.ink },
+  chipText: { ...adminType.chipText, color: ui.text },
   chipTextActive: { color: colors.white },
-  chipTextDisabled: { color: colors.muted },
+  chipTextDisabled: { color: ui.textTertiary },
   stripOuter: {
     marginHorizontal: spacing.md,
     marginBottom: spacing.sm,
@@ -267,8 +277,8 @@ const styles = StyleSheet.create({
     borderRightWidth: StyleSheet.hairlineWidth,
     borderRightColor: adminSurfaces.cardBorder,
   },
-  stripValue: { ...adminType.statValue, color: colors.ink },
-  stripLabel: { ...adminType.statLabel, marginTop: 2, color: colors.muted },
+  stripValue: { ...adminType.statValue, color: ui.text },
+  stripLabel: { ...adminType.statLabel, marginTop: 2 },
 });
 
 /** Glass form surface with gold top accent — used on content & edit screens. */
@@ -338,6 +348,8 @@ export function AdminCollapsibleCard({
         <Pressable
           onPress={() => setOpen((v) => !v)}
           style={({ pressed }) => [collapseStyles.head, pressed && collapseStyles.pressed]}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: open }}
         >
           <View style={collapseStyles.headText}>
             <Text style={collapseStyles.title}>{title}</Text>
@@ -409,7 +421,7 @@ const collapseStyles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#F3FAEF',
+    backgroundColor: ui.brandSoft,
     borderWidth: 1,
     borderColor: adminSurfaces.chipBorder,
     alignItems: 'center',

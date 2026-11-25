@@ -5,6 +5,7 @@ import { AppIcons } from '@/constants/appIcons';
 import { trackingEventLabel } from '@/lib/booking-helpers';
 import type { TrackingEvent } from '@/types/api';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 const EVENT_ICONS: Record<string, LucideIcon> = {
   assigned: AppIcons.ui.shieldCheck,
@@ -17,6 +18,8 @@ const EVENT_ICONS: Record<string, LucideIcon> = {
   admin_override: AppIcons.ui.check,
   schedule_confirmed: AppIcons.ui.calendarCheck,
   rescheduled: AppIcons.ui.calendarClock,
+  reopened: AppIcons.ui.refresh,
+  order_updated: AppIcons.ui.rupee,
 };
 
 function formatTime(iso: string): string {
@@ -34,10 +37,11 @@ function formatTime(iso: string): string {
 }
 
 export function BookingTrackingTimeline({ events }: { events: TrackingEvent[] }) {
+  const copy = useCustomerUiCopy();
   if (events.length === 0) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyText}>No activity yet</Text>
+        <Text style={styles.emptyText}>{copy.trackingEmpty}</Text>
       </View>
     );
   }
@@ -51,8 +55,8 @@ export function BookingTrackingTimeline({ events }: { events: TrackingEvent[] })
         const isLast = i === sorted.length - 1;
         const stepTitle =
           item.event === 'step_done' && item.meta?.title
-            ? `${trackingEventLabel(item.event)}: ${String(item.meta.title)}`
-            : trackingEventLabel(item.event);
+            ? `${trackingEventLabel(item.event, copy)}: ${String(item.meta.title)}`
+            : trackingEventLabel(item.event, copy);
 
         return (
           <View key={`${item.event}-${item.at}-${i}`} style={styles.row}>

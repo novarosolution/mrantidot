@@ -6,53 +6,16 @@ import {
   Clock,
   Home,
   MapPin,
+  Search,
   ShieldCheck,
-  Sparkles,
 } from 'lucide-react-native';
 import { Button } from '@/components/ui/Button';
 import { colors, fonts, spacing, ui } from '@/constants/theme';
 import { customerRoutes, appPush } from '@/lib/routes';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
-const STEPS = [
-  {
-    icon: Sparkles,
-    title: 'Pick a service',
-    body: 'Browse pest types on Home or Services, then open the service you need.',
-  },
-  {
-    icon: CalendarClock,
-    title: 'Choose date & book time',
-    body: 'Pick a visit day, then choose how you want to book the time (see options below).',
-  },
-  {
-    icon: Home,
-    title: 'Add property details',
-    body: 'Tell us your property type so the technician brings the right treatment.',
-  },
-  {
-    icon: MapPin,
-    title: 'Add your address',
-    body: 'GPS or saved place, then house/flat, optional landmark, and save as Home / Other.',
-  },
-  {
-    icon: CheckCircle2,
-    title: 'Pay & confirm',
-    body: 'Apply a coupon if you have one, choose payment, and place the booking.',
-  },
-] as const;
-
-const TIME_OPTIONS = [
-  {
-    icon: Calendar,
-    title: 'Standard window',
-    body: '2-hour slots · available 24/7 — pick a ready-made visit window.',
-  },
-  {
-    icon: Clock,
-    title: 'Custom time',
-    body: 'Any time · 24/7 — set the exact hour that works best for you.',
-  },
-] as const;
+const STEP_ICONS = [Search, CalendarClock, Home, MapPin, CheckCircle2] as const;
+const TIME_ICONS = [Calendar, Clock] as const;
 
 /** Step-by-step guide that helps customers book a service. */
 export function BookingGuide({
@@ -62,6 +25,18 @@ export function BookingGuide({
   showCta?: boolean;
   compact?: boolean;
 }) {
+  const copy = useCustomerUiCopy();
+  const STEPS = [
+    { icon: STEP_ICONS[0], title: copy.guideStep1Title, body: copy.guideStep1Body },
+    { icon: STEP_ICONS[1], title: copy.guideStep2Title, body: copy.guideStep2Body },
+    { icon: STEP_ICONS[2], title: copy.guideStep3Title, body: copy.guideStep3Body },
+    { icon: STEP_ICONS[3], title: copy.guideStep4Title, body: copy.guideStep4Body },
+    { icon: STEP_ICONS[4], title: copy.guideStep5Title, body: copy.guideStep5Body },
+  ];
+  const TIME_OPTIONS = [
+    { icon: TIME_ICONS[0], title: copy.guideStandardTitle, body: copy.guideStandardBody },
+    { icon: TIME_ICONS[1], title: copy.guideCustomTitle, body: copy.guideCustomBody },
+  ];
   return (
     <View style={styles.wrap}>
       {!compact ? (
@@ -69,10 +44,10 @@ export function BookingGuide({
           <View style={styles.introIcon}>
             <ShieldCheck size={26} color={ui.brand} strokeWidth={1.9} />
           </View>
-          <Text style={styles.introTitle}>Book in 5 easy steps</Text>
-          <Text style={styles.introBody}>
-            Follow this quick guide — pick a service, book your time, and confirm.
+          <Text style={styles.introTitle} accessibilityRole="header">
+            {copy.guideIntroTitle}
           </Text>
+          <Text style={styles.introBody}>{copy.guideIntroBody}</Text>
         </View>
       ) : null}
 
@@ -103,11 +78,9 @@ export function BookingGuide({
       </View>
 
       <View style={styles.timeCard}>
-        <Text style={styles.timeKicker}>BOOK TIME OPTIONS</Text>
-        <Text style={styles.timeHeading}>How do you want to schedule?</Text>
-        <Text style={styles.timeSub}>
-          On the date & time step you can use either option — both work day or night.
-        </Text>
+        <Text style={styles.timeKicker}>{copy.guideTimeKicker}</Text>
+        <Text style={styles.timeHeading}>{copy.guideTimeHeading}</Text>
+        <Text style={styles.timeSub}>{copy.guideTimeSub}</Text>
         {TIME_OPTIONS.map((opt) => {
           const Icon = opt.icon;
           return (
@@ -125,12 +98,10 @@ export function BookingGuide({
       </View>
 
       {showCta ? (
-        <Button
-          title="Start booking"
-          variant="premium"
-          onPress={() => appPush(customerRoutes.services)}
-          style={styles.cta}
-        />
+        // Padding on a wrapper, not margin on the button: the button is width: 100% and would overflow the screen.
+        <View style={styles.cta}>
+          <Button title={copy.guideStart} variant="premium" onPress={() => appPush(customerRoutes.services)} />
+        </View>
       ) : null}
     </View>
   );
@@ -264,5 +235,5 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: ui.hairline,
   },
-  cta: { marginHorizontal: spacing.md, marginTop: 4 },
+  cta: { paddingHorizontal: spacing.md, marginTop: 4 },
 });

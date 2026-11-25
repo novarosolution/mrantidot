@@ -1,11 +1,15 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { BadgeCheck, ShieldCheck } from 'lucide-react-native';
-import { colors, fonts, ui } from '@/constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BadgeCheck, Clock3, Leaf, type LucideIcon } from 'lucide-react-native';
+import { HomeShieldArt } from '@/components/illustrations/HomeArt';
+import { auroraPalette, fonts, ui } from '@/constants/theme';
+import { fillCopy } from '@/constants/customerUiCopy';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
-const DEFAULT_HEADLINE = 'Satisfaction guaranteed';
-const DEFAULT_BADGES = ['Verified pros', 'On-time service', 'Safe chemicals'];
+/** Icons follow the badge order the admin sets (pros → timing → chemicals); extra badges reuse the tick. */
+const BADGE_ICONS: LucideIcon[] = [BadgeCheck, Clock3, Leaf];
 
-/** Brand promise card closing the home feed. */
+/** Brand promise card closing the home feed — shield art, guarantee headline, three benefit tiles. */
 export function HomeTrustStrip({
   brandName,
   guaranteeText,
@@ -15,28 +19,45 @@ export function HomeTrustStrip({
   guaranteeText?: string;
   badges?: string[];
 }) {
+  const copy = useCustomerUiCopy();
   const chipList = (badges ?? []).map((b) => b.trim()).filter(Boolean).slice(0, 3);
-  const items = chipList.length > 0 ? chipList : DEFAULT_BADGES;
-  const headline = guaranteeText?.split('·')[0]?.trim() || DEFAULT_HEADLINE;
+  const fallbackBadges = copy.homeTrustBadges.split(',').map((b) => b.trim()).filter(Boolean);
+  const items = chipList.length > 0 ? chipList : fallbackBadges;
+  const headline = guaranteeText?.split('·')[0]?.trim() || copy.homeTrustHeadline;
 
   return (
     <View style={styles.card}>
-      <View style={styles.text}>
-        <Text style={styles.eyebrow}>{(brandName?.trim() || 'Mr Antidot') + ' promise'}</Text>
-        <Text style={styles.headline}>{headline}</Text>
-        <View style={styles.list}>
-          {items.map((label) => (
-            <View key={label} style={styles.item}>
-              <BadgeCheck size={17} color={ui.brand} strokeWidth={2} fill={ui.brandSoft} />
-              <Text style={styles.itemText} numberOfLines={1}>
+      <LinearGradient
+        colors={[auroraPalette.lightMid, auroraPalette.lightBottom]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+      <View style={styles.ring} pointerEvents="none" />
+      <View style={styles.top}>
+        <View style={styles.text}>
+          <Text style={styles.eyebrow}>{fillCopy(copy.profilePromiseEyebrow, { brand: brandName?.trim() || 'Mr Antidot' })}</Text>
+          <Text style={styles.headline}>{headline}</Text>
+        </View>
+        <View style={styles.seal}>
+          <HomeShieldArt size={82} />
+        </View>
+      </View>
+      <View style={styles.benefits}>
+        {items.map((label, i) => {
+          const Icon = BADGE_ICONS[i] ?? BadgeCheck;
+          return (
+            <View key={label} style={styles.benefit}>
+              <View style={styles.benefitIcon}>
+                <Icon size={18} color={ui.brand} strokeWidth={2.1} />
+              </View>
+              <Text style={styles.benefitText} numberOfLines={2}>
                 {label}
               </Text>
             </View>
-          ))}
-        </View>
-      </View>
-      <View style={styles.seal}>
-        <ShieldCheck size={36} color={ui.brand} strokeWidth={1.6} fill={ui.brandSoft} />
+          );
+        })}
       </View>
     </View>
   );
@@ -44,17 +65,24 @@ export function HomeTrustStrip({
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
     marginHorizontal: 16,
     padding: 20,
-    borderRadius: 22,
-    backgroundColor: colors.white,
+    borderRadius: 26,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: ui.hairline,
-    ...ui.shadow,
+    borderColor: 'rgba(8,123,53,0.10)',
   },
+  ring: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    right: -70,
+    top: -90,
+    borderWidth: 1.5,
+    borderColor: 'rgba(8,123,53,0.08)',
+  },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   text: { flex: 1, minWidth: 0 },
   eyebrow: {
     fontFamily: fonts.bodyBold,
@@ -64,22 +92,48 @@ const styles = StyleSheet.create({
     color: ui.brand,
   },
   headline: {
-    marginTop: 4,
+    marginTop: 5,
     fontFamily: fonts.displayExtra,
-    fontSize: 18,
-    lineHeight: 23,
-    letterSpacing: -0.4,
+    fontSize: 20,
+    lineHeight: 25,
+    letterSpacing: -0.5,
     color: ui.text,
   },
-  list: { marginTop: 14, gap: 10 },
-  item: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  itemText: { flexShrink: 1, fontFamily: fonts.bodyMedium, fontSize: 13.5, color: ui.text },
   seal: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.9)',
+  },
+  benefits: { flexDirection: 'row', gap: 8, marginTop: 18 },
+  benefit: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 7,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.78)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.95)',
+  },
+  benefitIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     backgroundColor: ui.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  benefitText: {
+    fontFamily: fonts.bodySemi,
+    fontSize: 12,
+    lineHeight: 15,
+    textAlign: 'center',
+    color: ui.text,
   },
 });

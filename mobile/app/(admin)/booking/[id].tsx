@@ -1,11 +1,10 @@
+import { useStaleFocusRefresh } from '@/lib/useStaleFocusRefresh';
 import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { adminGoBack, adminRoutes, appPush } from '@/lib/routes';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { adminRoutes, appPush } from '@/lib/routes';
 import { paramString } from '@/lib/routeParams';
+import { AppImage } from '@/components/ui/AppImage';
 import {
-  Alert,
-  Image,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -21,23 +20,34 @@ import { AdminProcessTracker } from '@/components/kit/AdminProcessTracker';
 import { PendingScheduleCard } from '@/components/kit/PendingScheduleCard';
 import { ScheduleEditorForm } from '@/components/kit/ScheduleEditorForm';
 import { BookingFactsCard } from '@/components/kit/BookingFactsCard';
-import { BookingPriceBreakdown } from '@/components/kit/BookingPriceBreakdown';
+import { BookingVisitContactCard } from '@/components/kit/BookingVisitContactCard';
 import { BookingInvoiceCard } from '@/components/kit/BookingInvoiceCard';
+import { AdminCancelSheet } from '@/components/admin/AdminCancelSheet';
+import { AdminBookingNotes } from '@/components/admin/AdminBookingNotes';
+import { AdminBookingPayment } from '@/components/admin/AdminBookingPayment';
+import { AdminOrderEditor } from '@/components/admin/AdminOrderEditor';
+import { AdminOrderHistory } from '@/components/admin/AdminOrderHistory';
+import { useReopenBooking } from '@/components/admin/useReopenBooking';
+import { TechnicianPickerSheet } from '@/components/admin/TechnicianPickerSheet';
+import { PhotoViewer } from '@/components/ui/PhotoViewer';
 import { BookingStatusBanner } from '@/components/kit/BookingStatusBanner';
 import { BookingTrackingTimeline } from '@/components/kit/BookingTrackingTimeline';
 import { JobProgressCard } from '@/components/kit/JobProgressCard';
 import { OtpStatusCard } from '@/components/kit/OtpStatusCard';
 import { AdminListShell, adminListShellStyles } from '@/components/kit/AdminListShell';
-import { AdminActionSheet, type ActionSheetOption } from '@/components/kit/AdminActionSheet';
+import { AdminBottomSheet } from '@/components/kit/AdminBottomSheet';
+import { AdminBookingDetailSkeleton } from '@/components/kit/AdminSkeletons';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { FadeSlideIn } from '@/components/ui/FadeSlideIn';
 import { StickyActionBar } from '@/components/ui/StickyActionBar';
 import { ListEmptyRetry } from '@/components/ui/ListEmptyRetry';
 import { Input } from '@/components/ui/Input';
-import { Spinner } from '@/components/ui/Spinner';
 import { api, getApiErrorMessage, safeAsync, screenLoadConfig } from '@/lib/api';
+import { haptic, stagger } from '@/lib/motion';
 import { stepPhotoUrls } from '@/lib/stepPhotos';
-import { DEFAULT_BOOKING_SLOT } from '@/lib/dates';
+import { DEFAULT_BOOKING_SLOT, isSlotStarted, isTimeStarted, localDateKey } from '@/lib/dates';
+import { firstOpenSlot } from '@/components/kit/ScheduleSlotPicker';
 import {
   bookingCustomerName,
   bookingRef,
@@ -52,17 +62,31 @@ import {
   isTerminalBookingStatus,
   isVerificationPhase,
 } from '@/lib/booking-helpers';
-import { assignableTechnicians } from '@/lib/user-helpers';
 import { useBookingCopy } from '@/lib/schedule-copy';
 import { mediaUrl } from '@/lib/images';
-import type { Booking, ScheduleMode, User, WorkOtpAdminView } from '@/types/api';
-import { colors, fonts, premium, spacing, surfaces } from '@/constants/theme';
+import type { Booking, ScheduleMode, WorkOtpAdminView } from '@/types/api';
+import { colors, fonts, spacing, surfaces, ui } from '@/constants/theme';
+
+/** "Asha (admin)", "the customer"… — who cancelled, for the cancelled card. */
+function cancelActorLabel(actor: Booking['cancelledBy']): string {
+  if (!actor) return 'unknown';
+  if (actor.role === 'admin') return actor.name ? `${actor.name} (admin)` : 'an admin';
+  return actor.name ? `${actor.name} (customer)` : 'the customer';
+}
+
+/** Where the booking came from, for the timeline card. */
+function bookingOriginLabel(b: Booking): string | null {
+  if (b.createdByAdmin?.name) return `Booked by ${b.createdByAdmin.name} for the customer`;
+  if (b.source === 'admin') return 'Booked by an admin for the customer';
+  if (b.source === 'website') return 'Booked on the website';
+  if (b.source === 'app') return 'Booked in the app';
+  return null;
+}
 
 export default function AdminBookingDetailScreen() {
   const id = paramString(useLocalSearchParams<{ id: string | string[] }>().id);
   const bookingCopy = useBookingCopy();
   const [booking, setBooking] = useState<Booking | null>(null);
-  const [techs, setTechs] = useState<User[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -76,6 +100,15 @@ export default function AdminBookingDetailScreen() {
   const [rescheduleAddress, setRescheduleAddress] = useState('');
   const [assignOpen, setAssignOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [orderOpen, setOrderOpen] = useState(false);
+  /** Index into `allPhotos` for the full-screen viewer (null = closed). */
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+
+  // Every step photo in step order, for swiping through them in the viewer.
+  const allPhotos = useMemo(
+    () => (booking?.steps ?? []).flatMap((step) => stepPhotoUrls(step).map((url) => mediaUrl(url))),
+    [booking?.steps],
+  );
 
   const load = useCallback(async () => {
     if (!id) {
@@ -83,18 +116,18 @@ export default function AdminBookingDetailScreen() {
       return;
     }
     setLoadError(null);
-    const [bookingRes, techsRes] = await Promise.allSettled([
-      api.get<{ booking: Booking }>(`/bookings/${id}`, screenLoadConfig),
-      api.get<{ technicians: User[] }>('/admin/technicians', screenLoadConfig),
-    ]);
-    if (bookingRes.status !== 'fulfilled') throw bookingRes.reason;
-    setBooking(bookingRes.value.data.booking);
-    if (techsRes.status === 'fulfilled') {
-      setTechs(techsRes.value.data.technicians);
-    } else {
-      setTechs([]);
-    }
+    // The assign picker loads technicians (with how well each fits this visit) itself.
+    const { data } = await api.get<{ booking: Booking }>(`/bookings/${id}`, screenLoadConfig);
+    setBooking(data.booking);
   }, [id]);
+
+  useStaleFocusRefresh(() => load().catch(() => undefined), 15_000);
+
+  // Reopen a cancelled booking (also the "Undo" in the toast right after cancelling here).
+  const { reopen, reopening } = useReopenBooking(async (next) => {
+    setBooking(next);
+    await load().catch(() => undefined);
+  });
 
   useEffect(() => {
     safeAsync(async () => {
@@ -114,30 +147,11 @@ export default function AdminBookingDetailScreen() {
     return () => clearInterval(timer);
   }, [booking?.status, booking?.id, load]);
 
-  const assignable = booking ? assignableTechnicians(techs, booking.schedule?.date) : [];
-
+  // The picker groups technicians by fit (skills, area, off days, leave, daily cap, slot clashes) and assigns.
   function assignTech() {
     if (!booking) return;
-    if (assignable.length === 0) {
-      Alert.alert('No technicians', 'Add technicians first.');
-      return;
-    }
     setAssignOpen(true);
   }
-
-  const assignOptions: ActionSheetOption[] = booking
-    ? assignable.map((t) => ({
-        key: t.id,
-        label: t.name,
-        subtitle: [t.available === false ? 'Off duty today' : '', t.phone || t.email].filter(Boolean).join(' · ') || undefined,
-        onPress: () =>
-          safeAsync(async () => {
-            await api.patch(`/bookings/${booking.id}/assign`, { technicianId: t.id });
-            Toast.show({ type: 'success', text1: 'Technician assigned' });
-            await load();
-          }),
-      }))
-    : [];
 
   function parseTimeParts(time?: string): [number, number] {
     if (!time) return [10, 0];
@@ -148,17 +162,52 @@ export default function AdminBookingDetailScreen() {
   function loadEditorFromBooking(b: Booking) {
     const req = b.scheduleRequest ?? b.schedule;
     const mode = b.scheduleMode ?? (req.time || b.schedule.time ? 'custom' : 'standard');
+    const requestedDate = req.date ?? b.schedule.date;
+    const today = localDateKey();
     setEditorMode(mode);
-    setEditorDate(req.date ?? b.schedule.date);
     if (mode === 'custom') {
       const [h, m] = parseTimeParts(req.time ?? b.schedule.time);
-      setEditorHour(h);
-      setEditorMinute(m);
+      const time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      if (isTimeStarted(requestedDate, time)) {
+        // The customer's time has already gone — start the editor on the next open half-hour.
+        const next = new Date(Date.now() + 30 * 60_000);
+        const rounded = next.getMinutes() < 30 ? 30 : 60;
+        next.setMinutes(rounded, 0, 0);
+        setEditorDate(localDateKey(next));
+        setEditorHour(next.getHours());
+        setEditorMinute(next.getMinutes());
+      } else {
+        setEditorDate(requestedDate);
+        setEditorHour(h);
+        setEditorMinute(m);
+      }
       setEditorSlot('custom');
     } else {
-      setEditorSlot(req.slot ?? b.schedule.slot ?? DEFAULT_BOOKING_SLOT);
+      const slot = req.slot ?? b.schedule.slot ?? DEFAULT_BOOKING_SLOT;
+      if (isSlotStarted(requestedDate, slot)) {
+        // Requested window is in the past — default to the next open window today, else tomorrow.
+        const todaySlot = firstOpenSlot(today);
+        const tomorrow = localDateKey(new Date(Date.now() + 864e5));
+        setEditorDate(todaySlot ? today : tomorrow);
+        setEditorSlot(todaySlot ?? firstOpenSlot(tomorrow) ?? DEFAULT_BOOKING_SLOT);
+      } else {
+        setEditorDate(requestedDate);
+        setEditorSlot(slot);
+      }
     }
     setRescheduleAddress(b.address);
+  }
+
+  /** True (and warns) when the chosen visit time has already started. */
+  function editorTimeHasPassed(): boolean {
+    const payload = buildSchedulePayload();
+    const gone =
+      payload.slot === 'custom' ? isTimeStarted(payload.date, payload.time ?? '00:00') : isSlotStarted(payload.date, payload.slot);
+    if (gone) {
+      haptic('error');
+      Toast.show({ type: 'error', text1: 'That time has already passed', text2: 'Pick a later day or time.' });
+    }
+    return gone;
   }
 
   function buildSchedulePayload() {
@@ -182,17 +231,19 @@ export default function AdminBookingDetailScreen() {
   }
 
   async function saveConfirmSchedule() {
-    if (!booking) return;
+    if (!booking || editorTimeHasPassed()) return;
     setBusy('confirm');
     try {
       await api.patch(`/bookings/${booking.id}/confirm-schedule`, {
         schedule: buildSchedulePayload(),
       });
+      haptic('success');
       Toast.show({ type: 'success', text1: 'Schedule confirmed' });
       setConfirmOpen(false);
       await load();
     } catch {
       // error toast shown by the api interceptor
+      haptic('error');
     } finally {
       setBusy(null);
     }
@@ -200,6 +251,12 @@ export default function AdminBookingDetailScreen() {
 
   async function saveReschedule() {
     if (!booking) return;
+    const current = booking.schedule;
+    const payload = buildSchedulePayload();
+    const changed =
+      current.date !== payload.date || current.slot !== payload.slot || ('time' in payload && current.time !== payload.time);
+    // Address-only edits keep the existing (possibly past) time; a new time must be in the future.
+    if (changed && editorTimeHasPassed()) return;
     setBusy('reschedule');
     try {
       await api.patch(`/bookings/${booking.id}`, {
@@ -208,34 +265,21 @@ export default function AdminBookingDetailScreen() {
           ? { address: rescheduleAddress.trim() }
           : {}),
       });
+      haptic('success');
       Toast.show({ type: 'success', text1: 'Booking updated' });
       setRescheduleOpen(false);
       await load();
     } catch {
       // error toast shown by the api interceptor
+      haptic('error');
     } finally {
       setBusy(null);
     }
   }
 
-  const cancelOptions: ActionSheetOption[] = [
-    {
-      key: 'cancel',
-      label: 'Cancel booking',
-      subtitle: 'The customer will be notified',
-      destructive: true,
-      onPress: () =>
-        safeAsync(async () => {
-          await api.patch(`/bookings/${id}/cancel`);
-          Toast.show({ type: 'success', text1: 'Booking cancelled' });
-          adminGoBack(adminRoutes.bookings);
-        }),
-    },
-  ];
-
   if (loadError) {
     return (
-      <AdminListShell title="Booking" subtitle="Error">
+      <AdminListShell title="Booking" subtitle="Error" backFallback={adminRoutes.bookings}>
         <ListEmptyRetry
           message={loadError}
           onRetry={() => safeAsync(load, undefined, (msg) => setLoadError(msg))}
@@ -244,11 +288,29 @@ export default function AdminBookingDetailScreen() {
     );
   }
 
-  if (!booking) return <Spinner fullScreen />;
+  if (!booking) {
+    return (
+      <AdminListShell
+        title="Booking details"
+        subtitle={id ? bookingRef(id) : 'Loading…'}
+        backFallback={adminRoutes.bookings}
+      >
+        <AdminBookingDetailSkeleton />
+      </AdminListShell>
+    );
+  }
 
   const steps = booking.steps ?? [];
+  // Where each step's photos begin in `allPhotos` (the viewer swipes across every step).
+  const stepPhotoStart: number[] = [];
+  steps.reduce((offset, step) => {
+    stepPhotoStart.push(offset);
+    return offset + stepPhotoUrls(step).length;
+  }, 0);
   const doneCount = bookingStepsDone(booking);
   const terminal = isTerminalBookingStatus(booking.status);
+  // Cancelled before work started → can go back to pending / confirmed (server: POST /bookings/:id/reopen).
+  const canReopen = booking.status === 'cancelled' && !booking.workStartedAt;
   const adminOtp = booking.workOtp as WorkOtpAdminView | undefined;
   const customerId =
     booking.customer && typeof booking.customer === 'object' ? booking.customer.id : undefined;
@@ -286,31 +348,52 @@ export default function AdminBookingDetailScreen() {
       backFallback={adminRoutes.bookings}
       stickyFooter={
         !terminal ? (
-          <StickyActionBar>
+          <StickyActionBar row>
+            <Button
+              title="Cancel"
+              variant="dangerOutline"
+              onPress={() => setCancelOpen(true)}
+              fullWidth={false}
+              style={styles.footerSecondary}
+            />
             {isSchedulePending(booking) ? (
-              <>
-                <Button
-                  title="Confirm schedule"
-                  variant="premium"
-                  onPress={openConfirmSchedule}
-                  loading={busy === 'confirm'}
-                  style={styles.footerBtn}
-                />
-                <Button
-                  title="Cancel booking"
-                  variant="secondary"
-                  onPress={() => setCancelOpen(true)}
-                  style={styles.footerBtn}
-                />
-              </>
+              <Button
+                title="Confirm schedule"
+                variant="premium"
+                onPress={openConfirmSchedule}
+                loading={busy === 'confirm'}
+                fullWidth={false}
+                style={styles.footerPrimary}
+              />
+            ) : booking.status === 'confirmed' && !booking.technician ? (
+              <Button
+                title="Assign technician"
+                variant="premium"
+                onPress={assignTech}
+                fullWidth={false}
+                style={styles.footerPrimary}
+              />
             ) : (
               <Button
-                title="Cancel booking"
+                title="Reschedule"
                 variant="secondary"
-                onPress={() => setCancelOpen(true)}
-                style={styles.footerBtn}
+                onPress={openReschedule}
+                fullWidth={false}
+                style={styles.footerPrimary}
               />
             )}
+          </StickyActionBar>
+        ) : canReopen ? (
+          <StickyActionBar row>
+            <Button
+              title="Reopen booking"
+              variant="premium"
+              onPress={() => void reopen(booking)}
+              loading={reopening}
+              fullWidth={false}
+              style={styles.footerPrimary}
+              accessibilityHint="Puts this cancelled booking back to pending or confirmed"
+            />
           </StickyActionBar>
         ) : undefined
       }
@@ -318,184 +401,304 @@ export default function AdminBookingDetailScreen() {
       <ScrollView
         contentContainerStyle={[
           adminListShellStyles.list,
-          !terminal ? adminListShellStyles.scrollWithFooter : undefined,
+          !terminal || canReopen ? adminListShellStyles.scrollWithFooter : undefined,
         ]}
         keyboardShouldPersistTaps="handled"
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={async () => {
-            setRefreshing(true);
-            await load();
-            setRefreshing(false);
-          }} tintColor={colors.green} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={async () => {
+              setRefreshing(true);
+              try {
+                await load();
+              } catch {
+                Toast.show({ type: 'error', text1: 'Could not refresh booking' });
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+            tintColor={colors.green}
+          />
         }
       >
-        <BookingStatusBanner status={booking.status} audience="staff" />
-
-        <AdminProcessTracker
-          status={booking.status}
-          assigned={Boolean(
-            booking.technician &&
-              (typeof booking.technician === 'string'
-                ? booking.technician
-                : booking.technician.id),
-          )}
-        />
-
-        {isSchedulePending(booking) ? (
-          <PendingScheduleCard
-            variant="admin"
-            title={bookingCopy.adminRequestTitle}
-            scheduleLabel={bookingRequestedScheduleDisplay(booking)}
-            hint={bookingCopy.adminConfirmHint}
-            modeLabel={
-              booking.scheduleMode === 'custom'
-                ? bookingCopy.customModeLabel
-                : bookingCopy.standardModeLabel
-            }
-            notes={booking.scheduleRequest?.notes}
-            customerName={bookingCustomerName(booking)}
-          />
-        ) : null}
-
-        <BookingFactsCard booking={booking} showCustomer showTechnician showPayment />
-
-        {(booking.createdAt || booking.scheduleConfirmedAt) ? (
-          <Card variant="premium" style={styles.timelineCard}>
-            <Text style={styles.section}>Timeline</Text>
-            {booking.createdAt ? (
-              <Text style={styles.opsHint}>Requested: {formatWhen(booking.createdAt)}</Text>
-            ) : null}
-            {booking.scheduleConfirmedAt ? (
-              <Text style={[styles.opsHint, { marginTop: 4 }]}>
-                Schedule confirmed: {formatWhen(booking.scheduleConfirmedAt)}
-              </Text>
-            ) : isSchedulePending(booking) ? (
-              <Text style={[styles.opsHint, { marginTop: 4 }]}>Schedule confirmed: Awaiting admin</Text>
-            ) : null}
-          </Card>
-        ) : null}
-
-        <Card variant="premium" style={styles.priceCard}>
-          <Text style={styles.section}>Payment</Text>
-          <BookingPriceBreakdown
-            amount={booking.amount}
-            serviceName={bookingServiceName(booking)}
-            serviceDesc={
-              booking.service && typeof booking.service === 'object'
-                ? booking.service.shortDesc
+        <FadeSlideIn delay={stagger(0)} slideFrom={14}>
+          <BookingStatusBanner
+            status={booking.status}
+            audience="staff"
+            flush
+            message={
+              booking.status === 'confirmed' && !booking.technician
+                ? 'Schedule confirmed. Assign a technician so they can start the visit.'
                 : undefined
             }
           />
-        </Card>
+        </FadeSlideIn>
 
-        {booking.status !== 'cancelled' ? (
-          <BookingInvoiceCard bookingId={booking.id} />
+        {booking.status === 'cancelled' && (booking.cancelReason || booking.cancelledBy || booking.cancelledAt) ? (
+          <FadeSlideIn delay={stagger(1)} slideFrom={14}>
+            <Card variant="glass" style={styles.cancelCard}>
+              <Text style={styles.cancelTitle}>
+                {`Cancelled by ${cancelActorLabel(booking.cancelledBy)}${booking.cancelledAt ? ` · ${formatWhen(booking.cancelledAt)}` : ''}`}
+              </Text>
+              {booking.cancelReason ? (
+                <Text style={styles.cancelReason} selectable>
+                  Reason: {booking.cancelReason}
+                </Text>
+              ) : (
+                <Text style={styles.cancelReason}>No reason given.</Text>
+              )}
+              <Text style={styles.cancelHint}>
+                {canReopen
+                  ? 'Reopening puts it back to pending (or confirmed when auto-confirm is on and the time is still open) and tells the customer.'
+                  : 'Work had started before it was cancelled, so it can’t be reopened — book a new visit instead.'}
+              </Text>
+            </Card>
+          </FadeSlideIn>
         ) : null}
 
-        <OtpStatusCard workOtp={adminOtp} bookingId={booking.id} onUpdated={load} />
+        <FadeSlideIn delay={stagger(1)} slideFrom={14}>
+          <AdminProcessTracker
+            status={booking.status}
+            assigned={Boolean(
+              booking.technician &&
+                (typeof booking.technician === 'string'
+                  ? booking.technician
+                  : booking.technician.id),
+            )}
+          />
+        </FadeSlideIn>
 
-        {(booking.tracking?.length ?? 0) > 0 ? (
-          <>
-            <Text style={styles.section}>Live tracking</Text>
-            <BookingTrackingTimeline events={booking.tracking ?? []} />
-          </>
+        {booking.visitContact ? (
+          <FadeSlideIn delay={stagger(2)} slideFrom={14}>
+            <BookingVisitContactCard
+              name={booking.visitContact.name}
+              phone={booking.visitContact.phone}
+              title="Visit contact"
+              subtitle="Booked for someone else — call this person for the visit"
+            />
+          </FadeSlideIn>
         ) : null}
 
         {isSchedulePending(booking) ? (
-          <Card variant="premium" style={styles.opsCard}>
-            <Text style={styles.section}>Update process</Text>
-            <Text style={styles.opsHint}>Confirm the visit schedule to unlock technician assignment.</Text>
-            <Button
-              title="Confirm schedule"
-              variant="premium"
-              onPress={openConfirmSchedule}
-              loading={busy === 'confirm'}
-              style={{ marginTop: spacing.md }}
+          <FadeSlideIn delay={stagger(2)} slideFrom={14}>
+            <PendingScheduleCard
+              variant="admin"
+              title={bookingCopy.adminRequestTitle}
+              scheduleLabel={bookingRequestedScheduleDisplay(booking)}
+              hint={bookingCopy.adminConfirmHint}
+              modeLabel={
+                booking.scheduleMode === 'custom'
+                  ? bookingCopy.customModeLabel
+                  : bookingCopy.standardModeLabel
+              }
+              notes={booking.scheduleRequest?.notes}
+              customerName={bookingCustomerName(booking)}
             />
-            <AdminBookingActions booking={booking} onUpdated={load} busy={busy} setBusy={setBusy} />
-          </Card>
+          </FadeSlideIn>
+        ) : null}
+
+        <FadeSlideIn delay={stagger(3)} slideFrom={14}>
+          <BookingFactsCard booking={booking} showCustomer showTechnician showPayment />
+        </FadeSlideIn>
+
+        {isSchedulePending(booking) ? (
+          <FadeSlideIn delay={stagger(4)} slideFrom={14}>
+            <Card variant="premium" style={styles.opsCard}>
+              <Text style={styles.section}>Update process</Text>
+              <Text style={styles.opsHint}>Confirm the visit schedule to unlock technician assignment.</Text>
+              <Button
+                title="Confirm schedule"
+                variant="premium"
+                onPress={openConfirmSchedule}
+                loading={busy === 'confirm'}
+                style={{ marginTop: spacing.md }}
+              />
+              <AdminBookingActions
+                booking={booking}
+                onUpdated={load}
+                busy={busy}
+                setBusy={setBusy}
+                onCancel={() => setCancelOpen(true)}
+              />
+            </Card>
+          </FadeSlideIn>
         ) : null}
 
         {isOperationsPhase(booking.status) && booking.status !== 'pending' && (
-          <Card variant="premium" style={styles.opsCard}>
-            <Text style={styles.section}>Dispatch</Text>
-            <Text style={styles.opsHint}>
-              Confirmed visit: {bookingScheduleDisplay(booking)}.{' '}
-              {booking.assignmentMode === 'customer_pick' && booking.technician
-                ? `Customer requested ${bookingTechnicianName(booking)}. `
-                : booking.assignmentMode === 'auto'
-                  ? 'Pick the best technician. '
-                  : ''}
-              Customer: {bookingCustomerName(booking)}
-            </Text>
-            {customerId ? (
-              <Pressable onPress={() => appPush(adminRoutes.customer(customerId))}>
-                <Text style={styles.link}>View customer profile →</Text>
-              </Pressable>
-            ) : null}
-            <AdminBookingActions
-              booking={booking}
-              onUpdated={load}
-              busy={busy}
-              setBusy={setBusy}
-              onAssign={assignTech}
-            />
-          </Card>
+          <FadeSlideIn delay={stagger(4)} slideFrom={14}>
+            <Card variant="premium" style={styles.opsCard}>
+              <Text style={styles.section}>Dispatch</Text>
+              <Text style={styles.opsHint}>
+                Confirmed visit: {bookingScheduleDisplay(booking)}.{' '}
+                {booking.assignmentMode === 'customer_pick' && booking.technician
+                  ? `Customer requested ${bookingTechnicianName(booking)}. `
+                  : booking.assignmentMode === 'auto'
+                    ? 'Pick the best technician. '
+                    : ''}
+                Customer: {bookingCustomerName(booking)}
+                {booking.visitContact ? ` · Visit contact: ${booking.visitContact.name}, ${booking.visitContact.phone}` : ''}
+              </Text>
+              {customerId ? (
+                <Pressable
+                  onPress={() => appPush(adminRoutes.customer(customerId))}
+                  hitSlop={8}
+                  style={({ pressed }) => pressed && styles.linkPressed}
+                  accessibilityRole="link"
+                >
+                  <Text style={styles.link}>View customer profile →</Text>
+                </Pressable>
+              ) : null}
+              <AdminBookingActions
+                booking={booking}
+                onUpdated={load}
+                busy={busy}
+                setBusy={setBusy}
+                onAssign={assignTech}
+                onCancel={() => setCancelOpen(true)}
+              />
+            </Card>
+          </FadeSlideIn>
         )}
 
         {booking.status === 'in_progress' && (
           <>
-            <JobProgressCard done={doneCount} total={steps.length} live label="Job progress" />
-            <Card variant="premium" style={styles.opsCard}>
-              <Text style={styles.section}>On site</Text>
-              <Text style={styles.opsHint}>
-                Technician verified the start code. {doneCount} of {steps.length} treatment steps captured.
-              </Text>
-              <AdminBookingActions booking={booking} onUpdated={load} busy={busy} setBusy={setBusy} />
-            </Card>
+            <FadeSlideIn delay={stagger(4)} slideFrom={14}>
+              <JobProgressCard done={doneCount} total={steps.length} live label="Job progress" />
+            </FadeSlideIn>
+            <FadeSlideIn delay={stagger(4)} slideFrom={14}>
+              <Card variant="premium" style={styles.opsCard}>
+                <Text style={styles.section}>On site</Text>
+                <Text style={styles.opsHint}>
+                  Technician verified the start code. {doneCount} of {steps.length} treatment steps captured.
+                </Text>
+                <AdminBookingActions
+                booking={booking}
+                onUpdated={load}
+                busy={busy}
+                setBusy={setBusy}
+                onCancel={() => setCancelOpen(true)}
+              />
+              </Card>
+            </FadeSlideIn>
           </>
         )}
 
         {isVerificationPhase(booking.status) && (
-          <Card variant="glass" style={styles.infoCard}>
-            <Text style={styles.infoTitle}>Awaiting completion code</Text>
-            <Text style={styles.infoBody}>
-              Treatment steps are done. Reveal or regenerate the end code, or force-complete if needed.
-            </Text>
-            <AdminBookingActions booking={booking} onUpdated={load} busy={busy} setBusy={setBusy} />
-          </Card>
+          <FadeSlideIn delay={stagger(4)} slideFrom={14}>
+            <Card variant="glass" style={styles.infoCard}>
+              <Text style={styles.infoTitle}>Awaiting completion code</Text>
+              <Text style={styles.infoBody}>
+                Treatment steps are done. Reveal or regenerate the end code, or force-complete if needed.
+              </Text>
+              <AdminBookingActions
+                booking={booking}
+                onUpdated={load}
+                busy={busy}
+                setBusy={setBusy}
+                onCancel={() => setCancelOpen(true)}
+              />
+            </Card>
+          </FadeSlideIn>
         )}
 
+        <FadeSlideIn delay={stagger(5)} slideFrom={14}>
+          <AdminBookingNotes booking={booking} onBookingChange={setBooking} />
+        </FadeSlideIn>
+
+        {(booking.createdAt || booking.scheduleConfirmedAt) ? (
+          <FadeSlideIn delay={stagger(5)} slideFrom={14}>
+            <Card variant="premium" style={styles.timelineCard}>
+              <Text style={styles.section}>Timeline</Text>
+              {bookingOriginLabel(booking) ? (
+                <Text style={[styles.opsHint, styles.originLine]}>{bookingOriginLabel(booking)}</Text>
+              ) : null}
+              {booking.createdAt ? (
+                <Text style={styles.opsHint}>Requested: {formatWhen(booking.createdAt)}</Text>
+              ) : null}
+              {booking.scheduleConfirmedAt ? (
+                <Text style={[styles.opsHint, { marginTop: 4 }]}>
+                  Schedule confirmed: {formatWhen(booking.scheduleConfirmedAt)}
+                </Text>
+              ) : isSchedulePending(booking) ? (
+                <Text style={[styles.opsHint, { marginTop: 4 }]}>Schedule confirmed: Awaiting admin</Text>
+              ) : null}
+            </Card>
+          </FadeSlideIn>
+        ) : null}
+
+        <FadeSlideIn delay={stagger(5)} slideFrom={14}>
+          <AdminBookingPayment
+            booking={booking}
+            onBookingChange={setBooking}
+            onEditOrder={booking.status !== 'cancelled' ? () => setOrderOpen(true) : undefined}
+          />
+        </FadeSlideIn>
+
+        {(booking.orderHistory?.length ?? 0) > 0 ? (
+          <FadeSlideIn delay={stagger(5)} slideFrom={14}>
+            <AdminOrderHistory booking={booking} />
+          </FadeSlideIn>
+        ) : null}
+
+        {booking.status !== 'cancelled' ? (
+          <FadeSlideIn delay={stagger(6)} slideFrom={14}>
+            <BookingInvoiceCard bookingId={booking.id}
+              refreshKey={`${booking.status}|${booking.schedule.date}|${booking.schedule.slot}|${booking.schedule.time ?? ''}|${booking.amount?.total ?? ''}|${booking.orderHistory?.length ?? 0}`} />
+          </FadeSlideIn>
+        ) : null}
+
+        <FadeSlideIn delay={stagger(6)} slideFrom={14}>
+          <OtpStatusCard workOtp={adminOtp} bookingId={booking.id} onUpdated={load} />
+        </FadeSlideIn>
+
+        {(booking.tracking?.length ?? 0) > 0 ? (
+          <FadeSlideIn delay={stagger(6)} slideFrom={14}>
+            <Text style={styles.section}>Live tracking</Text>
+            <BookingTrackingTimeline events={booking.tracking ?? []} />
+          </FadeSlideIn>
+        ) : null}
+
         {!terminal && (
-          <Button title="Reschedule / edit address" variant="secondary" onPress={openReschedule} style={{ marginTop: spacing.md }} />
+          <FadeSlideIn delay={stagger(6)} slideFrom={14}>
+            <Button title="Reschedule / edit address" variant="secondary" onPress={openReschedule} style={{ marginTop: spacing.md }} />
+          </FadeSlideIn>
         )}
 
         {(isVerificationPhase(booking.status) || doneCount > 0) && (
-          <>
+          <FadeSlideIn delay={stagger(6)} slideFrom={14}>
             <Text style={styles.section}>Step photos</Text>
+            {allPhotos.length > 0 ? <Text style={styles.photoHint}>Tap a photo to view it full screen.</Text> : null}
             <View style={styles.grid}>
               {steps.map((step, i) => {
                 const photos = stepPhotoUrls(step);
+                const start = stepPhotoStart[i] ?? 0;
                 return (
                   <Card key={`${step.title}-${i}`} variant="premium" style={styles.photoCard}>
-                    <View style={styles.thumb}>
-                      {photos[0] ? (
-                        <>
-                          <Image source={{ uri: mediaUrl(photos[0]) }} style={styles.img} />
-                          <View style={styles.ok}>
-                            <PremiumIcon icon={AppIcons.ui.check} variant="plain" size="xs" color="#fff" strokeWidth={3} />
+                    {photos[0] ? (
+                      <Pressable
+                        onPress={() => setViewerIndex(start)}
+                        style={({ pressed }) => [styles.thumb, pressed && styles.thumbPressed]}
+                        accessibilityRole="imagebutton"
+                        accessibilityLabel={`View photo for ${step.title}`}
+                      >
+                        <AppImage uri={mediaUrl(photos[0])} style={styles.img} />
+                        <View style={styles.ok}>
+                          <PremiumIcon icon={AppIcons.ui.check} variant="plain" size="xs" color={colors.white} strokeWidth={3} />
+                        </View>
+                        {photos.length > 1 ? (
+                          <View style={styles.countBadge}>
+                            <Text style={styles.countBadgeText}>{photos.length}</Text>
                           </View>
-                          {photos.length > 1 ? (
-                            <View style={styles.countBadge}>
-                              <Text style={styles.countBadgeText}>{photos.length}</Text>
-                            </View>
-                          ) : null}
-                        </>
-                      ) : (
+                        ) : null}
+                      </Pressable>
+                    ) : (
+                      <View style={styles.thumb}>
                         <Text style={styles.pending}>Pending</Text>
-                      )}
-                    </View>
-                    <Text style={styles.stepTitle}>{step.title}</Text>
+                      </View>
+                    )}
+                    <Text style={styles.stepTitle} numberOfLines={2}>
+                      {step.title}
+                    </Text>
                     <Text style={styles.stepMeta}>
                       {step.status === 'done'
                         ? photos.length > 1
@@ -510,11 +713,15 @@ export default function AdminBookingDetailScreen() {
                         contentContainerStyle={styles.stepPhotoRow}
                       >
                         {photos.map((url, pi) => (
-                          <Image
+                          <Pressable
                             key={`${url}-${pi}`}
-                            source={{ uri: mediaUrl(url) }}
-                            style={styles.stepPhotoThumb}
-                          />
+                            onPress={() => setViewerIndex(start + pi)}
+                            style={({ pressed }) => pressed && styles.thumbPressed}
+                            accessibilityRole="imagebutton"
+                            accessibilityLabel={`View photo ${pi + 1} of ${photos.length} for ${step.title}`}
+                          >
+                            <AppImage uri={mediaUrl(url)} style={styles.stepPhotoThumb} recyclingKey={url} />
+                          </Pressable>
                         ))}
                       </ScrollView>
                     ) : null}
@@ -522,65 +729,55 @@ export default function AdminBookingDetailScreen() {
                 );
               })}
             </View>
-          </>
+          </FadeSlideIn>
         )}
       </ScrollView>
 
-      <AdminActionSheet
+      <TechnicianPickerSheet
         visible={assignOpen}
-        title="Assign technician"
-        message={booking ? bookingCustomerName(booking) : undefined}
-        options={assignOptions}
+        bookingId={booking.id}
         onClose={() => setAssignOpen(false)}
+        onAssigned={() => load().catch(() => undefined)}
       />
 
-      <AdminActionSheet
+      <AdminCancelSheet
         visible={cancelOpen}
-        title="Cancel booking?"
-        message="This cannot be undone."
-        options={cancelOptions}
+        bookingId={booking.id}
+        bookingLabel={`${bookingRef(booking.id)} · ${bookingServiceName(booking)}`}
         onClose={() => setCancelOpen(false)}
+        onCancelled={() => load().catch(() => undefined)}
+        onUndo={
+          booking.workStartedAt ? undefined : () => void reopen({ id: booking.id, couponCode: booking.couponCode }, { undo: true })
+        }
       />
 
-      <Modal visible={confirmOpen} animationType="slide" transparent onRequestClose={() => setConfirmOpen(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setConfirmOpen(false)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.section}>{bookingCopy.adminConfirmTitle}</Text>
-            <Text style={styles.opsHint}>{bookingCopy.adminConfirmHint}</Text>
-            <ScheduleEditorForm
-              mode={editorMode}
-              onModeChange={setEditorMode}
-              date={editorDate}
-              onDateChange={setEditorDate}
-              slot={editorSlot}
-              onSlotChange={setEditorSlot}
-              hour={editorHour}
-              minute={editorMinute}
-              onTimeChange={(h, m) => {
-                setEditorHour(h);
-                setEditorMinute(m);
-              }}
-              standardLabel={bookingCopy.standardModeLabel}
-              customLabel={bookingCopy.customModeLabel}
-            />
+      <AdminOrderEditor
+        visible={orderOpen}
+        booking={booking}
+        onClose={() => setOrderOpen(false)}
+        onSaved={(next) => setBooking(next)}
+        onStale={() => void load().catch(() => undefined)}
+      />
+
+      <PhotoViewer photos={allPhotos} index={viewerIndex} onClose={() => setViewerIndex(null)} />
+
+      <AdminBottomSheet
+        visible={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title={bookingCopy.adminConfirmTitle}
+        hint={bookingCopy.adminConfirmHint}
+        footer={
+          <>
             <Button
               title={bookingCopy.adminConfirmButton}
               variant="premium"
               onPress={() => void saveConfirmSchedule()}
               loading={busy === 'confirm'}
-              style={{ marginTop: spacing.md }}
             />
-            <Button title="Close" variant="secondary" onPress={() => setConfirmOpen(false)} style={{ marginTop: spacing.sm }} />
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      <Modal visible={rescheduleOpen} animationType="slide" transparent onRequestClose={() => setRescheduleOpen(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setRescheduleOpen(false)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.section}>Reschedule</Text>
+            <Button title="Close" variant="secondary" onPress={() => setConfirmOpen(false)} />
+          </>
+        }
+      >
             <ScheduleEditorForm
               mode={editorMode}
               onModeChange={setEditorMode}
@@ -597,12 +794,38 @@ export default function AdminBookingDetailScreen() {
               standardLabel={bookingCopy.standardModeLabel}
               customLabel={bookingCopy.customModeLabel}
             />
-            <Input label="Address" value={rescheduleAddress} onChangeText={setRescheduleAddress} />
-            <Button title="Save" onPress={() => void saveReschedule()} loading={busy === 'reschedule'} style={{ marginTop: spacing.md }} />
-            <Button title="Close" variant="secondary" onPress={() => setRescheduleOpen(false)} style={{ marginTop: spacing.sm }} />
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </AdminBottomSheet>
+
+      <AdminBottomSheet
+        visible={rescheduleOpen}
+        onClose={() => setRescheduleOpen(false)}
+        title="Reschedule"
+        hint="Pick a new day and time — the customer and technician are notified."
+        footer={
+          <>
+            <Button title="Save" variant="premium" onPress={() => void saveReschedule()} loading={busy === 'reschedule'} />
+            <Button title="Close" variant="secondary" onPress={() => setRescheduleOpen(false)} />
+          </>
+        }
+      >
+            <ScheduleEditorForm
+              mode={editorMode}
+              onModeChange={setEditorMode}
+              date={editorDate}
+              onDateChange={setEditorDate}
+              slot={editorSlot}
+              onSlotChange={setEditorSlot}
+              hour={editorHour}
+              minute={editorMinute}
+              onTimeChange={(h, m) => {
+                setEditorHour(h);
+                setEditorMinute(m);
+              }}
+              standardLabel={bookingCopy.standardModeLabel}
+              customLabel={bookingCopy.customModeLabel}
+            />
+        <Input label="Address" value={rescheduleAddress} onChangeText={setRescheduleAddress} />
+      </AdminBottomSheet>
     </AdminListShell>
   );
 }
@@ -610,10 +833,10 @@ export default function AdminBookingDetailScreen() {
 const styles = StyleSheet.create({
   section: { fontFamily: fonts.display, fontSize: 14, marginBottom: spacing.sm, color: colors.ink },
   timelineCard: { marginTop: spacing.sm, padding: spacing.md },
-  priceCard: { marginTop: spacing.md, padding: spacing.md },
   opsCard: { marginTop: spacing.md, padding: spacing.md },
   opsHint: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, lineHeight: 20 },
   link: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.secondaryDark, marginTop: spacing.sm },
+  linkPressed: { opacity: 0.6 },
   infoCard: {
     marginTop: spacing.md,
     padding: spacing.md,
@@ -623,16 +846,29 @@ const styles = StyleSheet.create({
   },
   infoTitle: { fontFamily: fonts.display, fontSize: 14, color: colors.forest },
   infoBody: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 6, lineHeight: 18 },
+  cancelCard: {
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    backgroundColor: colors.errorBg,
+    borderWidth: 1,
+    borderColor: 'rgba(179,63,40,0.18)',
+  },
+  cancelTitle: { fontFamily: fonts.display, fontSize: 14, color: colors.error },
+  cancelReason: { fontFamily: fonts.body, fontSize: 13, color: colors.ink, marginTop: 6, lineHeight: 19 },
+  cancelHint: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, marginTop: 8, lineHeight: 17 },
+  originLine: { marginBottom: 4, color: colors.ink },
+  photoHint: { fontFamily: fonts.body, fontSize: 12, color: ui.textSecondary, marginTop: -4, marginBottom: spacing.sm },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  photoCard: { width: '100%', padding: 8 },
+  photoCard: { width: '48%', flexGrow: 1, padding: 8 },
   thumb: {
-    height: 96,
+    aspectRatio: 4 / 3,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: colors.forest,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  thumbPressed: { opacity: 0.85 },
   img: { width: '100%', height: '100%' },
   ok: {
     position: 'absolute',
@@ -661,30 +897,12 @@ const styles = StyleSheet.create({
   },
   countBadgeText: { fontFamily: fonts.bodyBold, fontSize: 11, color: colors.white },
   stepPhotoRow: { gap: 8, marginTop: 8 },
-  stepPhotoThumb: { width: 72, height: 72, borderRadius: 10, backgroundColor: colors.soft },
+  stepPhotoThumb: { width: 56, height: 56, borderRadius: 10, backgroundColor: colors.soft },
   pending: { fontFamily: fonts.body, color: colors.white, fontSize: 12 },
-  stepTitle: { fontFamily: fonts.display, fontSize: 11.5, marginTop: 8 },
-  stepMeta: { fontFamily: fonts.body, fontSize: 10, color: colors.muted },
-  footerBtn: { width: '100%' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  modalSheet: {
-    backgroundColor: surfaces.glass,
-    borderTopLeftRadius: premium.radiusCard,
-    borderTopRightRadius: premium.radiusCard,
-    borderTopWidth: 1.5,
-    borderColor: colors.limeBright,
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
-    ...premium.shadowSoft,
-  },
-  modalHandle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    marginBottom: spacing.md,
-  },
+  stepTitle: { fontFamily: fonts.display, fontSize: 11.5, marginTop: 8, color: ui.text },
+  stepMeta: { fontFamily: fonts.body, fontSize: 10, color: ui.textSecondary },
+  footerSecondary: { flex: 1 },
+  footerPrimary: { flex: 1.8 },
   modalLabel: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted, marginTop: spacing.sm, marginBottom: 6 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.sm },
 });

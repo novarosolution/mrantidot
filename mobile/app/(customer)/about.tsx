@@ -1,50 +1,46 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { BrandLogo } from '@/components/BrandLogo';
-import { CustomerContentPage } from '@/components/kit/CustomerContentPage';
-import { Card } from '@/components/ui/Card';
+import { ContentCard, CustomerContentPage } from '@/components/kit/CustomerContentPage';
 import { SimpleMarkdown } from '@/components/ui/SimpleMarkdown';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useAppContent } from '@/context/AppContentContext';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { typeScale, ui } from '@/constants/theme';
+import { useCustomerUiCopy } from '@/lib/customer-ui-copy';
 
 export default function AboutScreen() {
   const { content } = useAppContent();
+  const copy = useCustomerUiCopy();
   const name = content.branding?.name?.trim() || 'Mr Antidot';
-  const tagline = content.branding?.tagline?.trim() || 'Trusted pest control & home services';
+  const tagline = content.branding?.tagline?.trim() || copy.launchTaglineFallback;
 
   return (
-    <CustomerContentPage
-      title="About us"
-      subtitle={name}
-      sectionTitle="Our story"
-      sectionSubtitle="Who we are and how we care for your space"
-    >
-      <Card variant="premium" style={styles.brandCard}>
+    <CustomerContentPage title={copy.aboutTitle} subtitle={copy.aboutSubtitle}>
+      {/* Brand and story share one card: the logo row is the card's masthead. */}
+      <ContentCard>
         <View style={styles.brandRow}>
-          <BrandLogo size={64} animate={false} />
+          <BrandLogo size={60} animate={false} />
           <View style={styles.brandText}>
             <Text style={styles.brandName}>{name}</Text>
             <Text style={styles.brandTag}>{tagline}</Text>
           </View>
         </View>
-      </Card>
+        {content.aboutMarkdown ? (
+          <>
+            <View style={styles.rule} />
+            <SimpleMarkdown text={content.aboutMarkdown} />
+          </>
+        ) : null}
+      </ContentCard>
 
-      {content.aboutMarkdown ? (
-        <Card variant="glass" style={styles.card}>
-          <SimpleMarkdown text={content.aboutMarkdown} />
-        </Card>
-      ) : (
-        <EmptyState title="Nothing here yet" message="Check back soon." />
-      )}
+      {content.aboutMarkdown ? null : <EmptyState title={copy.aboutEmptyTitle} message={copy.aboutEmptyMessage} />}
     </CustomerContentPage>
   );
 }
 
 const styles = StyleSheet.create({
-  brandCard: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   brandText: { flex: 1, minWidth: 0 },
-  brandName: { fontFamily: fonts.displayExtra, fontSize: 20, color: colors.forest },
-  brandTag: { fontFamily: fonts.body, fontSize: 13, color: colors.muted, marginTop: 4, lineHeight: 18 },
-  card: { marginHorizontal: spacing.md, padding: spacing.md },
+  brandName: { ...typeScale.title, fontSize: 21, lineHeight: 27, color: ui.text },
+  brandTag: { ...typeScale.caption, marginTop: 3, lineHeight: 19, color: ui.textSecondary },
+  rule: { height: StyleSheet.hairlineWidth, backgroundColor: ui.border, marginVertical: 16 },
 });
